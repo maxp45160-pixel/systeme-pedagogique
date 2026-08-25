@@ -296,6 +296,7 @@ export function EtapeBesoin({
           <Champ
             label="Pourquoi cette séance ? (facultatif)"
             multiligne
+            formules
             rows={2}
             value={intention}
             onChange={(e) => setIntention(e.target.value)}

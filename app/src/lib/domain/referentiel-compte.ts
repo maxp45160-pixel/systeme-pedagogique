@@ -59,8 +59,9 @@ export function assemblerReferentiel(
    *
    * Absents, aucune compétence n'est visible d'aucun domaine : elles sont
    * toutes « À classer ». Ce n'est pas un repli mais la lecture exacte de la
-   * table — la migration `20260823090000` a converti chaque domaine de création
-   * en tag, précisément pour qu'aucun référentiel existant ne s'y retrouve.
+   * table — la migration du 23/08 a converti chaque domaine de création en tag
+   * pour les compétences d'alors, et depuis le 25/08 la RPC de création pose
+   * elle-même ce tag initial : toute compétence neuve naît dans son domaine.
    */
   tags: Array<{ code: string; domaine: string }> = [],
 ): Referentiel {

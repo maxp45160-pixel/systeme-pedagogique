@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Le protocole de traitement d'un cours (ADR-130).
+ * Le protocole de traitement d'un cours (ADR-130, ADR-131).
  *
  * Deux pièces, et une frontière nette entre elles :
  *
@@ -10,11 +10,13 @@
  *   des intentions datées. Il n'affiche que ce qui existe déjà ailleurs.
  * - **La modale** est le geste : concevoir le plan (intention déclarée +
  *   PDF + référentiel → tuteur), le relire case par case, puis — et seulement
- *   alors — créer les séances, une par une, avec génération des exercices
- *   manquants (décision ADR-130 : la personne encaisse la commande au tuteur
- *   d'un coup, la relecture fine des exercices reste possible après coup sur
+ *   alors — planifier les séances retenues. L'écriture est INSTANTANÉE
+ *   (ADR-131) : composer avec le stock existant suffit, aucun appel tuteur.
+ *   Les exercices manquants restent une commande portée par la séance ; le
+ *   tuteur les écrit au démarrage de chacune, quand la personne décide d'en
+ *   faire quelque chose. La relecture fine des exercices reste possible sur
  *   chaque fiche, et la barrière qualité demeure la validation humaine des
- *   corrections).
+ *   corrections.
  *
  * Le tuteur produit ici du contenu, jamais une mesure : le plan ne pré-note
  * rien, et les dimensions sont des intentifs de séance, pas des états.
@@ -23,6 +25,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
 import {
@@ -42,7 +45,7 @@ import {
 } from "@/lib/domain/protocole-cours";
 import {
   enregistrerProtocoleAction,
-  preparerSeanceProtocoleAction,
+  planifierSeanceProtocoleAction,
   type TraceProtocole,
 } from "@/lib/store/protocole-actions";
 
@@ -226,6 +229,8 @@ export function ModaleProtocole({
     intentionInitiale ?? "maitriser",
   );
   const [intentionLibre, setIntentionLibre] = useState("");
+  // L'intention est du texte pédagogique libre : palette de formules (friction 1).
+  const intentionRef = useRef<HTMLTextAreaElement>(null);
   const [garde, setGarde] = useState<Record<number, boolean>>({});
   const [erreur, setErreur] = useState<string | null>(null);
   const abandonRef = useRef<AbortController | null>(null);
@@ -320,9 +325,11 @@ export function ModaleProtocole({
   }
 
   /*
-   * L'écriture est séquentielle, séance par séance : chaque préparation peut
-   * générer un lot d'exercices (dizaines de secondes), et un échec au milieu
-   * doit laisser un bilan lisible au lieu de prétendre que rien n'a eu lieu.
+   * L'écriture est séquentielle et INSTANTANÉE (ADR-131) : planifier une
+   * séance ne passe par aucun appel tuteur. Un échec au milieu doit laisser un
+   * bilan lisible au lieu de prétendre que rien n'a eu lieu — mais il n'est
+   * plus question d'attendre des dizaines de secondes par séance : les
+   * manquants seront générés au démarrage de chacune.
    */
   async function creer(protocole: ProtocoleCours) {
     const retenues = protocole.seances.filter((_, index) => garde[index]);
@@ -346,23 +353,15 @@ export function ModaleProtocole({
         avertissements,
       });
       try {
-        const resultat = await preparerSeanceProtocoleAction(
-          {
-            ficheId,
-            titre: seance.titre,
-            dimension: seance.dimension,
-            codes: seance.codes,
-            consigne: seance.consigne,
-            dureeCibleMin: seance.dureeCibleMin,
-          },
-          lireConfigTuteur(compteId) ?? undefined,
-        );
+        const resultat = await planifierSeanceProtocoleAction({
+          ficheId,
+          titre: seance.titre,
+          dimension: seance.dimension,
+          codes: seance.codes,
+          consigne: seance.consigne,
+          dureeCibleMin: seance.dureeCibleMin,
+        });
         crees.push({ seanceId: resultat.seanceId, titre: seance.titre });
-        if (resultat.codesSansExercice.length > 0) {
-          avertissements.push(
-            `« ${seance.titre} » : ${resultat.codesSansExercice.length} compétence(s) sans exercice (${resultat.codesSansExercice.join(", ")}).`,
-          );
-        }
       } catch (cause) {
         avertissements.push(
           `« ${seance.titre} » n'a pas pu être créée : ${cause instanceof Error ? cause.message : "échec inconnu"}.`,
@@ -432,7 +431,15 @@ export function ModaleProtocole({
           )}
 
           <div>
+            <div className="mb-1.5 flex justify-end">
+              <PaletteFormulesTexte
+                champ={intentionRef}
+                valeur={intentionLibre}
+                onChange={(valeur) => setIntentionLibre(valeur.slice(0, 500))}
+              />
+            </div>
             <textarea
+              ref={intentionRef}
               value={intentionLibre}
               onChange={(event) => setIntentionLibre(event.target.value.slice(0, 500))}
               onKeyDown={(event) => {
@@ -540,12 +547,13 @@ export function ModaleProtocole({
               onClick={() => void creer(etat.protocole)}
               disabled={retenues === 0}
             >
-              Créer {retenues} séance{retenues > 1 ? "s" : ""} et ses exercices
+              Planifier {retenues} séance{retenues > 1 ? "s" : ""}
             </Bouton>
           </div>
           <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-            Les séances sont créées planifiées dans votre bureau, avec leurs exercices.
-            Chaque exercice reste relisible et modifiable sur sa fiche ; aucune mesure
+            Les séances sont planifiées aussitôt dans votre bureau. Les exercices
+            manquants sont écrits par le tuteur au démarrage de chaque séance —
+            chacun reste relisible et modifiable sur sa fiche ; aucune mesure
             n’existe avant vos corrections validées.
           </p>
         </div>
@@ -557,8 +565,8 @@ export function ModaleProtocole({
             <div className="py-2">
               <ChargementGeneration
                 progressionServeur={etat.progression}
-                etapes={["Création des séances et génération des exercices manquants."]}
-                dureeAsymptoteSec={25}
+                etapes={["Planification des séances retenues — les exercices manquants naîtront au démarrage."]}
+                dureeAsymptoteSec={4}
               />
             </div>
           )}
@@ -567,8 +575,9 @@ export function ModaleProtocole({
             <>
               <BandeauInfo ton="succes" taille="compacte">
                 <p>
-                  {etat.crees.length} séance(s) créée(s) dans votre bureau et inscrite(s)
-                  au journal du cours.
+                  {etat.crees.length} séance(s) planifiée(s) dans votre bureau et
+                  inscrite(s) au journal du cours. Les exercices manquants seront
+                  générés par le tuteur au démarrage de chaque séance.
                 </p>
               </BandeauInfo>
               {etat.crees.length > 0 && (

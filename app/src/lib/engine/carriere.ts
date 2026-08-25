@@ -21,6 +21,7 @@
 
 import type { ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 import { seanceALieu } from "@/lib/domain/seance";
+import { tracesActivite } from "./historique";
 import { cleJour, joursDepuis } from "./dates";
 
 export interface Carriere {
@@ -54,6 +55,15 @@ export interface EntreesCarriere {
   sessions: readonly LearningSession[];
   tentatives: readonly ExerciseAttempt[];
   observations: readonly SkillObservation[];
+  /**
+   * Table `id → dureeEstimeeMin` — la même que celle du bilan de croissance.
+   *
+   * Elle alimente la reconstruction unique du temps (`tracesActivite`) :
+   * sans elle, les plafonds d'ADR-071 s'appliquent quand même (garde-fou
+   * général), mais la carrière perd l'alignement exact avec la croissance sur
+   * les abandons plafonnés à l'estimation.
+   */
+  dureesEstimees?: ReadonlyMap<string, number>;
   now?: Date;
 }
 
@@ -137,10 +147,24 @@ export function resumeCarriere(entrees: EntreesCarriere): Carriere {
    */
   const seancesTenues = entrees.sessions.filter(seanceALieu);
 
+  /*
+   * Le temps total se DÉRIVE comme partout ailleurs : par la reconstruction
+   * unique de `tracesActivite` (tentatives + plafonds d'ADR-071), la même que
+   * consomment le bilan de croissance et le bandeau d'activité. La carrière
+   * sommait `session.dureeMin` brut : une tentative abandonnée après une nuit
+   * entière gonflait « Temps travaillé » ici, et pas sur les autres panneaux —
+   * deux vérités pour un même travail, c'est-à-dire aucune.
+   */
+  const minutesTotal = tracesActivite(
+    seancesTenues as LearningSession[],
+    [...entrees.tentatives],
+    new Map(entrees.dureesEstimees ?? []),
+  ).reduce((total, trace) => total + (trace.dureeMin ?? 0), 0);
+
   return {
     debut,
     joursDepuisDebut: debut === null ? null : joursDepuis(debut, now),
-    minutesTotal: seancesTenues.reduce((total, session) => total + (session.dureeMin ?? 0), 0),
+    minutesTotal,
     seancesTotal: seancesTenues.length,
     exercicesMenes: entrees.tentatives.filter((tentative) => tentative.statut === "terminee").length,
     observationsTotal: entrees.observations.length,

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
@@ -173,6 +174,8 @@ export function ModaleCompetence({
 
   const abandonRef = useRef<AbortController | null>(null);
   const suggestionLanceeRef = useRef(false);
+  // Le sujet/intention est du texte pédagogique libre : palette (friction 1).
+  const intentionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const controleur = abandonRef;
@@ -492,7 +495,15 @@ export function ModaleCompetence({
                   ? "Sujet ou intention pour ce domaine"
                   : "Objectif ou sujet du domaine"}
               </span>
+              <div className="mt-1 flex justify-end">
+                <PaletteFormulesTexte
+                  champ={intentionRef}
+                  valeur={intention}
+                  onChange={setIntention}
+                />
+              </div>
               <textarea
+                ref={intentionRef}
                 value={intention}
                 onChange={(e) => setIntention(e.target.value)}
                 rows={3}

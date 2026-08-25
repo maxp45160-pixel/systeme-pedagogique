@@ -13,11 +13,15 @@
  * est désactivé (plus de double-soumission) ; en cas d'échec, le message
  * s'affiche sous le bouton, dans l'écran qui reste debout.
  *
- * `redirect()` appelé par l'action reste géré par Next : il n'atterrit pas
- * dans le `catch`, la navigation se fait normalement.
+ * La destination est RETOURNÉE par l'action, jamais jouée par `redirect` :
+ * une redirection serveur traverse la promesse comme une erreur NEXT_REDIRECT,
+ * attrapée par le `catch` ci-dessous et affichée comme un échec après une
+ * écriture réussie (défaut documenté du 23/08/2026). Quand l'action en renvoie
+ * une, la navigation part d'ici, après succès des écritures.
  */
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Bouton } from "@/components/ui/primitives";
 
 export function ActionSeance({
@@ -28,13 +32,14 @@ export function ActionSeance({
   taille = "normale",
   titre,
 }: {
-  action: (seanceId: string) => Promise<void>;
+  action: (seanceId: string) => Promise<string | void>;
   seanceId: string;
   libelle: string;
   variante?: "principal" | "secondaire" | "discret" | "danger";
   taille?: "normale" | "compacte" | "petite";
   titre?: string;
 }) {
+  const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -51,7 +56,11 @@ export function ActionSeance({
           setErreur(null);
           demarrer(async () => {
             try {
-              await action(seanceId);
+              const destination = await action(seanceId);
+              if (typeof destination === "string") {
+                router.push(destination);
+                router.refresh();
+              }
             } catch (e) {
               setErreur(e instanceof Error ? e.message : "L'action a échoué.");
             }

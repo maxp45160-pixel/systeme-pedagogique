@@ -25,7 +25,8 @@
  * (ADR-043). Les mesures naîtront des tentatives validées, comme partout.
  */
 
-import { DUREE_ESTIMEE_MIN, TEMPS_DECLARE_MAX } from "./exercice";
+import { DUREE_ESTIMEE_MAX, DUREE_ESTIMEE_MIN, TEMPS_DECLARE_MAX } from "./exercice";
+import type { Exercise } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Intention du cours                                                   */
@@ -217,6 +218,146 @@ export function motifRefusProtocole(
 export type ProtocoleRetenu = SeanceProtocole[];
 
 /* ------------------------------------------------------------------ */
+/* Compréhension = reformulation (ADR-133)                              */
+/* ------------------------------------------------------------------ */
+
+export interface ParametresExerciceExplication {
+  code: string;
+  intitule: string;
+  /** La consigne relue de la séance — elle cite les notions du cours. */
+  consigne: string;
+  dureeEstimeeMin: number;
+}
+
+/**
+ * L'exercice-Feynman d'une séance « compréhension » (ADR-133).
+ *
+ * Une séance dont la dimension est `comprehension` ne demande pas au tuteur
+ * des exercices à produire : elle demande à la PERSONNE de reformuler. Cet
+ * exercice est écrit par le serveur, déterministe, sans aucun appel LLM — la
+ * préparation d'une telle séance est instantanée. La mesure naît ensuite
+ * comme partout : tentative menée, critères relus, correction du tuteur si
+ * sollicitée.
+ *
+ * Le contenu passe `motifRefusExercice` comme n'importe quel exercice : la
+ * correction est une guidance d'auto-relecture, pas un corrigé inventé.
+ */
+export function exerciceExplicationPour(
+  parametres: ParametresExerciceExplication,
+): Omit<Exercise, "id"> & { origine: "manuel" } {
+  const consigne = parametres.consigne.trim();
+  const enonce = [
+    `Méthode Feynman : expliquez « ${parametres.intitule} » (${parametres.code}) avec vos propres mots.`,
+    "- Reformulez la notion comme à quelqu'un qui ne la connaît pas.",
+    consigne
+      ? `- Appuyez-vous sur les notions visées par la séance : ${consigne}`
+      : "- Appuyez-vous sur les notions visées par la séance.",
+    "- Donnez au moins une intuition ou un exemple qui n'est pas recopié du cours.",
+  ].join("\n");
+  const correction = [
+    "Pas de corrigé à recopier : c'est VOTRE reformulation qui compte.",
+    "À la relecture, vérifiez chaque critère honnêtement ; sollicitez la correction du tuteur pour un retour sur ce qui manque.",
+  ].join("\n");
+  return {
+    titre: `Expliquer « ${parametres.intitule} » avec ses propres mots`,
+    domaine: "",
+    type: "rappel",
+    difficulte: 2,
+    competences: [parametres.code],
+    dureeEstimeeMin: Math.min(
+      DUREE_ESTIMEE_MAX,
+      Math.max(DUREE_ESTIMEE_MIN, Math.round(parametres.dureeEstimeeMin)),
+    ),
+    enonce,
+    indices: [],
+    correction,
+    criteres: [
+      {
+        dimension: "comprehension",
+        libelle: "La notion est reformulée avec justesse, sans erreur de fond.",
+      },
+      {
+        dimension: "justification",
+        libelle: "Une intuition ou un exemple étaye l'explication.",
+      },
+    ],
+    diagnostic: false,
+    origine: "manuel",
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Mémorisation = rappel actif (ADR-134)                                */
+/* ------------------------------------------------------------------ */
+
+export interface ParametresExerciceRappel {
+  code: string;
+  intitule: string;
+  /** La consigne relue de la séance — elle cite les notions à retenir. */
+  consigne: string;
+  /** Titre du cours porteur — la vérification se fait contre LUI, pas contre un corrigé inventé. */
+  titreCours: string;
+  dureeEstimeeMin: number;
+}
+
+/**
+ * La carte de rappel d'une séance « mémorisation » (ADR-134).
+ *
+ * Rappel actif, dans l'ordre qui fait l'effet : restituer D'ABORD de mémoire,
+ * vérifier ENSUITE contre la source — le cours réel attaché à la fiche, jamais
+ * un corrigé fabriqué par le serveur. Comme l'exercice-Feynman (ADR-133), la
+ * carte est écrite de façon déterministe, sans aucun appel LLM : la
+ * préparation d'une telle séance est instantanée.
+ *
+ * Le contenu passe `motifRefusExercice` comme n'importe quel exercice.
+ */
+export function exerciceRappelPour(
+  parametres: ParametresExerciceRappel,
+): Omit<Exercise, "id"> & { origine: "manuel" } {
+  const consigne = parametres.consigne.trim();
+  const cours = parametres.titreCours.trim() || "le cours attaché à cette fiche";
+  const enonce = [
+    `Mémoire active : SANS relire le cours, restituez les points clés de « ${parametres.intitule} » (${parametres.code}).`,
+    "- Listez définitions, formules, étapes, exemples — tout ce dont vous vous souvenez, même fragmentaire.",
+    consigne
+      ? `- Les notions visées : ${consigne}`
+      : "- Visez les notions désignées par la séance.",
+    "- N'ouvrez le cours qu'APRÈS avoir écrit votre restitution : c'est l'effort de rappel qui fixe la mémoire.",
+  ].join("\n");
+  const correction = [
+    `Vérification : rouvrez « ${cours} » et confrontez votre restitution aux sections visées.`,
+    "Ce qui manque ou diffère n'est pas une faute — c'est exactement ce que la prochaine répétition doit couvrir.",
+    "La correction du tuteur peut vous aider à départager l'approximatif du faux.",
+  ].join("\n");
+  return {
+    titre: `Rappel de mémoire — « ${parametres.intitule} »`,
+    domaine: "",
+    type: "rappel",
+    difficulte: 2,
+    competences: [parametres.code],
+    dureeEstimeeMin: Math.min(
+      DUREE_ESTIMEE_MAX,
+      Math.max(DUREE_ESTIMEE_MIN, Math.round(parametres.dureeEstimeeMin)),
+    ),
+    enonce,
+    indices: [],
+    correction,
+    criteres: [
+      {
+        dimension: "comprehension",
+        libelle: "Les points clés sont restitués sans erreur de fond.",
+      },
+      {
+        dimension: "integration",
+        libelle: "La restitution couvre l'essentiel des notions visées.",
+      },
+    ],
+    diagnostic: false,
+    origine: "manuel",
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Origine d'une séance                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -230,7 +371,15 @@ const TITRE_ORIGINE_MAX = TITRE_PROTOCOLE_MAX;
  * doit pas pouvoir se réclamer d'un protocole qui n'existe pas.
  */
 export function motifRefusOrigineSeance(
-  origine: { genre: string; ficheId: string; titre: string; dimension: unknown },
+  origine: {
+    genre: string;
+    ficheId: string;
+    titre: string;
+    dimension: unknown;
+    /** Présents sur une écriture en préparation différée (ADR-131) — relu comme le reste. */
+    codes?: unknown;
+    consigne?: unknown;
+  },
 ): string | null {
   if (origine.genre !== "protocole-cours") {
     return "Seule l'origine « protocole-cours » est définie.";
@@ -244,6 +393,29 @@ export function motifRefusOrigineSeance(
   }
   if (!estDimensionSeance(origine.dimension)) {
     return "La dimension de la séance de protocole est inconnue.";
+  }
+  /*
+   * Les champs de la préparation différée (ADR-131) ne sont validés QUE s'ils
+   * sont présents : les séances écrites avant ADR-131 n'en portent pas, et
+   * une séance complète n'en a pas besoin. Mais une fois posés, ils engagent —
+   * ce sont eux que le démarrage passera au tuteur.
+   */
+  if (origine.codes !== undefined) {
+    const codes = origine.codes;
+    if (
+      !Array.isArray(codes) ||
+      codes.length === 0 ||
+      codes.length > CODES_SEANCE_PROTOCOLE_MAX ||
+      codes.some((code) => typeof code !== "string" || !code.trim())
+    ) {
+      return `Les compétences visées d'une séance à préparer sont obligatoires (1 à ${CODES_SEANCE_PROTOCOLE_MAX} codes non vides).`;
+    }
+  }
+  if (origine.consigne !== undefined) {
+    const consigne = typeof origine.consigne === "string" ? origine.consigne.trim() : "";
+    if (!consigne || consigne.length > CONSIGNE_PROTOCOLE_MAX) {
+      return `La consigne d'une séance à préparer est obligatoire (${CONSIGNE_PROTOCOLE_MAX} caractères au plus).`;
+    }
   }
   return null;
 }

@@ -17,6 +17,7 @@ import { televerserFichier } from "@/lib/documents/televersement-fichier";
 import { titreDepuisNomFichier } from "@/lib/documents/titre-depuis-fichier";
 import type { IntentionCours } from "@/lib/domain/protocole-cours";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
@@ -323,6 +324,8 @@ function ModaleDepotCours({
   const [intentionLibre, setIntentionLibre] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  // L'intention est du texte pédagogique libre : palette de formules (friction 1).
+  const intentionRef = useRef<HTMLTextAreaElement>(null);
 
   function choisirFichier(fichierChoisi: File | undefined) {
     setErreur(null);
@@ -465,7 +468,15 @@ function ModaleDepotCours({
          * du fichier reste le geste à valider.
          */}
         <div>
+          <div className="mb-1.5 flex justify-end">
+            <PaletteFormulesTexte
+              champ={intentionRef}
+              valeur={intentionLibre}
+              onChange={(valeur) => setIntentionLibre(valeur.slice(0, 500))}
+            />
+          </div>
           <textarea
+            ref={intentionRef}
             value={intentionLibre}
             onChange={(event) => setIntentionLibre(event.target.value.slice(0, 500))}
             onKeyDown={(event) => {
@@ -559,6 +570,8 @@ function ModaleCreationDocument({
     [definition.type],
   );
   const [valeursSections, setValeursSections] = useState<Record<string, string>>({});
+  // Le contexte est du texte pédagogique libre : palette de formules (friction 1).
+  const contexteRef = useRef<HTMLTextAreaElement>(null);
 
   async function creer() {
     const titreNettoye = titre.trim();
@@ -627,7 +640,15 @@ function ModaleCreationDocument({
 
         <label className="block">
           <span className="text-xs font-medium text-texte">Contexte</span>
+          <div className="mt-1.5 flex justify-end">
+            <PaletteFormulesTexte
+              champ={contexteRef}
+              valeur={contexte}
+              onChange={setContexte}
+            />
+          </div>
           <textarea
+            ref={contexteRef}
             value={contexte}
             onChange={(event) => setContexte(event.target.value)}
             rows={4}
@@ -637,21 +658,17 @@ function ModaleCreationDocument({
         </label>
 
         {sectionsDocument.map((section) => (
-          <label key={section} className="block">
-            <span className="text-xs font-medium text-texte">{section}</span>
-            <textarea
-              value={valeursSections[section] ?? ""}
-              onChange={(event) =>
-                setValeursSections((anciennes) => ({
-                  ...anciennes,
-                  [section]: event.target.value,
-                }))
-              }
-              rows={3}
-              className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
-              placeholder={`Contenu de la section « ${section} » (facultatif ici)`}
-            />
-          </label>
+          <SectionCreation
+            key={section}
+            section={section}
+            valeur={valeursSections[section] ?? ""}
+            onChange={(texte) =>
+              setValeursSections((anciennes) => ({
+                ...anciennes,
+                [section]: texte,
+              }))
+            }
+          />
         ))}
 
         <label className="block">
@@ -738,5 +755,40 @@ function ModaleFeynman({
         </div>
       </div>
     </Modale>
+  );
+}
+
+/**
+ * Une section facultative de création manuelle : son titre, sa zone, sa palette.
+ *
+ * Composant à part parce qu'il lui faut une `ref` par section — un `useRef`
+ * dans la boucle de rendu du parent serait un appel de hook conditionnel
+ * (même raison que `SectionFicheSaisie`, dans l'espace documentaire).
+ */
+function SectionCreation({
+  section,
+  valeur,
+  onChange,
+}: {
+  section: string;
+  valeur: string;
+  onChange: (texte: string) => void;
+}) {
+  const champ = useRef<HTMLTextAreaElement>(null);
+  return (
+    <label className="block">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-texte">{section}</span>
+        <PaletteFormulesTexte champ={champ} valeur={valeur} onChange={onChange} />
+      </div>
+      <textarea
+        ref={champ}
+        value={valeur}
+        onChange={(event) => onChange(event.target.value)}
+        rows={3}
+        className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+        placeholder={`Contenu de la section « ${section} » (facultatif ici)`}
+      />
+    </label>
   );
 }

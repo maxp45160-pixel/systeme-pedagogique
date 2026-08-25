@@ -667,6 +667,21 @@ export interface OrigineSeance {
   /** Titre relu de la séance du protocole, tel que validé par la personne. */
   titre: string;
   dimension: import("./protocole-cours").DimensionSeance;
+  /**
+   * Les compétences visées, telles que relues à la validation du plan (ADR-131).
+   *
+   * Présentes dès que la séance est écrite en préparation différée : elles sont
+   * la commande que le démarrage passera au tuteur pour combler les manquants.
+   * La séance complète peut ne pas les porter — mais une séance qui les porte
+   * et attend encore des exercices sans elles serait incompréhensible.
+   */
+  codes?: string[];
+  /**
+   * La consigne relue — l'ancrage éditorial passé au générateur (ADR-131).
+   * Facultative sur les anciennes séances écrites avant la préparation
+   * différée ; obligatoire avec `codes` sur une écriture différée.
+   */
+  consigne?: string;
 }
 
 /**
@@ -684,6 +699,16 @@ export interface BlueprintSeance {
   cibles: CibleSeance[];
   /** Présent : la séance vient du protocole d'un cours (ADR-130). */
   origine?: OrigineSeance;
+  /**
+   * Présent : la séance est celle du premier parcours (ADR-128) — l'unique
+   * exercice proposé juste après la validation d'un axe à `/demarrer`.
+   *
+   * Une provenance minimale, pas une entité : elle ne sert qu'à deux lectures
+   * d'affichage — clôturer la séance quand son unique exercice est clos, et
+   * ramener au tableau de bord plutôt qu'au cahier. Elle n'entre dans aucune
+   * mesure et n'autorise rien.
+   */
+  premierParcours?: boolean;
 }
 
 /**

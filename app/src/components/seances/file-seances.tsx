@@ -10,9 +10,10 @@ import {
   Etiquette,
 } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
+import { ActionPreparerSeance } from "@/components/seances/action-preparer-seance";
 import { IconeMinuteur, IconeValide } from "@/components/ui/icones";
 import { formatDateCourte } from "@/lib/engine/dates";
-import { avancementSeance, estModeEpreuve, peutReprendreSeance, statutSeance } from "@/lib/domain/seance";
+import { avancementSeance, attendPreparationSeance, estModeEpreuve, peutReprendreSeance, preparationInstantaneeSeance, statutSeance } from "@/lib/domain/seance";
 import {
   jourDeLaSeance,
   jourDuDocument,
@@ -246,7 +247,9 @@ export function CarteSeance({
               {enCours ? "En cours" : planifiee ? "Planifiée" : "En suspens"}
             </Etiquette>
             <span className="text-xs text-texte-discret">
-              {faits}/{avancement.total} fait{faits > 1 ? "s" : ""}
+              {attendPreparationSeance(s)
+                ? "À préparer au démarrage"
+                : `${faits}/${avancement.total} fait${faits > 1 ? "s" : ""}`}
             </span>
           </div>
         }
@@ -291,7 +294,15 @@ export function CarteSeance({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure/60 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {planifiee && (
-              <ActionSeance action={demarrerSeance} seanceId={s.id} libelle="Démarrer" taille="petite" />
+              attendPreparationSeance(s) ? (
+                <ActionPreparerSeance
+                  seanceId={s.id}
+                  taille="petite"
+                  instantanee={preparationInstantaneeSeance(s)}
+                />
+              ) : (
+                <ActionSeance action={demarrerSeance} seanceId={s.id} libelle="Démarrer" taille="petite" />
+              )
             )}
             {enCours && (
               <Link

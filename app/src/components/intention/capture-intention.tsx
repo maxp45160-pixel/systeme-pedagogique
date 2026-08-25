@@ -22,6 +22,7 @@ import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import { IconeCalendrier } from "@/components/ui/icones";
 import { ModaleEngagement } from "@/components/dashboard/modale-engagement";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { extraireEcheanceBesoin } from "@/lib/domain/echeance-besoin";
 import {
   BESOIN_MAX,
@@ -243,6 +244,9 @@ export function CaptureIntention({
   }, [traduction, domainesExistants]);
 
   const abandonRef = useRef<AbortController | null>(null);
+  // La saisine est du texte pédagogique libre : la palette de formules y sert
+  // la saisie (friction 1, 25/08/2026), comme sur la réponse d'exercice.
+  const besoinRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const controleur = abandonRef;
@@ -630,7 +634,15 @@ export function CaptureIntention({
       {phase === "saisie" && (
         <div className="space-y-4">
           <div>
+            <div className="mb-1.5 flex justify-end">
+              <PaletteFormulesTexte
+                champ={besoinRef}
+                valeur={besoin}
+                onChange={(valeur) => setBesoin(valeur.slice(0, BESOIN_MAX))}
+              />
+            </div>
             <textarea
+              ref={besoinRef}
               value={besoin}
               onChange={(event) => setBesoin(event.target.value.slice(0, BESOIN_MAX))}
               onKeyDown={(event) => {

@@ -42,6 +42,7 @@ import {
 } from "@/lib/documents/reperes-corpus";
 import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { ProtocoleCoursPanel, ModaleProtocole } from "@/components/atelier/protocole-cours";
 import type { TraceProtocole } from "@/lib/store/protocole-actions";
@@ -294,6 +295,8 @@ export function WorkspaceDocument({
   const [valeurs, setValeurs] = useState<ValeursSections>(() =>
     lireValeursSections(contenuInitial, sections),
   );
+  // La fiche de travail est du texte pédagogique libre : palette (friction 1).
+  const ficheTravailRef = useRef<HTMLTextAreaElement>(null);
 
   const estSupport = analyse.frontMatter.role === "support";
   const estProjet = analyse.type === "projet";
@@ -681,8 +684,20 @@ export function WorkspaceDocument({
                     {CONSIGNES_PAR_TYPE[analyse.type ?? ""] ?? "Lis la ressource et transforme-la en fiche de travail exploitable."}
                   </p>
                   <label className="mt-5 block">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Votre fiche de travail</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-texte-discret">Votre fiche de travail</span>
+                      <PaletteFormulesTexte
+                        champ={ficheTravailRef}
+                        valeur={valeurs[sections[0]] ?? ""}
+                        onChange={(texte) => {
+                          setValeurs((anciennes) => ({ ...anciennes, [sections[0]]: texte }));
+                          setMessage(null);
+                        }}
+                        desactivee={enregistrement}
+                      />
+                    </div>
                     <textarea
+                      ref={ficheTravailRef}
                       value={valeurs[sections[0]] ?? ""}
                       onChange={(event) => {
                         const v = event.target.value;

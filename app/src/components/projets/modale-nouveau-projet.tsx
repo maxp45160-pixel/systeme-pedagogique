@@ -30,6 +30,7 @@ import {
 } from "@/lib/domain/composition-projet";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { BandeauInfo, Bouton, Etiquette, cx } from "@/components/ui/primitives";
 
 const LIBELLE_VISEE: Record<ViseeProjet, string> = {
@@ -468,6 +469,7 @@ export function ParcoursNouveauProjet({
                   label="Ce que vous voulez travailler"
                   name="intention"
                   multiligne
+                  formules
                   rows={5}
                   value={intention}
                   onChange={(event) => setIntention(event.target.value)}
@@ -627,6 +629,7 @@ export function ParcoursNouveauProjet({
                 <Champ
                   label="Brief"
                   multiligne
+                  formules
                   rows={6}
                   value={proposition.brief}
                   onChange={(event) => setProposition({ ...proposition, brief: event.target.value })}

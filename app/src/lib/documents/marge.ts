@@ -38,7 +38,14 @@ export const ID_MARGE = "marge-du-cahier";
 /** La section qui porte les lignes. Le reste du document n'est jamais touché. */
 export const SECTION_MARGE = "Marge";
 
-export const TITRE_MARGE = "Marge du cahier";
+/**
+ * Le titre affiché du document. Renommé « Marge du cahier » → « Bloc-notes »
+ * le 25/08/2026 (friction 2) : le libellé visible change, pas la donnée —
+ * l'identifiant technique (`ID_MARGE`) et la section Markdown
+ * (`SECTION_MARGE`) restent ce qu'ils ont toujours été, pour ne casser aucune
+ * note déjà écrite.
+ */
+export const TITRE_MARGE = "Bloc-notes";
 
 /**
  * Longueur d'une ligne de marge.

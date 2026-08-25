@@ -6,6 +6,7 @@ import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES, type Difficulte } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
 import { terminerSeance } from "@/lib/store/seance-actions";
+import { ActionSeance } from "@/components/seances/action-seance";
 import {
   BandeauInfo,
   Bouton,
@@ -257,11 +258,12 @@ export async function VueExercice(props: {
                   Passer à l’activité suivante →
                 </Link>
               ) : props.seancePeutTerminer ? (
-                <form action={terminerSeance.bind(null, navigation.seanceId)}>
-                  <Bouton type="submit" variante="principal" taille="petite">
-                    Clôturer la séance →
-                  </Bouton>
-                </form>
+                <ActionSeance
+                  action={terminerSeance}
+                  seanceId={navigation.seanceId}
+                  libelle="Clôturer la séance →"
+                  taille="petite"
+                />
               ) : (
                 <Link
                   href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
@@ -329,11 +331,12 @@ export async function VueExercice(props: {
                         variante="principal"
                       />
                     ) : props.seancePeutTerminer ? (
-                      <form action={terminerSeance.bind(null, navigation.seanceId)}>
-                        <Bouton type="submit" variante="principal">
-                          Clôturer la séance →
-                        </Bouton>
-                      </form>
+                      <ActionSeance
+                        action={terminerSeance}
+                        seanceId={navigation.seanceId}
+                        libelle="Clôturer la séance →"
+                        variante="principal"
+                      />
                     ) : (
                       <LienApresImpact
                         href={`/seances?session=${encodeURIComponent(navigation.seanceId)}`}
@@ -590,7 +593,6 @@ export async function VueExercice(props: {
                       calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                        declencheur="barre-contextuelle"
                        actionsContextuelles={actionsTuteur}
-                       indicesMasques={aidesMasquees}
                      />
                   </div>
                 )}

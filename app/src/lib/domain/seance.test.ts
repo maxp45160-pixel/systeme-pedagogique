@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  attendPreparationSeance,
   avancementSeance,
   ecartBesoinRealise,
   estModeEpreuve,
+  estPlanificationDifferee,
   exercicesDeLaSeance,
   indicesMasquesEnEpreuve,
   motifRefusBesoin,
@@ -10,7 +12,9 @@ import {
   motifRefusBlueprint,
   motifRefusChangementModeEpreuve,
   motifRefusDemande,
+  motifRefusPlanificationDifferee,
   peutReprendreSeance,
+  preparationInstantaneeSeance,
   resumeSeance,
   resumeSeanceAbandonnee,
   seanceALieu,
@@ -597,5 +601,154 @@ describe("motifRefusChangementModeEpreuve — irréversible après création", (
         seance({ statut: "terminee" }),
       ),
     ).toBeNull();
+  });
+});
+
+describe("préparation différée d'une séance protocole (ADR-131)", () => {
+  function blueprintDifferee(extra: Partial<BlueprintSeance> = {}): BlueprintSeance {
+    return {
+      dureeCibleMin: 30,
+      nombreExercices: 3,
+      portee: { type: "mono", domaine: "developpement" },
+      cibles: [],
+      origine: {
+        genre: "protocole-cours",
+        ficheId: "doc-1",
+        titre: "Appliquer les notions",
+        dimension: "application",
+        codes: ["DEV-01"],
+        consigne: "Appliquez les notions du chapitre 2.",
+      },
+      ...extra,
+    };
+  }
+
+  it("attendPreparationSeance — vrai pour une planifiée incomplète porteuse de sa commande", () => {
+    const s = seance({
+      statut: "planifiee",
+      activites: [],
+      blueprint: blueprintDifferee(),
+    });
+    expect(s.activites).toHaveLength(0);
+    expect(attendPreparationSeance(s)).toBe(true);
+  });
+
+  it("attendPreparationSeance — faux dès que les places demandées sont tenues", () => {
+    const complete = blueprintDifferee({ nombreExercices: 2 });
+    const s = seance({
+      statut: "planifiee",
+      activites: complete.cibles.length >= 0 ? [
+        { type: "exercice", ref: "ex-a", libelle: "A" },
+        { type: "exercice", ref: "ex-b", libelle: "B" },
+      ] : [],
+      blueprint: complete,
+    });
+    expect(attendPreparationSeance(s)).toBe(false);
+  });
+
+  it("attendPreparationSeance — faux hors planification : on ne prépare plus une séance lancée", () => {
+    for (const statut of ["en-cours", "terminee", "abandonnee"] as const) {
+      expect(
+        attendPreparationSeance(seance({ statut, blueprint: blueprintDifferee() })),
+      ).toBe(false);
+    }
+  });
+
+  it("attendPreparationSeance — faux sans commande (séances d'avant ADR-131) et sans origine", () => {
+    const sansCommande = seance({
+      statut: "planifiee",
+      blueprint: blueprintDifferee({
+        origine: {
+          genre: "protocole-cours",
+          ficheId: "doc-1",
+          titre: "Ancienne séance",
+          dimension: "application",
+        },
+      }),
+    });
+    expect(attendPreparationSeance(sansCommande)).toBe(false);
+    expect(attendPreparationSeance(seance({ statut: "planifiee" }))).toBe(false);
+  });
+
+  it("estPlanificationDifferee — vrai seulement à la planification d'une origine protocole incomplète", () => {
+    const blueprint = blueprintDifferee();
+    expect(estPlanificationDifferee(blueprint, [], "planifiee")).toBe(true);
+    expect(
+      estPlanificationDifferee(
+        blueprint,
+        [{ type: "exercice", ref: "ex-a", libelle: "A" }],
+        "planifiee",
+      ),
+    ).toBe(true);
+    expect(estPlanificationDifferee(blueprint, [], "en-cours")).toBe(false);
+    expect(
+      estPlanificationDifferee(blueprintDifferee({ origine: undefined }), [], "planifiee"),
+    ).toBe(false);
+  });
+
+  it("motifRefusPlanificationDifferee — exige la commande qui rendra la préparation possible", () => {
+    expect(motifRefusPlanificationDifferee(blueprintDifferee())).toBeNull();
+    expect(
+      motifRefusPlanificationDifferee(
+        blueprintDifferee({
+          origine: {
+            genre: "protocole-cours",
+            ficheId: "doc-1",
+            titre: "X",
+            dimension: "application",
+          },
+        }),
+      ),
+    ).toContain("compétences visées");
+    expect(
+      motifRefusPlanificationDifferee(
+        blueprintDifferee({
+          origine: {
+            genre: "protocole-cours",
+            ficheId: "doc-1",
+            titre: "X",
+            dimension: "application",
+            codes: ["DEV-01"],
+            consigne: " ",
+          },
+        }),
+      ),
+    ).toContain("compétences visées");
+    expect(motifRefusPlanificationDifferee(blueprintDifferee({ origine: undefined }))).toContain(
+      "protocole d'un cours",
+    );
+  });
+
+  it("preparationInstantaneeSeance — vrai pour compréhension et mémorisation, faux sinon", () => {
+    // Une séance « application » attend un appel tuteur : pas instantanée.
+    const application = seance({
+      statut: "planifiee",
+      activites: [],
+      blueprint: blueprintDifferee(),
+    });
+    expect(preparationInstantaneeSeance(application)).toBe(false);
+
+    // Compréhension (ADR-133) et mémorisation (ADR-134) préparent des
+    // activités déterministes, sans appel LLM.
+    for (const dimension of ["comprehension", "memorisation"] as const) {
+      const deterministe = seance({
+        statut: "planifiee",
+        activites: [],
+        blueprint: blueprintDifferee({
+          origine: {
+            genre: "protocole-cours",
+            ficheId: "doc-1",
+            titre: "Travailler les notions",
+            dimension,
+            codes: ["DEV-01"],
+            consigne: "Les notions du chapitre 1.",
+          },
+        }),
+      });
+      expect(preparationInstantaneeSeance(deterministe)).toBe(true);
+    }
+
+    // Et une séance ordinaire n'attend aucune préparation du tout.
+    expect(preparationInstantaneeSeance(seance())).toBe(false);
   });
 });

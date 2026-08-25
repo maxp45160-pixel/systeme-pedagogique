@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Skill, Domaine } from "@/lib/domain/types";
@@ -13,6 +13,7 @@ import {
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { enregistrerExplicationAction } from "@/lib/store/explication-actions";
 import { cleParCompte, effacerSession, ecrireSession, lireSession } from "@/lib/ui/stockage-session";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import {
   Carte,
@@ -40,6 +41,9 @@ export function PageExplication({
   const router = useRouter();
   const [texte, setTexte] = useState("");
   const cleBrouillon = cleParCompte(`explication:${skill.code}`, compteId);
+  // Rédiger une explication, c'est écrire du texte pédagogique : la palette
+  // sert la saisie (friction 1, 25/08/2026).
+  const texteRef = useRef<HTMLTextAreaElement>(null);
   const [brouillonCharge, setBrouillonCharge] = useState(false);
   const [enCoursEvaluation, setEnCoursEvaluation] = useState(false);
   const [evaluation, setEvaluation] = useState<EvaluationExplication | null>(null);
@@ -297,8 +301,17 @@ export function PageExplication({
           </span>
         </div>
 
+        <div className="flex justify-end">
+          <PaletteFormulesTexte
+            champ={texteRef}
+            valeur={texte}
+            onChange={setTexte}
+            desactivee={enCoursEvaluation || enEnregistrement}
+          />
+        </div>
         <textarea
           id="explication-texte"
+          ref={texteRef}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           placeholder={`Expliquez le concept "${skill.intitule}" avec vos propres mots...`}

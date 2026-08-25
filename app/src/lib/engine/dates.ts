@@ -67,6 +67,28 @@ export function cleJour(d: Date | string): string {
   ).padStart(2, "0")}`;
 }
 
+/**
+ * Le jour civil `AAAA-MM-JJ` d'un instant, coupé dans le fuseau demandé.
+ *
+ * `cleJour` coupe dans le fuseau du processus : côté serveur en production,
+ * c'est UTC — et autour de minuit européen, `/seances` ouvrait la veille
+ * (friction du 25/08/2026). Cette variante explicite sert à nommer le
+ * problème et à le tester ; la correction effective laisse le jour civil au
+ * navigateur (`CahierInteractif`), qui n'a pas de fuseau à deviner.
+ *
+ * `en-CA` produit nativement le format ISO court — aucune manipulation de
+ * chaîne, donc aucune dérive de locale.
+ */
+export function cleJourFuseau(d: Date | string, fuseau: string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: fuseau,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 /* ------------------------------------------------------------------ */
 /* Formats affichés                                                    */
 /*                                                                     */

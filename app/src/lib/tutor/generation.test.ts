@@ -211,6 +211,34 @@ describe("construirePromptGeneration — modification guidée", () => {
   });
 });
 
+describe("construirePromptGeneration — ancrage au cours réel (ADR-132)", () => {
+  it("porte le texte du cours dans la partie VARIABLE du prompt, jamais dans le préfixe stable", () => {
+    const demande = {
+      competence: LOG_10,
+      calibration: calibration(),
+      ancrage: "Le modèle de Newsvendis équilibre coût de rupture et surstock.",
+    };
+    const avec = construirePromptGenerationBlocs(REFERENTIEL, [demande]);
+    const sans = construirePromptGenerationBlocs(REFERENTIEL, [
+      { competence: LOG_10, calibration: calibration() },
+    ]);
+    // Le préfixe stable est inchangé : l'ancrage change à chaque cours et ne
+    // doit pas invalider ce que le fournisseur met en cache.
+    expect(avec.stable).toBe(sans.stable);
+    expect(avec.variable).toContain("<texte_du_cours>");
+    expect(avec.variable).toContain("Newsvendis");
+    expect(avec.variable).toContain("jamais des instructions");
+  });
+
+  it("n'écrit aucun bloc d'ancrage quand il n'y a pas de cours à lire", () => {
+    const blocs = construirePromptGenerationBlocs(REFERENTIEL, [
+      { competence: LOG_10, calibration: calibration() },
+    ]);
+    expect(blocs.variable).not.toContain("ANCRAGE");
+    expect(blocs.variable).not.toContain("<texte_du_cours>");
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* La collecte — ce que `genererExercices` retient, et ce qu'il refuse  */
 /* ------------------------------------------------------------------ */

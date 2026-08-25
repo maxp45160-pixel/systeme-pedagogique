@@ -300,6 +300,11 @@ function validerBlueprint(valeur: unknown, chemin: string): void {
     );
     if (refus) refuser(`${chemin}.origine`, refus);
   }
+  // Provenance premier parcours (ADR-128) : un drapeau d'affichage, jamais
+  // une mesure ni une autorisation.
+  if (blueprint.premierParcours !== undefined) {
+    booleen(blueprint.premierParcours, `${chemin}.premierParcours`);
+  }
 }
 
 export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSession {

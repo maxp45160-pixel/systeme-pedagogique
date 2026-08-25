@@ -16,7 +16,6 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { ajouter, dorsaleCompte, lire, lireParId, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
@@ -47,6 +46,8 @@ import {
 import { construireDocumentProductionPreuve } from "@/lib/documents/production";
 import { ajouterPassageFiche, construireFicheExercice } from "@/lib/documents/fiche-exercice";
 import { tentativeMenee } from "@/lib/engine/calibration";
+import { ecrireClotureSeance } from "./seance-actions";
+import { avancementSeance } from "@/lib/domain/seance";
 import type {
   Difficulte,
   Dimension,
@@ -156,7 +157,36 @@ async function destinationApresExercice(
     seance?.activites.some(
       (activite) => activite.type === "exercice" && activite.ref === exerciceId,
     ) ?? false;
-  return urlExercice(exerciceId, valide ? navigation : undefined, etape);
+  if (!valide || !seance) return urlExercice(exerciceId, undefined, etape);
+
+  /*
+   * Le premier parcours (ADR-128) se referme avec son unique exercice.
+   *
+   * La séance créée depuis `/demarrer` n'est pas un écran de plus : quand son
+   * unique exercice est mené à terme — ce que `avancementSeance` dérive des
+   * tentatives, jamais un état stocké — elle passe au journal par le même
+   * chemin que « Terminer la séance » (`ecrireClotureSeance`, une seule
+   * implémentation), et l'on revient au tableau de bord, qui reflète alors
+   * immédiatement ce qui vient d'être observé. Avant ce correctif, la séance
+   * restait ouverte pour toujours : le tableau de bord reproposait
+   * indéfiniment « Reprendre la séance » comme si rien n'avait eu lieu.
+   *
+   * Un abandon, en revanche, ne referme rien : la séance reste en cours, on
+   * retombe sur le workspace où l'on peut reprendre ou sortir.
+   */
+  if (seance.blueprint?.premierParcours) {
+    const avancement = avancementSeance(seance, await lire("attempts", dorsale));
+    if (
+      avancement.menes.length > 0 &&
+      avancement.restants.length === 0 &&
+      avancement.enCours.length === 0
+    ) {
+      await ecrireClotureSeance(seance.id);
+      return "/app";
+    }
+  }
+
+  return urlExercice(exerciceId, navigation, etape);
 }
 
 /**
@@ -166,8 +196,16 @@ async function destinationApresExercice(
  * l'interface. L'Observation porte l'autonomie observée, la qualité déduite de
  * la difficulté, et pointe vers la tentative qui la justifie
  * (protocole anti-hallucination §4, traçabilité).
+ *
+ * La destination est RETOURNÉE, pas jouée par `redirect` : appelée depuis le
+ * try/catch du bilan client, une redirection traverse la promesse comme une
+ * erreur NEXT_REDIRECT — affichée comme un échec après une écriture réussie,
+ * sans navigation (défaut documenté du 23/08/2026, corrigé sur
+ * `abandonnerExercice`). Le composant appelleur pilote lui-même `router.push`.
  */
-export async function terminerExercice(soumission: SoumissionExercice): Promise<void> {
+export async function terminerExercice(
+  soumission: SoumissionExercice,
+): Promise<string> {
   const dorsale = await dorsaleCompte();
   const exercices = await lire("exercises", dorsale);
   const { EXERCICES_DIAGNOSTIC } = await import("@/lib/seed/exercises");
@@ -276,7 +314,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
     }, dorsale);
 
     revalidatePath("/", "layout");
-    redirect(await destinationApresExercice(exercice.id, "abandon", soumission.navigation, dorsale));
+    return await destinationApresExercice(exercice.id, "abandon", soumission.navigation, dorsale);
   }
 
   const autonomie = autonomieObservee(
@@ -382,7 +420,7 @@ export async function terminerExercice(soumission: SoumissionExercice): Promise<
   );
 
   revalidatePath("/", "layout");
-  redirect(await destinationApresExercice(exercice.id, "bilan", soumission.navigation, dorsale));
+  return await destinationApresExercice(exercice.id, "bilan", soumission.navigation, dorsale);
 }
 
 /**

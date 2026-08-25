@@ -9,11 +9,12 @@ import {
   terminerSeance,
 } from "@/lib/store/seance-actions";
 import {
+  attendPreparationSeance,
   avancementSeance,
   ecartBesoinRealise,
   estModeEpreuve,
-  indicesMasquesEnEpreuve,
   peutReprendreSeance,
+  preparationInstantaneeSeance,
   statutSeance,
   tentativeDeSeance,
 } from "@/lib/domain/seance";
@@ -22,6 +23,7 @@ import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
+import { ActionPreparerSeance } from "@/components/seances/action-preparer-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
 import { ChronoEpreuve } from "@/components/seances/chrono-epreuve";
 import { OutilSeance } from "@/components/seances/outil-seance";
@@ -118,13 +120,18 @@ export async function VueSeanceDetail({
 
   const statut = statutSeance(seance);
   /*
+   * Préparation différée (ADR-131) : une séance protocole planifiée peut
+   * attendre encore des exercices. L'état est dérivé ici, une fois, pour
+   * l'habillage de la carte planifiée — le bouton d'entrée change avec lui.
+   */
+  const preparationEnAttente = attendPreparationSeance(seance);
+  /*
    * Mode épreuve (22/08/2026) : un fait posé à la création, lu ici pour
    * l'habillage — chrono affiché, aides du tuteur masquées pendant le déroulé.
    * Aucune mesure n'en dépend : le déroulé, le bilan et l'autonomie restent
    * exactement ceux d'une séance ordinaire.
    */
   const epreuve = estModeEpreuve(seance);
-  const aidesMasquees = indicesMasquesEnEpreuve(seance);
   /*
    * Une séance abandonnée se relit comme une séance terminée : le déroulé est
    * figé, les traces restent. La seule différence tient à ce qu'on peut encore
@@ -399,7 +406,6 @@ export async function VueSeanceDetail({
                     calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
                     libelle="Tuteur IA"
                     declencheur="outil"
-                    indicesMasques={aidesMasquees}
                   />
                 )}
               </>
@@ -456,15 +462,35 @@ export async function VueSeanceDetail({
         {statut === "planifiee" && (
           <div className="mx-auto max-w-3xl space-y-5">
             <Carte accent>
-              <EnTeteCarte titre="Séance prête" legende={seance.planifieePour ? `Prévue le ${formatDateCourte(seance.planifieePour)}` : undefined} />
+              <EnTeteCarte
+                titre={preparationEnAttente ? "Séance planifiée" : "Séance prête"}
+                legende={seance.planifieePour ? `Prévue le ${formatDateCourte(seance.planifieePour)}` : undefined}
+              />
               <div className="space-y-4 px-5 py-4">
                 {seance.besoinDeclare?.intention && <p className="text-sm italic">« {seance.besoinDeclare.intention} »</p>}
                 <p className="text-sm text-texte-attenue">
-                  {activites.length} exercice{activites.length > 1 ? "s" : ""}
+                  {preparationEnAttente ? (
+                    <>
+                      {activites.length > 0 && `${activites.length} exercice${activites.length > 1 ? "s" : ""} déjà là, `}
+                      {Math.max((seance.blueprint?.nombreExercices ?? 0) - activites.length, 0)} à générer par le tuteur au démarrage
+                    </>
+                  ) : (
+                    <>
+                      {activites.length} exercice{activites.length > 1 ? "s" : ""}
+                    </>
+                  )}
                   {seance.blueprint ? ` · environ ${formatDuree(seance.blueprint.dureeCibleMin)}` : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <ActionSeance action={demarrerSeance} seanceId={seance.id} libelle="Démarrer" />
+                  {preparationEnAttente ? (
+                    <ActionPreparerSeance
+                      seanceId={seance.id}
+                      compteId={ctx.donnees.user.id}
+                      instantanee={preparationInstantaneeSeance(seance)}
+                    />
+                  ) : (
+                    <ActionSeance action={demarrerSeance} seanceId={seance.id} libelle="Démarrer" />
+                  )}
                   <ActionSeance action={annulerSeance} seanceId={seance.id} libelle="Annuler" variante="danger" />
                 </div>
               </div>

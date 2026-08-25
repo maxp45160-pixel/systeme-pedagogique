@@ -878,6 +878,14 @@ BEGIN
       (v_item ->> 'importance')::REAL, coalesce((v_item ->> 'ordre')::INTEGER, 0), true, false,
       coalesce(v_item ->> 'origine', p_origine)
     );
+    -- Le namespace de création devient le tag initial (ADR-107), comme le
+    -- remplissage one-shot du 23/08 l'a fait pour les compétences existantes :
+    -- sans cette ligne, une compétence fraîchement créée naissait sans aucun
+    -- tag, son domaine n'était pas « vivant » à la lecture, et tout tombait
+    -- en « À classer ». Créer dans un domaine EST le geste de rangement initial.
+    INSERT INTO public.competence_domaines (user_id, code, domaine)
+    VALUES (v_uid, v_code, v_domaine_id)
+    ON CONFLICT DO NOTHING;
     v_codes_ajoutes := v_codes_ajoutes || jsonb_build_array(v_code);
   END LOOP;
 

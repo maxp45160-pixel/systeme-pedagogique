@@ -30,6 +30,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
+import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
@@ -76,6 +77,8 @@ export function ModaleRevision({
   const [erreurAction, setErreurAction] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
   const abandonRef = useRef<AbortController | null>(null);
+  // La demande de révision est du texte pédagogique libre : palette (friction 1).
+  const demandeRef = useRef<HTMLTextAreaElement>(null);
 
   /*
    * `onFermer` démonte la modale (`bouton-reviser.tsx`) : fermer par le fond ou
@@ -252,7 +255,11 @@ export function ModaleRevision({
               <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
                 Ce que vous voulez faire évoluer
               </span>
+              <div className="mt-1 flex justify-end">
+                <PaletteFormulesTexte champ={demandeRef} valeur={demande} onChange={setDemande} />
+              </div>
               <textarea
+                ref={demandeRef}
                 value={demande}
                 onChange={(e) => setDemande(e.target.value)}
                 rows={3}

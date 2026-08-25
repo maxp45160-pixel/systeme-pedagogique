@@ -429,6 +429,96 @@ export function motifRefusActivites(
 }
 
 /* ------------------------------------------------------------------ */
+/* Préparation différée (ADR-131)                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La séance attend-elle encore la génération de ses exercices manquants ?
+ *
+ * Une séance du protocole d'un cours peut être écrite planifiée AVANT que ses
+ * exercices existent : elle porte sa commande (`origine.codes` + `consigne`),
+ * et le démarrage la fait préparer. L'état se DÉRIVE de trois faits stockés —
+ * l'origine, le statut, l'écart entre activités présentes et exercices
+ * demandés — jamais d'un marqueur supplémentaire qui ferait une seconde vérité
+ * libre de diverger (P1).
+ *
+ * `false` pour tout le reste : séance ordinaire, séance complète, séance
+ * démarrée (trop tard), origine sans commande (séances d'avant ADR-131).
+ */
+export function attendPreparationSeance(seance: LearningSession): boolean {
+  const blueprint = seance.blueprint;
+  const origine = blueprint?.origine;
+  if (!origine || origine.genre !== "protocole-cours") return false;
+  if (!origine.codes || origine.codes.length === 0) return false;
+  if (statutSeance(seance) !== "planifiee") return false;
+  return (
+    exercicesDeLaSeance(seance).length < (blueprint?.nombreExercices ?? 0)
+  );
+}
+
+/**
+ * La préparation de cette séance sera-t-elle instantanée ?
+ *
+ * Une séance « compréhension » prépare des exercices-Feynman et une séance
+ * « mémorisation » des cartes de rappel — deux écritures déterministes du
+ * serveur (ADR-133, ADR-134) : aucun appel tuteur, rien à attendre. L'écran
+ * s'en sert pour ne pas annoncer une attente qui n'aura pas lieu.
+ */
+export function preparationInstantaneeSeance(seance: LearningSession): boolean {
+  const dimension = seance.blueprint?.origine?.dimension;
+  return (
+    attendPreparationSeance(seance) &&
+    (dimension === "comprehension" || dimension === "memorisation")
+  );
+}
+
+/**
+ * Cette écriture est-elle une planification en préparation différée ?
+ *
+ * Le cas n'existe qu'à la PLANIFICATION d'une séance d'origine protocole dont
+ * les places demandées excèdent les exercices réellement disponibles — le cas
+ * normal d'un cours nouveau. Le démarrage (`mode "en-cours"`) reste soumis à
+ * la règle stricte : on ne lance pas une séance vide.
+ */
+export function estPlanificationDifferee(
+  blueprint: BlueprintSeance,
+  activites: readonly { type: string; ref: string; libelle: string }[],
+  mode: "planifiee" | "en-cours",
+): boolean {
+  if (mode !== "planifiee") return false;
+  if (!blueprint.origine || blueprint.origine.genre !== "protocole-cours") {
+    return false;
+  }
+  return (
+    activites.filter((a) => a.type === "exercice").length <
+    blueprint.nombreExercices
+  );
+}
+
+/**
+ * Le refus opposé à une écriture différée qui ne porterait pas sa commande.
+ *
+ * Sans compétences visées et consigne stockées dans l'origine, le démarrage ne
+ * saurait PAS quoi générer : la séance serait vide pour toujours. C'est la
+ * contrepartie exacte de la tolérance accordée par `estPlanificationDifferee` —
+ * on accepte une séance sans exercices, mais seulement si elle dit comment les
+ * écrire plus tard.
+ */
+export function motifRefusPlanificationDifferee(
+  blueprint: BlueprintSeance,
+): string | null {
+  const origine = blueprint.origine;
+  if (!origine || origine.genre !== "protocole-cours") {
+    return "Une séance à préparer au démarrage doit venir du protocole d'un cours.";
+  }
+  const codes = origine.codes ?? [];
+  if (codes.length === 0 || !origine.consigne?.trim()) {
+    return "Une séance à préparer au démarrage doit porter ses compétences visées et sa consigne.";
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Avancement — dérivé des tentatives, jamais stocké                   */
 /* ------------------------------------------------------------------ */
 

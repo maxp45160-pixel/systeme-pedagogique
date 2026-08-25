@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
 import { terminerExercice } from "@/lib/store/actions";
@@ -90,6 +91,7 @@ export function FormulaireBilan({
   const [detaille, setDetaille] = useState(!criteresReplies);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const router = useRouter();
 
   const justifications = propositionInitiale?.justifications ?? {};
   const bilanRedige = propositionInitiale?.bilan;
@@ -144,7 +146,7 @@ export function FormulaireBilan({
 
     demarrer(async () => {
       try {
-        await terminerExercice({
+        const destination = await terminerExercice({
           attemptId,
           exerciseId: exercice.id,
           resultat,
@@ -169,6 +171,14 @@ export function FormulaireBilan({
             : undefined,
           navigation,
         });
+        /*
+         * L'action retourne sa destination au lieu de rediriger : une
+         * redirection serveur traverserait ce try/catch comme une erreur
+         * NEXT_REDIRECT, affichée après une écriture réussie (défaut du
+         * 23/08/2026). La navigation part donc d'ici, après succès.
+         */
+        router.push(destination);
+        router.refresh();
       } catch (e) {
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }

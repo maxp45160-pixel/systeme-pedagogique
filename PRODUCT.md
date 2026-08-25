@@ -293,7 +293,15 @@ tuteur lit le PDF et propose un plan de 1 à 6 séances typées par dimension
 (compréhension, application, contextualisation, mémorisation) et liées aux
 compétences validées du référentiel. Le plan n'est rien tant qu'il n'est pas
 relu : les séances cochées deviennent des `LearningSession` planifiées du
-bureau, avec génération des exercices manquants. Aucune entité « protocole »
+bureau — écrites aussitôt, sans aucun appel tuteur ; les exercices manquants
+sont générés par le tuteur au démarrage de chaque séance (25/08/2026,
+ADR-131), ancrés dans le texte réel du cours déposé (ADR-132) — sauf les
+séances « compréhension », qui demandent de reformuler avec ses mots
+(méthode Feynman, exercices déterministes sans appel tuteur, 25/08/2026,
+ADR-133), et les séances « mémorisation », qui demandent de restituer de
+mémoire avant de vérifier contre le cours (cartes de rappel déterministes,
+25/08/2026, ADR-134). Aucune entité
+« protocole »
 n'existe ; les dates des séances travaillées se dérivent des sessions à la
 lecture, et seuls les faits déclarés (intention, plan validé) s'inscrivent au
 journal de la fiche. Les dimensions sont des intentifs de séance — elles ne

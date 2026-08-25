@@ -9,7 +9,7 @@ import {
 } from "@/lib/store/marge-actions";
 
 /**
- * La marge du cahier : écrire une phrase, en faire une séance.
+ * Le bloc-notes du cahier : écrire une phrase, en faire une séance.
  *
  * C'est le geste qu'on vient faire le plus souvent — noter ce sur quoi on bute
  * — et il doit donc être le plus proche de la main. Depuis ADR-103 le Bureau
@@ -17,15 +17,27 @@ import {
  * range les lignes déjà écrites dans un bloc au-dessus (`ListeMarge`) : le
  * champ reste atteignable sans faire défiler, la liste ne réclame rien.
  *
+ * ## Une page, un jour (friction du 25/08/2026)
+ *
+ * Les lignes sont datées de leur jour de notation et n'en bougent plus : le
+ * Bureau n'affiche sur chaque page que les lignes de CE jour, sans reporter
+ * automatiquement les ouvertes des jours précédents — l'ancien comportement
+ * faisait du bloc-notes une mémoire qui revenait toute seule, pas un cahier.
+ * Les anciennes lignes restent lisibles sur leur jour d'origine, dans le
+ * Cahier. L'écriture n'est proposée que sur la page du jour courant ; le
+ * formulaire porte son jour civil (calculé par le navigateur) pour que la
+ * note soit datée du jour de la personne, pas de celui du serveur.
+ *
  * Les trois morceaux sont exportés séparément parce que le Bureau les pose à
  * deux endroits différents de l'écran ; `MargeCahier` les recompose pour les
  * surfaces qui veulent encore le bloc entier (les outils de la séance).
  *
- * ⚠️ **Rien de ce qui est écrit ici n'entre dans le moteur.** Une ligne de marge
- * n'est ni une observation, ni une mesure, ni un niveau : c'est une phrase qu'on
- * s'adresse. « Traiter » la remet au point d'entrée unique (`CaptureIntention`,
- * ADR-073), qui décide de la forme — séance, ressource, projet, référentiel — et
- * demande confirmation. Aucune écriture ne part d'ici.
+ * ⚠️ **Rien de ce qui est écrit ici n'entre dans le moteur.** Une ligne du
+ * bloc-notes n'est ni une observation, ni une mesure, ni un niveau : c'est une
+ * phrase qu'on s'adresse. « Traiter » la remet au point d'entrée unique
+ * (`CaptureIntention`, ADR-073), qui décide de la forme — séance, ressource,
+ * projet, référentiel — et demande confirmation. Aucune écriture ne part
+ * d'ici.
  */
 
 /**
@@ -34,13 +46,20 @@ import {
  * `variante="barre"` est la forme fixe du Bureau : arrondie, ombrée, posée
  * au-dessus du contenu. `variante="bloc"` est la forme en ligne, dans une
  * carte.
+ *
+ * `jour` date la note du jour civil déclaré par le navigateur. Absent, la
+ * Server Action retombe sur le jour du serveur — le comportement antérieur,
+ * conservé pour les surfaces qui ne connaissent pas leur page.
  */
 export function ChampMarge({
   variante = "bloc",
   autoFocus = false,
+  jour,
 }: {
   variante?: "bloc" | "barre";
   autoFocus?: boolean;
+  /** Jour civil `AAAA-MM-JJ` porté par le formulaire avec la note. */
+  jour?: string;
 }) {
   if (variante === "barre") {
     return (
@@ -49,7 +68,7 @@ export function ChampMarge({
         className="flex w-full items-center gap-2.5 rounded-full border border-bordure bg-surface py-1.5 pl-4 pr-1.5 shadow-[var(--ombre-surcouche)] transition-colors focus-within:border-primaire/50"
       >
         <label className="sr-only" htmlFor="ligne-marge">
-          Noter dans la marge
+          Noter dans le bloc-notes
         </label>
         <IconePlus className="size-4 shrink-0 text-texte-discret" />
         <input
@@ -62,6 +81,7 @@ export function ChampMarge({
           placeholder="Ce sur quoi je bute, ce que je veux revoir…"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-texte-discret"
         />
+        {jour && <input type="hidden" name="jour" value={jour} />}
         {/*
           L'indication remplace un bouton « Noter » : la touche Entrée soumet
           déjà le formulaire, et un bouton permanent dans une barre fixe est
@@ -81,7 +101,7 @@ export function ChampMarge({
   return (
     <form action={noterDansLaMarge} className="flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="ligne-marge">
-        Noter dans la marge
+        Noter dans le bloc-notes
       </label>
       <input
         id="ligne-marge"
@@ -92,6 +112,7 @@ export function ChampMarge({
         placeholder="Ce sur quoi je bute, ce que je veux revoir…"
         className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
       />
+      {jour && <input type="hidden" name="jour" value={jour} />}
       <Bouton type="submit" variante="secondaire" taille="petite">
         Noter
       </Bouton>
@@ -115,7 +136,7 @@ export function ListeMarge({
   if (lignes.length === 0) {
     return (
       <p className="text-xs text-texte-discret">
-        Rien en marge. Une phrase suffit — elle pourra devenir une séance.
+        Le bloc-notes du jour est vide. Une phrase suffit — elle pourra devenir une séance.
       </p>
     );
   }
@@ -138,8 +159,7 @@ export function ListeMarge({
                 ligne.faite
                   ? `Rouvrir « ${ligne.texte} »`
                   : `Marquer « ${ligne.texte} » comme traité`
-              }
-              className="flex size-4 items-center justify-center rounded border border-bordure-controle text-primaire transition-colors hover:border-primaire"
+              }className="flex size-4 items-center justify-center rounded border border-bordure-controle text-primaire transition-colors hover:border-primaire"
             >
               {ligne.faite ? <IconeValide className="size-3" /> : null}
             </button>
@@ -170,7 +190,7 @@ export function ListeMarge({
             <form action={retirerLigneMargeAction.bind(null, index)}>
               <button
                 type="submit"
-                aria-label={`Retirer « ${ligne.texte} » de la marge`}
+                aria-label={`Retirer « ${ligne.texte} » du bloc-notes`}
                 className="text-xs text-texte-discret transition-colors hover:text-danger"
               >
                 Retirer
@@ -204,7 +224,7 @@ export function MargeCahier({
   return (
     <Carte>
       <EnTeteCarte
-        titre="La marge"
+        titre="Bloc-notes"
         legende={
           ouvertes > 0
             ? `${ouvertes} chose${ouvertes > 1 ? "s" : ""} notée${ouvertes > 1 ? "s" : ""} à traiter`

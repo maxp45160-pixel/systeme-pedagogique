@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cx } from "@/components/ui/primitives";
+import { Bouton, cx } from "@/components/ui/primitives";
 import {
   archiverDocumentAction,
   restaurerDocumentAction,
+  supprimerArchivesAction,
   supprimerDocumentAction,
+  type ResultatSuppressionArchives,
 } from "@/lib/store/document-actions";
 import { IconeDocuments, IconeFleche } from "@/components/ui/icones";
 import { estATrier } from "@/lib/documents/rangement-atelier";
@@ -16,6 +18,7 @@ import {
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "./modale-confirmation-suppression";
+import { Modale } from "@/components/ui/modale";
 import { type VueAtelier } from "./vues-synthese-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
@@ -53,6 +56,17 @@ export function VueRessources({
   const [ressourceAArchiver, setRessourceAArchiver] = useState<ElementAtelier | null>(null);
   const [ressourceARestaurer, setRessourceARestaurer] = useState<ElementAtelier | null>(null);
   const [ressourceASupprimer, setRessourceASupprimer] = useState<ElementAtelier | null>(null);
+
+  /*
+   * Le geste groupé de la vue Archives (friction du 25/08/2026). Visible
+   * seulement s'il existe des archives ; la confirmation annonce le nombre et
+   * le caractère définitif. Le serveur relit lui-même les archives réelles du
+   * compte — la liste affichée ici ne fait foi pour aucune écriture.
+   */
+  const [suppressionGroupeeOuverte, setSuppressionGroupeeOuverte] = useState(false);
+  const [resultatGroupe, setResultatGroupe] = useState<ResultatSuppressionArchives | null>(null);
+  const [suppressionGroupeeEnCours, demarrerSuppressionGroupee] = useTransition();
+  const [erreurGroupee, setErreurGroupee] = useState<string | null>(null);
 
   const estArchives = statut === "archives";
 
@@ -104,10 +118,26 @@ export function VueRessources({
           <section>
             {archivees.length > 0 && (
               <div className="mb-6 rounded-xl border border-bordure bg-surface p-4 text-xs text-texte-attenue shadow-xs">
-                <p className="font-semibold text-texte">Ressources archivées</p>
-                <p className="mt-1 leading-relaxed text-texte-discret">
-                  Ces ressources sont retirées du flux actif. Vous pouvez les restaurer dans vos ressources de travail ou les supprimer définitivement.
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-texte">Ressources archivées</p>
+                    <p className="mt-1 leading-relaxed text-texte-discret">
+                      Ces ressources sont retirées du flux actif. Vous pouvez les restaurer dans vos ressources de travail ou les supprimer définitivement.
+                    </p>
+                  </div>
+                  <Bouton
+                    type="button"
+                    variante="danger"
+                    taille="petite"
+                    onClick={() => {
+                      setErreurGroupee(null);
+                      setResultatGroupe(null);
+                      setSuppressionGroupeeOuverte(true);
+                    }}
+                  >
+                    Tout supprimer ({archivees.length})
+                  </Bouton>
+                </div>
               </div>
             )}
 
@@ -301,6 +331,69 @@ export function VueRessources({
           }}
           onFermer={() => setRessourceASupprimer(null)}
         />
+      )}
+
+      {suppressionGroupeeOuverte && archivees.length > 0 && (
+        <ModaleConfirmationSuppression
+          titre="Supprimer définitivement les archives"
+          nomElement={`${archivees.length} ressource${archivees.length > 1 ? "s" : ""} archivée${archivees.length > 1 ? "s" : ""}`}
+          typeElement="document"
+          mode="suppression"
+          explication={`Ces ${archivees.length} ressource${archivees.length > 1 ? "s" : ""} et leurs fichiers joints seront définitivement effacés de votre compte. Cette action est irréversible.`}
+          texteBoutonConfirmer="Tout supprimer définitivement"
+          onConfirmer={async () => {
+            setErreurGroupee(null);
+            demarrerSuppressionGroupee(async () => {
+              try {
+                const resultat = await supprimerArchivesAction();
+                setResultatGroupe(resultat);
+                setSuppressionGroupeeOuverte(false);
+                router.refresh();
+              } catch (e) {
+                setErreurGroupee(
+                  e instanceof Error ? e.message : "La suppression groupée a échoué.",
+                );
+              }
+            });
+          }}
+          onFermer={() => setSuppressionGroupeeOuverte(false)}
+        />
+      )}
+
+      {resultatGroupe && (resultatGroupe.echecs.length > 0 || resultatGroupe.supprimees > 0) && (
+        <Modale
+          titre={resultatGroupe.echecs.length > 0 ? "Suppression partielle" : "Archives supprimées"}
+          largeur="md"
+          onFermer={() => setResultatGroupe(null)}
+          pied={
+            <div className="flex w-full justify-end">
+              <Bouton type="button" variante="principal" onClick={() => setResultatGroupe(null)}>
+                Fermer
+              </Bouton>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-xs leading-relaxed text-texte-attenue">
+            <p>
+              {resultatGroupe.supprimees} ressource{resultatGroupe.supprimees > 1 ? "s" : ""}{" "}
+              supprimée{resultatGroupe.supprimees > 1 ? "s" : ""}, fichiers joints compris.
+            </p>
+            {resultatGroupe.echecs.length > 0 && (
+              <div className="rounded-lg border border-danger/30 bg-danger-faible p-3 text-danger">
+                <p className="font-semibold">
+                  {resultatGroupe.echecs.length} ressource{resultatGroupe.echecs.length > 1 ? "s" : ""}{" "}
+                  n&apos;a{resultatGroupe.echecs.length > 1 ? "ont" : ""} pas pu être supprimée
+                  {resultatGroupe.echecs.length > 1 ? "s" : ""} :
+                </p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                  {resultatGroupe.echecs.map(({ id, motif }) => (
+                    <li key={id}>{motif}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Modale>
       )}
     </div>
   );

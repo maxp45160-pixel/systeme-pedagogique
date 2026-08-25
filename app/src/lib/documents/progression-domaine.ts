@@ -115,6 +115,7 @@ export function construireProgressionsDomaines(
       sessions: [],
       tentatives: lecture.tentatives,
       observations: lecture.observations,
+      dureesEstimees: entrees.dureesEstimees,
       now,
     });
     const croissance = resumeCroissance({

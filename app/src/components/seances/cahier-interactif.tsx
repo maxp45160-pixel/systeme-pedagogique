@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { moisDuJour, moisValide } from "@/lib/domain/pages-cahier";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { Bureau, type EntreesCahier } from "@/components/seances/bureau";
 import { CahierArchive } from "@/components/seances/cahier-archive";
+import { cleJour } from "@/lib/engine/dates";
 
 /** Les deux lectures de la même route (ADR-103). */
 type Vue = "bureau" | "cahier";
@@ -22,6 +23,7 @@ export function CahierInteractif({
   jours,
   entrees,
   aujourdHuiIso,
+  jourExplicite = false,
   compteId,
   recherche,
   compositeur,
@@ -35,6 +37,14 @@ export function CahierInteractif({
   jours: string[];
   entrees: EntreesCahier;
   aujourdHuiIso: string;
+  /**
+   * Vrai seulement quand le jour ouvert vient d'un choix explicite (`?jour=`
+   * ou `?session=`) : le navigateur n'a alors rien à redire. Faux — cas du
+   * Bureau sans paramètre —, le jour civil LOCAL reprend la main après
+   * montage : l'horloge initiale était celle du serveur, en UTC en production,
+   * et autour de minuit européen elle ouvrait la veille (friction du 25/08).
+   */
+  jourExplicite?: boolean;
   compteId: string;
   /** Terme de recherche actif, le cas échéant. Le Cahier s'ouvre dessus. */
   recherche?: string;
@@ -47,6 +57,28 @@ export function CahierInteractif({
   );
   const [vue, setVue] = useState<Vue>(vueInitiale);
   const aujourdHui = useMemo(() => new Date(aujourdHuiIso), [aujourdHuiIso]);
+
+  /*
+   * Le jour civil appartient au navigateur, pas au serveur.
+   *
+   * Le rendu initial garde le jour calculé côté serveur pour que l'HTML et
+   * l'hydratation coïncident (aucun décalage visible) ; dès le montage, si
+   * personne n'a demandé un autre jour explicitement, l'horloge LOCALE
+   * reprend la main. L'écart ne peut exister qu'autour de minuit entre les
+   * deux fuseaux — exactement le cas que ce correctif traite — et se referme
+   * avant toute interaction.
+   */
+  useEffect(() => {
+    if (jourExplicite) return;
+    const local = cleJour(new Date());
+    if (local !== jourInitial) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- l'horloge locale n'existe qu'après montage : c'est une synchronisation avec l'extérieur, pas un état dériv
+      setJour(local);
+      setMois(moisDuJour(local));
+    }
+    // Un seul alignement au montage : ensuite, l'utilisateur pilote.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Navigation locale instantanée entre les pages. Aucune écriture : ni

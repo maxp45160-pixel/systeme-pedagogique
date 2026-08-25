@@ -96,6 +96,7 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
     observations: ctx.observationsEffectives,
+    dureesEstimees: ctx.dureesEstimees,
     now: ctx.now,
   });
 
@@ -162,6 +163,7 @@ function VueGlobale({
     sessions: ctx.donnees.sessions,
     tentatives: ctx.donnees.attempts,
     observations: ctx.observationsEffectives,
+    dureesEstimees: ctx.dureesEstimees,
     now: ctx.now,
   });
 

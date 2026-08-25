@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
@@ -93,8 +93,6 @@ export interface ProprietesChat {
    * génération continue en arrière-plan.
    */
   surEnCoursChange?: (enCours: boolean) => void;
-  /** Mode épreuve : masque l'entrée « Donne-moi un indice » de la saisie. */
-  indicesMasques?: boolean;
 }
 
 /**
@@ -136,7 +134,6 @@ function ChatHydrate({
   competencesModale,
   calibragesModale,
   surEnCoursChange,
-  indicesMasques,
 }: {
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
@@ -162,8 +159,6 @@ function ChatHydrate({
   calibragesModale: Record<string, CalibrageModale>;
   /** Remontée de l'état du flux — voir `ProprietesChat`. */
   surEnCoursChange?: (enCours: boolean) => void;
-  /** Mode épreuve : masque l'entrée « Donne-moi un indice » de la saisie. */
-  indicesMasques?: boolean;
 }) {
   // `etat` ne vient plus d'un chargement asynchrone : il est calculé par le
   // serveur et ne change pas pendant la vie du composant. Pas d'état local.
@@ -240,13 +235,6 @@ function ChatHydrate({
     else ecrireSession(cleConversation, messages);
   }, [messages, enCours, cleConversation]);
 
-  const reinitialiserConversation = useCallback(() => {
-    setMessages([]);
-    setAvis(null);
-    setUsage(null);
-    effacerSession(cleConversation);
-  }, [cleConversation]);
-
   /* ---------------------------------------------------------------- */
   /* Suivi du bas, plutôt que recadrage forcé                          */
   /*                                                                   */
@@ -256,7 +244,7 @@ function ChatHydrate({
   /* attendre la fin de la rédaction pour pouvoir lire.                 */
   /*                                                                   */
   /* On ne recadre plus que si l'utilisateur était déjà en bas. Sinon   */
-  /* on le laisse où il est, et on le lui dit.                          */
+  /* on le laisse où il est : c'est son choix de lecture.               */
   /* ---------------------------------------------------------------- */
 
   /**
@@ -269,15 +257,13 @@ function ChatHydrate({
   const SEUIL_BAS_PX = 64;
 
   const suitLeBas = useRef(true);
-  const [detache, setDetache] = useState(false);
 
   useEffect(() => {
     const zone = zoneRef.current;
     if (!zone) return;
     const surScroll = () => {
-      const auBas = zone.scrollHeight - zone.scrollTop - zone.clientHeight < SEUIL_BAS_PX;
-      suitLeBas.current = auBas;
-      setDetache(!auBas);
+      suitLeBas.current =
+        zone.scrollHeight - zone.scrollTop - zone.clientHeight < SEUIL_BAS_PX;
     };
     zone.addEventListener("scroll", surScroll, { passive: true });
     return () => zone.removeEventListener("scroll", surScroll);
@@ -294,13 +280,6 @@ function ChatHydrate({
     });
     return () => cancelAnimationFrame(rafScroll.current);
   }, [messages]);
-
-  const reprendreLeSuivi = useCallback(() => {
-    suitLeBas.current = true;
-    setDetache(false);
-    const zone = zoneRef.current;
-    if (zone) zone.scrollTo({ top: zone.scrollHeight });
-  }, []);
 
   /* ---------------------------------------------------------------- */
   /* Accumulation par ref + flush cadencé                              */
@@ -473,7 +452,6 @@ function ChatHydrate({
     // Envoyer, c'est vouloir lire la réponse : on raccroche le suivi du bas,
     // quelle qu'ait été la position avant.
     suitLeBas.current = true;
-    setDetache(false);
 
     const abandon = new AbortController();
     abandonRef.current = abandon;
@@ -807,23 +785,6 @@ function ChatHydrate({
             )}
           </div>
 
-          {/*
-            Le suivi du bas a été relâché parce que l'utilisateur est remonté
-            lire. On ne le ramène pas de force — on lui laisse le geste.
-          */}
-          {detache && (
-            <div className="relative">
-              <Bouton
-                onClick={reprendreLeSuivi}
-                variante="secondaire"
-                taille="petite"
-                className="absolute -top-10 right-4 shadow-md"
-              >
-                ↓ Reprendre le suivi
-              </Bouton>
-            </div>
-          )}
-
           {avis && (
             <div
               className={cx(
@@ -840,14 +801,20 @@ function ChatHydrate({
           {/* Saisie — composant isolé (Fix 1) */}
           <ChatInput
             onEnvoyer={envoyer}
-            onCopier={copierContexte}
             onArreter={arreter}
-            onReinitialiser={messages.length > 0 ? reinitialiserConversation : undefined}
+            /*
+             * « Copier le contexte » n'est plus visible en permanence
+             * (friction 9) : elle revient exactement là où elle est
+             * obligatoire — le secours sans clé, quand aucun moteur n'est
+             * configuré et que coller le prompt dans Claude est la seule
+             * issue.
+             */
+            onCopier={copierContexte}
+            copieSecours={cleAbsente}
             enCours={enCours}
             cleAbsente={cleAbsente}
             usage={usage}
             saisieInitiale={saisieInitiale}
-            indicesMasques={indicesMasques}
           />
         </div>
       </div>

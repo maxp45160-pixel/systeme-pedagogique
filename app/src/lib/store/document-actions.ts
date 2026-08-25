@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import {
   creerDepuisTemplate,
   definirArchiveFrontMatter,
@@ -8,7 +9,7 @@ import {
 import { mettreAJourSections } from "@/lib/documents/sections-markdown";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
 import { formatAutorise, type RoleNote } from "@/lib/documents/roles-note";
-import { creerDocument, lireDocument, modifierDocument, supprimerDocument } from "./documents";
+import { creerDocument, lireApercusDocuments, lireDocument, modifierDocument, supprimerDocument } from "./documents";
 import { dorsaleCompte, nouvelId } from "./db";
 import { ligneVersEntite, verifier } from "./supabase-backend";
 import type { SnapshotDocument, ResumeSnapshotDocument } from "@/lib/documents/types-documents";
@@ -109,6 +110,53 @@ export async function creerNoteAction(
 
 export async function supprimerDocumentAction(id: string): Promise<void> {
   await supprimerDocument(id);
+}
+
+export interface ResultatSuppressionArchives {
+  /** Nombre de ressources réellement supprimées, pièces jointes comprises. */
+  supprimees: number;
+  /**
+   * Les suppressions refusées, avec leur motif lisible — une fiche portant un
+   * snapshot figé reste conservée (`supprimerDocument` refuse). Prétendre que
+   * tout a réussi quand une partie a échoué serait mentir sur l'état réel.
+   */
+  echecs: Array<{ id: string; motif: string }>;
+}
+
+/**
+ * Supprime TOUTES les ressources archivées du compte — le geste groupé de la
+ * vue Archives.
+ *
+ * La liste ne vient JAMAIS du client : le serveur relit lui-même les documents
+ * réellement archivés du compte au moment du geste. Une liste d'identifiants
+ * envoyée par le navigateur pourrait contenir autre chose que des archives ;
+ * ici, rien qui soit actif ne peut disparaître, et RLS borne la lecture comme
+ * l'écriture au compte connecté (ADR-015).
+ *
+ * Chaque suppression passe par `supprimerDocument`, seule implémentation :
+ * mêmes gardes (rôle, snapshot), même purge des pièces jointes du stockage,
+ * mêmes revalidations. Un échec n'interrompt pas les suivantes — le compte
+ * rendu distingue ce qui est parti de ce qui reste.
+ */
+export async function supprimerArchivesAction(): Promise<ResultatSuppressionArchives> {
+  const apercus = await lireApercusDocuments();
+  const archives = apercus.filter((apercu) => Boolean(apercu.frontMatter.archive));
+
+  let supprimees = 0;
+  const echecs: ResultatSuppressionArchives["echecs"] = [];
+  for (const archive of archives) {
+    try {
+      await supprimerDocument(archive.id);
+      supprimees += 1;
+    } catch (e) {
+      echecs.push({
+        id: archive.id,
+        motif: e instanceof Error ? e.message : "Échec de suppression.",
+      });
+    }
+  }
+  revalidatePath("/", "layout");
+  return { supprimees, echecs };
 }
 
 /**

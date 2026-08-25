@@ -29,10 +29,13 @@ import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import {
   avancementSeance,
+  attendPreparationSeance,
+  estPlanificationDifferee,
   exercicesDeLaSeance,
   motifRefusActivites,
   motifRefusBesoin,
   motifRefusBlueprint,
+  motifRefusPlanificationDifferee,
   peutReprendreSeance,
   resumeSeance,
   resumeSeanceAbandonnee,
@@ -129,8 +132,23 @@ export async function creerSeance(
     throw new Error(`Exercice(s) introuvable(s) dans la séance : ${inconnus.join(", ")}.`);
   }
 
-  const refusActivites = motifRefusActivites(entree.activites);
-  if (refusActivites) throw new Error(refusActivites);
+  /*
+   * Préparation différée (ADR-131) : une séance du protocole d'un cours se
+   * PLANIFIE avec moins d'exercices que demandés — voire aucun, cas normal
+   * d'un cours nouveau — parce qu'elle porte sa commande (`origine.codes` +
+   * `consigne`) et que le démarrage la fera préparer. La contrepartie est
+   * non négociable : sans commande stockée, pas de tolérance — la séance
+   * serait vide pour toujours. Le démarrage direct reste soumis à la règle
+   * stricte : on ne lance pas une séance vide.
+   */
+  const differee = estPlanificationDifferee(entree.blueprint, entree.activites, mode);
+  if (differee) {
+    const refusDifferee = motifRefusPlanificationDifferee(entree.blueprint);
+    if (refusDifferee) throw new Error(refusDifferee);
+  } else {
+    const refusActivites = motifRefusActivites(entree.activites);
+    if (refusActivites) throw new Error(refusActivites);
+  }
 
   const retenus = entree.activites.flatMap((a) => {
     const ex = parId.get(a.ref);
@@ -158,7 +176,17 @@ export async function creerSeance(
     // Pas de `dureeMin` : rien n'a encore eu lieu. Y mettre la durée cible
     // ferait passer une intention pour une mesure (P2).
     domaines: [...new Set(retenus.map((e) => e.domaine))],
-    skillCodes: [...new Set(entree.blueprint.cibles.map((c) => c.code))],
+    /*
+     * Les compétences visées incluent la commande différée : une séance
+     * planifiée sans exercices doit quand même dire ce qu'elle visera — ce
+     * sont ces codes que le démarrage passera au tuteur (ADR-131).
+     */
+    skillCodes: [
+      ...new Set([
+        ...entree.blueprint.cibles.map((c) => c.code),
+        ...(differee ? (entree.blueprint.origine?.codes ?? []) : []),
+      ]),
+    ],
     activites: entree.activites,
     genereAutomatiquement: false,
     statut: mode,
@@ -199,7 +227,10 @@ export async function creerSeance(
  * workspace focus la dérouler. On étend `LearningSession` : aucune entité
  * parallèle et aucune double entrée dans le journal.
  */
-export async function creerSeanceFocusExercice(exerciceId: string): Promise<string> {
+export async function creerSeanceFocusExercice(
+  exerciceId: string,
+  options: { premierParcours?: boolean } = {},
+): Promise<string> {
   const dorsale = await dorsaleCompte();
   const exercice = (await catalogueExercices(dorsale)).get(exerciceId);
   if (!exercice || exercice.archive) throw new Error("Cet exercice n'est plus disponible.");
@@ -230,6 +261,7 @@ export async function creerSeanceFocusExercice(exerciceId: string): Promise<stri
           difficulte: exercice.difficulte,
           raison: "Exercice choisi depuis la prochaine action.",
         }],
+        ...(options.premierParcours ? { premierParcours: true } : {}),
       },
       activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
     },
@@ -293,8 +325,14 @@ function dureeObservee(
  * temps (16/08/2026). Ce que cette garde protégeait — le rattachement non
  * ambigu d'un exercice terminé — est désormais tenu par le contexte explicite
  * du workspace (`seanceHoteDeLExercice`).
+ *
+ * La destination est RETOURNÉE, pas jouée par `redirect` : appelée depuis une
+ * transition client, une redirection traverse la promesse comme une erreur
+ * NEXT_REDIRECT, affichée par le try/catch du composant après une écriture
+ * réussie, sans navigation (défaut documenté du 23/08/2026). Même convention
+ * que `abandonnerExercice`.
  */
-export async function demarrerSeance(seanceId: string): Promise<void> {
+export async function demarrerSeance(seanceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
 
@@ -306,6 +344,18 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
         : statut === "abandonnee"
           ? "Cette séance a été abandonnée : elle se reprend, elle ne se démarre pas."
           : "Cette séance est terminée : elle ne se redémarre pas. Compose-en une nouvelle.",
+    );
+  }
+
+  /*
+   * Préparation différée (ADR-131) : une séance protocole qui attend encore des
+   * exercices ne démarre pas — le déroulé s'arrêterait sur du vide. L'écran la
+   * fait préparer d'abord (« Préparer et démarrer ») ; ce garde protège les
+   * chemins qui passeraient outre.
+   */
+  if (attendPreparationSeance(seance)) {
+    throw new Error(
+      "Cette séance attend ses exercices : passez par « Préparer et démarrer » pour que le tuteur écrive les manquants.",
     );
   }
 
@@ -321,7 +371,7 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
    * porte l'état — aucune clé navigateur — et `SasSeance` le retire de l'URL
    * dès l'affichage, pour qu'un rechargement ne le rejoue pas.
    */
-  redirect(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
+  return `/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`;
 }
 
 /**
@@ -333,13 +383,29 @@ export async function demarrerSeance(seanceId: string): Promise<void> {
  *
  * `dureeMin` reste absente si aucune tentative n'a été menée. Zéro serait faux :
  * l'absence de mesure n'est pas une durée nulle (P2).
+ *
+ * La destination est retournée, pas jouée par `redirect` (même convention que
+ * `demarrerSeance`).
  */
-export async function terminerSeance(seanceId: string): Promise<void> {
+export async function terminerSeance(seanceId: string): Promise<string> {
+  await ecrireClotureSeance(seanceId);
+  return `/seances?session=${encodeURIComponent(seanceId)}`;
+}
+
+/**
+ * Écrit la clôture d'une séance menée à son terme — sans aucune navigation.
+ *
+ * Corps commun de `terminerSeance` et de la clôture automatique du premier
+ * parcours (`destinationApresExercice`) : une seule implémentation de ce que
+ * « terminer une séance » écrit. Idempotent — rappeler sur une séance déjà
+ * terminée ne réécrit rien (leçon d'ADR-072).
+ */
+export async function ecrireClotureSeance(seanceId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
 
   if (statutSeance(seance) === "terminee") {
-    throw new Error("Cette séance est déjà terminée.");
+    return;
   }
 
   const tentatives = await lire("attempts", dorsale);
@@ -356,7 +422,6 @@ export async function terminerSeance(seanceId: string): Promise<void> {
     dorsale,
   );
   revalidatePath("/", "layout");
-  redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
 }
 
 /**
@@ -390,17 +455,18 @@ export async function terminerSeance(seanceId: string): Promise<void> {
  * produit douze entrées de journal. Un geste répété par impatience ou par
  * double soumission doit converger, pas s'empiler.
  */
-export async function abandonnerSeance(seanceId: string): Promise<void> {
+export async function abandonnerSeance(seanceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
 
   if (statutSeance(seance) === "abandonnee") {
-    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+    return `/seances?session=${encodeURIComponent(seanceId)}`;
   }
 
   await ecrireAbandon(seance, dorsale);
   revalidatePath("/", "layout");
-  redirect("/seances");
+  // Destination retournée, pas `redirect` : voir `demarrerSeance`.
+  return "/seances";
 }
 
 /**
@@ -537,12 +603,12 @@ async function ecrireAbandon(
  * l'est plus. Les laisser afficherait au journal le bilan d'un abandon dans une
  * séance rouverte, et ils seront réécrits à la vraie clôture.
  */
-export async function reprendreSeance(seanceId: string): Promise<void> {
+export async function reprendreSeance(seanceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
 
   if (statutSeance(seance) === "en-cours") {
-    redirect(`/seances?session=${encodeURIComponent(seanceId)}`);
+    return `/seances?session=${encodeURIComponent(seanceId)}`;
   }
 
   const tentatives = await lire("attempts", dorsale);
@@ -560,7 +626,8 @@ export async function reprendreSeance(seanceId: string): Promise<void> {
   );
   revalidatePath("/", "layout");
   // Reprendre est une entrée en travail comme une autre : même sas.
-  redirect(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
+  // Destination retournée, pas `redirect` : voir `demarrerSeance`.
+  return `/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`;
 }
 
 /**
@@ -629,7 +696,7 @@ export async function renoncerSeance(seanceId: string): Promise<void> {
  * de la faire disparaître — une fonction qui fait autre chose que ce que son nom
  * annonce s'érode.
  */
-export async function annulerSeance(seanceId: string): Promise<void> {
+export async function annulerSeance(seanceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
   const seance = await seanceDuCompte(seanceId, dorsale);
 
@@ -646,5 +713,6 @@ export async function annulerSeance(seanceId: string): Promise<void> {
     .eq("id", seanceId);
   verifier("annulation de la séance", error);
   revalidatePath("/", "layout");
-  redirect("/seances");
+  // Destination retournée, pas `redirect` : voir `demarrerSeance`.
+  return "/seances";
 }

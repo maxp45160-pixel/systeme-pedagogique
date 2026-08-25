@@ -143,7 +143,17 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   s'écrit ; `MAX_MESSAGES_FENETRE` et `LIMITE_MATIERE_FICHE` bornent la
   conversation et se revoient avec lui.
 - Le protocole d'un cours n'est pas une entité (ADR-130) : il devient des
-  séances planifiées dont `blueprint.origine` porte la trace. Ses dimensions
+  séances planifiées dont `blueprint.origine` porte la trace. La validation du
+  plan n'appelle jamais le tuteur : les exercices manquants ne sont générés
+  qu'au démarrage de la séance qui les demande (ADR-131), ancrés dans
+  l'extrait du cours désigné par l'origine — jamais un autre document
+  (ADR-132) —, et une séance
+  planifiée sans exercice n'est tolérée que si son origine porte sa commande
+  (codes + consigne). Une séance « compréhension » ne fait pas écrire
+  d'exercices par le tuteur : elle reçoit des exercices-Feynman déterministes,
+  sans appel LLM (ADR-133) ; une séance « mémorisation » reçoit des cartes de
+  rappel qui désignent le cours réel pour vérification, jamais un corrigé
+  fabriqué (ADR-134). Ses dimensions
   (compréhension, application, contextualisation, mémorisation) sont des
   intentifs de séance — elles n'observent rien et ne notent rien. Les codes
   qu'il désigne viennent de l'enum du référentiel actif, validés par

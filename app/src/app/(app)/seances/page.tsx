@@ -299,12 +299,21 @@ async function ContenuBureau({
     jourValide(jourDemande) ??
     (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null) ??
     cleJour(ctx.now);
+  /*
+   * Un jour venu de l'URL (`?jour=`, `?session=`) est un choix explicite : le
+   * navigateur n'a rien à redire. Le jour par défaut, lui, a été coupé dans
+   * le fuseau du serveur (UTC en production) — `CahierInteractif` le recoupe
+   * dans le fuseau local au montage, sinon autour de minuit européen
+   * `/seances` ouvrait la veille.
+   */
+  const jourExplicite = Boolean(jourValide(jourDemande)) || Boolean(seanceOuverte);
 
   const terme = rechercheTexte?.trim();
 
   return (
     <CahierInteractif
       jourInitial={jour}
+      jourExplicite={jourExplicite}
       moisInitial={moisDemande}
       vueInitiale={vueDemandee === "cahier" || terme ? "cahier" : "bureau"}
       {...(terme ? { recherche: terme } : {})}

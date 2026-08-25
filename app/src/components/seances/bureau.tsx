@@ -283,15 +283,17 @@ export function Bureau({
         )}
 
         {(estAujourdHui || page.notes.length > 0) && (
-          <Bloc titre="En marge">
+          <Bloc titre="Bloc-notes">
+            {/*
+              Une page, un jour (friction du 25/08/2026) : chaque page ne
+              montre que les lignes notées CE jour-là, aujourd'hui compris.
+              L'ancien comportement empilait toutes les lignes ouvertes du
+              compte sur la page du jour — une mémoire automatique qui
+              revenait sans geste. Les anciennes lignes restent lisibles sur
+              leur jour d'origine, dans le Cahier.
+            */}
             {estAujourdHui ? (
-              /*
-                Toutes les lignes ouvertes, pas seulement celles notées
-                aujourd'hui : la marge est une liste de choses à traiter, pas
-                un journal daté. Ce qu'on a écrit lundi et jamais traité doit
-                rester sous les yeux vendredi.
-              */
-              <ListeMarge lignes={notes} nu />
+              <ListeMarge lignes={page.notes} nu />
             ) : (
               <ul className="divide-y divide-bordure/40 text-sm">
                 {page.notes.map((note, index) => (
@@ -352,8 +354,9 @@ export function Bureau({
         )}
 
         {/*
-          La barre de capture, dernier enfant de la colonne.
-
+          La barre de capture, dernier enfant de la colonne — et du jour
+          courant SEULEMENT (friction du 25/08/2026) : une note se date de son
+          jour, la barre n'a donc rien à faire sur une page passée ou future.
           Elle reste au bas de l'écran — noter est le geste le plus fréquent du
           Bureau et ne doit jamais demander de faire défiler — mais par
           `sticky`, donc dans la colonne : sa largeur EST celle du contenu,
@@ -366,9 +369,11 @@ export function Bureau({
           Le dégradé déborde de la colonne (`-mx-4 px-4`) pour que le contenu
           qui passe dessous s'efface aussi dans les gouttières.
         */}
-        <div className="sticky bottom-16 z-40 -mx-4 mt-auto bg-gradient-to-t from-fond via-fond/85 to-transparent px-4 pb-3 pt-6 lg:bottom-4">
-          <ChampMarge variante="barre" />
-        </div>
+        {estAujourdHui && (
+          <div className="sticky bottom-16 z-40 -mx-4 mt-auto bg-gradient-to-t from-fond via-fond/85 to-transparent px-4 pb-3 pt-6 lg:bottom-4">
+            <ChampMarge variante="barre" jour={jour} />
+          </div>
+        )}
       </div>
 
       <PaletteBureau

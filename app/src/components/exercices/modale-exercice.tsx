@@ -437,7 +437,11 @@ export function ModaleExercice({
 
         if (demarrerApresAcceptation) {
           try {
-            const seanceId = await creerSeanceFocusExercice(id);
+            // `premierParcours` : la provenance minimale du premier test
+            // (ADR-128). Elle vit dans le blueprint de la séance — aucune
+            // entité nouvelle — et sert à refermer la séance avec son unique
+            // exercice, puis à ramener au tableau de bord.
+            const seanceId = await creerSeanceFocusExercice(id, { premierParcours: true });
             onFermer();
             router.push(`/seances?session=${encodeURIComponent(seanceId)}&focus=1&sas=1`);
           } catch {

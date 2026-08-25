@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resumeCarriere } from "./carriere";
+import { calculerActivite } from "./historique";
 import type { ExerciseAttempt, LearningSession, SkillObservation } from "@/lib/domain/types";
 
 const NOW = new Date("2026-08-16T12:00:00Z");
@@ -154,5 +155,87 @@ describe("resumeCarriere — séries", () => {
       now: NOW,
     });
     expect(c.meilleureSerie).toBe(2);
+  });
+});
+
+describe("resumeCarriere — le temps retenu lit la même reconstruction que la croissance", () => {
+  /**
+   * La friction du 25/08/2026 : « Temps travaillé » (carrière) sommait
+   * `session.dureeMin` brut quand le bilan de croissance passait par
+   * `tracesActivite` + plafonds d'ADR-071. Deux panneaux, deux chiffres pour
+   * le même travail.
+   */
+
+  function tentativeReelle(
+    id: string,
+    statut: ExerciseAttempt["statut"],
+    dureeMin: number,
+    debut = "2026-08-10T09:00:00Z",
+    fin = "2026-08-10T10:30:00Z",
+  ): ExerciseAttempt {
+    return { id, exerciseId: "ex-1", statut, dureeMin, debut, fin } as unknown as ExerciseAttempt;
+  }
+
+  const SEANCE_EXERCICE = seance({
+    id: "ses-ex",
+    statut: "terminee",
+    activites: [{ type: "exercice", ref: "ex-1", libelle: "Exercice" }],
+  });
+
+  it("plafonne un abandon nocturne exactement comme la croissance le plafonne", () => {
+    // Séance mono-exercice écrite au même geste qu'une tentative ouverte une
+    // nuit : la séance porte 1015 min brutes, l'abandon ne retient que
+    // l'estimation (20 min).
+    const entrees = {
+      sessions: [
+        {
+          ...SEANCE_EXERCICE,
+          genereAutomatiquement: true,
+          date: "2026-08-09T18:15:00Z",
+          dureeMin: 1015,
+        } as LearningSession,
+      ],
+      tentatives: [tentativeReelle("att-nuit", "abandonnee", 1015)],
+      observations: [] as SkillObservation[],
+      dureesEstimees: new Map([["ex-1", 20]]),
+      now: NOW,
+    };
+    const carriere = resumeCarriere(entrees);
+    expect(carriere.minutesTotal).toBe(20);
+
+    // La même entrée lue par la reconstruction du bilan de croissance donne
+    // exactement le même temps : un seul chiffre pour un seul travail.
+    const activite = calculerActivite(
+      [...entrees.sessions],
+      NOW,
+      [...entrees.tentatives],
+      new Map(entrees.dureesEstimees),
+    );
+    expect(activite.minutesTotal).toBe(carriere.minutesTotal);
+  });
+
+  it("compte les tentatives menées à leur durée retenue, pas à la durée brute de la séance", () => {
+    const carriere = resumeCarriere({
+      sessions: [{ ...SEANCE_EXERCICE, dureeMin: 90 }],
+      tentatives: [tentativeReelle("att-1", "terminee", 45)],
+      observations: [],
+      dureesEstimees: new Map([["ex-1", 60]]),
+      now: NOW,
+    });
+    expect(carriere.minutesTotal).toBe(45);
+    // Le comptage distinct des séances est préservé.
+    expect(carriere.seancesTotal).toBe(1);
+  });
+
+  it("garde le repli historique des séances sans tentative (durée absente ≠ zéro inventé)", () => {
+    const c = resumeCarriere({
+      sessions: [seance({ statut: "terminee" })],
+      tentatives: [],
+      observations: [],
+      dureesEstimees: new Map(),
+      now: NOW,
+    });
+    expect(c.seancesTotal).toBe(1);
+    expect(c.minutesTotal).toBe(0);
   });
 });

@@ -211,7 +211,18 @@ interface TraceActivite {
  * là où une liste d'exercices est toujours filtrée pour un écran. Le moteur ne
  * reçoit ainsi que la mesure dont il a besoin, jamais le référentiel.
  */
-function tracesActivite(
+/**
+ * La reconstruction du temps travaillé, trace par trace — l'AUTORITÉ unique de
+ * la durée retenue.
+ *
+ * Publiée depuis le 25/08/2026 pour que la carrière (`resumeCarriere`) somme
+ * exactement ce que somme le bilan de croissance et `calculerActivite` : trois
+ * panneaux qui parlaient du même travail devaient lire la même reconstruction,
+ * sans quoi « Temps travaillé » divergeait d'une carte à l'autre. Toute nouvelle
+ * lecture du temps retenu passe par ici, jamais par une somme brute de
+ * `session.dureeMin`.
+ */
+export function tracesActivite(
   sessions: LearningSession[],
   tentatives: ExerciseAttempt[] = [],
   dureesEstimees: Map<string, number> = new Map(),
