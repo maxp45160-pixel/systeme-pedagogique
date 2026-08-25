@@ -28,6 +28,15 @@ export interface Engagement {
   echeanceLe: string;
   /** Codes du référentiel du compte visés par cet engagement. Vide : non ciblé. */
   codes: string[];
+  /**
+   * Le module (un domaine vivant du référentiel, ADR-137) auquel cette
+   * échéance se rattache. Fait déclaré posé à la création et jamais réécrit ;
+   * absent : l'échéance n'est rattachée à aucun module. Le sens inverse — les
+   * échéances d'un module — se dérive (`echeancesDuModule`), jamais stocké.
+   * Un identifiant peut devenir orphelin (module archivé ou supprimé) :
+   * l'échéance reste un fait entier, affichée sans son module.
+   */
+  moduleDomaineId?: string;
   /** Instant de clôture (ISO complet). Présent : l'engagement est fermé. */
   clotureLe?: string;
   clotureType?: ClotureEngagement;
@@ -100,6 +109,25 @@ export function triParUrgence<T extends Engagement>(engagements: T[]): T[] {
   );
 }
 
+/**
+ * Les échéances ouvertes rattachées à un module — entièrement dérivé (P1).
+ *
+ * Correspondance par identifiant EXACT : une échéance liée au module « M » ne
+ * remonte pas dans ses sous-domaines. Étendre aux descendants fabriquerait un
+ * rattachement que personne n'a déclaré ; qui veut voir un sous-module porter
+ * l'échéance le déclare sur lui. Trié du plus proche au plus lointain.
+ */
+export function echeancesDuModule(
+  moduleDomaineId: string,
+  engagements: readonly Engagement[],
+): Engagement[] {
+  return triParUrgence(
+    engagements.filter(
+      (engagement) => estOuvert(engagement) && engagement.moduleDomaineId === moduleDomaineId,
+    ),
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Validation à la création — refus bruyant, aucun repli                */
 /* ------------------------------------------------------------------ */
@@ -110,6 +138,8 @@ export interface EntreeEngagement {
   libelle: string;
   echeanceLe: string;
   codes?: string[];
+  /** Module facultatif — un domaine vivant du référentiel (ADR-137). */
+  moduleDomaineId?: string;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -127,12 +157,21 @@ function refuserCreation(motif: string): never {
  * - date ISO `YYYY-MM-DD` réelle (le 31/02 est refusé, pas corrigé) ;
  * - chaque code existe dans le référentiel fourni — un code invalide est un
  *   refus bruyant, jamais ignoré (garde-fou : le tuteur ne crée jamais de
- *   code, et ici personne ne crée de code non plus).
+ *   code, et ici personne ne crée de code non plus) ;
+ * - `moduleDomaineId`, s'il est renseigné, désigne un domaine VIVANT du compte
+ *   — un module archivé ou inconnu est refusé avec son motif, jamais ignoré.
  */
 export function validerNouvelEngagement(
   entree: EntreeEngagement,
   codesActifs: ReadonlySet<string>,
-): { type: TypeEngagement; libelle: string; echeanceLe: string; codes: string[] } {
+  domainesActifs: ReadonlySet<string> = new Set(),
+): {
+  type: TypeEngagement;
+  libelle: string;
+  echeanceLe: string;
+  codes: string[];
+  moduleDomaineId?: string;
+} {
   if (!TYPES_ENGAGEMENT.includes(entree.type as TypeEngagement)) {
     refuserCreation(`type « ${entree.type} » inconnu — examen ou rendu attendu.`);
   }
@@ -164,7 +203,20 @@ export function validerNouvelEngagement(
     );
   }
 
-  return { type: entree.type as TypeEngagement, libelle, echeanceLe: echeance, codes };
+  const moduleDomaineId = entree.moduleDomaineId?.trim() || undefined;
+  if (moduleDomaineId && !domainesActifs.has(moduleDomaineId)) {
+    refuserCreation(
+      `module « ${moduleDomaineId} » inconnu ou mis de côté — déclarez le domaine d'abord.`,
+    );
+  }
+
+  return {
+    type: entree.type as TypeEngagement,
+    libelle,
+    echeanceLe: echeance,
+    codes,
+    moduleDomaineId,
+  };
 }
 
 /* ------------------------------------------------------------------ */

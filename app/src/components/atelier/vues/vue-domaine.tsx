@@ -4,8 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import type { ProgressionDomaineVue } from "@/lib/documents/progression-domaine";
-import { Bouton } from "@/components/ui/primitives";
+import { Bouton, Etiquette } from "@/components/ui/primitives";
 import { IconeDocuments, IconeRecherche } from "@/components/ui/icones";
+import { libelleCompte } from "@/lib/domain/engagement";
+import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
 import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { CompetencesMisesDeCote } from "@/components/referentiel/competences-mises-de-cote";
@@ -201,6 +203,49 @@ export function VueDomaine({
               modifiable={!vue.domaine.archive}
               ouvrirDomaine={(id) => ouvrirElement(`domaine:${id}`)}
             />
+            {!vue.domaine.archive && (
+              /*
+               * Le cadre du module (ADR-137) : les échéances déclarées SUR ce
+               * domaine, dérivées des engagements — et le geste qui en déclare
+               * une depuis ici, pré-remplie. Rien n'est stocké dans la vue :
+               * la liste se recalcule à chaque lecture.
+               */
+              <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                    Échéances du module
+                  </h3>
+                  <BoutonEcheance
+                    competences={vue.skills
+                      .filter((skill) => !skill.archive)
+                      .map(({ code, intitule }) => ({ code, intitule }))}
+                    modules={vue.domainesExistants.map(({ id, nom }) => ({ id, nom }))}
+                    initial={{ moduleDomaineId: vue.domaine.id }}
+                    libelle="Déclarer une échéance pour ce module"
+                  />
+                </div>
+                {vue.echeancesModule.length === 0 ? (
+                  <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+                    Aucune échéance liée à ce module. Un examen, un rendu, un partiel à date
+                    orientera les priorités de travail.
+                  </p>
+                ) : (
+                  <ul className="mt-2 divide-y divide-bordure/60">
+                    {vue.echeancesModule.map((echeance) => (
+                      <li key={echeance.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1.5">
+                        <span className="text-sm font-medium text-texte">{echeance.libelle}</span>
+                        <Etiquette ton={echeance.jours < 0 ? "alerte" : echeance.jours <= 3 ? "primaire" : "neutre"}>
+                          {libelleCompte(echeance.jours)}
+                        </Etiquette>
+                        <span className="ml-auto shrink-0 font-mono text-[0.625rem] text-texte-discret">
+                          {echeance.echeanceLe}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
             {vue.ressources.length > 0 && (
               /*
                * Le fil des ressources (R3) : ce qu'on lit pour travailler ce

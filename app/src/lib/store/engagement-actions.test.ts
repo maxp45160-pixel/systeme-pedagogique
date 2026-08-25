@@ -33,6 +33,10 @@ const OUVERT: Engagement = {
 
 const REFERENTIEL = {
   codesActifs: new Set(["LOG-01", "LOG-02"]),
+  domaines: [
+    { id: "macro-l2", archive: false },
+    { id: "dom-cote", archive: true },
+  ],
 };
 
 describe("creerEngagement", () => {
@@ -74,6 +78,29 @@ describe("creerEngagement", () => {
     await expect(
       creerEngagement({ type: "examen", libelle: "  ", echeanceLe: "2026-09-05" }),
     ).rejects.toThrow(/libellé/);
+    expect(mocks.ajouter).not.toHaveBeenCalled();
+  });
+
+  it("écrit le module déclaré (ADR-137) quand il est vivant", async () => {
+    const engagement = await creerEngagement({
+      type: "examen",
+      libelle: "Partiel",
+      echeanceLe: "2026-09-05",
+      moduleDomaineId: "macro-l2",
+    });
+    expect(engagement.moduleDomaineId).toBe("macro-l2");
+    expect(mocks.ajouter).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuse un module inconnu ou mis de côté, sans rien écrire", async () => {
+    await expect(
+      creerEngagement({
+        type: "examen",
+        libelle: "Partiel",
+        echeanceLe: "2026-09-05",
+        moduleDomaineId: "dom-cote",
+      }),
+    ).rejects.toThrow(/module « dom-cote » inconnu ou mis de côté/);
     expect(mocks.ajouter).not.toHaveBeenCalled();
   });
 });
@@ -140,6 +167,21 @@ describe("reporterEngagement — append-only", () => {
       codes: ["LOG-01"],
     });
     expect(mocks.revalidatePath).toHaveBeenCalled();
+  });
+
+  it("emporte le lien au module sur le remplaçant, jamais sur l'ancien (ADR-137)", async () => {
+    mocks.lire.mockImplementation(async (nom: string) =>
+      nom === "engagements"
+        ? [{ ...OUVERT, moduleDomaineId: "macro-l2" }]
+        : [],
+    );
+
+    const remplacement = await reporterEngagement("eng-1", "2026-09-20");
+    expect(remplacement.moduleDomaineId).toBe("macro-l2");
+
+    // L'ancien n'a reçu QUE sa clôture : le champ module n'y est pas réécrit.
+    const [, , champsAncien] = mocks.modifier.mock.calls[0];
+    expect(champsAncien.moduleDomaineId).toBeUndefined();
   });
 
   it("refuse une nouvelle date invalide avant toute écriture", async () => {

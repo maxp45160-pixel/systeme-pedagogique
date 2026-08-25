@@ -24,6 +24,8 @@ export interface InitialisationEngagement {
   type?: TypeEngagement;
   libelle?: string;
   echeanceLe?: string;
+  /** Module présélectionné (déclaration depuis la fiche d'un domaine, ADR-137). */
+  moduleDomaineId?: string;
 }
 
 const TYPES: { cle: TypeEngagement; libelle: string }[] = [
@@ -33,12 +35,15 @@ const TYPES: { cle: TypeEngagement; libelle: string }[] = [
 
 export function ModaleEngagement({
   competences,
+  modules = [],
   initial,
   onFermer,
 }: {
   /** Compétences actives du compte, pour le ciblage facultatif. */
   competences: { code: string; intitule: string }[];
-  /** Pré-remplissage (chemin assisté depuis la capture d'intention). */
+  /** Modules (domaines vivants) du compte, pour le rattachement facultatif (ADR-137). */
+  modules?: { id: string; nom: string }[];
+  /** Pré-remplissage (chemin assisté ou déclaration depuis un module). */
   initial?: InitialisationEngagement;
   onFermer: () => void;
 }) {
@@ -50,6 +55,7 @@ export function ModaleEngagement({
   const [libelle, setLibelle] = useState(initial?.libelle ?? "");
   const [echeanceLe, setEcheanceLe] = useState(initial?.echeanceLe ?? "");
   const [codes, setCodes] = useState<string[]>([]);
+  const [moduleDomaineId, setModuleDomaineId] = useState(initial?.moduleDomaineId ?? "");
 
   function basculerCode(code: string) {
     setCodes((precedents) =>
@@ -61,7 +67,13 @@ export function ModaleEngagement({
 
   const soumettre = () => {
     setErreur(null);
-    const entree: EntreeEngagement = { type, libelle, echeanceLe, codes };
+    const entree: EntreeEngagement = {
+      type,
+      libelle,
+      echeanceLe,
+      codes,
+      moduleDomaineId: moduleDomaineId || undefined,
+    };
     demarrer(async () => {
       try {
         await creerEngagement(entree);
@@ -139,6 +151,30 @@ export function ModaleEngagement({
             className="w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-primaire focus:ring-1 focus:ring-primaire/20"
           />
         </label>
+
+        {modules.length > 0 && (
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-texte-attenue">
+              Module concerné{" "}
+              <span className="font-normal text-texte-discret">(facultatif)</span>
+            </span>
+            <select
+              value={moduleDomaineId}
+              onChange={(e) => setModuleDomaineId(e.target.value)}
+              className="w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            >
+              <option value="">Aucun module</option>
+              {modules.map((module) => (
+                <option key={module.id} value={module.id}>
+                  {module.nom}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[0.6875rem] text-texte-discret">
+              Le module rattaché orientera aussi la vue du cours concerné.
+            </span>
+          </label>
+        )}
 
         {competences.length > 0 && (
           <fieldset>

@@ -202,6 +202,12 @@ positionnement actuel ; l'une ne remplace pas l'autre.
 8. La prochaine action est recalculée en tenant compte du cours et de
    l'échéance.
 
+Le mécanisme des étapes 1-2 (25/08/2026, ADR-137) : **un module de cours est
+un domaine du référentiel** — le cadre existant qui rassemble ses PDFs déposés,
+ses compétences taguées et ses sous-parties (TD, TP). Une échéance peut se lier
+à lui comme fait déclaré, posé à la création ; la liste des échéances d'un
+module se dérive à la lecture. Aucune entité nouvelle.
+
 Le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
 référentiel ou des documents — même exigence qu'ADR-128 : atteindre un
 exercice probant avant tout le reste.
@@ -481,6 +487,12 @@ jamais l'identité permanente de la personne, jamais une source de mesure
 automatique : après les études, l'historique et les compétences restent
 utilisables tels quels. L'ouverture future vers d'autres publics est préservée
 par le modèle métier, pas par une seconde version du produit.
+✅ **Le module de cours est un domaine ; l'échéance s'y lie comme fait déclaré**
+(25/08/2026, ADR-137). Déclarer ses modules = créer des domaines racines —
+geste déterministe existant, sans appel tuteur ; la seule pièce nouvelle est la
+colonne nullable `engagements.module_domaine_id`, posée à la création et validée
+contre les domaines vivants du compte. Le sens inverse se dérive (`echeancesDuModule`),
+jamais recopié. Aucune fusion forcée fiche ↔ domaine, aucune entité nouvelle.
 
 ### Ouvert
 

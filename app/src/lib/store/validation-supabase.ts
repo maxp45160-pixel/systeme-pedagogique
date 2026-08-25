@@ -361,6 +361,7 @@ export function validerEngagement(valeur: unknown, chemin = "engagements"): Enga
     refuser(`${chemin}.echeanceLe`, "date ISO YYYY-MM-DD attendue");
   }
   textes(engagement.codes, `${chemin}.codes`);
+  optionnel(engagement, "moduleDomaineId", chemin, (v, c) => texte(v, c));
   optionnel(engagement, "clotureLe", chemin, (v, c) => texte(v, c));
   optionnel(engagement, "clotureType", chemin, (v, c) =>
     enumeration(v, ["passe", "reporte"] as const, c));

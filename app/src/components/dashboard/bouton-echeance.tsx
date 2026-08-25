@@ -14,11 +14,14 @@ import { ModaleEngagement, type InitialisationEngagement } from "./modale-engage
 
 export function BoutonEcheance({
   competences,
+  modules = [],
   initial,
   libelle = "Déclarer une échéance",
 }: {
   competences: { code: string; intitule: string }[];
-  /** Pré-remplissage (chemin assisté). */
+  /** Modules (domaines vivants) du compte, pour le rattachement facultatif (ADR-137). */
+  modules?: { id: string; nom: string }[];
+  /** Pré-remplissage (chemin assisté ou déclaration depuis un module). */
   initial?: InitialisationEngagement;
   libelle?: string;
 }) {
@@ -37,6 +40,7 @@ export function BoutonEcheance({
       {ouverte && (
         <ModaleEngagement
           competences={competences}
+          modules={modules}
           initial={initial}
           onFermer={() => setOuverte(false)}
         />

@@ -31,6 +31,11 @@ import {
   parentsPossibles,
 } from "@/lib/domain/hierarchie-domaines";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
+import {
+  echeancesDuModule,
+  joursRestants,
+  type Engagement,
+} from "@/lib/domain/engagement";
 import type { IndexDocumentaire } from "./index";
 import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
 import {
@@ -235,6 +240,19 @@ export interface VueDomaineAtelier {
   /** Position déclarée sur la carte des savoirs, `null` tant que personne n'a tranché. */
   rattachementCarte: RattachementCarte | null;
   /**
+   * Les échéances ouvertes déclarées SUR ce module — dérivées des engagements
+   * (ADR-137), du plus proche au plus lointain, avec leur distance en jours.
+   * Correspondance par identifiant exact : une échéance liée à un sous-domaine
+   * reste chez lui.
+   */
+  echeancesModule: Array<{
+    id: string;
+    type: string;
+    libelle: string;
+    echeanceLe: string;
+    jours: number;
+  }>;
+  /**
    * Candidats proposés, `null` dès qu'un rattachement existe : on ne propose
    * pas de reclasser ce qui vient d'être arbitré. Vide quand rien n'atteint le
    * seuil — un résultat, pas un échec.
@@ -348,6 +366,13 @@ export function construireVuesAtelier(
   changementsReferentiel: ChangementReferentiel[],
   codesAvecDependances: ReadonlySet<string>,
   etatsCompetences: readonly EtatCompetence[],
+  /**
+   * Échéances déclarées du compte (ADR-137) : chaque vue de domaine porte les
+   * siennes, dérivées par `echeancesDuModule` — rien n'est stocké. Optionnels
+   * pour ne pas casser les appelants qui n'en ont pas l'usage.
+   */
+  engagements: Engagement[] = [],
+  now: Date = new Date(),
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
@@ -615,6 +640,13 @@ export function construireVuesAtelier(
           documents: corpus,
           observations: observationsReferentiel,
         }),
+        echeancesModule: echeancesDuModule(domaine.id, engagements).map((engagement) => ({
+          id: engagement.id,
+          type: engagement.type,
+          libelle: engagement.libelle,
+          echeanceLe: engagement.echeanceLe,
+          jours: joursRestants(engagement.echeanceLe, now),
+        })),
       };
     });
 

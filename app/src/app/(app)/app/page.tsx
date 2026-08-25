@@ -11,7 +11,7 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeCalendrier, IconeCours, IconeFleche } from "@/components/ui/icones";
+import { IconeCalendrier, IconeCours, IconeDomaine, IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -229,15 +229,27 @@ async function ContenuTableauDeBord({
       <div className="space-y-1.5">
         <BoutonIntentionDashboard />
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <Link
-            href="/atelier?creation=cours"
-            className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
-          >
-            <IconeCours className="size-4" />
-            Déposer mon cours
-          </Link>
+          <div className="flex flex-wrap items-center gap-1">
+            <Link
+              href="/atelier?creation=cours"
+              className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
+            >
+              <IconeCours className="size-4" />
+              Déposer mon cours
+            </Link>
+            <Link
+              href="/atelier?creation=domaine"
+              className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
+            >
+              <IconeDomaine className="size-4" />
+              Ajouter un module
+            </Link>
+          </div>
           <BoutonEcheance
             competences={ctx.referentiel.actifs.map(({ code, intitule }) => ({ code, intitule }))}
+            modules={ctx.referentiel.domaines
+              .filter((domaine) => !domaine.archive)
+              .map(({ id, nom }) => ({ id, nom }))}
           />
         </div>
       </div>

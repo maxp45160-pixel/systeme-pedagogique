@@ -207,8 +207,7 @@ describe("construireVuesAtelier", () => {
       etatsLot5(etat(competence), etat(suivante)),
     );
 
-    expect(vues.competences[0].niveau).toBeNull();
-    expect(vues.competences[0].score).toBeNull();
+    expect(vues.competences[0].niveau).toBeNull();    expect(vues.competences[0].score).toBeNull();
     expect(vues.competences[0].exercices).toHaveLength(0);
     expect(vues.competences[0].observations).toHaveLength(0);
     expect(vues.competences[0].etatLot5.observationPonctuelle).toBeNull();
@@ -507,5 +506,59 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
     );
 
     expect(vues.competences[0].domainesExistants).toEqual([]);
+  });
+
+  it("porte les échéances déclarées sur le module, dérivées des engagements (ADR-137)", () => {
+    const maintenant = new Date(2026, 7, 25);
+    const engagement = (id: string, echeanceLe: string, moduleDomaineId?: string) => ({
+      id,
+      type: "examen" as const,
+      libelle: `Échéance ${id}`,
+      echeanceLe,
+      codes: [],
+      moduleDomaineId,
+    });
+    const engagements = [
+      { ...engagement("eng-loin", "2026-10-01", "logistique"), clotureLe: "2026-08-20T10:00:00Z", clotureType: "passe" as const },
+      engagement("eng-proche", "2026-09-05", "logistique"),
+      engagement("eng-autre", "2026-09-01", "autre-module"),
+      engagement("eng-libre", "2026-08-30"),
+    ];
+
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence)],
+      [],
+      [],
+      index,
+      [],
+      [],
+      new Set(),
+      etatsLot5(etat(competence)),
+      engagements,
+      maintenant,
+    );
+
+    // Seul l'engagement ouvert rattaché à CE domaine remonte — clos, étranger
+    // et non rattaché restent chez eux. Trié du plus proche au plus lointain.
+    expect(vues.domaines[0].echeancesModule).toEqual([
+      { id: "eng-proche", type: "examen", libelle: "Échéance eng-proche", echeanceLe: "2026-09-05", jours: 11 },
+    ]);
+  });
+
+  it("rend un module sans échéance déclarée par une liste vide, jamais un faux", () => {
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence)],
+      [],
+      [],
+      index,
+      [],
+      [],
+      new Set(),
+      etatsLot5(etat(competence)),
+    );
+
+    expect(vues.domaines[0].echeancesModule).toEqual([]);
   });
 });

@@ -34,13 +34,18 @@ import { lireReferentiel } from "./referentiel";
  * l'écriture — pas contre ce que le formulaire a reçu : l'interface est
  * contournable, et un code hors référentiel doit lever ici comme partout
  * (garde-fou : personne ne crée de code de compétence en déclarant une
- * échéance).
+ * échéance). Le module facultatif (ADR-137) l'est contre les domaines VIVANTS
+ * du compte : lier une échéance à un domaine mis de côté serait écrire un lien
+ * vers un cadre qui ne porte plus rien.
  */
 export async function creerEngagement(entree: EntreeEngagement): Promise<Engagement> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
 
-  const valide = validerNouvelEngagement(entree, referentiel.codesActifs);
+  const domainesActifs = new Set(
+    referentiel.domaines.filter((domaine) => !domaine.archive).map((domaine) => domaine.id),
+  );
+  const valide = validerNouvelEngagement(entree, referentiel.codesActifs, domainesActifs);
   const engagement: Engagement = { id: nouvelId("eng"), ...valide };
 
   await ajouter("engagements", engagement, dorsale);
@@ -79,8 +84,11 @@ export async function cloreEngagement(id: string): Promise<void> {
  *
  * L'ancien est clôturé « reporte » — son échéance passée n'est ni réécrite ni
  * effacée — et un NOUVEL engagement porte la date remplacée, avec le même
- * type, libellé et ciblage. La validation de la nouvelle date est exactement
- * celle d'une création : une seule autorité (`validerNouvelEngagement`).
+ * type, libellé, ciblage et module (ADR-137 : le lien déclaré voyage avec le
+ * fait remplaçant). La validation de la nouvelle date est exactement celle
+ * d'une création : une seule autorité (`validerNouvelEngagement`), domaines
+ * vivants compris — si le module a été mis de côté entre-temps, le report se
+ * voit refusé avec son motif plutôt que de recopier un lien mort.
  */
 export async function reporterEngagement(id: string, nouvelleEcheanceLe: string): Promise<Engagement> {
   const dorsale = await dorsaleCompte();
@@ -94,9 +102,19 @@ export async function reporterEngagement(id: string, nouvelleEcheanceLe: string)
     );
   }
 
+  const domainesActifs = new Set(
+    referentiel.domaines.filter((domaine) => !domaine.archive).map((domaine) => domaine.id),
+  );
   const valide = validerNouvelEngagement(
-    { type: engagement.type, libelle: engagement.libelle, echeanceLe: nouvelleEcheanceLe, codes: engagement.codes },
+    {
+      type: engagement.type,
+      libelle: engagement.libelle,
+      echeanceLe: nouvelleEcheanceLe,
+      codes: engagement.codes,
+      moduleDomaineId: engagement.moduleDomaineId,
+    },
     referentiel.codesActifs,
+    domainesActifs,
   );
 
   await modifier(

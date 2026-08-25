@@ -129,6 +129,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [134](#adr-134) | Une séance « mémorisation » du protocole demande de restituer de mémoire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [135](#adr-135) | **Une seule application, un seul noyau, une expérience d'abord étudiante** | ✅ Acceptée (25/08) |
 | [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
+| [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | ✅ Acceptée (25/08) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -10804,6 +10805,76 @@ comprendre le résultat neutre ; ou si la consultation de la « Réponse attendu
 après coup se révèle servir à recopier plutôt qu'à comparer — auquel cas le
 panneau redeviendra replié derrière un geste encore plus coûteux, ou sera
 retiré.
+
+---
+
+<a name="adr-137"></a>
+## ADR-137 — Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré ✅
+
+**Statut :** ✅ Acceptée le 25/08/2026. Modèle tranché par Maxime le 25/08/2026
+(validation explicite du cadre « module = domaine », seule pièce nouvelle étant
+le lien échéance → module). Applique ADR-135 au parcours canonique (PRODUCT.md
+§4, étapes 1-2) sans aucune entité nouvelle.
+
+### Contexte
+
+Le repositionnement étudiant (ADR-135) demandait de pouvoir déclarer clairement
+PLUSIEURS cours et leurs échéances. Deux obstacles factuels : une fiche document
+type `cours` (ADR-129/130) et un domaine du référentiel (ADR-107) coexistaient
+sans qu'aucun ne joue le rôle de **cadre** — un module n'est pas un PDF, c'est
+un ensemble de PDFs, de compétences, de TD/TP, de projets, de notions ; et les
+échéances (ADR-109), jamais proposées à l'amorçage, ne portaient aucun lien
+vers leur cours. La contrainte non négociable : ni entité générique
+`LearningContext`, ni type `student`, ni colonne persona (ADR-135), ni entité
+remplaçant `LearningSession`.
+
+### Décisions
+
+1. **Le module est un domaine du référentiel** — le cadre existait déjà :
+   hiérarchie dérivée (ADR-107), gouvernance transactionnelle (ADR-065),
+   compétences taguées (`competence_domaines`), fiches portant leur domaine en
+   front-matter au dépôt, séances dérivées des codes ciblés et des
+   `blueprint.origine`. Déclarer ses modules = créer des domaines racines,
+   geste déterministe existant (« Ajouter un domaine »), sans appel tuteur ;
+   les sous-parties (TD, TP, chapitres) sont des sous-domaines.
+2. **Pas de fusion forcée fiche ↔ domaine** : la fiche `cours` reste un
+   document qui *porte* son domaine ; un module peut exister avant tout PDF.
+3. **La seule pièce nouvelle est un fait déclaré** :
+   `engagements.module_domaine_id TEXT NULL` (migration
+   `20260825140000_engagement_module_domaine`, appliquée en production le
+   25/08/2026). Posé à la création uniquement — append-only intact, ni clôture
+   ni report ne réécrivent le champ — et validé côté serveur contre les
+   domaines VIVANTS du compte (`validerNouvelEngagement`, refus bruyant).
+   Pas de clé étrangère contrainte : supprimer ou archiver un module ne
+   détruit pas le fait, l'échéance reste entière, affichée sans son module.
+4. **Le sens inverse se dérive** (`echeancesDuModule`) : filtrage des
+   engagements ouverts par identifiant EXACT — une échéance d'un sous-domaine
+   ne remonte pas chez son parent, l'étendre fabriquerait un rattachement que
+   personne n'a déclaré. Rien n'est recopié dans la vue du domaine (P1).
+
+### Surfaces
+
+- la modale « Déclarer une échéance » propose le module facultativement ;
+- depuis une vue domaine (« Mes cours »), le bloc « Échéances du module » liste
+  les échéances ouvertes dérivées et porte le geste pré-rempli qui en déclare
+  une sur place ;
+- le tableau de bord gagne « Ajouter un module » à côté de « Déposer mon
+  cours ». L'onboarding `/demarrer` ne change pas (ADR-128 reste entier).
+
+### Ce que cette décision n'autorise pas
+
+- aucune entité, table ou type nouveaux au-delà de la colonne ci-dessus ;
+- aucune mesure nouvelle : une échéance liée à un module n'observe rien de plus
+  que le facteur de proximité existant (ADR-109, barèmes inchangés) ;
+- aucune écriture automatique du lien par dérivation des codes ciblés.
+
+### Test de réfutation
+
+Des modules déclarés qui restent vides — ni compétence taguée, ni PDF déposé,
+ni échéance liée — signifieraient que le geste sert l'inventaire et pas la
+boucle ; le remède serait de resserrer l'état vide du tableau de bord, pas de
+créer une entité. Et si des liens se mettaient à exister sans geste (dérivation
+silencieuse), la décision serait violée.
 
 ---
 ---

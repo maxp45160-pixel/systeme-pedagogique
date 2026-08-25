@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SkillState } from "@/lib/domain/types";
 import {
   couvertureCompetences,
+  echeancesDuModule,
   estOuvert,
   fenetreEcheance,
   joursRestants,
@@ -138,6 +139,70 @@ describe("validation de création — refus bruyant sur chaque règle", () => {
       CODES,
     );
     expect(resultat.codes).toEqual(["LOG-01"]);
+  });
+});
+
+describe("module de l'échéance — fait déclaré, validé contre les domaines vivants (ADR-137)", () => {
+  const CODES = new Set(["LOG-01"]);
+  const DOMAINES = new Set(["macro-l2", "stats-l1"]);
+
+  it("accepte un module vivant et normalise une valeur vide en absence", () => {
+    const avecModule = validerNouvelEngagement(
+      { type: "examen", libelle: "Partiel", echeanceLe: "2026-09-05", moduleDomaineId: " macro-l2 " },
+      CODES,
+      DOMAINES,
+    );
+    expect(avecModule.moduleDomaineId).toBe("macro-l2");
+
+    const sansModule = validerNouvelEngagement(
+      { type: "examen", libelle: "Partiel", echeanceLe: "2026-09-05", moduleDomaineId: "  " },
+      CODES,
+      DOMAINES,
+    );
+    expect(sansModule.moduleDomaineId).toBeUndefined();
+  });
+
+  it("refuse bruyamment un module inconnu ou mis de côté", () => {
+    expect(() =>
+      validerNouvelEngagement(
+        { type: "examen", libelle: "Partiel", echeanceLe: "2026-09-05", moduleDomaineId: "dom-fantome" },
+        CODES,
+        DOMAINES,
+      ),
+    ).toThrow(/module « dom-fantome » inconnu ou mis de côté/);
+  });
+
+  it("reste valide sans liste de domaines tant qu'aucun module n'est déclaré", () => {
+    expect(
+      validerNouvelEngagement(
+        { type: "rendu", libelle: "Dossier", echeanceLe: "2026-09-05" },
+        CODES,
+      ).moduleDomaineId,
+    ).toBeUndefined();
+  });
+});
+
+describe("echeancesDuModule — dérivé à la lecture, jamais stocké (P1)", () => {
+  const ouvertProche = engagement({ id: "a", echeanceLe: iso(2026, 9, 1), moduleDomaineId: "macro-l2" });
+  const ouvertLointain = engagement({ id: "b", echeanceLe: iso(2026, 10, 1), moduleDomaineId: "macro-l2" });
+  const autreModule = engagement({ id: "c", echeanceLe: iso(2026, 9, 2), moduleDomaineId: "stats-l1" });
+  /** Correspondance par identifiant EXACT : le sous-domaine ne remonte pas chez le parent. */
+  const sousDomaine = engagement({ id: "d", echeanceLe: iso(2026, 9, 3), moduleDomaineId: "macro-td" });
+  const clos = engagement({
+    id: "e",
+    moduleDomaineId: "macro-l2",
+    clotureLe: "2026-08-22T10:00:00Z",
+    clotureType: "passe",
+  });
+  const nonRattache = engagement({ id: "f", echeanceLe: iso(2026, 9, 4) });
+
+  it("ne rend que les échéances ouvertes de CE module, du plus proche au plus lointain", () => {
+    const liste = [ouvertLointain, clos, sousDomaine, nonRattache, autreModule, ouvertProche];
+    expect(echeancesDuModule("macro-l2", liste).map((e) => e.id)).toEqual(["a", "b"]);
+  });
+
+  it("rend vide un module sans aucune échéance déclarée", () => {
+    expect(echeancesDuModule("module-vierge", [ouvertProche])).toEqual([]);
   });
 });
 

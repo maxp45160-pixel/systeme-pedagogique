@@ -114,6 +114,11 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
 - `dureeEstimeeMin` n'est pas une mesure de performance.
 - Une tentative abandonnée ne produit pas de preuve.
 - Une séance ne doit pas produire de double entrée dans le journal.
+- Le module de cours est un domaine du référentiel (ADR-137), pas une entité.
+  L'échéance liée à un module porte un lien facultatif posé à la création et
+  validé contre les domaines vivants du compte — jamais réécrit ; les
+  échéances d'un module se dérivent à la lecture (`echeancesDuModule`), jamais
+  recopiées.
 - Ne pas créer de nouvelle entité pour remplacer `LearningSession`.
 - Toute clé de stockage navigateur doit être isolée par compte. Exception
   documentée (décision du 21/08/2026) : les préférences d'appareil non

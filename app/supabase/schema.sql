@@ -2101,7 +2101,9 @@ GRANT EXECUTE ON FUNCTION public.charger_tout() TO authenticated;
 -- couverture — est dérivé à la lecture et ne se stocke pas.
 -- Append-only en pratique : archivage par `cloture_le`, jamais suppression.
 -- Les `codes` ciblés sont validés applicativement contre le référentiel du
--- compte avant l'écriture.
+-- compte avant l'écriture. Le lien facultatif vers le module — un domaine du
+-- référentiel (ADR-137) — l'est aussi, et ne s'écrit qu'à la création ;
+-- les échéances d'un module se dérivent à la lecture.
 CREATE TABLE IF NOT EXISTS public.engagements (
   id            TEXT NOT NULL,
   user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -2109,6 +2111,9 @@ CREATE TABLE IF NOT EXISTS public.engagements (
   libelle       TEXT NOT NULL CHECK (btrim(libelle) <> ''),
   echeance_le   TEXT NOT NULL CHECK (echeance_le ~ '^\d{4}-\d{2}-\d{2}$'),
   codes         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- Lien déclaré vers le module (domaine vivant du compte, ADR-137), posé à
+  -- la création et jamais réécrit ; NULL : échéance non rattachée.
+  module_domaine_id TEXT,
   cloture_le    TIMESTAMPTZ,
   cloture_type  TEXT CHECK (cloture_type IS NULL OR cloture_type IN ('passe', 'reporte')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
