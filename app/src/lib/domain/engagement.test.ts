@@ -7,8 +7,10 @@ import {
   fenetreEcheance,
   joursRestants,
   libelleCompte,
+  prioriserCouverture,
   triParUrgence,
   validerNouvelEngagement,
+  type CouvertureCode,
   type Engagement,
 } from "./engagement";
 
@@ -203,6 +205,45 @@ describe("echeancesDuModule — dérivé à la lecture, jamais stocké (P1)", ()
 
   it("rend vide un module sans aucune échéance déclarée", () => {
     expect(echeancesDuModule("module-vierge", [ouvertProche])).toEqual([]);
+  });
+});
+
+describe("prioriserCouverture — ce qui demande le plus le travail d'abord", () => {
+  const point = (
+    code: string,
+    observe: boolean,
+    niveau: CouvertureCode["niveau"],
+  ): CouvertureCode => ({
+    code,
+    observe,
+    niveau,
+    derniereActivite: observe ? "2026-08-20" : null,
+    phrase: `${code}`,
+  });
+
+  it("place les jamais observés avant les observés, sans fabriquer de zéro", () => {
+    const triee = prioriserCouverture([
+      point("A-01", true, 3),
+      point("B-02", false, null),
+      point("C-03", true, 1),
+    ]);
+    expect(triee.map((p) => p.code)).toEqual(["B-02", "C-03", "A-01"]);
+  });
+
+  it("met une observation sans niveau établi devant les niveaux connus", () => {
+    const triee = prioriserCouverture([
+      point("A-01", true, 2),
+      point("B-02", true, null),
+      point("C-03", false, null),
+    ]);
+    expect(triee.map((p) => p.code)).toEqual(["C-03", "B-02", "A-01"]);
+  });
+
+  it("ne mute pas l'entrée et rend vide une couverture vide", () => {
+    const entree = [point("A-01", true, 4), point("B-02", false, null)];
+    const triee = prioriserCouverture(entree);
+    expect(entree.map((p) => p.code)).toEqual(["A-01", "B-02"]);
+    expect(prioriserCouverture([])).toEqual([]);
   });
 });
 

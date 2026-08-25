@@ -25,6 +25,7 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
 import { CarteEcheances } from "@/components/dashboard/carte-echeances";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import { BlocEcheancePrioritaire } from "@/components/dashboard/bloc-echeance-prioritaire";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
 import {
   estOuvert,
@@ -110,6 +111,18 @@ async function ContenuTableauDeBord({
   const echeanceProche = engagementsOuverts.find(
     (e) => joursRestants(e.echeanceLe, ctx.now) >= 0 && joursRestants(e.echeanceLe, ctx.now) <= 30,
   );
+
+  /*
+   * Le module de l'échéance prioritaire — résolu côté serveur contre les
+   * domaines vivants du compte. Un lien orphelin (module archivé ou supprimé)
+   * ne s'affiche pas : l'échéance reste un fait entier, sans module inventé.
+   */
+  const modulePrioritaire = (() => {
+    const id = echeanceProche?.moduleDomaineId;
+    if (!id) return null;
+    const domaine = ctx.referentiel.domainesParId.get(id);
+    return domaine && !domaine.archive ? { id, nom: domaine.nom } : null;
+  })();
 
   const seancesActives = [...ctx.donnees.sessions]
     .filter((seance) => statutSeance(seance) === "en-cours")
@@ -258,6 +271,21 @@ async function ContenuTableauDeBord({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">
         {/* Colonne gauche : Focus d'action immédiat & Pistes alternatives */}
         <div className="space-y-3.5 sm:space-y-4 lg:col-span-7 xl:col-span-8 min-w-0">
+          {/*
+            La cible de lecture (PRODUCT.md §5) : l'écran ouvre sur
+            échéance → cours concerné → point fragile ou non observé, puis
+            l'activité en dessous. Le bloc n'existe que s'il y a une échéance
+            pertinente — il ne comble jamais le vide.
+          */}
+          {echeanceProche && (
+            <BlocEcheancePrioritaire
+              engagement={echeanceProche}
+              module={modulePrioritaire}
+              etatsParCode={ctx.etatsParCode}
+              now={ctx.now}
+            />
+          )}
+
           {/* Alerte si des exercices sont déjà en cours */}
           {enCours.length > 0 && (
             <BandeauInfo ton="primaire">

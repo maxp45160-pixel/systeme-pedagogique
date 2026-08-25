@@ -128,6 +128,25 @@ export function echeancesDuModule(
   );
 }
 
+/**
+ * Les points d'un ciblage qui demandent le plus le travail, du plus pressé au
+ * moins pressé : jamais observés d'abord — l'absence de preuve n'est pas un
+ * zéro, c'est ce qui reste à découvrir avant une échéance —, puis ce qui est
+ * observé sans niveau établi, puis les niveaux croissants. Pur
+ * réordonnancement : aucune valeur n'est fabriquée ici, l'ordre se dérive.
+ */
+export function prioriserCouverture(
+  couverture: readonly CouvertureCode[],
+): CouvertureCode[] {
+  return [...couverture].sort((a, b) => {
+    if (a.observe !== b.observe) return a.observe ? 1 : -1;
+    if (a.niveau === null && b.niveau === null) return 0;
+    if (a.niveau === null) return -1;
+    if (b.niveau === null) return 1;
+    return a.niveau - b.niveau;
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Validation à la création — refus bruyant, aucun repli                */
 /* ------------------------------------------------------------------ */

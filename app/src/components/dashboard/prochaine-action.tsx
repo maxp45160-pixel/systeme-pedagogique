@@ -171,6 +171,15 @@ export function CarteProchaineAction({
 
   const { etat, exercice, difficulteCible, dureeEstimeeMin } = principale;
   const revision = prochaineRevision(etat, now);
+  /*
+   * Quand une échéance déclarée explique la priorité, sa phrase sourcée sort
+   * du dépliant : c'est la réponse à « pourquoi maintenant ? », pas un facteur
+   * parmi d'autres à aller chercher (PRODUCT.md §5). Le dépliant garde le
+   * reste des facteurs.
+   */
+  const facteurEcheance = principale.facteurs.find(
+    (facteur) => facteur.libelle === "Proximité d'échéance",
+  );
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -218,6 +227,13 @@ export function CarteProchaineAction({
         ) : (
           <p className="mt-1 text-xs sm:text-sm text-texte-attenue leading-relaxed">
             {etat.prochaineEtape}
+          </p>
+        )}
+
+        {facteurEcheance && (
+          <p className="mt-2.5 rounded-lg bg-primaire-faible/60 px-3 py-2 text-xs leading-relaxed text-texte">
+            Pourquoi maintenant :{" "}
+            <span className="font-medium">{facteurEcheance.phrase}</span>
           </p>
         )}
 
