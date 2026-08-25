@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { CompetenceRenforcee, ImpactTravail } from "@/lib/engine/impact";
+import type { CompetenceRenforcee, ImpactTravail, SuiteTravail } from "@/lib/engine/impact";
 import {
   Carte,
   CodeCompetence,
@@ -28,14 +28,23 @@ export function CarteImpact({
   titre = "Ce que ce travail vient d'ajouter",
   actions,
   lienCompetence = true,
+  suite,
+  controleSuite,
 }: {
   impact: ImpactTravail;
   titre?: string;
   actions?: React.ReactNode;
   /** Les fiches sont dans l'Atelier ; un workspace intégré n'y renvoie pas. */
   lienCompetence?: boolean;
+  /**
+   * L'effet du travail sur la prochaine action, dérivé par le moteur
+   * (`suiteApresTravail`) — la carte ne calcule rien elle-même.
+   */
+  suite?: SuiteTravail;
+  /** Le contrôle d'enchaînement (formulaire ou lien), fourni par l'appelant. */
+  controleSuite?: React.ReactNode;
 }) {
-  const { travail, renforcees, observations, consequences, aRetravailler } = impact;
+  const { travail, renforcees, observations, consequences, reserves, aRetravailler } = impact;
 
   return (
     <Carte accent className="relative overflow-hidden">
@@ -110,6 +119,26 @@ export function CarteImpact({
           Mêlé aux conséquences, il se lirait comme une mesure — or il n'en est
           pas une (P5). Il est repris mot pour mot depuis le verdict archivé.
         */}
+        {/*
+          Ce que l'évaluation ne peut PAS encore affirmer. Dérivé, sourcé,
+          absent quand rien ne manque — le doute cosmétique serait un mensonge
+          de plus (P7).
+        */}
+        {reserves.length > 0 && (
+          <section className="rounded-lg border border-alerte/30 bg-alerte/5 px-3 py-2.5">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+              Réserves sur cette évaluation
+            </h3>
+            <ul className="mt-1.5 space-y-0.5">
+              {reserves.map((ligne) => (
+                <li key={ligne} className="text-xs leading-relaxed text-texte-attenue">
+                  · {ligne}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {aRetravailler.length > 0 && (
           <section className="rounded-lg border border-bordure bg-surface-2 px-3 py-2.5">
             <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
@@ -122,6 +151,24 @@ export function CarteImpact({
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {suite && (
+          /*
+            L'effet du travail sur la suite : ce que le moteur propose
+            d'enchaîner, avec la raison chiffrée et le lien direct.
+          */
+          <section className="border-t border-bordure/60 pt-3">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
+              Et maintenant
+            </h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-texte-attenue">
+              {suite.exerciceSuivant
+                ? `Le moteur vous propose d'enchaîner : « ${suite.exerciceSuivant.titre} » (difficulté ${suite.exerciceSuivant.difficulte}/5).`
+                : `Aucun autre exercice prêt sur ${renforcees[0]?.code ?? "cette compétence"} : préparez le suivant au niveau conseillé (${suite.difficulteConseillee}/5).`}
+            </p>
+            {controleSuite && <div className="mt-2.5">{controleSuite}</div>}
           </section>
         )}
 

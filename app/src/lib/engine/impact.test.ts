@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { impactCumule, impactTentative } from "./impact";
+import { impactCumule, impactTentative, reservesEvaluation, suiteApresTravail } from "./impact";
 import { REFERENTIEL_TEST } from "@/lib/domain/referentiel.fixture";
 import type {
   Autonomie,
@@ -334,5 +334,96 @@ describe("impactCumule — une séance", () => {
     expect(cumule.renforcees).toEqual([]);
     expect(cumule.consequences).toEqual([]);
     expect(cumule.dureeMin).toBe(0);
+  });
+});
+
+describe("reservesEvaluation — ce que l'évaluation ne peut pas encore affirmer", () => {
+  const competence = (partiel: Partial<Parameters<typeof reservesEvaluation>[0][number]> & { code: string }) =>
+    ({
+      intitule: `Compétence ${partiel.code}`,
+      confianceAvant: "nulle",
+      confianceApres: "moyenne",
+      franchissement: false,
+      niveauObservation: "A",
+      nouveauContexte: false,
+      nombreObservations: 3,
+      niveauAvant: 2,
+      niveauApres: 2,
+      ...partiel,
+    }) as Parameters<typeof reservesEvaluation>[0][number];
+
+  it("ne dit rien quand l'évaluation est solide (pas de doute cosmétique)", () => {
+    expect(reservesEvaluation([competence({ code: "DEV-01" })])).toEqual([]);
+  });
+
+  it("réserve une mesure portée uniquement par des observations indirectes", () => {
+    const reserves = reservesEvaluation([
+      competence({ code: "DEV-01", niveauObservation: "B" }),
+      competence({ code: "DEV-02", niveauObservation: "B" }),
+    ]);
+    expect(reserves.join(" ")).toContain("Mesure indirecte");
+    expect(reserves.join(" ")).toContain("DEV-01, DEV-02");
+  });
+
+  it("réserve une première mesure unique", () => {
+    const reserves = reservesEvaluation([
+      competence({ code: "DEV-03", nombreObservations: 1 }),
+    ]);
+    expect(reserves.join(" ")).toContain("Première mesure sur DEV-03");
+  });
+
+  it("réserve une confiance sans matière, en citant le compte d'observations", () => {
+    const reserves = reservesEvaluation([
+      competence({ code: "DEV-04", confianceApres: "faible", nombreObservations: 4 }),
+    ]);
+    expect(reserves.join(" ")).toContain("reste « faible »");
+    expect(reserves.join(" ")).toContain("4 observations");
+  });
+});
+
+describe("suiteApresTravail — l'effet du travail sur la prochaine action", () => {
+  const etat = (code: string) => ({
+    skill: { ...(SKILLS.get(code) ?? SKILLS.values().next().value!) },
+    niveau: 2,
+    score: 0.5,
+    confiance: "moyenne",
+    robustesse: 0.4,
+    dimensions: { comprehension: 0.6, application: 0.6, transfert: 0, integration: 0, justification: 0 },
+    observations: [],
+    contextesTestes: [],
+    derniereObservation: ilYa(1),
+    joursDepuisDerniereObservation: 1,
+    contradictions: [],
+    prochaineEtape: "",
+    explication: { resume: "", facteurs: [], nombreObservations: 1, reserves: [] },
+    statut: "evalue",
+  }) as unknown as Parameters<typeof suiteApresTravail>[0]["etatApres"];
+
+  it("propose un autre exercice recommandable quand il en reste un", () => {
+    const suivant = exercice({ competences: ["DEV-01"], difficulte: 3 });
+    suivant.id = "ex-suivant";
+    const fini = exercice({ competences: ["DEV-01"] });
+    const tentativeFinie = { ...tentative({ fin: ilYa(0) }), resultat: "reussi" as const };
+    const suite = suiteApresTravail({
+      etatApres: etat("DEV-01"),
+      exercices: [fini, suivant],
+      tentatives: [{ ...tentativeFinie, exerciseId: fini.id }],
+      now: MAINTENANT,
+    });
+    // Le réussi sort de la file (déjà démontré) ; l'autre reste servable.
+    expect(suite.exerciceSuivant?.id).toBe("ex-suivant");
+    expect(suite.difficulteConseillee).toBeGreaterThanOrEqual(1);
+  });
+
+  it("dit qu'il n'y a plus rien à servir plutôt que de réinventer un exercice", () => {
+    const seul = exercice({ competences: ["DEV-01"] });
+    const suite = suiteApresTravail({
+      etatApres: etat("DEV-01"),
+      exercices: [seul],
+      tentatives: [{ ...tentative({ fin: ilYa(0) }), resultat: "reussi" as const }],
+      now: MAINTENANT,
+    });
+    expect(suite.exerciceSuivant).toBeNull();
+    expect(suite.difficulteConseillee).toBeGreaterThanOrEqual(1);
   });
 });

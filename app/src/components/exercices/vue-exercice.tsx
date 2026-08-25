@@ -5,7 +5,7 @@ import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Difficulte } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
-import { terminerSeance } from "@/lib/store/seance-actions";
+import { demarrerExerciceEnFocus, terminerSeance } from "@/lib/store/seance-actions";
 import { ActionSeance } from "@/components/seances/action-seance";
 import {
   BandeauInfo,
@@ -32,7 +32,7 @@ import { indicesMasquesEnEpreuve } from "@/lib/domain/seance";
 import { IconeFleche } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
-import { impactTentative } from "@/lib/engine/impact";
+import { impactTentative, suiteApresTravail } from "@/lib/engine/impact";
 import { tentativeMenee } from "@/lib/engine/calibration";
 import {
   amorceConsigne,
@@ -151,6 +151,24 @@ export async function VueExercice(props: {
       observations: ctx.observationsEffectives,
       skillsParCode: ctx.referentiel.parCode,
       calibrations: ctx.calibrations,
+      now: ctx.now,
+    })
+    : null;
+
+  /*
+   * L'effet du travail sur la prochaine action : dérivé par le moteur sur la
+   * compétence principale, APRÈS la tentative — les observations qu'elle vient
+   * de produire sont déjà dans le contexte. Hors lecture seule seulement :
+   * un cahier archivé ne propose pas d'enchaîner.
+   */
+  const codePrincipal = exercice.competences[0];
+  const etatApres = codePrincipal ? ctx.etatsParCode.get(codePrincipal) : undefined;
+  const suite = impact && !props.lectureSeule && etatApres
+    ? suiteApresTravail({
+      etatApres,
+      calibrations: ctx.calibrations,
+      exercices: ctx.donnees.exercises,
+      tentatives: ctx.donnees.attempts,
       now: ctx.now,
     })
     : null;
@@ -330,6 +348,26 @@ export async function VueExercice(props: {
             <CarteImpact
               impact={impact}
               lienCompetence={!props.integree}
+              suite={suite ?? undefined}
+              controleSuite={
+                suite ? (
+                  suite.exerciceSuivant ? (
+                    <form action={demarrerExerciceEnFocus.bind(null, suite.exerciceSuivant.id)}>
+                      <Bouton type="submit" variante="principal" className="shadow-xs">
+                        Enchaîner : {suite.exerciceSuivant.titre}
+                        <IconeFleche className="size-4" />
+                      </Bouton>
+                    </form>
+                  ) : codePrincipal ? (
+                    <Link
+                      href={`/seances?composer=1&code=${encodeURIComponent(codePrincipal)}&temps=${exercice.dureeEstimeeMin}`}
+                      className={classesLienBouton("secondaire")}
+                    >
+                      Générer puis travailler au niveau {suite.difficulteConseillee}/5
+                    </Link>
+                  ) : null
+                ) : null
+              }
               actions={
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {navigation ? (

@@ -33,15 +33,18 @@
 import type {
   Confiance,
   Dimension,
+  Difficulte,
   Exercise,
   ExerciseAttempt,
   NiveauCompetence,
   NiveauObservation,
   Skill,
   SkillObservation,
+  SkillState,
 } from "@/lib/domain/types";
 import { AUTONOMIE, LIBELLES_DIMENSIONS, NIVEAUX } from "@/lib/domain/types";
 import type { Calibration } from "./calibration";
+import { difficulteVisee, recommander } from "./recommend";
 import { computeSkillState } from "./skill-state";
 import { cleContexte } from "./contexte-situation";
 
@@ -84,6 +87,11 @@ export interface ImpactTravail {
   observations: string[];
   /** Ce que le journal dit de différent après ce travail. */
   consequences: string[];
+  /**
+   * Ce que l'évaluation ne peut PAS encore affirmer — dérivé des mêmes états
+   * que les conséquences, jamais rédigé d'avance. Vide quand rien ne manque.
+   */
+  reserves: string[];
   /** Ce que le tuteur avait écrit au moment du bilan, repris mot pour mot. */
   aRetravailler: string[];
 }
@@ -309,7 +317,93 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
     renforcees,
     observations: faitsObserves,
     consequences,
+    reserves: reservesEvaluation(renforcees),
     aRetravailler: bilan?.aRetravailler.filter((ligne) => ligne.trim().length > 0) ?? [],
+  };
+}
+
+/**
+ * Les réserves de l'évaluation, dérivées des états d'après-travail.
+ *
+ * Trois sources, chacune citée : une mesure portée uniquement par des
+ * observations indirectes, une première mesure unique, une confiance qui
+ * n'a pas encore de matière. Une évaluation solide ne produit AUCUNE réserve —
+ * le doute cosmétique serait un autre mensonge. Pur : rien n'est stocké (P1),
+ * la même fonction rendra le même verdict tant que le journal ne bouge pas.
+ */
+export function reservesEvaluation(
+  renforcees: readonly CompetenceRenforcee[],
+): string[] {
+  const reserves: string[] = [];
+  if (renforcees.length === 0) return reserves;
+
+  if (renforcees.every((competence) => competence.niveauObservation === "B")) {
+    reserves.push(
+      `Mesure indirecte : ce travail éclaire ${renforcees.map((c) => c.code).join(", ")} sans viser sa compétence cible de front — à confirmer par un exercice direct.`,
+    );
+  }
+
+  const principale = renforcees[0];
+  if (principale.nombreObservations === 1) {
+    reserves.push(
+      `Première mesure sur ${principale.code} : une seule observation ne suffit pas à établir une maîtrise.`,
+    );
+  } else if (
+    principale.confianceApres === "faible" ||
+    principale.confianceApres === "nulle"
+  ) {
+    reserves.push(
+      `La confiance sur ${principale.code} reste « ${principale.confianceApres} » après ${principale.nombreObservations} observation${principale.nombreObservations > 1 ? "s" : ""} : trop peu de concordance pour trancher.`,
+    );
+  }
+
+  return reserves;
+}
+
+/** Ce que le moteur propose d'enchaîner, une fois ce travail refermé. */
+export interface SuiteTravail {
+  /** Un autre exercice recommandable pour cette compétence, s'il en reste un. */
+  exerciceSuivant: { id: string; titre: string; difficulte: number } | null;
+  /** La difficulté à viser ensuite — calibration comprise (ADR-028). */
+  difficulteConseillee: Difficulte;
+}
+
+/**
+ * L'effet du travail sur la prochaine action.
+ *
+ * Réutilise LE moteur, jamais une copie : `recommander` borné à la compétence
+ * travaillée choisit l'exercice suivant selon les règles existantes (exercice
+ * déjà réussi sorti, échec sévère en attente de progrès — tout ce qui vient
+ * d'être observé compris), et `difficulteVisee` porte la calibration. Rien
+ * d'inventé : quand plus rien n'est recommandable, c'est dit, et l'appelant
+ * propose le chemin de génération, pas un faux exercice.
+ */
+export function suiteApresTravail(entrees: {
+  etatApres: SkillState;
+  calibrations?: ReadonlyMap<string, Calibration>;
+  exercices: readonly Exercise[];
+  tentatives: readonly ExerciseAttempt[];
+  now?: Date;
+}): SuiteTravail {
+  const now = entrees.now ?? new Date();
+  const calibrations = entrees.calibrations ? new Map(entrees.calibrations) : undefined;
+  const [rec] = recommander(
+    [entrees.etatApres],
+    [...entrees.exercices],
+    [...entrees.tentatives],
+    1,
+    calibrations,
+    now,
+  );
+  return {
+    exerciceSuivant: rec?.exercice
+      ? {
+          id: rec.exercice.id,
+          titre: rec.exercice.titre,
+          difficulte: rec.exercice.difficulte,
+        }
+      : null,
+    difficulteConseillee: difficulteVisee(entrees.etatApres, calibrations?.get(entrees.etatApres.skill.code)),
   };
 }
 

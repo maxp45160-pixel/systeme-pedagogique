@@ -4,6 +4,7 @@ import { chargerContexte } from "@/lib/store/context";
 import {
   abandonnerSeance,
   annulerSeance,
+  demarrerExerciceEnFocus,
   demarrerSeance,
   reprendreSeance,
   terminerSeance,
@@ -21,7 +22,7 @@ import {
 import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
-import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, classesLienBouton } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, Bouton, classesLienBouton } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { ActionPreparerSeance } from "@/components/seances/action-preparer-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
@@ -37,9 +38,14 @@ import { calibragesPourModale, competencesPourModale } from "@/lib/domain/propri
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import { ResumeExerciceCahier } from "@/components/seances/resume-exercice-cahier";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
-import { impactCumule, impactTentative } from "@/lib/engine/impact";
+import {
+  impactCumule,
+  impactTentative,
+  reservesEvaluation,
+  suiteApresTravail,
+} from "@/lib/engine/impact";
 import { SasSeance } from "@/components/seances/sas-seance";
-import { IconeExercices, IconeMinuteur, IconeNote } from "@/components/ui/icones";
+import { IconeExercices, IconeFleche, IconeMinuteur, IconeNote } from "@/components/ui/icones";
 
 export type EtapeRecherche = {
   evaluer?: string;
@@ -184,6 +190,45 @@ export async function VueSeanceDetail({
     });
   })();
 
+  /*
+   * La suite après CE travail : même moteur, même contrat que la carte
+   * d'exercice — une seule implémentation de « et maintenant ».
+   */
+  function suitePourCode(code: string | undefined) {
+    const etatApres = code ? ctx.etatsParCode.get(code) : undefined;
+    return etatApres
+      ? suiteApresTravail({
+        etatApres,
+        calibrations: ctx.calibrations,
+        exercices: ctx.donnees.exercises,
+        tentatives: ctx.donnees.attempts,
+        now: ctx.now,
+      })
+      : null;
+  }
+  function controleEnchainement(suite: NonNullable<ReturnType<typeof suitePourCode>>, code: string) {
+    if (suite.exerciceSuivant) {
+      return (
+        <form action={demarrerExerciceEnFocus.bind(null, suite.exerciceSuivant.id)}>
+          <Bouton type="submit" variante="principal" className="shadow-xs">
+            Enchaîner : {suite.exerciceSuivant.titre}
+            <IconeFleche className="size-4" />
+          </Bouton>
+        </form>
+      );
+    }
+    return (
+      <Link
+        href={`/seances?composer=1&code=${encodeURIComponent(code)}`}
+        className={classesLienBouton("secondaire")}
+      >
+        Générer puis travailler au niveau {suite.difficulteConseillee}/5
+      </Link>
+    );
+  }
+  const suiteExplicite = suitePourCode(impactExplicite?.renforcees[0]?.code);
+  const codeExplicite = impactExplicite?.renforcees[0]?.code;
+
   const impactSeance = close && !explicite
     ? impactCumule(
       activites.flatMap((activite) => {
@@ -203,6 +248,24 @@ export async function VueSeanceDetail({
         return impact ? [impact] : [];
       }),
     )
+    : null;
+
+  /*
+   * La suite après la séance, dérivée sur sa compétence principale APRÈS le
+   * travail (mêmes règles que la carte d'exercice : une seule implémentation).
+   */
+  const codePrincipalSeance = impactSeance?.renforcees[0]?.code;
+  const etatApresSeance = codePrincipalSeance
+    ? ctx.etatsParCode.get(codePrincipalSeance)
+    : undefined;
+  const suiteSeance = statut === "terminee" && etatApresSeance
+    ? suiteApresTravail({
+      etatApres: etatApresSeance,
+      calibrations: ctx.calibrations,
+      exercices: ctx.donnees.exercises,
+      tentatives: ctx.donnees.attempts,
+      now: ctx.now,
+    })
     : null;
   const suivant = [...avancement.enCours, ...avancement.restants]
     .find((ref) => ref !== exerciceActif && ids.includes(ref));
@@ -562,6 +625,12 @@ export async function VueSeanceDetail({
                 {impactExplicite && (
                   <CarteImpact
                     impact={impactExplicite}
+                    suite={suiteExplicite ?? undefined}
+                    controleSuite={
+                      suiteExplicite && codeExplicite
+                        ? controleEnchainement(suiteExplicite, codeExplicite)
+                        : undefined
+                    }
                     actions={
                       <LienApresImpact
                         href={`/seances?session=${encodeURIComponent(seance.id)}`}
@@ -599,8 +668,15 @@ export async function VueSeanceDetail({
                         renforcees: impactSeance.renforcees,
                         observations: impactSeance.observations,
                         consequences: impactSeance.consequences,
+                        reserves: reservesEvaluation(impactSeance.renforcees),
                         aRetravailler: [],
                       }}
+                      suite={suiteSeance ?? undefined}
+                      controleSuite={
+                        suiteSeance && codePrincipalSeance
+                          ? controleEnchainement(suiteSeance, codePrincipalSeance)
+                          : undefined
+                      }
                       actions={<LienApresImpact href="/app" libelle="Prochaine action recommandée" />}
                     />
                   </div>
