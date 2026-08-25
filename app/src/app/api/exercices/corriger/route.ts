@@ -24,7 +24,21 @@ import { reponseSuffisante } from "@/lib/domain/tentative";
  * réponse, de rouvrir une tentative, ou de configurer un moteur.
  */
 
-export const maxDuration = 300;
+/**
+ * 60 s, et pas une de plus.
+ *
+ * Le plafond Vercel valait 300 s : personne ne reste devant un écran qui dit
+ * « le tuteur relit votre réponse » pendant cinq minutes — mesuré, l'attente
+ * vécue dépasse rarement la minute et chaque seconde au-delà de ~20 s se vit
+ * comme une panne. C'est désormais le CLIENT qui coupe court (10 s : sortie
+ * manuelle proposée ; 25 s : interruption automatique dans
+ * `bilan-assiste.tsx`), et l'abandon du flux interrompt la génération côté
+ * serveur (`repondreParFluxSse` fusionne `request.signal`). Ce plafond n'est
+ * que le dernier filet — il doit rester au-dessus du geste client pour ne pas
+ * couper ce que l'interface a déjà arbitré, mais assez bas pour qu'aucune
+ * requête orpheline ne consomme le fournisseur pour personne.
+ */
+export const maxDuration = 60;
 
 interface CorpsCorriger {
   /** La tentative à corriger. Rien d'autre : tout le reste est relu côté serveur. */
@@ -109,6 +123,19 @@ export async function POST(request: Request) {
     );
   }
 
+  /*
+   * Mesure de la relecture (25/08/2026). Une correction qui dépasse la minute
+   * était signalée comme un ressenti, jamais comme un fait : sans chiffre, on
+   * ne pouvait ni comparer les fournisseurs, ni savoir si l'attente portait sur
+   * le premier jeton (fournisseur lent) ou sur la fin (verdict long à écrire).
+   * La ligne part dans les logs de la route : TTFT, durée totale, fournisseur,
+   * modèle et issue. Il n'existe aucun retry automatique dans les moteurs —
+   * chaque appel est unique, donc `reessais` vaut toujours zéro ; le champ
+   * existe pour que la comparaison future ne réécrive pas le format.
+   */
+  const debutCorrection = Date.now();
+  let ttftMs: number | null = null;
+
   const resolu = await resoudreMoteur(corps.config, {
     conseil: "Remplis le bilan à la main en attendant.",
   });
@@ -123,8 +150,22 @@ export async function POST(request: Request) {
         // s'appelle `proposition` et porte une forme différente de celle du
         // moteur. Surcharger un événement terminal casse en silence.
         if (evenement === "proposition") return;
+        ttftMs ??= Date.now() - debutCorrection;
         envoyer(evenement, donnees);
       });
+
+      console.log(
+        JSON.stringify({
+          mesure: "correction",
+          fournisseur: resolu.fournisseur,
+          modele: resolu.modele,
+          ttft_ms: ttftMs,
+          total_ms: Date.now() - debutCorrection,
+          reessais: 0,
+          issue: resultat.erreur ? "echec" : "ok",
+          interrompue: signal.aborted || undefined,
+        }),
+      );
 
       if (resultat.erreur) {
         envoyer("erreur", { message: resultat.erreur });

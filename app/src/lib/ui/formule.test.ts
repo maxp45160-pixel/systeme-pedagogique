@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { latexVersTexte, segmenterFormulesEnLigne } from "./formule";
+import { contientFormuleLatex, latexVersTexte, segmenterFormulesEnLigne } from "./formule";
 
 describe("latexVersTexte", () => {
   it("rend lisible la formule du stock de sécurité — le cas remonté à l'usage", () => {
@@ -164,5 +164,26 @@ describe("segmenterFormulesEnLigne", () => {
     expect(segmenterFormulesEnLigne("texte simple")).toEqual([
       { formule: false, texte: "texte simple" },
     ]);
+  });
+});
+
+/*
+ * L'aperçu des zones de saisie (25/08/2026) s'ouvre sur cette détection — elle
+ * DOIT coïncider avec ce que le rendu sait lire, sinon l'aperçu apparaît pour
+ * rien ou manque pour une formule réelle. L'échantillon du chantier : fraction,
+ * racine, somme, indice.
+ */
+describe("contientFormuleLatex", () => {
+  it("détecte les quatre formes de l'échantillon du chantier", () => {
+    expect(contientFormuleLatex("on calcule \\(\\frac{a}{b}\\) d'abord")).toBe(true);
+    expect(contientFormuleLatex("la racine \\(\\sqrt{2}\\) est irrationnelle")).toBe(true);
+    expect(contientFormuleLatex("\\[\\sum_{i=1}^{n} i\\]")).toBe(true);
+    expect(contientFormuleLatex("soit $x_1$ la première racine")).toBe(true);
+  });
+
+  it("reste silencieuse sur la prose courante", () => {
+    expect(contientFormuleLatex("Ce sur quoi je bute aujourd'hui.")).toBe(false);
+    expect(contientFormuleLatex("payer 30$ puis 40$ ensuite")).toBe(false);
+    expect(contientFormuleLatex("")).toBe(false);
   });
 });

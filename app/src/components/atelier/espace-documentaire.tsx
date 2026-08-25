@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Markdown } from "@/components/ui/markdown";
 import { cx, Filigrane } from "@/components/ui/primitives";
-import { PaletteFormules, PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { PaletteFormules, PaletteFormulesTexte, ApercuFormulesTexte } from "@/components/ui/palette-formules";
 import {
   ATTRIBUT_SOURCE,
   htmlSourceFormule,
@@ -2536,6 +2536,10 @@ function SectionFicheSaisie({
         placeholder={`Écrire dans « ${section} »…`}
         className="mt-2 min-h-24 w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:border-primaire"
       />
+      {/* Aperçu immédiat des formules (25/08/2026) — absent sans formule. */}
+      <div className="mt-2">
+        <ApercuFormulesTexte valeur={valeur} />
+      </div>
     </section>
   );
 }

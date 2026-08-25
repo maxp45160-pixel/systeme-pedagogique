@@ -123,11 +123,18 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [128](#adr-128) | Le premier parcours atteint l'exercice avant le tableau de bord | 🔬 Construite, hypothèse non réfutée (24/08) |
 | [129](#adr-129) | Déposer mon cours commence par le PDF, pas par la fiche | 🔬 Construite, hypothèse non réfutée (24/08) — révise [ADR-126](#adr-126) |
 | [130](#adr-130) | Le cours saisi devient un protocole de séances, relu case par case | 🔬 Construite, hypothèse non réfutée (24/08) — étend [ADR-129](#adr-129) |
+| [131](#adr-131) | La préparation d'une séance de protocole se fait au démarrage, plus à la validation | 🔬 Construite, hypothèse non réfutée (25/08) |
+| [132](#adr-132) | Les exercices préparés depuis un cours sont ancrés dans son texte réel | 🔬 Construite, hypothèse non réfutée (25/08) |
+| [133](#adr-133) | Une séance « compréhension » du protocole demande de reformuler, pas de produire | 🔬 Construite, hypothèse non réfutée (25/08) |
+| [134](#adr-134) | Une séance « mémorisation » du protocole demande de restituer de mémoire | 🔬 Construite, hypothèse non réfutée (25/08) |
+| [135](#adr-135) | **Une seule application, un seul noyau, une expérience d'abord étudiante** | ✅ Acceptée (25/08) |
+| [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
 lot 1/2 de ce chantier, sur un sujet distinct — voir la note de numérotation en
-tête d'[ADR-053](#adr-053). 075 à 079 ont été rattrapées le 21/08.)*
+tête d'[ADR-053](#adr-053). 075 à 079 ont été rattrapées le 21/08. 131 à 134
+ont été rattrapées le 25/08.)*
 
 ---
 
@@ -10657,6 +10664,146 @@ l'effort demandé (cours ouvert avant restitution), ou si la vérification
 contre le cours s'avère trop lourde pour être faite — à écouter dans les
 retours, l'écran ne peut pas observer ce geste. Remède : embarquer un extrait
 sélectionné par notions dans la correction, ou un écran dédié question/réponse.
+
+---
+---
+
+
+
+<a name="adr-135"></a>
+## ADR-135 — Une seule application, un seul noyau, une expérience d'abord étudiante ✅
+
+**Statut :** ✅ Acceptée le 25/08/2026. Décision validée par Maxime le
+25/08/2026.
+
+### Contexte
+
+La cible « étudiants et autodidactes » (23/08/2026) laisse l'expérience sans
+cadre concret : ni l'onboarding, ni le tableau de bord, ni la vitrine ne disent
+à quel travail quotidien le produit répond. Un positionnement double exigeait
+en outre de maintenir deux expériences pour un usage réel de trois comptes —
+un coût permanent sans public derrière.
+
+Le noyau — Activité → Preuve → Observation → État → Recommandation — est
+générique depuis l'origine et n'a jamais dépendu d'un public. Ce qui manquait
+n'était pas une capacité, mais un cadre d'application : les cours structurés,
+les exercices, les projets et les échéances des études supérieures donnent au
+noyau existant son cas d'usage le plus direct (engagement déclaré ADR-109,
+dépôt de cours ADR-124 et ADR-130).
+
+### Décisions
+
+1. **Positionnement principal : les étudiants du supérieur.** À court et moyen
+   terme, l'expérience, l'onboarding et la vitrine sont optimisés pour un
+   étudiant qui suit des cours structurés et prépare des évaluations, exercices
+   ou projets. Ce positionnement guide les priorités ; il ne crée aucune
+   exclusivité architecturale envers d'autres publics.
+2. **Pas de branche généraliste.** Une seule application, un seul noyau
+   longitudinal. Pas de version parallèle pour les autodidactes :
+   `/autodidactes` reste accessible, mais ne dicte plus la navigation,
+   l'onboarding ni les nouvelles fonctionnalités.
+3. **Aucun modèle persistant de persona.** Pas de type d'utilisateur `student`,
+   pas de colonne de persona sur le compte, pas d'entité générique
+   `LearningContext`, pas de moteur de capacités selon le public, pas de
+   schéma parallèle. Cours, échéances et projets restent des faits déclarés du
+   parcours actuel — jamais l'identité permanente de la personne : après ses
+   études, son historique et ses compétences restent utilisables tels quels.
+4. **Grille d'entrée pour toute fonctionnalité** (transcrite dans PRODUCT.md
+   §7) : aider à décider quoi travailler avant une échéance, produire une
+   observation plus fiable, rendre l'évolution plus compréhensible, ou réduire
+   fortement la friction de l'une de ces trois choses. La compatibilité avec
+   les études ne suffit pas.
+
+### Ce que cette décision ne fait pas
+
+Elle n'introduit aucune nouvelle dimension de mesure : une dimension sans
+activité capable de l'observer reste interdite (ADR-060). Elle ne tranche pas
+la question du projet comme source de preuve — elle reste ❓ et se tranchera
+sur un projet réellement mené, sans jamais créditer l'état d'un simple fait
+d'existence ou de déclaration de fin.
+
+### Critère de révision
+
+Reconsidérer la cible après suffisamment d'usage étudiant réel — mêmes tests
+que ceux déjà posés : un compte tiers atteint le premier exercice sans
+assistance (ADR-128) puis dix observations, et des boucles complètes sont
+observées sur des cours et échéances réels. Pas de date arbitraire, pas de
+réouverture sur intuition.
+
+---
+
+<a name="adr-136"></a>
+## ADR-136 — Le parcours ne bloque jamais sans dire pourquoi, et ne montre la réponse qu'après coup 🔬
+
+**Statut :** 🔬 construit le 25/08/2026, hypothèse non réfutée. Décisions posées
+par le plan de friction du 25/08/2026 et implémentées le même jour.
+
+### Contexte
+
+Sept défauts de parcours, tous mesurés sur des comptes réels, partageaient une
+même racine : l'interface laissait une personne devant un état qu'elle ne
+pouvait ni comprendre ni quitter — exercice ouvert sans zone de réponse,
+correction qui dépassait la minute sans mesure ni sortie, inscription d'un
+e-mail déjà pris annoncée « Compte créé », diagnostic guidé qui renvoyait aux
+écrans déjà remplis, dépôt de PDF proposé avant même qu'un axe existe, critères
+d'évaluation révélés seulement après coup, historique du bloc-notes qui
+revenait tout seul, formules lisibles uniquement après enregistrement. Ce lot
+applique au parcours la règle d'entrée d'[ADR-135](#adr-135) : réduire
+fortement la friction du geste qui produit une observation.
+
+### Décisions
+
+1. **Démarrer une tentative attend sa création.** `DemarrageAuto` attend
+   l'action serveur, rafraîchit explicitement l'écran, affiche une attente
+   nommée et propose un repli manuel (`<form action>`) si elle échoue.
+   L'invariant ADR-030 reste entier : l'automatisme n'écrit toujours rien.
+2. **Deux horloges bornent la correction.** À 10 s, sortie manuelle proposée
+   (« Je ne sais pas encore ») ; à 25 s, interruption automatique du flux —
+   qui coupe aussi la génération côté serveur via `request.signal`. La route
+   passe de 300 à 60 s de plafond et journalise TTFT, durée totale,
+   fournisseur et issue (aucun retry n'existe dans les moteurs). La sortie
+   manuelle n'appelle aucun LLM et n'écrit aucune observation fabriquée : le
+   bilan s'ouvre nu, à décider.
+3. **Une inscription ambiguë reste ambiguë.** La classification vit dans
+   `lib/auth/inscription.ts` (testée) : erreur explicite de doublon → bascule
+   vers la connexion avec l'e-mail conservé ; succès sans identités (le
+   masquage documenté de Supabase contre l'énumération) → résultat NEUTRE avec
+   un geste explicite « J'ai déjà un compte — me connecter ». Jamais de
+   redirection automatique : elle confirmerait ce que Supabase refuse de dire.
+4. **La synthèse guidée se termine par sa confirmation.** Elle n'éjecte plus
+   vers la saisie directe : profil écrit sur le clic explicite « Appliquer et
+   enregistrer mon profil », puis validation du référentiel ouverte directement.
+5. **Le premier écran pose UNE question.** Le bandeau « Déposer mon cours »
+   quitte `/demarrer` ; le geste reste entier dans Mes cours (`?creation=cours`,
+   ADR-129) et se rappelle dans le bloc replié « Ensuite ».
+6. **Les critères AVANT la réponse ; la réponse attendue APRÈS coup.** Un
+   panneau « Ce qui sera évalué » (les critères existants) précède la zone de
+   réponse — le contrat, pas la solution. Une fois l'exercice terminé ET sans
+   tentative en cours, un panneau replié « Réponse attendue » rend la
+   correction consultable. **Cela amende l'énoncé d'interface hérité d'
+   [ADR-036](#adr-036)** : la correction restait invisible pour TOUJOURS ;
+   désormais seule la fenêtre de travail l'est. Le tuteur, lui, ne la voit
+   toujours que par son unique chemin ([ADR-041](#adr-041)) — rien ne bouge de
+   ce côté-là.
+7. **Le champ de marge n'a pas de mémoire navigateur** (`autoComplete="off"`
+   sur les deux formulaires et les deux champs), et **les zones de texte brut
+   gagnent un aperçu immédiat** (`ApercuFormulesTexte`, opt-in : réponse, chat,
+   fiche de saisie, marge en bloc) rendu par le MÊME `Markdown` que la lecture —
+   le contrat d'[ADR-115](#adr-115) ne change pas : KaTeX compose, l'Unicode
+   reste le filet. La détection (`contientFormuleLatex`) réutilise
+   `segmenterFormulesEnLigne`, une seule implémentation. L'éditeur WYSIWYG
+   (`EditeurDirect`) n'est pas remplacé : il reste la surface riche là où elle
+   existe déjà.
+
+### Test de réfutation
+
+L'hypothèse est réfutée si : un p95 de correction par fournisseur repasse
+au-delà de 30 s malgré l'interruption (le plafond serveur devra être revu avec
+ses logs) ; si des comptes légitimes abandonnent l'inscription faute de
+comprendre le résultat neutre ; ou si la consultation de la « Réponse attendue »
+après coup se révèle servir à recopier plutôt qu'à comparer — auquel cas le
+panneau redeviendra replié derrière un geste encore plus coûteux, ou sera
+retiré.
 
 ---
 ---

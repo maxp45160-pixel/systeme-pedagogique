@@ -1,14 +1,28 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 3.1 — 20/08/2026.** Les contrats de la refonte Twiny ont été validés
-explicitement par Maxime le 20/08/2026 et sont consignés par ADR-089 à ADR-095.
-Ils remplacent uniquement les contrats courants qu'ils contredisent ; les
-observations, métriques et récits historiques restent inchangés.
+**Version 3.2 — 25/08/2026.** Positionnement court/moyen terme inscrit : les
+étudiants du supérieur (ADR-135). Le cœur longitudinal est inchangé ;
+l'expérience, la vitrine et les priorités s'alignent sur le parcours étudiant
+(cours structurés, échéances, exercices, projets). Aucune branche généraliste,
+aucun modèle persistant de persona, aucun changement d'entité ou de contrat du
+moteur.
+
+**Version précédente : 3.1 — 20/08/2026.** Les contrats de la refonte Twiny
+ont été validés explicitement par Maxime le 20/08/2026 et sont consignés par
+ADR-089 à ADR-095. Ils remplacent uniquement les contrats courants qu'ils
+contredisent ; les observations, métriques et récits historiques restent
+inchangés.
 
 **Version précédente : 3.0 — 13/08/2026.** Fusion de `PRODUCT_VISION.md` et
 `PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
 restent dans l'historique git. Document vivant : toute modification doit
 préciser ce qui passe d'une catégorie à l'autre.
+
+**Mouvement de la version 3.2.** Le §4 distingue le cœur permanent du
+positionnement prioritaire et porte la promesse déclinée pour ce public ainsi
+que le parcours canonique. Le §7 gagne quatre questions de filtrage et la
+classification des fonctionnalités. Rien du noyau ne bouge : aucune entité,
+aucun statut de mesure, aucun contrat du moteur ne changent.
 
 **Mouvement de la version 3.1.** La carte de référence devient un catalogue
 global partagé assorti d'un overlay privé par compte. Le vocabulaire courant
@@ -147,10 +161,50 @@ utilisateur actif (26 preuves sur 22 compétences, 20 tentatives terminées), un
 **compte tiers réellement actif** (3 preuves, 5 tentatives), un compte sans
 aucune activité pédagogique.
 
-**Cible déclarée :** les étudiants et les autodidactes qui veulent un suivi
-longitudinal de leurs compétences avec un parcours personnalisé (précision du
-23/08/2026 ; la formulation antérieure visait « toute personne souhaitant un
-suivi longitudinal »).
+**Cœur permanent :** le suivi longitudinal — observations sourcées, état
+recalculé, recommandation explicable. Il appartient à quiconque travaille des
+compétences dans la durée, et ne se spécialise pas.
+
+**Positionnement court/moyen terme (25/08/2026, ADR-135) :** à court et moyen
+terme, Twiny est conçu prioritairement pour les étudiants du supérieur qui
+suivent des cours structurés et préparent des évaluations, exercices ou
+projets. Ce positionnement donne au produit un cadre d'application concret. Il
+ne modifie pas son cœur longitudinal et ne constitue pas une restriction
+définitive de son public.
+
+**Limite de cette décision :** elle guide l'expérience et les priorités
+actuelles — vitrine, onboarding, tableau de bord — mais n'introduit aucune
+exclusivité architecturale envers d'autres publics : pas de branche
+généraliste, pas de persona persistant, pas d'application parallèle
+(ADR-135).
+
+**Critère de révision :** reconsidérer la cible après suffisamment d'usage
+étudiant réel — même logique que les tests de réfutation ci-dessous —, pas à
+une date arbitraire.
+
+*(Historique de la cible : « étudiants et autodidactes » du 23/08/2026 ;
+avant, « toute personne souhaitant un suivi longitudinal ».)*
+
+**Promesse pour ce public (25/08/2026) :** « Twiny vous aide à savoir ce que
+vous maîtrisez réellement avant une échéance et à travailler, à chaque séance,
+le point le plus utile. » C'est la déclinaison de la phrase du §3 pour le
+positionnement actuel ; l'une ne remplace pas l'autre.
+
+**Parcours canonique :**
+
+1. L'étudiant déclare ses cours ou modules.
+2. Il ajoute une échéance, un exercice à préparer ou un projet à rendre.
+3. Il apporte éventuellement son support de cours.
+4. Twiny propose une activité ciblée.
+5. L'étudiant réalise l'exercice ou le travail demandé.
+6. Le système produit des observations sourcées.
+7. L'étudiant voit ce que son travail a changé.
+8. La prochaine action est recalculée en tenant compte du cours et de
+   l'échéance.
+
+Le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
+référentiel ou des documents — même exigence qu'ADR-128 : atteindre un
+exercice probant avant tout le reste.
 
 🔬 **Hypothèse partiellement soutenue :** que le besoin existe au-delà de son
 auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans
@@ -417,6 +471,16 @@ avoir une source, une finalité pédagogique et un consommateur dans la boucle.
 l'interface tant que le moteur et ses validations la rendent vraie.
 ✅ **Pas de reporting long terme maintenant** : les données sont insuffisantes
 et les KPI actuels répondent au besoin présent. Réouverture sur fait nouveau.
+✅ **Une seule application, un seul noyau, une expérience d'abord étudiante**
+(25/08/2026, ADR-135). Le positionnement priorise les étudiants du supérieur ;
+il n'ajoute ni type d'utilisateur `student`, ni colonne de persona sur le
+compte, ni entité générique `LearningContext`, ni moteur de capacités selon le
+public, ni application parallèle pour les autodidactes. Cours, échéances et
+projets restent des faits déclarés du parcours (ADR-109, ADR-124, ADR-130) —
+jamais l'identité permanente de la personne, jamais une source de mesure
+automatique : après les études, l'historique et les compétences restent
+utilisables tels quels. L'ouverture future vers d'autres publics est préservée
+par le modèle métier, pas par une seconde version du produit.
 
 ### Ouvert
 
@@ -544,9 +608,34 @@ pur et vérifié ; ce qu'on lui donne à manger ne l'était pas.**
 ## 7. Critère d'arrêt
 
 Une fonctionnalité n'entre pas dans ce produit parce qu'elle est intéressante,
-mais parce qu'elle sert la boucle du §1 et la phrase du §3. La grille
-d'évaluation est dans `CLAUDE.md` §9 et s'applique **à toute proposition, y
-compris celles venant d'une session Claude.**
+mais parce qu'elle sert la boucle du §1 et la phrase du §3. Depuis le
+25/08/2026 (ADR-135), toute proposition doit d'abord répondre **oui** à au
+moins une de ces quatre questions :
+
+1. Aide-t-elle l'étudiant à décider quoi travailler avant une échéance ?
+2. Produit-elle une observation plus fiable de ce qu'il sait faire ?
+3. Rend-elle l'évolution de son niveau plus compréhensible ?
+4. Réduit-elle fortement la friction pour accomplir l'une de ces trois choses ?
+
+Être simplement *compatible* avec les études ne suffit pas. Cette grille
+s'applique **à toute proposition, y compris celles venant d'une session
+Claude.**
+
+**Classification des fonctionnalités (25/08/2026, ADR-135) :**
+
+| Priorité | Fonctionnalités | Traitement |
+|---|---|---|
+| Cœur | Compétences, exercices, tentatives, observations, état, progression, recommandation | Renforcer, rendre immédiatement compréhensible |
+| Cadre étudiant | Cours/modules, échéances, examens, projets académiques | Relier directement à la boucle principale |
+| Facilitateurs | Dépôt de cours, tuteur, séances, mode épreuve, notes utiles au travail | Conserver seulement lorsqu'ils réduisent la friction |
+| Administration | Référentiel, relations, classements, maintenance documentaire | Secondaire et contextuel |
+| Hors priorité | Contextes professionnels, moteur multi-persona, productivité universelle | Ne plus développer à court/moyen terme |
+
+Le projet étudiant — TP, rapport, livrable — reste dans « Cadre étudiant »
+avec sa réserve : associable à un cours, une échéance et des compétences, il
+ne modifie jamais l'état simplement parce qu'il existe ou est déclaré terminé.
+❓ Sa valeur de preuve reste sous contrat explicite (§6) : aucune observation
+sans travail vérifiable.
 
 **Le cas des outils** (ADR-122). Un outil n'est pas une étape de la boucle : il
 l'assiste. Deux portes, et seulement deux :

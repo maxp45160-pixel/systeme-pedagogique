@@ -22,7 +22,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { Bouton } from "@/components/ui/primitives";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { PaletteFormulesTexte, ApercuFormulesTexte } from "@/components/ui/palette-formules";
 
 export const ChatInput = memo(function ChatInput({
   onEnvoyer,
@@ -113,6 +113,11 @@ export const ChatInput = memo(function ChatInput({
         placeholder="Posez votre question, collez votre raisonnement, demandez un exercice…"
         className="w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
       />
+
+      {/* Aperçu immédiat des formules tapées (25/08/2026) — absent sans formule. */}
+      <div className="mt-2">
+        <ApercuFormulesTexte valeur={saisie} />
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[0.625rem] text-texte-discret">

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, useDeferredValue, type RefObject } from "react";
 import { insererFormuleDansTexte } from "@/lib/ui/insertion-formule";
+import { contientFormuleLatex } from "@/lib/ui/formule";
+import { Markdown } from "@/components/ui/markdown";
 
 /**
  * Palette de symboles mathématiques pour la barre d'outils d'un éditeur.
@@ -359,5 +361,48 @@ export function PaletteFormulesTexte({
         });
       }}
     />
+  );
+}
+
+/**
+ * L'aperçu immédiat d'une zone de texte brut (25/08/2026).
+ *
+ * ## Le problème
+ *
+ * Les zones qui portent du Markdown+LaTeX (réponse d'exercice, chat, fiche de
+ * saisie, intention) montraient la SOURCE : `\frac{a}{b}` restait des
+ * antislashs jusqu'à l'enregistrement. Écrire une formule revenait à rédiger
+ * à l'aveugle. Remplacer toutes les zones par un éditeur riche serait un
+ * chantier disproportionné — et l'éditeur riche existe déjà là où le besoin
+ * est réel (`EditeurDirect`, espace documentaire).
+ *
+ * ## Le choix
+ *
+ * La source RESTE éditable et maître du champ ; l'aperçu s'ajoute SOUS la
+ * zone, rendu par le même `Markdown` que partout ailleurs — donc exactement ce
+ * qui sera lu, y compris le repli Unicode quand KaTeX refuse une commande.
+ * Il n'apparaît que si le texte contient une formule détectable
+ * (`contientFormuleLatex`, même détection que le rendu) : pas de panneau de
+ * plus sur une note sans mathématiques.
+ *
+ * Le rendu passe par `useDeferredValue` : la frappe reste prioritaire sur le
+ * calcul KaTeX, qui peut coûter sur une longue réponse.
+ *
+ * Opt-in par surface (`<ApercuFormulesTexte valeur={...} />` posé sous le
+ * champ) : les surfaces compactes (barre de marge fixe) décident elles-mêmes.
+ */
+export function ApercuFormulesTexte({ valeur }: { valeur: string }) {
+  const valeurDifferree = useDeferredValue(valeur);
+  if (!contientFormuleLatex(valeurDifferree)) return null;
+
+  return (
+    <div className="rounded-md border border-bordure bg-surface-2/50 px-3 py-2">
+      <p className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-texte-discret">
+        Aperçu
+      </p>
+      <div className="max-h-60 overflow-y-auto text-sm">
+        <Markdown contenu={valeurDifferree} />
+      </div>
+    </div>
   );
 }

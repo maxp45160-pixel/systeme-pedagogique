@@ -37,6 +37,28 @@ type Etat =
   | { phase: "prete"; proposition: PropositionBilan }
   | { phase: "nue"; raison: string | null };
 
+/*
+ * Les deux horloges de l'attente (25/08/2026).
+ *
+ * Une correction dépassant la minute était vécue comme une panne — et l'était
+ * parfois. Le plafond serveur valait 300 s : cinq minutes devant un écran qui
+ * ne dit rien. Désormais :
+ *
+ * - à **10 s**, la sortie manuelle est proposée (« Je ne sais pas encore ») :
+ *   le formulaire s'ouvre NU, sans appel LLM, et rien n'est écrit sans la
+ *   relecture de la personne — aucune observation n'est fabriquée par
+ *   l'abandon (P5, et invariant « abandon ≠ preuve ») ;
+ * - à **25 s**, l'attente est interrompue automatiquement : le flux est
+ *   annulé (ce qui interrompt aussi la génération côté serveur via
+ *   `request.signal`) et le formulaire manuel s'ouvre avec la raison.
+ *
+ * La mesure fine (TTFT, durée totale, fournisseur) vit dans les logs de la
+ * route `/api/exercices/corriger` ; ici, seul ce que la personne vit est
+ * affiché.
+ */
+const DELAI_SORTIE_PROPOSEE_MS = 10_000;
+const DELAI_INTERRUPTION_MS = 25_000;
+
 export function BilanAssiste({
   exercice,
   attemptId,
@@ -54,6 +76,8 @@ export function BilanAssiste({
 }) {
   const [etat, setEtat] = useState<Etat>({ phase: "correction" });
   const [progression, setProgression] = useState<string | null>(null);
+  /** Secondes écoulées depuis le lancement — affiché, et seuil des deux horloges. */
+  const [secondes, setSecondes] = useState(0);
   const abandonRef = useRef<AbortController | null>(null);
   const lanceRef = useRef(false);
 
@@ -147,27 +171,66 @@ export function BilanAssiste({
     return () => abandon.abort();
   }, [attemptId, compteId, exercice.criteres.length]);
 
+  /*
+   * L'horloge visible et l'interruption automatique vivent dans le MÊME
+   * intervalle : le seuil est franchi dans le rappel (un système externe qui
+   * notifie), pas dans un effet de re-rendu — et l'écran affiche la seconde
+   * écoulée pendant que le compte tourne.
+   */
+  useEffect(() => {
+    if (etat.phase !== "correction") return;
+    const debut = Date.now();
+    const minuterie = setInterval(() => {
+      const ecoulees = Math.round((Date.now() - debut) / 1000);
+      if (ecoulees * 1000 >= DELAI_INTERRUPTION_MS) {
+        clearInterval(minuterie);
+        // On coupe le flux : côté serveur, `request.signal` interrompt à son
+        // tour la génération. Le formulaire s'ouvre nu, avec la raison.
+        abandonRef.current?.abort();
+        setEtat({
+          phase: "nue",
+          raison:
+            "La relecture par le tuteur a été interrompue après 25 secondes d'attente. Remplissez le bilan vous-même : rien n'a été écrit sans votre décision.",
+        });
+        return;
+      }
+      setSecondes(ecoulees);
+    }, 1_000);
+    return () => clearInterval(minuterie);
+  }, [etat.phase]);
+
+  function sortieManuelle() {
+    abandonRef.current?.abort();
+    setEtat({ phase: "nue", raison: null });
+  }
+
   if (etat.phase === "correction") {
+    const attenteLongue = secondes * 1000 >= DELAI_SORTIE_PROPOSEE_MS;
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <PointActif />
         <p className="mt-3 text-sm text-texte-attenue">
           {progression ?? "Le tuteur relit votre réponse…"}
         </p>
-        <p className="mt-1 text-[0.6875rem] text-texte-discret">
-          Son verdict sera une proposition : vous le relisez et vous décidez.
-        </p>
-        <Bouton
-          onClick={() => {
-            abandonRef.current?.abort();
-            setEtat({ phase: "nue", raison: null });
-          }}
-          variante="secondaire"
-          taille="petite"
-          className="mt-4"
-        >
-          Remplir sans le tuteur
-        </Bouton>
+        {attenteLongue ? (
+          <>
+            <p className="mt-1 text-[0.6875rem] text-texte-discret" role="status">
+              {secondes} s — plus long que d&apos;habitude. Vous pouvez remplir le bilan sans
+              attendre.
+            </p>
+            <Bouton onClick={sortieManuelle} variante="principal" taille="petite" className="mt-4">
+              Je ne sais pas encore
+            </Bouton>
+            <p className="mt-2 max-w-xs text-[0.6875rem] leading-relaxed text-texte-discret">
+              Ouvre le bilan à remplir vous-même, critère par critère. Aucun appel au tuteur,
+              et rien n&apos;est écrit à votre place.
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-[0.6875rem] text-texte-discret">
+            Son verdict sera une proposition : vous le relisez et vous décidez.
+          </p>
+        )}
       </div>
     );
   }

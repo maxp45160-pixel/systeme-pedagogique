@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { LienRetour } from "@/components/ui/lien-retour";
 import { libelleDomaine } from "@/lib/domain/referentiel-compte";
-import { DIFFICULTES, type Difficulte } from "@/lib/domain/types";
+import { DIFFICULTES, LIBELLES_DIMENSIONS, type Difficulte } from "@/lib/domain/types";
 import { demarrerTentative } from "@/lib/store/actions";
 import { terminerSeance } from "@/lib/store/seance-actions";
 import { ActionSeance } from "@/components/seances/action-seance";
@@ -157,10 +157,19 @@ export async function VueExercice(props: {
 
   const cible = ctx.etatsParCode.get(exercice.competences[0]);
   /*
-   * Deux actes : Chercher → Mesurer. La correction de référence n'est jamais
-   * exposée dans l'interface : le tuteur relit la réponse côté serveur et rend
-   * une proposition dans le bilan. L'ancienne URL `?correction=1` a été
-   * retirée avec l'écran qu'elle ouvrait — seul `?evaluer=1` entre en mesure.
+   * Deux actes : Chercher → Mesurer.
+   *
+   * La correction de référence reste hors d'atteinte PENDANT le travail :
+   * ni l'énoncé ouvert, ni le bilan du tuteur ne la montrent — le tuteur relit
+   * la réponse côté serveur et rend une proposition dans le bilan. L'ancienne
+   * URL `?correction=1` a été retirée avec l'écran qu'elle ouvrait — seul
+   * `?evaluer=1` entre en mesure.
+   *
+   * Après coup, elle devient consultable (25/08/2026) : un exercice terminé
+   * sans qu'on puisse jamais lire ce qui était attendu laissait le bilan sans
+   * point de comparaison — « pourquoi ce verdict ? ». Le panneau est replié,
+   * explicite (« réponse attendue »), et n'existe que SANS tentative en cours :
+   * jamais pendant qu'on cherche.
    */
   const enMesure = evaluer === "1";
   // L'énoncé reste toujours atteignable — c'est le contexte, pas une action.
@@ -548,6 +557,31 @@ export async function VueExercice(props: {
           </Carte>
         )}
 
+        {/*
+          -------------------- Après coup --------------------
+          La réponse attendue, consultable une fois l'exercice terminé et
+          AUCUNE tentative en cours (25/08/2026). Repliée par défaut : c'est un
+          document de comparaison, pas un contenu qui s'offre au regard de qui
+          rouvre l'exercice pour le refaire — même précaution que la correction
+          repliée dans la fiche (`titresReplies` du Markdown).
+        */}
+        {!enCours && derniereTerminee && (
+          <PanneauPliable
+            ouvertParDefaut={false}
+            titre={<span className="text-sm font-medium">Réponse attendue</span>}
+            sousEntete={
+              <p className="mt-0.5 text-xs text-texte-attenue">
+                Exercice terminé — ce qui était attendu, pour relire votre bilan avec un point de
+                comparaison.
+              </p>
+            }
+          >
+            <div className="px-4 py-3.5 text-sm">
+              <Markdown contenu={exercice.correction} />
+            </div>
+          </PanneauPliable>
+        )}
+
         {enCours && (
           <div className="space-y-4 lg:col-start-2 lg:row-start-1">
             {aidesMasquees && (
@@ -555,6 +589,29 @@ export async function VueExercice(props: {
                 Mode épreuve : les aides sont masquées jusqu&apos;à la fin de la séance.
               </p>
             )}
+            {/*
+              Ce qui sera évalué — les critères AVANT la réponse (25/08/2026).
+              Le testeur devinait le contrat au moment du bilan, après coup :
+              il ne pouvait ni viser ce qui serait jugé, ni expliquer son
+              propre verdict. Les critères existent déjà (ils portent la
+              grille du bilan) ; les afficher ici ne révèle rien de la
+              correction — c'est le contrat de l'évaluation, pas sa réponse.
+              En mode épreuve, ce contrat reste visible : savoir sur quoi on
+              est jugé n'est pas une aide, c'est la règle du jeu.
+            */}
+            <Carte>
+              <EnTeteCarte titre="Ce qui sera évalué" />
+              <ul className="divide-y divide-bordure">
+                {exercice.criteres.map((critere, index) => (
+                  <li key={index} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2">
+                    <span className="min-w-0 flex-1 text-xs">{critere.libelle}</span>
+                    <span className="shrink-0 text-[0.6875rem] text-texte-discret">
+                      {LIBELLES_DIMENSIONS[critere.dimension]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Carte>
             {/*
               Votre réponse — vivante dans l'acte Chercher, repliée dès que le
               bilan du tuteur est ouvert. Elle reste modifiable avant l'envoi
@@ -619,9 +676,11 @@ export async function VueExercice(props: {
             )}
 
             {/*
-              La correction de référence reste côté serveur. Le clic ci-dessus
-              ouvre directement le bilan assisté ; aucune étape ne rend le
-              texte de correction à l'utilisateur.
+              Pendant le travail, la correction de référence reste côté serveur.
+              Le clic ci-dessus ouvre directement le bilan assisté ; aucune
+              étape du parcours ne rend le texte de correction. Elle ne devient
+              consultable qu'après coup, via le panneau « Réponse attendue »
+              ci-dessus — jamais pendant qu'une tentative est ouverte.
             */}
             {/* -------------------- Acte : Mesurer ----------------------------
               Énoncé et réponse sont repliés : seul le bilan proposé par le

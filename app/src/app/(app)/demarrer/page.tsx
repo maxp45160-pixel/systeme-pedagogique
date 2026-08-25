@@ -4,9 +4,9 @@ import { chargerContexte } from "@/lib/store/context";
 import { valeurDeclaree } from "@/lib/domain/profil";
 import { estAdministrateur } from "@/lib/store/acces";
 import { EntetePage } from "@/components/layout/entete-page";
-import { BandeauInfo, Carte, classesLienBouton } from "@/components/ui/primitives";
+import { BandeauInfo, Carte } from "@/components/ui/primitives";
 import { FormulaireAmorcage } from "@/components/demarrer/formulaire-amorcage";
-import { IconeAmpoule, IconeCours, IconeFleche } from "@/components/ui/icones";
+import { IconeAmpoule, IconeFleche } from "@/components/ui/icones";
 import { choisirConfiguration } from "@/lib/tutor/moteurs";
 import { lireQuotaTuteur } from "@/lib/store/quota-tuteur";
 
@@ -82,27 +82,6 @@ export default async function PageDemarrer(props: {
         — le fonctionnement complet, écran par écran, en quelques minutes.
       </p>
 
-      <div className="mb-4 flex flex-col gap-3 rounded-xl border border-bordure bg-surface-2/55 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primaire-faible text-primaire">
-            <IconeCours className="size-5" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-texte">Vous avez déjà un PDF ou un syllabus ?</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-texte-attenue">
-              Déposez votre cours : le tuteur en extraira des axes à relire, puis préparera des exercices ciblés.
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/atelier?creation=cours"
-          className={`${classesLienBouton("secondaire")} min-h-11 shrink-0 touch-manipulation`}
-        >
-          Déposer mon cours
-          <IconeFleche className="size-4" />
-        </Link>
-      </div>
-
       <Carte>
         <div className="px-5 py-4">
           {/*
@@ -122,10 +101,21 @@ export default async function PageDemarrer(props: {
       </Carte>
 
       {/*
+        Le dépôt d'un cours n'a plus sa place au PREMIER écran (25/08/2026).
+        Le bandeau « Vous avez déjà un PDF ? » détournait le seul choix que cet
+        écran existe pour poser — un axe — vers une action qui en présuppose
+        plusieurs (un référentiel, un domaine, un fichier). Le geste reste
+        entier dans Mes cours (`?creation=cours`), où il a déjà tout son
+        parcours (ADR-129) ; il est rappelé ici, replié, sans concurrencer le
+        formulaire.
+      */}
+
+      {/*
         Ce qui vient après, dit maintenant plutôt que découvert plus tard —
         mais replié : le tour guidé raconte déjà ce récit, et le formulaire ne
         doit pas le porter deux fois avant toute action. Le wording est
-        inchangé ; seul le conteneur change.
+        inchangé ; seul le conteneur change. La ligne sur les PDF de cours vit
+        ici depuis le retrait du bandeau : atteignable, pas proposée d'entrée.
       */}
       <details className="group mt-6 rounded-xl border border-bordure bg-surface-2/50 px-5 py-4">
         <summary className="cursor-pointer list-none marker:hidden">
@@ -148,6 +138,11 @@ export default async function PageDemarrer(props: {
               3. Le tableau de bord s&apos;ouvre ensuite.
             </span>{" "}
             Il s&apos;appuie déjà sur ce que vous venez de faire, au lieu de vous accueillir par une liste vide.
+          </li>
+          <li>
+            <span className="font-medium text-texte">4. Un cours en PDF trouve sa place après.</span>{" "}
+            Quand votre axe est posé, déposez-le depuis Mes cours : le tuteur le lira et proposera
+            des séances à relire.
           </li>
         </ol>
       </details>

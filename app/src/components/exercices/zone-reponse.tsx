@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { enregistrerReponse } from "@/lib/store/actions";
 import { useEstHydrate } from "@/lib/ui/hydratation";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { PaletteFormulesTexte, ApercuFormulesTexte } from "@/components/ui/palette-formules";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 
 /**
@@ -280,6 +280,14 @@ function ZoneHydrate({
         placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
         className="h-[40dvh] min-h-[15.5rem] w-full scroll-mb-[45dvh] resize-y overscroll-contain rounded-md border border-bordure-controle bg-surface px-3 py-3 font-mono text-base leading-relaxed placeholder:text-texte-discret sm:text-sm lg:h-[min(32rem,calc(100dvh-16rem))]"
       />
+      {/*
+        Aperçu immédiat (25/08/2026) : la réponse porte des formules, la source
+        ne doit pas se lire à l'aveugle. Il ne s'affiche que si le texte en
+        contient une, et rend exactement ce que le bilan relira.
+      */}
+      <div className="mt-2">
+        <ApercuFormulesTexte valeur={texte} />
+      </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[0.625rem] text-texte-discret">
         <div className="flex flex-wrap items-center gap-2">
           <span aria-live="polite">

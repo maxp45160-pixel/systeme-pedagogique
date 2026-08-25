@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createNavigateurClient } from "@/lib/supabase/client";
+import { classerInscription } from "@/lib/auth/inscription";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 
@@ -32,9 +33,25 @@ export function FormulaireConnexion({
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(erreurInitiale);
   const [info, setInfo] = useState<string | null>(null);
+  /**
+   * Résultat neutre d'une inscription possiblement masquée : Supabase refuse
+   * de confirmer l'existence du compte (protection contre l'énumération), donc
+   * l'écran ne la confirme pas non plus — il propose un geste vers la
+   * connexion sans rien affirmer.
+   */
+  const [connexionProposee, setConnexionProposee] = useState(false);
   const router = useRouter();
 
   const supabase = createNavigateurClient();
+
+  /** Bascule vers la connexion en conservant l'e-mail saisi. */
+  function passerEnConnexion() {
+    setMode("connexion");
+    setErreur(null);
+    setInfo(null);
+    setConnexionProposee(false);
+    setMotDePasse("");
+  }
 
   async function connexionGoogle() {
     if (!supabase) return;
@@ -66,13 +83,52 @@ export function FormulaireConnexion({
     if (mode === "inscription") {
       const retour = new URL("/auth/callback", window.location.origin);
       retour.searchParams.set("suite", destination);
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: courriel,
         password: motDePasse,
         options: { emailRedirectTo: retour.toString() },
       });
-      if (error) setErreur(error.message);
-      else setInfo("Compte créé. Ouvrez le lien de confirmation envoyé par e-mail.");
+
+      /*
+       * La classification vit dans `lib/auth/inscription.ts` (testée) : elle
+       * distingue le doublon explicite, le doublon masqué par Supabase, le
+       * nouveau compte et la connexion immédiate. L'e-mail saisi est conservé
+       * dans tous les cas — retaper son adresse après une erreur de plus est
+       * exactement la friction qu'on retire.
+       */
+      const classification = classerInscription({
+        error,
+        session: data?.session,
+        user: data?.user,
+      });
+      switch (classification.cas) {
+        case "compte-existant":
+          passerEnConnexion();
+          setInfo(
+            "Un compte existe déjà avec cette adresse. Connectez-vous — ou passez par « Mot de passe oublié » si besoin.",
+          );
+          break;
+        case "existe-peut-etre":
+          setErreur(null);
+          setInfo(
+            "Si un compte existe déjà pour cette adresse, aucun nouveau compte n'a été créé : un e-mail de confirmation vous attend peut-être. Sinon, il vient d'être créé.",
+          );
+          setConnexionProposee(true);
+          break;
+        case "confirmation-envoyee":
+          setErreur(null);
+          setInfo("Compte créé. Ouvrez le lien de confirmation envoyé par e-mail.");
+          break;
+        case "connecte":
+          // `refresh()` re-rend les Server Components avec la session fraîche.
+          router.replace(destination);
+          router.refresh();
+          return;
+        case "erreur":
+          setInfo(null);
+          setErreur(classification.message);
+          break;
+      }
       setEnCours(false);
       return;
     }
@@ -112,6 +168,19 @@ export function FormulaireConnexion({
         <BandeauInfo ton="succes" taille="compacte">
           <p className="leading-relaxed text-succes">{info}</p>
         </BandeauInfo>
+      )}
+
+      {/*
+        Résultat neutre d'une inscription possiblement masquée (25/08/2026).
+        Supabase ne dit pas si le compte existe ; l'écran non plus. Le CTA
+        reste un geste explicite vers la connexion — pas une redirection
+        automatique, qui confirmerait l'existence du compte que Supabase
+        s'applique justement à ne pas révéler.
+      */}
+      {connexionProposee && (
+        <Bouton variante="secondaire" className="w-full" onClick={passerEnConnexion}>
+          J&apos;ai déjà un compte — me connecter
+        </Bouton>
       )}
 
       <Bouton
@@ -182,6 +251,7 @@ export function FormulaireConnexion({
           setMode(mode === "connexion" ? "inscription" : "connexion");
           setErreur(null);
           setInfo(null);
+          setConnexionProposee(false);
         }}
         className="w-full text-center text-xs text-texte-attenue underline-offset-2 transition-colors hover:text-texte hover:underline"
       >

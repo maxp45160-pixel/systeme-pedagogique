@@ -15,6 +15,12 @@ export type MoteurResolu =
       moteur: MoteurTuteur;
       /** Modèle retenu — pour la télémétrie côté route. */
       modele: string | null;
+      /**
+       * Fournisseur retenu (`anthropic` ou `compatible-openai`) — même
+       * télémétrie : les latences se comparent PAR fournisseur, jamais tous
+       * confondus.
+       */
+      fournisseur: string;
     }
   | { ok: false; reponse: Response };
 
@@ -68,6 +74,7 @@ export async function resoudreMoteur(
     ok: true,
     moteur,
     modele: choix.kind === "aucun" ? null : choix.modele,
+    fournisseur: choix.kind === "aucun" ? "aucun" : choix.kind,
   };
 }
 

@@ -126,12 +126,41 @@ export function FormulaireAmorcage({
     );
   }
 
+  /*
+   * La synthèse du diagnostic guidé reste DANS le parcours guidé (25/08/2026).
+   *
+   * Elle basculait le formulaire en « saisie directe » : la personne qui
+   * venait de répondre aux trois questions se retrouvait devant TOUTES les
+   * zones déjà remplies à retraverser pour trouver le bouton d'action — un
+   * écran déjà rempli, exactement ce qu'un récapitulatif ne doit pas être.
+   * Désormais : les champs sont alimentés en silence (ils servent au profil et
+   * à la modale), le profil déclaré part sur le clic « Appliquer et enregistrer
+   * mon profil » du guidé — une confirmation humaine explicite — et la
+   * validation du référentiel s'ouvre directement. Rien ne s'écrit sans elle.
+   */
   function appliquerSyntheseOrientation(profil: ProfilSynthetise) {
-    setSujet(profil.sujet);
-    setIntention(profil.intentionDeDepart);
-    setPointDeDepart(profil.formation);
-    setPreferencesChoisies(profil.preferencesPedagogiques);
-    setModeGuide(false);
+    setErreur(null);
+    demarrer(async () => {
+      try {
+        await modifierProfil({
+          formation: profil.formation?.trim() || undefined,
+          objectifMoyenTerme: profil.intentionDeDepart.trim(),
+          objectifLongTerme: objectifLongTerme || undefined,
+          preferencesPedagogiques: profil.preferencesPedagogiques,
+        });
+        setSujet(profil.sujet);
+        setIntention(profil.intentionDeDepart);
+        setPointDeDepart(profil.formation);
+        setPreferencesChoisies(profil.preferencesPedagogiques);
+        if (orientationAmorcage(profil.intentionDeDepart) === "projet") {
+          ouvrirIntention({ besoinInitial: profil.intentionDeDepart.trim(), contexte: "projet" });
+        } else {
+          setValidationOuverte(true);
+        }
+      } catch (e) {
+        setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
+      }
+    });
   }
 
   function soumettre() {

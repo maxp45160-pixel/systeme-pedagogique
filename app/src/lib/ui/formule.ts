@@ -673,3 +673,18 @@ export function segmenterFormulesEnLigne(texte: string): SegmentTexte[] {
   if (curseur < texte.length) segments.push({ formule: false, texte: texte.slice(curseur) });
   return segments;
 }
+
+/**
+ * Ce texte contient-il au moins une formule détectable ?
+ *
+ * L'aperçu des zones de saisie (25/08/2026) s'affiche seulement quand il y a
+ * quelque chose à rendre : une note de marge ou une phrase sans formule ne
+ * doit pas gagner un panneau de plus. La détection est la MÊME que celle du
+ * rendu — `segmenterFormulesEnLigne`, qui porte déjà les garde-fous du dollar
+ * (« 30$ puis 40$ » reste de la prose) — jamais une seconde regex qui
+ * divergerait silencieusement : un aperçu annoncé pour rien, ou pire, absent
+ * pour une formule que le rendu sait pourtant lire.
+ */
+export function contientFormuleLatex(texte: string): boolean {
+  return segmenterFormulesEnLigne(texte).some((segment) => segment.formule);
+}

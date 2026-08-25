@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import { Bouton, Carte, EnTeteCarte, cx } from "@/components/ui/primitives";
 import { IconePlus, IconeValide } from "@/components/ui/icones";
+import { ApercuFormulesTexte } from "@/components/ui/palette-formules";
 import { TraiterLigneMarge } from "@/components/seances/traiter-ligne-marge";
 import { LIGNE_MARGE_MAX, type LigneMarge } from "@/lib/documents/marge";
 import {
@@ -50,6 +54,13 @@ import {
  * `jour` date la note du jour civil déclaré par le navigateur. Absent, la
  * Server Action retombe sur le jour du serveur — le comportement antérieur,
  * conservé pour les surfaces qui ne connaissent pas leur page.
+ *
+ * ⚠️ `autoComplete="off"` sur le formulaire ET le champ (25/08/2026). Sans lui,
+ * Chrome, Firefox et Edge proposaient l'historique des notes précédentes dès
+ * la première frappe : une mémoire qui revenait toute seule, sur un champ qui
+ * n'est pas un formulaire récurrent mais une pensée du jour. Le doublement
+ * (formulaire + input) n'est pas redondant — certains navigateurs ignorent
+ * l'attribut porté par l'un ou l'autre seul.
  */
 export function ChampMarge({
   variante = "bloc",
@@ -61,10 +72,22 @@ export function ChampMarge({
   /** Jour civil `AAAA-MM-JJ` porté par le formulaire avec la note. */
   jour?: string;
 }) {
+  /*
+   * La variante bloc porte l'aperçu des formules (25/08/2026) : une ligne de
+   * marge peut citer une formule, et la lire en source brute n'apprend rien.
+   * Le champ devient contrôlé pour que l'aperçu suive la frappe — le submit
+   * reste un `<form action>` ordinaire. La variante « barre » du Bureau, elle,
+   * reste non contrôlée : une pastille fixe en pied d'écran n'a pas la place
+   * d'un panneau de plus sous elle. L'état est déclaré ici pour les DEUX
+   * variantes : un hook ne se met pas derrière un retour anticipé.
+   */
+  const [texte, setTexte] = useState("");
+
   if (variante === "barre") {
     return (
       <form
         action={noterDansLaMarge}
+        autoComplete="off"
         className="flex w-full items-center gap-2.5 rounded-full border border-bordure bg-surface py-1.5 pl-4 pr-1.5 shadow-[var(--ombre-surcouche)] transition-colors focus-within:border-primaire/50"
       >
         <label className="sr-only" htmlFor="ligne-marge">
@@ -77,6 +100,7 @@ export function ChampMarge({
           type="text"
           required
           autoFocus={autoFocus}
+          autoComplete="off"
           maxLength={LIGNE_MARGE_MAX}
           placeholder="Ce sur quoi je bute, ce que je veux revoir…"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-texte-discret"
@@ -99,24 +123,32 @@ export function ChampMarge({
   }
 
   return (
-    <form action={noterDansLaMarge} className="flex flex-col gap-2 sm:flex-row">
-      <label className="sr-only" htmlFor="ligne-marge">
-        Noter dans le bloc-notes
-      </label>
-      <input
-        id="ligne-marge"
-        name="ligne"
-        type="text"
-        required
-        maxLength={LIGNE_MARGE_MAX}
-        placeholder="Ce sur quoi je bute, ce que je veux revoir…"
-        className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
-      />
-      {jour && <input type="hidden" name="jour" value={jour} />}
-      <Bouton type="submit" variante="secondaire" taille="petite">
-        Noter
-      </Bouton>
-    </form>
+    <div>
+      <form action={noterDansLaMarge} autoComplete="off" className="flex flex-col gap-2 sm:flex-row">
+        <label className="sr-only" htmlFor="ligne-marge">
+          Noter dans le bloc-notes
+        </label>
+        <input
+          id="ligne-marge"
+          name="ligne"
+          type="text"
+          required
+          autoComplete="off"
+          value={texte}
+          onChange={(event) => setTexte(event.target.value)}
+          maxLength={LIGNE_MARGE_MAX}
+          placeholder="Ce sur quoi je bute, ce que je veux revoir…"
+          className="min-w-0 flex-1 rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
+        />
+        {jour && <input type="hidden" name="jour" value={jour} />}
+        <Bouton type="submit" variante="secondaire" taille="petite">
+          Noter
+        </Bouton>
+      </form>
+      <div className="mt-2">
+        <ApercuFormulesTexte valeur={texte} />
+      </div>
+    </div>
   );
 }
 
