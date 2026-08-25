@@ -284,7 +284,11 @@ export function preparerRevisionDomaine(
       importance: modification.importance === undefined ? actuelle.importance : normaliserImportance(modification.importance),
       prerequis: modification.prerequis ?? actuelle.prerequis,
     };
-    lever(validerCompetence(candidate, referentiel, domaine.id, actuelle.code));
+    lever(
+      validerCompetence(candidate, referentiel, domaine.id, actuelle.code, {
+        verifierAtomicite: modification.intitule !== undefined,
+      }),
+    );
     return {
       code: actuelle.code,
       ...(modification.intitule !== undefined ? { intitule: candidate.intitule } : {}),
