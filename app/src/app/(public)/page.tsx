@@ -19,9 +19,9 @@ import { Revelation } from "@/components/vitrine/revelation";
 import { SimulateurDiagnostic } from "@/components/vitrine/simulateur-diagnostic";
 
 export const metadata: Metadata = {
-  title: "Système pédagogique — apprenez par la pratique, sachez où vous en êtes",
+  title: "Système pédagogique — pour étudiants du supérieur, sachez où vous en êtes",
   description:
-    "Des exercices créés sur vos sujets, une évaluation honnête de ce que vous savez faire, et une prochaine action toujours claire. Pour étudiants, concours et autodidactes.",
+    "Conçu pour les cours structurés et les échéances : déclarez vos modules, travaillez le point le plus utile avant chaque partiel, et mesurez ce que vous savez réellement faire. Concours et autodidactes y trouvent aussi leur compte.",
   alternates: { canonical: "/" },
 };
 
@@ -100,7 +100,7 @@ export default async function PageAccueil() {
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-16 pt-16 sm:px-6 lg:grid-cols-2 lg:pt-20">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primaire">
-              Maths · langues · sciences · à vous de voir
+              Conçu pour les étudiants du supérieur
             </p>
             <h1 className="mt-4 font-serif text-4xl font-medium leading-[1.05] tracking-tight text-texte sm:text-5xl lg:text-6xl">
               Ouvrez.
@@ -110,10 +110,11 @@ export default async function PageAccueil() {
               <em className="font-normal italic text-primaire">Refermez.</em>
             </h1>
             <p className="mt-6 max-w-xl text-base leading-relaxed text-texte-attenue sm:text-lg">
-              Pas de planning, pas de retard à rattraper. Chaque fois que vous
-              ouvrez, un exercice vous attend — en maths, en langues, ou sur le
-              sujet que vous avez choisi — calibré pour le temps que vous avez
-              là, tout de suite.
+              Vos cours structurés, vos partiels et vos rendus donnent le cadre ;
+              les exercices font la preuve. Relire ne démontre rien : Twiny vous
+              aide à savoir ce que vous maîtrisez réellement avant une échéance
+              et à travailler, à chaque séance, le point le plus utile — en
+              maths, en droit, en langues, ou sur tout autre sujet.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/login?mode=inscription" className={classesLienBouton("principal")}>
@@ -124,6 +125,12 @@ export default async function PageAccueil() {
                 Essayer le simulateur
               </Link>
             </div>
+            <p className="mt-4 text-sm text-texte-attenue">
+              Vous préparez vos partiels ?{" "}
+              <Link href="/etudiants" className="font-medium text-primaire underline underline-offset-2 hover:text-primaire/80">
+                Ce que ça change pour vos cours
+              </Link>
+            </p>
             <p className="mt-5 font-mono text-xs text-texte-discret">
               Gratuit. <b className="font-medium text-texte-attenue">150 exercices par mois</b> inclus,
               rien à installer. Vos résultats ne sont partagés avec personne.
@@ -442,32 +449,39 @@ export default async function PageAccueil() {
         </div>
       </section>
 
-      {/* Trois publics */}
+      {/* Publics — le cours structuré d'abord, sans fermer les autres usages */}
       <section aria-labelledby="titre-publics" className="border-b border-bordure bg-surface">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Trois profils d&apos;usage</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primaire">Votre cadre de travail</p>
             <h2 id="titre-publics" className="mt-3 font-serif text-2xl font-medium tracking-tight text-texte sm:text-3xl">
-              À chacun son cadre d&apos;apprentissage
+              Pensé pour le cours et l&apos;échéance
             </h2>
+            <p className="mt-4 text-base leading-relaxed text-texte-attenue">
+              L&apos;expérience est dessinée d&apos;abord pour un cursus
+              d&apos;études supérieures. Elle ne s&apos;y réduit pas : les deux
+              autres cadres restent entiers.
+            </p>
           </div>
 
           <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
-            <Link href="/etudiants" className="group block">
-              <section className="h-full rounded-carte border border-bordure bg-fond p-6 transition-all hover:-translate-y-0.5 hover:border-bordure-forte hover:shadow-levee">
+            <Link href="/etudiants" className="group block md:col-span-1">
+              <section className="h-full rounded-carte border border-primaire/40 bg-fond p-6 shadow-[var(--ombre-posee)] transition-all hover:-translate-y-0.5 hover:border-primaire hover:shadow-levee">
                 <span className="flex size-11 items-center justify-center rounded-lg bg-primaire-faible text-primaire">
                   <IconeLivre className="size-5" />
                 </span>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-texte-discret">
+                <p className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primaire">
                   Étudiants & Université
+                  <span className="rounded-full bg-primaire/15 px-2 py-0.5 text-[0.625rem] font-bold">Cadre principal</span>
                 </p>
                 <h3 className="mt-1 font-serif text-xl font-medium text-texte">
                   Savoir quel chapitre fait illusion
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed text-texte-attenue">
-                  Trois semaines avant l&apos;examen, la vraie question est « qu&apos;est-ce que
-                  je sais faire sans regarder ». Une fiche relue quatre fois ne
-                  répond pas à ça. Un exercice, oui.
+                  Déclarez vos modules, vos partiels et vos rendus. Trois semaines
+                  avant l&apos;examen, la vraie question est « qu&apos;est-ce que
+                  je sais faire sans regarder ». Un exercice répond ; une fiche
+                  relue quatre fois, non.
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primaire">
                   Ce que ça change pour vos partiels

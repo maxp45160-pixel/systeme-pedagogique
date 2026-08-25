@@ -152,7 +152,10 @@ l'histoire des décisions.
 
 **Vitrine publique (23/08, ADR-114) :** la racine `/` est une landing
 marketing publique, complétée par `/methode`, `/etudiants` et `/autodidactes`.
-Le tableau de bord est à `/app`, derrière authentification. L'acquisition par
+Depuis le repositionnement étudiant (25/08, ADR-135), l'accueil mène par ce
+cadre — cours structurés, échéances, `/etudiants` en référence principale ;
+les autres publics restent accessibles sans dicter la navigation. Le tableau
+de bord est à `/app`, derrière authentification. L'acquisition par
 moteur de recherche passe par ces pages publiques ; aucune donnée
 pédagogique n'y circule.
 

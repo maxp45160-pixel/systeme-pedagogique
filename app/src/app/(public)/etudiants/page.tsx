@@ -4,9 +4,9 @@ import { Carte, classesLienBouton } from "@/components/ui/primitives";
 import { IconeFleche } from "@/components/ui/icones";
 
 export const metadata: Metadata = {
-  title: "Réviser efficacement — pour les étudiants",
+  title: "Réviser efficacement — pour les étudiants du supérieur",
   description:
-    "Savoir quelle matière est réellement acquise avant l'examen, répartir vos révisions là où ça compte, et arrêter de relire pour illusion de maîtrise.",
+    "Déclarez vos modules et vos échéances, travaillez le point le plus utile avant chaque partiel, et sachez quelle matière est réellement acquise — fondé sur vos exercices, pas sur la relecture.",
   alternates: { canonical: "/etudiants" },
 };
 
@@ -56,6 +56,19 @@ export default function PageEtudiants() {
           vous donne un exercice sur le point qui en a le plus besoin, et
           mesure honnêtement le résultat.
         </p>
+        <h2 className="pt-4 font-serif text-xl font-medium text-texte sm:text-2xl">
+          Vos modules, vos échéances
+        </h2>
+        <p>
+          Le produit est dessiné pour le cours structuré : vous nommez vos
+          modules (« Macroéconomie L2 », « Statistiques »), vous y déposez vos
+          PDF de cours si vous en avez, et vous déclarez vos échéances —
+          partiels, rendus, exposés — avec leur date. C&apos;est tout. Aucun
+          planning n&apos;est fabriqué pour vous : la date que vous avez
+          déclarée réordonne simplement les priorités à l&apos;approche, et
+          chaque séance cible ce qui compte pour elle.
+        </p>
+
         <ul className="list-disc space-y-3 pl-5">
           <li>
             Une matière n&apos;est « acquise » que si vos derniers exercices le
