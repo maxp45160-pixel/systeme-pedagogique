@@ -10,20 +10,19 @@
  * domaines se parlent, lesquels sont travaillés en ce moment — est descendu
  * ici, là où on regardait déjà.
  *
- * Deux sections, et la frontière est un fait mesuré, pas un goût : un champ est
- * actif quand une observation y a été portée dans la fenêtre
- * (`FENETRE_ACTIVITE_JOURS`). Aucun domaine ne disparaît — il change de
- * section.
+ * Les sections suivent l'usage déclaré du domaine : module académique actif
+ * (regroupé par année/période), module clôturé, progression continue ou usage
+ * encore à préciser. Aucun domaine ne disparaît — il change de section. La
+ * frontière n'est jamais déduite de l'activité, du nom ou de ses documents.
  */
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cx } from "@/components/ui/primitives";
 import type { VueAClasserAtelier, VueDomaineAtelier } from "@/lib/documents/vue-atelier";
-import {
-  FENETRE_ACTIVITE_JOURS,
-  type GrapheDomaines,
-} from "@/lib/domain/graphe-domaines";
+import { usageDuDomaine, repartirDomainesParUsage } from "@/lib/domain/usage-domaine";
+import { useIntention } from "@/components/intention/contexte-intention";
+import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
 import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
 import {
   BoutonRestaurationCarte,
@@ -64,6 +63,15 @@ function CarteDomaine({
   const total = domaine.competences.length;
   const evaluees = domaine.nombreEvaluees;
   const ratio = total > 0 ? Math.round((evaluees / total) * 100) : 0;
+  const usage = usageDuDomaine(domaine.domaine);
+  const libelleCadre =
+    usage.type === "module"
+      ? usage.module.closLe
+        ? "Module clôturé"
+        : "Module académique"
+      : usage.type === "continu"
+        ? "Progression continue"
+        : "À préciser";
 
   return (
     <div className="group relative flex h-full flex-col">
@@ -88,7 +96,7 @@ function CarteDomaine({
                     : "bg-surface-2 text-texte-discret",
               )}
             >
-              {estArchives ? "Domaine mis de côté" : actif ? "Champ actif" : "Domaine"}
+              {estArchives ? "Domaine mis de côté" : libelleCadre}
             </span>
             {/* Ce que ce domaine tague, ses sous-domaines non compris (24/08/2026). */}
             <span className="chiffres text-xs text-texte-discret">
@@ -189,6 +197,7 @@ export function VueTousLesDomaines({
   onSupprimer?: (domaineId: string) => void;
 }) {
   const router = useRouter();
+  const { ouvrir } = useIntention();
   const [domaineAArchiver, setDomaineAArchiver] = useState<VueDomaineAtelier | null>(null);
   const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
@@ -200,10 +209,37 @@ export function VueTousLesDomaines({
     [domaines, tri],
   );
 
-  const actifs = useMemo(
-    () => new Set(grapheDomaines.noeuds.filter((noeud) => noeud.actif).map((noeud) => noeud.id)),
-    [grapheDomaines.noeuds],
-  );
+  const domainesParUsage = useMemo(() => {
+    const parId = new Map(domainesAffiches.map((domaine) => [domaine.id, domaine]));
+    const repartition = repartirDomainesParUsage(domainesAffiches.map((domaine) => domaine.domaine));
+    const projeter = (domainesDuGroupe: readonly { id: string }[]) =>
+      domainesDuGroupe
+        .map(({ id }) => parId.get(id))
+        .filter((domaine): domaine is VueDomaineAtelier => Boolean(domaine));
+
+    return {
+      modulesActifs: projeter(repartition.modulesActifs),
+      modulesClos: projeter(repartition.modulesClos),
+      continues: projeter(repartition.continues),
+      aPreciser: projeter(repartition.aPreciser),
+    };
+  }, [domainesAffiches]);
+
+  const groupesModules = useMemo(() => {
+    const groupes = new Map<string, VueDomaineAtelier[]>();
+    for (const domaine of domainesParUsage.modulesActifs) {
+      const usage = usageDuDomaine(domaine.domaine);
+      if (usage.type !== "module") continue;
+      const cle = `${usage.module.anneeAcademique}\u0000${usage.module.periode ?? ""}`;
+      const liste = groupes.get(cle) ?? [];
+      liste.push(domaine);
+      groupes.set(cle, liste);
+    }
+    return [...groupes.entries()].map(([cle, valeurs]) => {
+      const [anneeAcademique, periode] = cle.split("\u0000");
+      return { anneeAcademique, periode, domaines: valeurs };
+    });
+  }, [domainesParUsage.modulesActifs]);
 
   /** Voisins déclarés de chaque domaine, nommés une fois pour toutes. */
   const voisinsParDomaine = useMemo(() => {
@@ -229,7 +265,7 @@ export function VueTousLesDomaines({
       key={domaine.id}
       domaine={domaine}
       estArchives={estArchives}
-      actif={actifs.has(domaine.id)}
+      actif={grapheDomaines.noeuds.some((noeud) => noeud.id === domaine.id && noeud.actif)}
       voisins={[...(voisinsParDomaine.get(domaine.id) ?? [])].sort((a, b) =>
         a.localeCompare(b, "fr"),
       )}
@@ -239,9 +275,6 @@ export function VueTousLesDomaines({
       onSupprimerDemande={() => setDomaineASupprimer(domaine)}
     />
   );
-
-  const champsActifs = domainesAffiches.filter((domaine) => actifs.has(domaine.id));
-  const reste = domainesAffiches.filter((domaine) => !actifs.has(domaine.id));
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">
@@ -279,50 +312,85 @@ export function VueTousLesDomaines({
           </div>
         ) : (
           <div className="space-y-10">
-            {champsActifs.length > 0 && (
+            {domainesParUsage.modulesActifs.length > 0 && (
               <section>
                 <div className="mb-3 flex flex-wrap items-baseline gap-2">
-                  <h3 className="font-serif text-base font-semibold text-texte">Champs actifs</h3>
+                  <h3 className="font-serif text-base font-semibold text-texte">Modules académiques</h3>
                   <span className="rounded-full bg-primaire-faible px-2 py-0.5 text-[0.625rem] font-semibold text-primaire">
-                    {champsActifs.length}
+                    {domainesParUsage.modulesActifs.length}
                   </span>
-                  <p className="text-xs text-texte-discret">
-                    Une trace y a été portée ces {FENETRE_ACTIVITE_JOURS} derniers jours.
-                  </p>
+                  <p className="text-xs text-texte-discret">Vos cours actifs, regroupés par année et période.</p>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {champsActifs.map(carte)}
+                <div className="space-y-6">
+                  {groupesModules.map((groupe) => (
+                    <div key={`${groupe.anneeAcademique}-${groupe.periode}`}>
+                      <h4 className="mb-2 text-xs font-semibold text-texte-attenue">
+                        {groupe.anneeAcademique}{groupe.periode ? ` · ${groupe.periode}` : ""}
+                      </h4>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {groupe.domaines.map(carte)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
 
-            <section>
-              <div className="mb-3 flex flex-wrap items-baseline gap-2">
-                <h3 className="font-serif text-base font-semibold text-texte">
-                  {champsActifs.length > 0 ? "Le reste du référentiel" : "Vos domaines"}
-                </h3>
-                {reste.length > 0 && (
+            {domainesParUsage.modulesClos.length > 0 && (
+              <section>
+                <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                  <h3 className="font-serif text-base font-semibold text-texte">Modules clôturés</h3>
                   <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
-                    {reste.length}
+                    {domainesParUsage.modulesClos.length}
                   </span>
-                )}
-                {champsActifs.length > 0 && (
+                  <p className="text-xs text-texte-discret">Leur historique reste consultable.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {domainesParUsage.modulesClos.map(carte)}
+                </div>
+              </section>
+            )}
+
+            {domainesParUsage.continues.length > 0 && (
+              <section>
+                <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                  <h3 className="font-serif text-base font-semibold text-texte">Progression continue</h3>
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
+                    {domainesParUsage.continues.length}
+                  </span>
+                  <p className="text-xs text-texte-discret">Les domaines travaillés dans la durée, hors cours.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {domainesParUsage.continues.map(carte)}
+                </div>
+              </section>
+            )}
+
+            {domainesParUsage.aPreciser.length > 0 && (
+              <section>
+                <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                  <h3 className="font-serif text-base font-semibold text-texte">À préciser</h3>
+                  {domainesParUsage.aPreciser.length > 0 && (
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
+                      {domainesParUsage.aPreciser.length}
+                    </span>
+                  )}
                   <p className="text-xs text-texte-discret">
-                    En sommeil, pas mis de côté : rien n’y a été travaillé récemment.
+                    Ces domaines restent disponibles jusqu&apos;à ce que vous déclariez leur cadre.
                   </p>
-                )}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {reste.map(carte)}
-                {compteId && (
-                  <CarteCreationPointillee
-                    titre="Nouveau domaine"
-                    description="Structurer un nouveau domaine et ses compétences avec le tuteur"
-                    onClick={() => router.push("/atelier?creation=domaine")}
-                  />
-                )}
-              </div>
-            </section>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {domainesParUsage.aPreciser.map(carte)}
+                  {compteId && (
+                    <CarteCreationPointillee
+                      titre="Déclarer un besoin"
+                      description="Choisir un module académique ou une progression continue"
+                      onClick={() => ouvrir()}
+                    />
+                  )}
+                </div>
+              </section>
+            )}
 
             {aClasser.length > 0 && (
               <section>

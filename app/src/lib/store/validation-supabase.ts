@@ -18,6 +18,7 @@ import {
   type Skill,
   type SkillObservation,
   type User,
+  type UsageDomaine,
 } from "@/lib/domain/types";
 import type { Engagement } from "@/lib/domain/engagement";
 import { motifRefusOrigineSeance } from "@/lib/domain/protocole-cours";
@@ -430,7 +431,57 @@ export function validerDomaine(valeur: unknown, chemin = "domaines"): Domaine {
     );
   }
 
-  return domaine as unknown as Domaine;
+  /*
+   * Usage déclaré (ADR-138). La ligne porte quatre colonnes plates
+   * (`usage_type`, `annee_academique`, `periode`, `module_clos_le`) que
+   * `ligneVersEntite` a déjà converties ; on les relit, on revérifie la
+   * cohérence que `domaines_usage_complete` garantit côté base — une main sur
+   * les données peut produire ce qu'aucun chemin d'écriture ne produit pas —,
+   * puis on les replie dans le champ unique `usage`. Une donnée invalide lève :
+   * un usage_type inconnu ne devient JAMAIS « à préciser », ni une année
+   * manquante fabriquée.
+   */
+  const usageType =
+    domaine.usageType === undefined || domaine.usageType === null
+      ? undefined
+      : enumeration(domaine.usageType, ["continu", "module"] as const, `${chemin}.usageType`);
+  const anneeAcademique = optionnel(domaine, "anneeAcademique", chemin, texte);
+  const periode = optionnel(domaine, "periode", chemin, texte);
+  const closLe = optionnel(domaine, "moduleClosLe", chemin, date);
+
+  if (usageType !== "module") {
+    // « À préciser » et « continu » ne portent aucun attribut temporel —
+    // miroir exact de `domaines_usage_complete`.
+    if (anneeAcademique !== undefined) {
+      refuser(`${chemin}.anneeAcademique`, "année académique attendue seulement pour un module");
+    }
+    if (periode !== undefined) {
+      refuser(`${chemin}.periode`, "période attendue seulement pour un module");
+    }
+    if (closLe !== undefined) {
+      refuser(`${chemin}.moduleClosLe`, "clôture attendue seulement pour un module");
+    }
+  } else if (anneeAcademique === undefined) {
+    refuser(`${chemin}.anneeAcademique`, "année académique attendue pour un module");
+  }
+
+  let usage: UsageDomaine | undefined;
+  if (usageType === "module") {
+    usage = {
+      type: "module",
+      module: { anneeAcademique: anneeAcademique!, ...(periode ? { periode } : {}), ...(closLe ? { closLe } : {}) },
+    };
+  } else if (usageType === "continu") {
+    usage = { type: "continu" };
+  }
+
+  const reste = { ...domaine } as Record<string, unknown>;
+  delete reste.usageType;
+  delete reste.anneeAcademique;
+  delete reste.periode;
+  delete reste.moduleClosLe;
+
+  return { ...reste, ...(usage ? { usage } : {}) } as unknown as Domaine;
 }
 
 export function validerCompetence(valeur: unknown, chemin = "competences"): Skill {

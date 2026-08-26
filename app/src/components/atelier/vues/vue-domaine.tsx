@@ -27,6 +27,8 @@ import { FaitsMarquants } from "@/components/progression/faits-marquants";
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
 import { ParenteDomaine } from "./parente-domaine";
+import { usageDuDomaine } from "@/lib/domain/usage-domaine";
+import { ModaleUsageDomaine } from "@/components/referentiel/modale-usage-domaine";
 
 /**
  * Les lectures des mêmes compétences : « Fiches » les liste, « Arbre » les
@@ -55,6 +57,7 @@ export function VueDomaine({
   const router = useRouter();
   const [restaurationEnCours, demarrerRestauration] = useTransition();
   const [ajoutCompetenceOuvert, setAjoutCompetenceOuvert] = useState(false);
+  const [usageOuvert, setUsageOuvert] = useState(false);
   /*
    * Trois lectures des mêmes compétences, jamais trois rangements. Le filtre
    * de recherche n'agit que sur la première — voir `ModeLecture`.
@@ -62,6 +65,19 @@ export function VueDomaine({
   const [mode, setMode] = useState<ModeLecture>(modeInitial ?? "fiches");
   const [rechercheCompetence, setRechercheCompetence] = useState("");
   const termeCompetence = rechercheCompetence.trim().toLocaleLowerCase("fr");
+  const usage = usageDuDomaine(vue.domaine);
+  const nombreCompetencesHeritees = vue.arbre.rangees.reduce(
+    (total, rangee) => total + rangee.noeuds.filter((noeud) => noeud.rattachee).length,
+    0,
+  );
+  const libelleUsage =
+    usage.type === "module"
+      ? usage.module.closLe
+        ? "Module clôturé"
+        : "Module académique"
+      : usage.type === "continu"
+        ? "Progression continue"
+        : "Usage à préciser";
 
   const groupes = useMemo(
     () =>
@@ -116,7 +132,7 @@ export function VueDomaine({
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">Domaine</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primaire">{libelleUsage}</p>
                 {vue.domaine.archive && (
                   <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[0.6875rem] font-semibold text-texte-discret">
                     Mis de côté
@@ -127,6 +143,19 @@ export function VueDomaine({
               {vue.description && (
                 <p className="mt-3 max-w-3xl text-base leading-relaxed text-texte-attenue">{vue.description}</p>
               )}
+              {usage.type === "module" && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-texte-discret">
+                  <span className="font-medium text-texte-attenue">
+                    Année {usage.module.anneeAcademique}
+                  </span>
+                  {usage.module.periode && <span>Période {usage.module.periode}</span>}
+                  {usage.module.closLe && (
+                    <span>Clôturé le {dateCourte(usage.module.closLe)}</span>
+                  )}
+                  <span>{vue.competences.length} directe{vue.competences.length > 1 ? "s" : ""}</span>
+                  <span>{nombreCompetencesHeritees} héritée{nombreCompetencesHeritees > 1 ? "s" : ""}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -134,6 +163,13 @@ export function VueDomaine({
             <div className="flex items-center gap-2 shrink-0">
               {!vue.domaine.archive && compteId && (
                 <>
+                  <Bouton
+                    variante="secondaire"
+                    taille="normale"
+                    onClick={() => setUsageOuvert(true)}
+                  >
+                    {usage.type === "indetermine" ? "Préciser le cadre" : "Modifier le cadre"}
+                  </Bouton>
                   <Bouton
                     variante="principal"
                     taille="normale"
@@ -205,7 +241,7 @@ export function VueDomaine({
             />
             {!vue.domaine.archive && (
               /*
-               * Le cadre du module (ADR-137) : les échéances déclarées SUR ce
+               * Le cadre du module (ADR-138) : les échéances déclarées SUR ce
                * domaine, dérivées des engagements — et le geste qui en déclare
                * une depuis ici, pré-remplie. Rien n'est stocké dans la vue :
                * la liste se recalcule à chaque lecture.
@@ -428,6 +464,15 @@ export function VueDomaine({
           modeCible="competence"
           domaineInitial={vue.domaine.id}
           onFermer={() => setAjoutCompetenceOuvert(false)}
+        />
+      )}
+      {usageOuvert && !vue.domaine.archive && (
+        <ModaleUsageDomaine
+          domaineId={vue.domaine.id}
+          domaineNom={vue.domaine.nom}
+          usageInitial={usage}
+          onFermer={() => setUsageOuvert(false)}
+          onEnregistre={() => router.refresh()}
         />
       )}
     </div>

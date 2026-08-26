@@ -17,9 +17,14 @@ import { createContext, useContext } from "react";
  */
 export type ContexteIntentionType = "general" | "domaine" | "projet" | "referentiel";
 
+/** Cadre explicite demandé depuis l'entrée unique de déclaration. */
+export type UsageDomaineIntention = "module" | "continu";
+
 export interface OptionsIntention {
   besoinInitial?: string;
   contexte?: ContexteIntentionType;
+  /** Ouvre directement le chemin de création d'un domaine avec sa nature. */
+  usageDomaine?: UsageDomaineIntention;
 }
 
 export interface EtatIntention {

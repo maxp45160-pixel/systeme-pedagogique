@@ -36,7 +36,10 @@ import {
   type TraductionIntention,
 } from "@/lib/domain/intention";
 
-import type { ContexteIntentionType } from "./contexte-intention";
+import type {
+  ContexteIntentionType,
+  UsageDomaineIntention,
+} from "./contexte-intention";
 
 /**
  * L'entrée **assistée** de création : on décrit un besoin, le moteur choisit
@@ -151,6 +154,7 @@ export function CaptureIntention({
   besoinInitial = "",
   domainesExistants = [],
   contexte = "general",
+  usageDomaine,
 }: {
   compteId: string;
   onFermer: () => void;
@@ -168,6 +172,8 @@ export function CaptureIntention({
    */
   besoinInitial?: string;
   contexte?: ContexteIntentionType;
+  /** Cadre choisi depuis l'entrée unique : création d'un module ou d'un domaine continu. */
+  usageDomaine?: UsageDomaineIntention;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("saisie");
@@ -481,6 +487,27 @@ export function CaptureIntention({
     void traduire(demande);
   }
 
+  /*
+   * Le tableau de bord n'ouvre qu'une seule entrée. Quand la personne choisit
+   * un cadre de domaine, il n'est pas utile de faire passer cette déclaration
+   * par la traduction générale : on réutilise directement la modale de
+   * création d'une branche, avec l'usage choisi comme fait explicite. Le texte
+   * déjà saisi est conservé et la suggestion IA reste relue avant écriture.
+   */
+  if (usageDomaine) {
+    return (
+      <ModaleCompetence
+        compteId={compteId}
+        domainesExistants={domainesExistants}
+        modeCible="domaine"
+        sujetInitial={besoinInitial}
+        usageInitial={usageDomaine}
+        suggestionAutomatique={Boolean(besoinInitial.trim())}
+        onFermer={onFermer}
+      />
+    );
+  }
+
   if (projetDemande !== null) {
     return (
       <ParcoursNouveauProjet
@@ -556,7 +583,7 @@ export function CaptureIntention({
 
   return (
     <Modale
-      titre={estContexteDomaine ? "Quel domaine souhaites-tu ajouter ?" : "De quoi as-tu besoin ?"}
+      titre={estContexteDomaine ? "Quel domaine souhaitez-vous ajouter ?" : "De quoi as-tu besoin ?"}
       sousTitre={
         estContexteDomaine
           ? "Décrivez le domaine ou la discipline. Le système structurera une proposition de compétences pour vos cours."

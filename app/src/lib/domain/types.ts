@@ -113,6 +113,44 @@ export type OrigineReferentiel = "utilisateur" | "tuteur" | "migration" | "manue
  */
 export type OrigineRattachementCarte = "tuteur" | "manuel";
 
+/**
+ * Le cadre académique déclaré d'un module (ADR-138).
+ *
+ * Trois faits déclarés par une personne, jamais déduits : l'année académique
+ * (obligatoire — un module sans cadre temporel déclaré serait un module
+ * deviné), la période facultative, et la clôture datée facultative. La clôture
+ * n'efface rien : l'historique, les observations et la progression du domaine
+ * restent intacts.
+ */
+export interface ModuleAcademique {
+  anneeAcademique: string;
+  periode?: string;
+  /** Instant de clôture déclarée (ISO). Présent : le module est fermé. */
+  closLe?: string;
+}
+
+/**
+ * L'usage déclaré d'un domaine (ADR-138).
+ *
+ * Le domaine reste l'unique brique de classement ; cet usage dit seulement le
+ * cadre de travail que la personne lui donne :
+ *
+ * - `indetermine` — « à préciser ». C'est la valeur des données existantes et
+ *   le défaut de toute création : une nature ne se déduit JAMAIS du nom, du
+ *   parent, des documents ou des échéances ;
+ * - `continu` — un domaine durable de progression, travaillé hors cours ;
+ * - `module` — un cadre académique temporel (un cours suivi un semestre),
+ *   qui peut porter des sous-domaines sans que rien ne soit copié.
+ *
+ * Le module est un cadre, jamais un propriétaire ni une mesure : il ne possède
+ * aucune compétence (les tags restent dans `competence_domaines`), ne fabrique
+ * aucun score, et ses vues se dérivent à la lecture.
+ */
+export type UsageDomaine =
+  | { type: "indetermine" }
+  | { type: "continu" }
+  | { type: "module"; module: ModuleAcademique };
+
 export interface Domaine {
   id: DomaineId;
   nom: string;
@@ -154,6 +192,15 @@ export interface Domaine {
   carteOrigine?: OrigineRattachementCarte;
   /** Date ISO de la validation humaine. */
   carteValideLe?: string;
+
+  /**
+   * L'usage déclaré du domaine (ADR-138). Absent = « à préciser » — lire par
+   * `usageDuDomaine()`, jamais champ par champ : l'absence du champ et
+   * `{type:"indetermine"}` sont le même fait, et aucun appelant ne doit avoir à
+   * le deviner. Posé ou changé uniquement par un geste explicite
+   * (`declarer_usage_domaine`) ; jamais déduit.
+   */
+  usage?: UsageDomaine;
 }
 
 /* ------------------------------------------------------------------ */

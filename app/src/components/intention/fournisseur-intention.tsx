@@ -6,6 +6,7 @@ import {
   ContexteIntention,
   type ContexteIntentionType,
   type OptionsIntention,
+  type UsageDomaineIntention,
 } from "./contexte-intention";
 import { useOnboarding } from "@/components/onboarding/onboarding-context";
 
@@ -27,6 +28,7 @@ export function FournisseurIntention({
   const [ouverte, setOuverte] = useState(false);
   const [besoin, setBesoin] = useState<string | undefined>(undefined);
   const [contexte, setContexte] = useState<ContexteIntentionType>("general");
+  const [usageDomaine, setUsageDomaine] = useState<UsageDomaineIntention | undefined>(undefined);
   const { tourActif } = useOnboarding();
 
   const ouvrir = useCallback(
@@ -40,17 +42,21 @@ export function FournisseurIntention({
 
       let b: string | undefined;
       let c: ContexteIntentionType = "general";
+      let u: UsageDomaineIntention | undefined;
 
       if (typeof besoinOuOptions === "string") {
         b = besoinOuOptions;
         if (options?.contexte) c = options.contexte;
+        u = options?.usageDomaine;
       } else if (besoinOuOptions && typeof besoinOuOptions === "object") {
         b = besoinOuOptions.besoinInitial;
         if (besoinOuOptions.contexte) c = besoinOuOptions.contexte;
+        u = besoinOuOptions.usageDomaine;
       }
 
       setBesoin(b);
       setContexte(c);
+      setUsageDomaine(u);
       setOuverte(true);
     },
     [tourActif],
@@ -60,6 +66,7 @@ export function FournisseurIntention({
     setOuverte(false);
     setBesoin(undefined);
     setContexte("general");
+    setUsageDomaine(undefined);
   }, []);
 
   const valeur = useMemo(() => ({ ouvrir, ouverte }), [ouvrir, ouverte]);
@@ -73,6 +80,7 @@ export function FournisseurIntention({
           domainesExistants={domainesExistants}
           besoinInitial={besoin ?? ""}
           contexte={contexte}
+          usageDomaine={usageDomaine}
           onFermer={fermer}
         />
       )}

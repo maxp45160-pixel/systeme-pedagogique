@@ -129,7 +129,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [134](#adr-134) | Une séance « mémorisation » du protocole demande de restituer de mémoire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [135](#adr-135) | **Une seule application, un seul noyau, une expérience d'abord étudiante** | ✅ Acceptée (25/08) |
 | [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
-| [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | ✅ Acceptée (25/08) |
+| [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
+| [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -10809,9 +10810,17 @@ retiré.
 ---
 
 <a name="adr-137"></a>
-## ADR-137 — Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré ✅
+## ADR-137 — Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré 🔄
 
-**Statut :** ✅ Acceptée le 25/08/2026. Modèle tranché par Maxime le 25/08/2026
+**Statut actuel : 🔄 Remplacée par [ADR-138](#adr-138) le 26/08/2026.** Son
+principe — le module EST un domaine du référentiel, pas une entité à côté —
+est conservé tel quel ; ce qui change, c'est que la nature du domaine se
+**déclare** désormais (`UsageDomaine`) au lieu de rester implicite et
+indiscernable. La colonne `engagements.module_domaine_id` posée ici reste la
+seule liaison d'échéance.
+
+**Statut d'origine :** ✅ Acceptée le 25/08/2026. Modèle tranché par Maxime le
+25/08/2026
 (validation explicite du cadre « module = domaine », seule pièce nouvelle étant
 le lien échéance → module). Applique ADR-135 au parcours canonique (PRODUCT.md
 §4, étapes 1-2) sans aucune entité nouvelle.
@@ -10875,6 +10884,124 @@ ni échéance liée — signifieraient que le geste sert l'inventaire et pas la
 boucle ; le remède serait de resserrer l'état vide du tableau de bord, pas de
 créer une entité. Et si des liens se mettaient à exister sans geste (dérivation
 silencieuse), la décision serait violée.
+
+---
+
+<a name="adr-138"></a>
+## ADR-138 — L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser ✅
+
+**Statut :** ✅ Acceptée le 26/08/2026. Décision validée par Maxime le 26/08
+(option B « `UsageDomaine` » choisie contre le maintien strict d'ADR-137 et
+contre une table `modules`). **Remplace [ADR-137](#adr-137)** — dont elle
+conserve le principe central : le module EST un domaine du référentiel, jamais
+une entité à côté. Tranche 1 (« Déclarer ») construite le même jour.
+
+### Contexte
+
+ADR-137 rendait module académique et domaine durable parfaitement
+indiscernables : deux domaines racines se lisaient exactement pareil, qu'ils
+portent un cours suivi un semestre ou une progression de plusieurs années. Or
+l'expérience demandée — modules actifs regroupés par année/période, progression
+continue travaillée en parallèle, voies distinctes au tableau de bord — exige
+de **dire** cette différence. La déduire du nom, du parent, des documents ou
+des échéances aurait fabriqué un cadre que personne n'a posé ; la seule voie
+honnête était de la faire déclarer.
+
+Une table `modules` dédiée a été examinée et écartée 🗑️ : elle dupliquait le
+cadre qu'ADR-137 vient justement de ramener au domaine, créait une seconde
+source de vérité pour la hiérarchie, les tags et les documents, et poussait fatalement
+à recopier ce qui doit rester dérivé.
+
+### Décisions
+
+1. **Le domaine reste l'unique brique de classement.** Il reçoit un usage
+   déclaré, fermé à trois natures :
+   - `indetermine` (« à préciser ») — la valeur de TOUTES les données
+     existantes (aucun backfill : la migration ne réétiquette rien) et le défaut
+     de toute création ;
+   - `continu` — un domaine durable de progression, hors cours ;
+   - `module` — un cadre académique temporel, qui porte son année académique
+     déclarée (obligatoire), sa période facultative et sa clôture datée
+     facultative.
+   La nature n'est JAMAIS déduite : ni du nom (« Maths L1 »), ni du parent, ni
+   des PDF déposés, ni des échéances liées.
+2. **Quatre colonnes additives sur `domaines`, rien d'autre**
+   (`usage_type`, `annee_academique`, `periode`, `module_clos_le`, contrainte
+   tout-ou-rien `domaines_usage_complete`), migration
+   `20260826090000_usage_domaine_declare.sql` — **appliquée en production le
+   26/08/2026**, historique Supabase
+   `20260825221304_usage_domaine_declare`, après vérification de l'état réel :
+   les 8 domaines existants portent `usage_type NULL`, sans aucun backfill. Pas
+   de table nouvelle, aucune copie d'échéance, de séance, de compétence ou de
+   score. Le tuteur ne propose jamais cet usage : c'est un geste de la
+   personne.
+3. **La commande d'écriture est séparée** (`declarer_usage_domaine`), pour la
+   même raison que `taguer_competences_domaine` et `deplacer_domaine`
+   (ADR-107) : étendre le bloc de types de `appliquer_commande_referentiel`
+   ferait porter à un ajout périphérique le risque de réécrire tout le chemin
+   d'écriture du référentiel. Garanties d'ADR-065 reprises telles quelles :
+   idempotence par `request_id`, version optimiste (`40001`), journal
+   append-only (`referentiel_changes`, type `declarer_usage`), drapeau de
+   commande, `SECURITY INVOKER`. À la création d'une branche, l'usage voyage
+   avec (`SoumissionBranche.usage`) mais ne s'écrit que sur création réelle :
+   ajouter des compétences à un domaine existant ne change jamais la nature
+   déclarée de quelqu'un.
+4. **Le module reste un cadre, pas un propriétaire ni une mesure.** Une
+   compétence taguée dans un module et dans un domaine continu garde une seule
+   identité, un seul historique d'observations, un seul état dérivé — les tags
+   restent dans `competence_domaines`, l'union dédupliquée se dérive
+   (ADR-107). Un module peut exister sans PDF ; un PDF déposé n'est jamais
+   assimilé au module ; une échéance liée ne fabrique aucun score de
+   préparation ; l'absence d'observation n'est jamais un niveau zéro (P2).
+5. **La clôture d'un module est un fait daté** (`module_clos_le`), distinct de
+   l'archivage (qui retire du référentiel de travail) : elle conserve
+   l'historique, les observations et la progression intacts, et le module clos
+   reste listé comme tel. Le geste d'interface arrive avec la tranche 3 ; la
+   colonne existe dès la tranche 1 pour que la cohérence de base soit complète.
+6. **Tout ce qui se lit sur un module se dérive** : échéances ouvertes
+   (`echeancesDuModule`), documents portés par leur front-matter,
+   sous-domaines, compétences directes et héritées, couverture observée et non
+   observée, séances planifiées ou réalisées, prochaine action recommandée —
+   cette dernière par le moteur existant (`recommander`) avec le périmètre du
+   module passé en paramètre, jamais par un second moteur. Le regroupement par
+   année/période trie des valeurs déclarées.
+
+### Surfaces (tranche 1)
+
+- la création manuelle d'un domaine (`ModaleCompetence`) propose les trois
+  natures explicites, « À préciser » par défaut ; choisir « Module académique »
+  demande l'année (et la période facultative) sur place ;
+- le tableau de bord conserve une seule entrée (« Déclarer un besoin ») : le
+  sélecteur de cadre ouvre le même parcours de création pour un module ou une
+  progression continue, sans deuxième bouton ni deuxième modèle ;
+- « Mes cours » lit ce même référentiel par usage déclaré : modules actifs
+  regroupés par année/période, modules clôturés, progression continue et
+  domaines à préciser. Le regroupement est une vue, aucune copie n'est écrite ;
+- une fiche de domaine permet de préciser ou modifier explicitement son cadre
+  après création, y compris pour les domaines historiques restés indéterminés ;
+- la validation partagée vit dans `lib/domain/usage-domaine.ts` (une seule
+  implémentation : formulaire, action serveur, et miroir en base) ;
+- la frontière Supabase replie les quatre colonnes plates dans le champ unique
+  `Domaine.usage` et refuse toute ligne incohérente sans fabriquer de valeur
+  (`validerDomaine`).
+
+### Ce que cette décision n'autorise pas
+
+- aucune déduction silencieuse de la nature d'un domaine ;
+- aucune entité, table ou type nouveaux au-delà des colonnes ci-dessus ;
+- aucune mesure venue du cadre : un module n'observe rien, une année
+  académique ne pondère rien, une clôture ne note rien ;
+- aucune duplication de la surface canonique de progression de « Mes cours ».
+
+### Test de réfutation
+
+Si les usages déclarés restent massivement « à préciser » alors que les
+personnes créent des cours (le choix ne sert pas, ou il est placé au mauvais
+endroit), ou si les modules clôturés deviennent un cimetière jamais relu (la
+clôture ne sert pas), la colonne devra être retirée ou le geste déplacé —
+retrait additive, aucune donnée pédagogique perdue. Et si des vues se mettaient
+à trier des domaines par nature déduite plutôt que déclarée, la décision serait
+violée.
 
 ---
 ---

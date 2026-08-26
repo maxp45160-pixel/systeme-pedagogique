@@ -11,7 +11,7 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeCalendrier, IconeCours, IconeDomaine, IconeFleche } from "@/components/ui/icones";
+import { IconeCalendrier, IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -33,6 +33,7 @@ import {
   libelleCompte,
   triParUrgence,
 } from "@/lib/domain/engagement";
+import { repartirDomainesParUsage, estModuleActif } from "@/lib/domain/usage-domaine";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
@@ -87,6 +88,7 @@ async function ContenuTableauDeBord({
   }
 
   const ctx = await chargerContexte();
+  const domainesParUsage = repartirDomainesParUsage(ctx.referentiel.domaines);
 
   const action = await chargerActionProposee(ctx, instant);
   const activite = calculerActivite(
@@ -238,33 +240,51 @@ async function ContenuTableauDeBord({
         </div>
       </div>
 
-      {/* Déclencheur d'intention compact + entrée dédiée « échéance » */}
+      {/* Entrée unique de déclaration : le cadre se choisit dans le même geste. */}
       <div className="space-y-1.5">
         <BoutonIntentionDashboard />
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <div className="flex flex-wrap items-center gap-1">
-            <Link
-              href="/atelier?creation=cours"
-              className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
-            >
-              <IconeCours className="size-4" />
-              Déposer mon cours
-            </Link>
-            <Link
-              href="/atelier?creation=domaine"
-              className="inline-flex min-h-11 touch-manipulation items-center gap-2 rounded-lg px-2 text-xs font-semibold text-primaire hover:bg-primaire-faible/40"
-            >
-              <IconeDomaine className="size-4" />
-              Ajouter un module
-            </Link>
-          </div>
+        <div className="flex justify-end px-1">
           <BoutonEcheance
             competences={ctx.referentiel.actifs.map(({ code, intitule }) => ({ code, intitule }))}
             modules={ctx.referentiel.domaines
-              .filter((domaine) => !domaine.archive)
+              .filter(estModuleActif)
               .map(({ id, nom }) => ({ id, nom }))}
           />
         </div>
+      </div>
+
+      {/* Deux voies lisibles, un seul référentiel et un seul moteur. */}
+      <div className="grid gap-3 sm:grid-cols-2" aria-label="Voies de travail">
+        <Link
+          href={echeanceProche ? "#carte-echeances" : "/atelier?document=domaines"}
+          className="group rounded-xl border border-primaire/25 bg-primaire-faible/45 p-4 transition-colors hover:border-primaire/50"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-serif text-base font-medium text-texte">Avant vos échéances</h2>
+            <IconeFleche className="size-4 text-primaire transition-transform group-hover:translate-x-0.5" />
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+            {echeanceProche
+              ? `${echeanceProche.libelle} est la plus proche : retrouvez les compétences ciblées et leur couverture.`
+              : domainesParUsage.modulesActifs.length > 0
+                ? `${domainesParUsage.modulesActifs.length} module${domainesParUsage.modulesActifs.length > 1 ? "s" : ""} actif${domainesParUsage.modulesActifs.length > 1 ? "s" : ""}, sans échéance déclarée pour l'instant.`
+                : "Déclarez un module académique pour préparer vos cours et vos examens."}
+          </p>
+        </Link>
+        <Link
+          href="/atelier?document=domaines"
+          className="group rounded-xl border border-bordure bg-surface p-4 transition-colors hover:border-primaire/40"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-serif text-base font-medium text-texte">Progression continue</h2>
+            <IconeFleche className="size-4 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+            {domainesParUsage.continues.length > 0
+              ? `${domainesParUsage.continues.length} domaine${domainesParUsage.continues.length > 1 ? "s" : ""} travaillé${domainesParUsage.continues.length > 1 ? "s" : ""} dans la durée, hors cours.`
+              : "Déclarez une progression durable à travailler en parallèle de vos cours."}
+          </p>
+        </Link>
       </div>
 
       {/* Grille principale asymétrique : Flux d'action (gauche) + Repères contextuels (droite) */}

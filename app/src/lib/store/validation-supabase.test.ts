@@ -146,3 +146,62 @@ describe("rattachement d'un domaine à la carte des savoirs", () => {
     ).toBe("region-retiree-de-la-carte");
   });
 });
+
+describe("usage déclaré d'un domaine (ADR-138)", () => {
+  it("lit une ligne sans colonnes d'usage comme « à préciser » — les données existantes", () => {
+    const domaine = validerDomaine({ ...domaineNu });
+    expect(domaine.usage).toBeUndefined();
+  });
+
+  it("replie un module complet dans le champ unique `usage`, sans colonne plate", () => {
+    const domaine = validerDomaine({
+      ...domaineNu,
+      usageType: "module",
+      anneeAcademique: "2026-2027",
+      periode: "S1",
+    });
+    expect(domaine.usage).toEqual({
+      type: "module",
+      module: { anneeAcademique: "2026-2027", periode: "S1" },
+    });
+    expect(domaine).not.toHaveProperty("usageType");
+    expect(domaine).not.toHaveProperty("anneeAcademique");
+  });
+
+  it("lit une clôture datée comme fait du module, jamais perdu", () => {
+    const domaine = validerDomaine({
+      ...domaineNu,
+      usageType: "module",
+      anneeAcademique: "2025-2026",
+      moduleClosLe: "2026-06-30T12:00:00.000Z",
+    });
+    expect(domaine.usage).toEqual({
+      type: "module",
+      module: { anneeAcademique: "2025-2026", closLe: "2026-06-30T12:00:00.000Z" },
+    });
+  });
+
+  it("refuse un usage_type inconnu sans le transformer en « à préciser »", () => {
+    expect(() =>
+      validerDomaine({ ...domaineNu, usageType: "cours" }),
+    ).toThrow(/usageType/);
+  });
+
+  it("refuse un module sans année académique — un module deviné reste refusé", () => {
+    expect(() =>
+      validerDomaine({ ...domaineNu, usageType: "module" }),
+    ).toThrow(/anneeAcademique/);
+  });
+
+  it("refuse une année ou une période hors module — miroir de domaines_usage_complete", () => {
+    expect(() =>
+      validerDomaine({ ...domaineNu, anneeAcademique: "2026-2027" }),
+    ).toThrow(/anneeAcademique/);
+    expect(() =>
+      validerDomaine({ ...domaineNu, usageType: "continu", periode: "S2" }),
+    ).toThrow(/periode/);
+    expect(() =>
+      validerDomaine({ ...domaineNu, moduleClosLe: "2026-06-30T12:00:00.000Z" }),
+    ).toThrow(/moduleClosLe/);
+  });
+});

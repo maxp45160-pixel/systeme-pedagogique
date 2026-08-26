@@ -12,13 +12,13 @@ import {
 } from "@/components/ui/icones";
 import { useIntention } from "./contexte-intention";
 
-const LIBELLE = "Nouveau besoin";
+const LIBELLE = "Déclarer un besoin";
 
 /**
  * Rappel sobre du geste d'entrée du funnel dans un état vide.
  *
  * Les vides (Atelier sans domaine, Cahier sans séance) décrivent ce qu'on
- * peut y faire mais n'offraient pas le geste : la ligne nomme « Nouveau
+ * peut y faire mais n'offraient pas le geste : la ligne nomme « Déclarer un
  * besoin » ET le porte — le mot est le déclencheur, qui ouvre l'instance
  * unique de capture d'intention. Aucun second mécanisme.
  */
@@ -34,7 +34,7 @@ export function RappelNouveauBesoin() {
         onClick={() => ouvrir()}
         className="rounded font-semibold text-primaire underline-offset-2 transition-colors hover:text-primaire-fort hover:underline cursor-pointer"
       >
-        Nouveau besoin
+        Déclarer un besoin
       </button>
       <span>pour démarrer.</span>
     </p>
@@ -113,11 +113,19 @@ const SUGGESTIONS_AMORCAGE = [
 export function BoutonIntentionDashboard() {
   const { ouvrir } = useIntention();
   const [saisie, setSaisie] = useState("");
+  const [cadre, setCadre] = useState<"besoin" | "module" | "continu">("besoin");
 
   const gererSoumission = (e: FormEvent) => {
     e.preventDefault();
-    ouvrir(saisie.trim() || undefined);
+    const besoinInitial = saisie.trim() || undefined;
+    if (cadre === "besoin") {
+      ouvrir(besoinInitial);
+    } else {
+      ouvrir({ besoinInitial, usageDomaine: cadre });
+    }
   };
+
+  const estDeclarationDomaine = cadre !== "besoin";
 
   return (
     <div className="space-y-2" data-tour="nouveau-besoin">
@@ -134,21 +142,37 @@ export function BoutonIntentionDashboard() {
           type="text"
           value={saisie}
           onChange={(e) => setSaisie(e.target.value)}
-          placeholder="Décrivez ce que vous souhaitez apprendre ou préparer aujourd’hui..."
+          placeholder={
+            cadre === "module"
+              ? "Ex. Algorithmique — semestre 1"
+              : cadre === "continu"
+                ? "Ex. Programmation Python"
+                : "Décrivez ce que vous souhaitez apprendre ou préparer aujourd’hui..."
+          }
           className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-texte placeholder:text-texte-discret focus:outline-none"
         />
+        <select
+          aria-label="Cadre de déclaration"
+          value={cadre}
+          onChange={(e) => setCadre(e.target.value as typeof cadre)}
+          className="max-w-[11rem] shrink-0 rounded-lg border border-bordure bg-surface px-2 py-1.5 text-[0.6875rem] text-texte-attenue focus:border-primaire focus:outline-none"
+        >
+          <option value="besoin">Besoin d’apprentissage</option>
+          <option value="module">Module académique</option>
+          <option value="continu">Progression continue</option>
+        </select>
 
         <button
           type="submit"
           className="flex items-center gap-1.5 rounded-lg bg-primaire px-3.5 py-1.5 text-xs font-medium text-surface shadow-xs transition-all hover:bg-primaire/90 active:scale-95 shrink-0 cursor-pointer"
         >
-          <span>Exprimer</span>
+          <span>{estDeclarationDomaine ? "Déclarer" : "Exprimer"}</span>
           <IconeFleche className="size-3.5" />
         </button>
       </form>
 
       {/* Raccourcis d'inspiration / Chips */}
-      <div className="flex flex-wrap items-center gap-1.5 px-1">
+      {cadre === "besoin" && <div className="flex flex-wrap items-center gap-1.5 px-1">
         <span className="text-[0.6875rem] font-medium text-texte-discret mr-1">
           Suggestions :
         </span>
@@ -163,7 +187,7 @@ export function BoutonIntentionDashboard() {
             <span>{libelle}</span>
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

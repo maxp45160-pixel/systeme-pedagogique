@@ -188,6 +188,18 @@ CREATE TABLE IF NOT EXISTS public.domaines (
   carte_version   TEXT,                            -- VERSION_CARTE à l'arbitrage
   carte_origine   TEXT,                            -- tuteur | manuel
   carte_valide_le TIMESTAMPTZ,
+  -- Usage déclaré du domaine (ADR-138, migration
+  -- `20260826090000_usage_domaine_declare`). NULL = « à préciser » : la nature
+  -- d'un domaine n'est JAMAIS déduite de son nom, de son parent, de ses
+  -- documents ou de ses échéances. `continu` = progression durable hors cours ;
+  -- `module` = cadre académique temporel, qui exige son année académique
+  -- déclarée et peut porter une période et une clôture datée. Le module reste
+  -- un cadre, jamais un propriétaire : il ne possède aucune compétence, et ses
+  -- échéances, documents, couvertures et séances se dérivent à la lecture.
+  usage_type       TEXT CHECK (usage_type IS NULL OR usage_type IN ('continu', 'module')),
+  annee_academique TEXT,
+  periode          TEXT,
+  module_clos_le   TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id),
   CONSTRAINT domaines_carte_origine_valide
@@ -208,6 +220,25 @@ CREATE TABLE IF NOT EXISTS public.domaines (
   -- plus longs sont refusés par `deplacer_domaine()`, seule à pouvoir lire la
   -- descendance.
   CONSTRAINT domaines_parent_pas_soi CHECK (parent_id IS NULL OR parent_id <> id),
+  -- Usage déclaré : tout ou rien (ADR-138). « À préciser » et « continu » ne
+  -- portent aucun attribut temporel ; un module exige son année académique —
+  -- un module sans cadre déclaré serait un module deviné.
+  CONSTRAINT domaines_usage_complete CHECK (
+    (
+      usage_type IS NULL
+      AND annee_academique IS NULL AND periode IS NULL AND module_clos_le IS NULL
+    )
+    OR
+    (
+      usage_type = 'continu'
+      AND annee_academique IS NULL AND periode IS NULL AND module_clos_le IS NULL
+    )
+    OR
+    (
+      usage_type = 'module'
+      AND annee_academique IS NOT NULL AND btrim(annee_academique) <> ''
+    )
+  ),
   -- `RESTRICT` et non `CASCADE` : supprimer un parent ne doit jamais emporter
   -- une branche entière de référentiel.
   CONSTRAINT domaines_parent_fkey FOREIGN KEY (user_id, parent_id)
@@ -1462,6 +1493,122 @@ $$;
 
 revoke all on function public.deplacer_domaine(text, integer, text, text, text, text) from public, anon;
 grant execute on function public.deplacer_domaine(text, integer, text, text, text, text) to authenticated;
+
+-- --------------------------------------------------------------------
+-- Déclarer l'usage d'un domaine (ADR-138)
+--
+-- Elle ne rejoint pas `appliquer_commande_referentiel`, pour la raison déjà
+-- retenue par ADR-081 puis ADR-107 : cette fonction déclare ses types dans un
+-- bloc unique de plus de 13 Ko, et l'étendre ferait porter à un ajout
+-- périphérique le risque de réécrire tout le chemin d'écriture du référentiel.
+-- Les garanties d'ADR-065 sont reprises telles quelles : idempotence par
+-- `request_id`, version optimiste (`40001`), journal append-only, drapeau de
+-- commande, `SECURITY INVOKER`.
+--
+-- Déclarer un usage ne touche AUCUNE compétence, AUCUNE observation, AUCUNE
+-- échéance, AUCUN score : seul le cadre déclaré change.
+create or replace function public.declarer_usage_domaine(
+  p_request_id text,
+  p_expected_version integer,
+  p_origine text,
+  p_motif text,
+  p_domaine_id text,
+  p_usage_type text,
+  p_annee_academique text,
+  p_periode text
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_version_avant integer;
+  v_version_apres integer;
+  v_usage_avant jsonb;
+  v_resultat jsonb;
+  v_annee text := nullif(btrim(coalesce(p_annee_academique, '')), '');
+  v_periode text := nullif(btrim(coalesce(p_periode, '')), '');
+begin
+  if v_uid is null then raise exception 'Authentification requise.' using errcode = '42501'; end if;
+  if length(btrim(coalesce(p_request_id, ''))) = 0 then raise exception 'request_id obligatoire.'; end if;
+  if p_origine not in ('utilisateur', 'tuteur', 'migration', 'manuel') then raise exception 'Origine inconnue : %', p_origine; end if;
+  if length(btrim(coalesce(p_motif, ''))) = 0 then raise exception 'Le motif est obligatoire.'; end if;
+  if p_usage_type is not null and p_usage_type not in ('continu', 'module') then
+    raise exception 'Usage inconnu : %', p_usage_type;
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':request:' || p_request_id, 0));
+
+  select diff -> 'resultat' into v_resultat
+  from public.referentiel_changes
+  where user_id = v_uid and request_id = p_request_id;
+  if found then return v_resultat; end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || p_domaine_id, 0));
+
+  select version into v_version_avant from public.domaines
+  where user_id = v_uid and id = p_domaine_id;
+  if not found then raise exception 'Domaine inconnu : %', p_domaine_id; end if;
+  if p_expected_version is not null and p_expected_version <> v_version_avant then
+    raise exception 'Le domaine a changé depuis ta lecture (version % attendue, % en base).', p_expected_version, v_version_avant using errcode = '40001';
+  end if;
+
+  -- Cohérence déclarée, miroir de `domaines_usage_complete` : refus bruyant
+  -- avant toute écriture, jamais de correction silencieuse.
+  if p_usage_type is distinct from 'module' and (v_annee is not null or v_periode is not null) then
+    raise exception 'Une année ou une période ne se déclare que pour un module.';
+  end if;
+  if p_usage_type = 'module' and v_annee is null then
+    raise exception 'Un module académique exige son année académique déclarée.';
+  end if;
+
+  select to_jsonb(d) - 'user_id' into v_usage_avant
+  from public.domaines d where d.user_id = v_uid and d.id = p_domaine_id;
+
+  perform pg_catalog.set_config('app.referentiel_command', 'on', true);
+
+  update public.domaines set
+    usage_type = p_usage_type,
+    annee_academique = case when p_usage_type = 'module' then v_annee else null end,
+    periode = case when p_usage_type = 'module' then v_periode else null end,
+    -- La clôture reste attachée au cadre module : redevenir « continu » ou « à
+    -- préciser » l'efface ; redéclarer « module » la conserve. Aucun geste de
+    -- clôture n'expose ce champ avant le lot « parcourir » d'ADR-138.
+    module_clos_le = case when p_usage_type = 'module' then module_clos_le else null end,
+    version = version + 1
+  where user_id = v_uid and id = p_domaine_id
+  returning version into v_version_apres;
+
+  v_resultat := jsonb_build_object(
+    'domaineId', p_domaine_id,
+    'version', v_version_apres,
+    'usageAvant', jsonb_build_object(
+      'type', v_usage_avant ->> 'usage_type',
+      'anneeAcademique', v_usage_avant ->> 'annee_academique',
+      'periode', v_usage_avant ->> 'periode'
+    ),
+    'usageApres', jsonb_build_object(
+      'type', p_usage_type,
+      'anneeAcademique', case when p_usage_type = 'module' then to_jsonb(v_annee) else 'null'::jsonb end,
+      'periode', case when p_usage_type = 'module' then to_jsonb(v_periode) else 'null'::jsonb end
+    )
+  );
+
+  insert into public.referentiel_changes (user_id, request_id, domaine_id, type, version_avant, version_apres, origine, motif, diff)
+  values (
+    v_uid, p_request_id, p_domaine_id, 'declarer_usage',
+    v_version_avant, v_version_apres, p_origine, btrim(p_motif),
+    jsonb_build_object('resultat', v_resultat)
+  );
+
+  return v_resultat;
+end;
+$$;
+
+revoke all on function public.declarer_usage_domaine(text, integer, text, text, text, text, text, text) from public, anon;
+grant execute on function public.declarer_usage_domaine(text, integer, text, text, text, text, text, text) to authenticated;
 
 -- Accès le plus fréquent : l'état d'une compétence se recalcule à partir de
 -- toutes ses observations.

@@ -31,6 +31,11 @@ import {
   validerDomaine,
 } from "@/lib/domain/referentiel-compte";
 import { parenteCirculaire } from "@/lib/domain/hierarchie-domaines";
+import {
+  motifRefusUsageDomaine,
+  validerNouvelUsage,
+  type EntreeUsageDomaine,
+} from "@/lib/domain/usage-domaine";
 import type {
   OrigineRattachementCarte,
   OrigineReferentiel,
@@ -74,6 +79,13 @@ export interface SoumissionBranche {
   origine?: OrigineReferentiel;
   /** Les compétences réellement créées doivent-elles rouvrir le rangement ? */
   signalerCroissanceReferentiel: boolean;
+  /**
+   * L'usage déclaré du domaine à sa naissance (ADR-138) — module académique ou
+   * progression continue. Posé UNIQUEMENT quand le domaine est créé : ajouter
+   * des compétences à un domaine existant ne doit jamais changer la nature que
+   * quelqu'un lui a déclarée.
+   */
+  usage?: EntreeUsageDomaine;
 }
 
 export interface ResultatBranche {
@@ -113,6 +125,22 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   const ajouts = (resultat?.codes ?? resultat?.ajoutees ?? []).length;
   if (soumission.signalerCroissanceReferentiel) {
     await inscrireDeclencheurDeclare("structure", "croissance_referentiel", ajouts);
+  }
+
+  /*
+   * L'usage déclaré voyage avec la naissance du domaine (ADR-138). Deux
+   * commandes gouvernées successives plutôt qu'une extension de la RPC
+   * géante : un échec ici laisse le domaine « à préciser » — état honnête,
+   * corrigeable d'un geste — jamais un domaine mal étiqueté.
+   */
+  if (commande?.type === "creer_domaine" && soumission.usage) {
+    const motif =
+      soumission.usage.type === "module"
+        ? `Déclaration du module ${soumission.domaine} (${soumission.usage.anneeAcademique?.trim()})`
+        : soumission.usage.type === "continu"
+          ? `Déclaration de ${soumission.domaine} en progression continue`
+          : `Domaine ${soumission.domaine} laissé à préciser`;
+    await declarerUsageDomaine(domaineId, soumission.usage, motif);
   }
 
   await rattacherAutomatiquement(domaineId, dejaAuReferentiel);
@@ -237,6 +265,53 @@ export async function deplacerDomaine(
     p_parent_id: parentId,
   });
   verifier("déplacement du domaine", error);
+  revalidatePath("/", "layout");
+}
+
+/**
+ * Déclare l'usage d'un domaine : module académique, progression continue, ou à
+ * préciser (ADR-138).
+ *
+ * Un geste explicite, jamais un effet de bord : la nature d'un domaine ne se
+ * déduit de rien, et la changer relève de la personne. La validation est
+ * partagée avec le formulaire (`motifRefusUsageDomaine`, une seule
+ * implémentation) ; la base revérifie (`declarer_usage_domaine`,
+ * `domaines_usage_complete`). La commande ne touche aucune compétence,
+ * observation, échéance ni score.
+ */
+export async function declarerUsageDomaine(
+  domaineId: string,
+  entree: EntreeUsageDomaine,
+  motif?: string,
+): Promise<void> {
+  const erreur = motifRefusUsageDomaine(entree);
+  if (erreur) throw new Error(`Usage du domaine refusé : ${erreur}`);
+
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) throw new Error(`Domaine inconnu : ${domaineId}`);
+
+  const usage = validerNouvelUsage(entree);
+  const motifCommande =
+    motif?.trim() ||
+    (usage.usageType === "module"
+      ? `Usage de ${domaine.nom} déclaré : module ${usage.anneeAcademique}`
+      : usage.usageType === "continu"
+        ? `Usage de ${domaine.nom} déclaré : progression continue`
+        : `Usage de ${domaine.nom} remis à préciser`);
+
+  const { error } = await dorsale.supabase.rpc("declarer_usage_domaine", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: domaine.version ?? null,
+    p_origine: "utilisateur",
+    p_motif: motifCommande,
+    p_domaine_id: domaineId,
+    p_usage_type: usage.usageType,
+    p_annee_academique: usage.anneeAcademique,
+    p_periode: usage.periode,
+  });
+  verifier("déclaration de l'usage du domaine", error);
   revalidatePath("/", "layout");
 }
 

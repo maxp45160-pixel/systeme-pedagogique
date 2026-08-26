@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
@@ -107,9 +108,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: SCRIPT_PREFERENCES }} />
-        <script
+        {/*
+          * `next/script`, jamais un `<script>` brut rendu par un composant :
+          * React n'exécute pas les balises script qu'il re-rend côté client et
+          * journalise l'erreur « Encountered a script tag while rendering ».
+          * `beforeInteractive` garde la garantie d'origine — le thème et l'état
+          * du rail sont posés AVANT la première peinture, sans clignotement.
+          */}
+        <Script
+          id="preferences-appareil"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: SCRIPT_PREFERENCES }}
+        />
+        {/* Données structurées pour les moteurs de recherche : à lire, pas à exécuter. */}
+        <Script
+          id="json-ld-application"
           type="application/ld+json"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_APPLICATION) }}
         />
       </head>

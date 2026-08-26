@@ -1,6 +1,11 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 3.2 — 25/08/2026.** Positionnement court/moyen terme inscrit : les
+**Version 3.3 — 26/08/2026.** La nature d'un domaine se déclare désormais :
+module académique, progression continue, ou à préciser (ADR-138). Le cœur
+longitudinal ne bouge pas — aucune entité nouvelle, aucune mesure venue du
+cadre ; le parcours canonique (§4) dit la déclaration au lieu de la taire.
+
+**Version précédente : 3.2 — 25/08/2026.** Positionnement court/moyen terme inscrit : les
 étudiants du supérieur (ADR-135). Le cœur longitudinal est inchangé ;
 l'expérience, la vitrine et les priorités s'alignent sur le parcours étudiant
 (cours structurés, échéances, exercices, projets). Aucune branche généraliste,
@@ -205,10 +210,14 @@ positionnement actuel ; l'une ne remplace pas l'autre.
 8. La prochaine action est recalculée en tenant compte du cours et de
    l'échéance.
 
-Le mécanisme des étapes 1-2 (25/08/2026, ADR-137) : **un module de cours est
-un domaine du référentiel** — le cadre existant qui rassemble ses PDFs déposés,
-ses compétences taguées et ses sous-parties (TD, TP). Une échéance peut se lier
-à lui comme fait déclaré, posé à la création ; la liste des échéances d'un
+Le mécanisme des étapes 1-2 (25/08/2026, ADR-137 ; précisé le 26/08/2026,
+ADR-138) : **un module de cours est un domaine du référentiel** — le cadre
+existant qui rassemble ses PDFs déposés, ses compétences taguées et ses
+sous-parties (TD, TP). La nature d'un domaine se **déclare** : module
+académique (année académique obligatoire, période facultative), progression
+continue durable hors cours, ou « à préciser » — défaut de toutes les données
+existantes, jamais déduit du nom ni de l'usage. Une échéance peut se lier à un
+module comme fait déclaré, posé à la création ; la liste des échéances d'un
 module se dérive à la lecture. Aucune entité nouvelle.
 
 Le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
@@ -496,6 +505,22 @@ geste déterministe existant, sans appel tuteur ; la seule pièce nouvelle est l
 colonne nullable `engagements.module_domaine_id`, posée à la création et validée
 contre les domaines vivants du compte. Le sens inverse se dérive (`echeancesDuModule`),
 jamais recopié. Aucune fusion forcée fiche ↔ domaine, aucune entité nouvelle.
+✅ **La nature d'un domaine se déclare : module académique, progression
+continue, ou à préciser** (26/08/2026, ADR-138). Le domaine reçoit un usage
+déclaré — jamais déduit du nom, du parent, des documents ou des échéances ;
+« à préciser » protège toutes les données existantes. Le module reste un cadre,
+pas un propriétaire ni une mesure : une compétence taguée dans un module et
+dans un domaine continu garde une identité, un historique et un état uniques ;
+la clôture d'un module conserve tout l'historique ; les vues de module se
+dérivent, la recommandation de module réutilise le moteur avec un périmètre
+explicite. Quatre colonnes additives sur `domaines`, une commande gouvernée
+séparée, aucune table nouvelle. L'entrée « Déclarer un besoin » est unique au
+tableau de bord : son cadre ouvre le même parcours pour un module ou une
+progression continue. « Mes cours » regroupe ensuite les domaines selon cet
+usage déclaré, sans recopier compétences, échéances, séances ou scores.
+Une fiche de domaine permet aussi de préciser ou corriger ce cadre après
+création ; les domaines historiques restent « à préciser » tant que personne
+ne pose ce geste.
 
 ### Ouvert
 

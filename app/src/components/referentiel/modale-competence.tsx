@@ -20,7 +20,13 @@ import type { CompetenceDejaAuReferentiel } from "@/lib/domain/gouvernance-refer
 import { AvisDejaAuReferentiel } from "./avis-deja-au-referentiel";
 import { BlocDomaineCible } from "./bloc-domaine-cible";
 import { normaliserPalier, prefixeParDefaut } from "@/lib/domain/referentiel-compte";
+import {
+  motifRefusUsageDomaine,
+  type EntreeUsageDomaine,
+  type TypeUsage,
+} from "@/lib/domain/usage-domaine";
 import type { Palier } from "@/lib/domain/types";
+import { BlocUsageDomaine } from "./bloc-usage-domaine";
 
 const PALIERS: Array<{ id: Palier; libelle: string; desc: string }> = [
   { id: "fondamentaux", libelle: "Fondamentaux", desc: "Socle & notions" },
@@ -72,6 +78,7 @@ export function ModaleCompetence({
   modeCible,
   descriptionInitiale = "",
   suggestionAutomatique = false,
+  usageInitial,
   surEnregistre,
 }: {
   onFermer: () => void;
@@ -89,6 +96,8 @@ export function ModaleCompetence({
   descriptionInitiale?: string;
   /** Lance immédiatement la suggestion, pour l'amorçage d'un compte neuf. */
   suggestionAutomatique?: boolean;
+  /** Usage choisi depuis l'entrée unique de déclaration. */
+  usageInitial?: Exclude<TypeUsage, "indetermine">;
   /** Permet à l'appelant de reprendre son flux après la création. */
   surEnregistre?: () => void;
 }) {
@@ -168,6 +177,20 @@ export function ModaleCompetence({
   const [manuelPrefixe, setManuelPrefixe] = useState(domaineConnu?.prefixe ?? "");
   const manuelPrefixeManuelRef = useRef(Boolean(domaineConnu?.prefixe));
   const [manuelDescription, setManuelDescription] = useState(descriptionInitiale ?? "");
+  /*
+   * L'usage déclaré du domaine à sa naissance (ADR-138). « À préciser » est le
+   * défaut : aucune nature n'est jamais déduite. Le tuteur, lui, ne déclare
+   * pas d'usage — c'est un geste de la personne.
+   */
+  const [usageChoisi, setUsageChoisi] = useState<TypeUsage>(usageInitial ?? "indetermine");
+  const [usageAnnee, setUsageAnnee] = useState("");
+  const [usagePeriode, setUsagePeriode] = useState("");
+  const usageManuel: EntreeUsageDomaine = {
+    type: usageChoisi,
+    anneeAcademique: usageAnnee,
+    periode: usagePeriode,
+  };
+  const refusUsageManuel = motifRefusUsageDomaine(usageManuel);
   const [manuelLignes, setManuelLignes] = useState<LigneCompetenceManuelle[]>([
     { intitule: "", palier: "fondamentaux", importance: "0.5" },
   ]);
@@ -350,6 +373,10 @@ export function ModaleCompetence({
           })),
           origine: "tuteur",
           signalerCroissanceReferentiel: true,
+          usage:
+            !competenceSeule && !estDomaineExistant && usageChoisi !== "indetermine"
+              ? { type: usageChoisi, anneeAcademique: usageAnnee, periode: usagePeriode }
+              : undefined,
         });
 
         if (r.dejaAuReferentiel && r.dejaAuReferentiel.length > 0) {
@@ -380,9 +407,10 @@ export function ModaleCompetence({
   const retenuesManuelles = manuelLignes.filter((l) => l.intitule.trim().length > 0);
   const domaineManuelFinal = (competenceSeule ? domaineCible : estDomaineExistant ? domaineInitial : manuelDomaine) ?? "";
   const pretManuel = domaineManuelFinal.trim().length > 2 && retenuesManuelles.length > 0;
+  const pretUsageManuel = !refusUsageManuel;
 
   function enregistrerManuel() {
-    if (!pretManuel) return;
+    if (!pretManuel || !pretUsageManuel) return;
     const prefixeFinal = competenceSeule
       ? domaineConnu?.prefixe ?? ""
       : (domaineConnu ? domaineConnu.prefixe : manuelPrefixe) ?? "";
@@ -402,6 +430,12 @@ export function ModaleCompetence({
           })),
           origine: "manuel",
           signalerCroissanceReferentiel: true,
+          // Posé seulement à la naissance d'un domaine nouveau, et jamais « à
+          // préciser » explicitement — c'est déjà le défaut en base.
+          usage:
+            !competenceSeule && !estDomaineExistant && usageChoisi !== "indetermine"
+              ? { type: usageChoisi, anneeAcademique: usageAnnee, periode: usagePeriode }
+              : undefined,
         });
 
         if (r.dejaAuReferentiel && r.dejaAuReferentiel.length > 0) {
@@ -419,10 +453,14 @@ export function ModaleCompetence({
 
   const titreModale = estDomaineExistant || competenceSeule
     ? "Ajouter une compétence"
-    : "Nouveau domaine d’apprentissage";
+    : usageChoisi === "module"
+      ? "Nouveau module académique"
+      : "Nouveau domaine d’apprentissage";
   const sousTitreModale = estDomaineExistant || competenceSeule
-    ? `Ajoute une compétence observable et mesurable au domaine.`
-    : "Définis une nouvelle branche du référentiel et ses compétences.";
+    ? "Ajoutez une compétence observable et mesurable au domaine."
+    : usageChoisi === "module"
+      ? "Déclarez le cadre de votre cours et relisez les compétences proposées."
+      : "Définissez une nouvelle branche du référentiel et ses compétences.";
 
   return (
     <Modale
@@ -611,6 +649,18 @@ export function ModaleCompetence({
               </div>
             )}
 
+            {!(estDomaineExistant || competenceSeule) && (
+              <BlocUsageDomaine
+                usageChoisi={usageChoisi}
+                onUsageChange={setUsageChoisi}
+                usageAnnee={usageAnnee}
+                onAnneeChange={setUsageAnnee}
+                usagePeriode={usagePeriode}
+                onPeriodeChange={setUsagePeriode}
+                erreur={refusUsageManuel}
+              />
+            )}
+
             {etat.proposition.justification && (
               <p className="text-xs italic text-texte-attenue">
                 « {etat.proposition.justification} »
@@ -684,6 +734,7 @@ export function ModaleCompetence({
                 disabled={
                   enCours ||
                   nbIaGardees === 0 ||
+                  !pretUsageManuel ||
                   (competenceSeule ? domaineCible.trim().length === 0 : !estDomaineExistant && iaDomaine.trim().length === 0)
                 }
                 variante="principal"
@@ -774,6 +825,16 @@ export function ModaleCompetence({
                     className="w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-xs text-texte placeholder:text-texte-discret focus:border-primaire outline-none"
                   />
                 </div>
+
+                <BlocUsageDomaine
+                  usageChoisi={usageChoisi}
+                  onUsageChange={setUsageChoisi}
+                  usageAnnee={usageAnnee}
+                  onAnneeChange={setUsageAnnee}
+                  usagePeriode={usagePeriode}
+                  onPeriodeChange={setUsagePeriode}
+                  erreur={refusUsageManuel}
+                />
               </div>
             )}
 
@@ -902,7 +963,7 @@ export function ModaleCompetence({
               <Bouton
                 type="button"
                 onClick={enregistrerManuel}
-                disabled={!pretManuel || enCours}
+                disabled={!pretManuel || !pretUsageManuel || enCours}
                 enChargement={enCours}
                 variante="principal"
               >
