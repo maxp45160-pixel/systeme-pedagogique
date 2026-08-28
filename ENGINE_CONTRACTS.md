@@ -408,6 +408,21 @@ sont retournés à la lecture et ne deviennent jamais des enregistrements
 autoritaires. Seuls l'acceptation d'un changement et le `LearningSession` qui
 en résulte sont des faits durables.
 
+### Planification temporelle v0 (lot 2)
+
+`lib/engine/planification-temporelle.ts` compose les `ActionCandidate` reçues
+dans les disponibilités déclarées, en protégeant les `LearningSession` déjà
+acceptées. Il reçoit son instant de référence en paramètre : il ne lit ni
+l'horloge, ni Supabase, ni l'environnement, et son `PlanPropose` n'est pas
+persisté.
+
+Les règles de départage (échéance la plus proche, puis identifiant stable) et
+la conservation d'un candidat `declared-need` sans engagement sont des
+hypothèses v0 d'orchestration, pas des vérités pédagogiques. De même, le
+libellé `pret-d-apres-les-preuves-disponibles` repose provisoirement sur le
+palier existant `5`, sans nouveau seuil de calibration, pour être réévalué avec
+des données.
+
 ### Ordre de décision v0
 
 La politique v0 doit être déterministe et explicable :
