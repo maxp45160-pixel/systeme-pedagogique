@@ -105,7 +105,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [093](#adr-093) | Relations déclarées et relations calculées ne partagent pas le même statut | ✅ Acceptée (20/08) |
 | [094](#adr-094) | Les objectifs sont des faits structurés multiples | 🔄 Remplacée par [ADR-096](#adr-096) (21/08) |
 | [095](#adr-095) | Niveau observé et maîtrise consolidée sont distincts | ✅ Acceptée (20/08) |
-| [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | ✅ Acceptée (21/08) |
+| [096](#adr-096) | Le parcours est une file d'actions dérivée, pas un objectif stocké | 🔄 Amendée par [ADR-139](#adr-139) (27/08) — l'absence d'objectif stocké demeure ; l'interdit de plan temporel est remplacé |
 | [097](#adr-097) | Le modèle se choisit par tâche, pas par compte | ✅ Acceptée (21/08) |
 | [098](#adr-098) | La Progression devient un profil de carrière | ✅ Acceptée (21/08) |
 | [099](#adr-099) | La carte globale est retirée, pas remplacée | 🗑️ Retrait acté (21/08) |
@@ -118,7 +118,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [106](#adr-106) | Les sous-domaines se dérivent des intitulés, et ne s'écrivent pas | 🔄 Réfutée, remplacée par [ADR-107](#adr-107) (22/08) — module retiré du code le 23/08 |
 | [107](#adr-107) | Les domaines sont des tags hiérarchiques, pas des propriétaires | ❓ Proposition (22/08) — construite le 23/08, statut inchangé ; nommage des compétences encore ouvert |
 | [108](#adr-108) | Le référentiel se relit en entier, et ne se réécrit jamais tout seul | ❓ Proposition (23/08) — Maxime doit trancher le régime des propositions de structure |
-| [109](#adr-109) | Le rendu des formules passe par KaTeX ; le texte Unicode reste le filet | ✅ Acceptée (23/08) — révise l'application d'[ADR-003](#adr-003) aux formules |
+| [109](#adr-109) | L'engagement est un fait déclaré, pas un objectif | 🔄 Amendée par [ADR-139](#adr-139) (27/08) — le fait demeure ; l'interdit de planification est remplacé |
 | [127](#adr-127) | Une proposition ne redit pas ce qui existe, et un échec se lit | 🔬 Construite, hypothèse non réfutée (24/08) |
 | [128](#adr-128) | Le premier parcours atteint l'exercice avant le tableau de bord | 🔬 Construite, hypothèse non réfutée (24/08) |
 | [129](#adr-129) | Déposer mon cours commence par le PDF, pas par la fiche | 🔬 Construite, hypothèse non réfutée (24/08) — révise [ADR-126](#adr-126) |
@@ -131,6 +131,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
 | [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
+| [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, non construite — aucune montée en ✅ |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -7345,7 +7346,12 @@ données qui justifient le changement, conformément aux garde-fous existants.
 ---
 
 <a name="adr-096"></a>
-## ADR-096 — Le parcours est une file d'actions dérivée, pas un objectif stocké ✅
+## ADR-096 — Le parcours est une file d'actions dérivée, pas un objectif stocké 🔄
+
+> **Amendée le 27/08/2026 par [ADR-139](#adr-139).** Le refus d'un objectif
+> structuré persisté et de toute intention fabriquée demeure. La limitation à
+> trois actions sans lecture temporelle est remplacée par un plan dérivé,
+> visible dans les surfaces existantes et matérialisé uniquement après accord.
 
 **Date.** 21/08/2026.
 
@@ -8827,7 +8833,12 @@ ses taux de rétention restent à confronter à l'usage.
 ---
 
 <a name="adr-109"></a>
-## ADR-109 — L'engagement est un fait déclaré, pas un objectif ✅
+## ADR-109 — L'engagement est un fait déclaré, pas un objectif 🔄
+
+> **Amendée le 27/08/2026 par [ADR-139](#adr-139).** L'engagement reste un fait
+> déclaré append-only et ne devient ni un objectif ni une mesure. Les interdits
+> de planification calendaire et de plan jour-par-jour sont remplacés par un
+> plan dérivé et une projection calendaire consentie.
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
 les questions ouvertes du plan persona académique (le « fait daté », A0).
@@ -11004,6 +11015,113 @@ retrait additive, aucune donnée pédagogique perdue. Et si des vues se mettaien
 violée.
 
 ---
+
+<a name="adr-139"></a>
+## ADR-139 — Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail ❓
+
+**Date.** 27/08/2026.
+
+**Validation humaine.** Maxime a validé explicitement la vision
+d'orchestration et ses arbitrages le 27/08/2026, avec cette précision :
+`LearningSession` reste l'épisode unique à condition de cesser d'être un simple
+contenant d'exercices scolaires et de porter aussi les autres interventions
+d'apprentissage.
+
+**Statut de la brique.** Direction tranchée, non construite. Elle reste ❓ tant
+que le premier plan global n'est pas calculé, relu, matérialisé et recalculé en
+conditions réelles ; cette ADR n'autorise aucune montée automatique en ✅.
+
+**Amende** [ADR-096](#adr-096) et [ADR-109](#adr-109). Elle conserve leur refus
+d'un objectif structuré fabriqué ou persisté, mais remplace leur refus de la
+planification temporelle. Elle étend [ADR-048](#adr-048) sans créer d'entité de
+travail parallèle.
+
+### Contexte
+
+Le moteur répond déjà à « quelle action est la mieux étayée maintenant ? » et
+les séances savent porter une date. Il ne répond pas à la question plus large :
+« compte tenu des cours, échéances, disponibilités et preuves actuelles, quel
+travail reste plausible jusqu'aux différentes échéances ? » Les protocoles de
+cours planifient en outre chaque PDF isolément ; personne n'arbitre entre deux
+cours, un rendu, une révision espacée et un besoin continu.
+
+La cible produit demande un circuit `contexte → plan → travail → observation →
+estimation → replanification`, sans transformer le plan en contrat moral ni
+faire de l'emploi du temps une mesure sur la personne.
+
+### Décisions
+
+1. **Le plan proposé appartient à Décide.** Il est pur, explicable,
+   recalculable et non autoritatif. Il reçoit des faits validés — modules,
+   cours, échéances, disponibilités consenties, séances déjà acceptées,
+   observations et états dérivés — sans lire directement la persistance. Aucun
+   score de préparation ni aucun plan candidat n'est stocké.
+2. **L'accord matérialise, pas le calcul.** Le système peut calculer plusieurs
+   séances candidates ; seules celles que la personne accepte deviennent des
+   `LearningSession` planifiées. Modifier une séance déjà acceptée demande une
+   relecture groupée des changements. Une recommandation qui change avant
+   acceptation se recalcule sans écriture.
+3. **`LearningSession` reste l'épisode unique et s'étend.** Une séance peut
+   enchaîner des interventions `resoudre`, `expliquer`, `rappeler`, `lire`,
+   `synthetiser`, `produire`, `diagnostiquer` et `demander-aide`. Cette liste
+   décrit des gestes, pas des niveaux. Aucune nouvelle entité ne remplace la
+   séance ; les exercices historiques restent lisibles par adaptation.
+4. **Chaque intervention annonce son effet attendu.** Elle relève de
+   `mesure`, `preparation` ou `soutien`. Une intervention de préparation ou de
+   soutien peut être utile sans produire de preuve. Son achèvement ne modifie
+   jamais l'état d'une compétence par défaut ; seul le contrat d'observation
+   existant le peut.
+5. **Retard, refus et abandon sont des faits d'orchestration.** Ils peuvent
+   invalider ou réordonner le plan, jamais produire une Observation de
+   compétence ni une valeur zéro. Une séance manquée ne crée ni dette, ni
+   pénalité, ni série brisée : le système recalcule ce qui reste possible.
+6. **La préparation à une échéance est une projection dérivée.** Elle dit ce
+   que les preuves soutiennent, ce qui manque et le degré de confiance ; elle
+   n'est ni une note, ni une certification, ni une colonne persistée. L'absence
+   de preuve reste « non estimable », jamais « pas prêt à 0 % ».
+7. **Le calendrier externe est une projection d'infrastructure consentie.** Il
+   peut fournir des indisponibilités et recevoir les séances acceptées. Les
+   identifiants et états techniques nécessaires à la synchronisation relèvent
+   de Fait des données ; ils ne deviennent ni contexte pédagogique inventé ni
+   source de vérité. Supabase reste l'autorité des données Twiny. Aucun détail
+   d'événement extérieur n'est lu au-delà de la portée consentie.
+8. **Le module reste un domaine à usage académique.** ADR-138 demeure : une
+   structure temporaire regroupe des faits et des tags sans posséder les
+   compétences ni leur état. La clôture du module laisse intacte l'histoire
+   longitudinale.
+9. **Les documents gardent leur frontière.** Le plan peut suggérer de déposer
+   ou mobiliser un support ; le document n'atteint le tuteur que par le geste
+   explicite et relu d'ADR-124. L'analyse d'un cours fournit des candidats au
+   plan global ; elle ne matérialise plus à terme un plan isolé concurrent.
+10. **Aucune nouvelle destination.** Le tableau de bord pilote le plan,
+    Séances en porte la chronologie et l'exécution, Mes cours fournit le
+    contexte, Progression conserve la lecture longitudinale. L'utilisateur ne
+    voit jamais un moteur, une file de calcul ou une maintenance à administrer.
+
+### Conséquences sur l'existant
+
+- `recommander` et la politique d'action existante restent le seul classement
+  pédagogique ; le planificateur les compose dans le temps, il ne les duplique
+  pas.
+- Le protocole par PDF d'ADR-130 devient un fournisseur de candidats. Son
+  analyse, ses exercices ancrés et ses gestes Feynman/rappel sont conservés ;
+  sa matérialisation directe de plusieurs séances est retirée lorsque le plan
+  global la remplace effectivement.
+- Le compositeur manuel reste un échappatoire secondaire pour un besoin hors
+  plan ; il cesse d'être le parcours nominal.
+- La connexion au calendrier et les détails de synchronisation demandent un
+  ADR d'infrastructure avant toute écriture ou migration. Cette ADR ne choisit
+  ni fournisseur, ni schéma SQL, ni stratégie OAuth.
+
+### Vérification requise avant de dire la brique construite
+
+Un même scénario réel doit démontrer, sans donnée inventée : un module, une
+échéance, des disponibilités, au moins deux types d'intervention, une
+proposition de plan, une relecture groupée, la création exclusive de séances
+acceptées, puis un recalcul après indisponibilité ou séance manquée. Le test
+doit prouver que le retard n'a créé aucune observation de compétence et que la
+raison du nouveau plan reste lisible.
+
 ---
 
 ## Comment modifier ce registre

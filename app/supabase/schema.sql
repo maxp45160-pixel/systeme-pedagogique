@@ -473,7 +473,12 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   duree_min                INTEGER,
   domaines                 TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   skill_codes              TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  -- Compatibilité de lecture avec les séances historiques. Les nouvelles
+  -- séances portent leur composition canonique dans `interventions`.
   activites                JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- Lot 1 : contrat canonique des gestes, nullable pour ne rien fabriquer
+  -- lors de la lecture des séances antérieures à son introduction.
+  interventions            JSONB,
   resultat                 TEXT,
   difficulte               TEXT,
   apprentissage_principal  TEXT,

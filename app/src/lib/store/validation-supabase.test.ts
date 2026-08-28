@@ -3,6 +3,7 @@ import {
   validerDomaine,
   validerLignesSupabase,
   validerObservation,
+  validerSeance,
   validerTentative,
 } from "./validation-supabase";
 
@@ -22,6 +23,44 @@ const observationHistorique = {
 };
 
 describe("validation de la frontière Supabase", () => {
+  it("valide le champ canonique interventions sans fabriquer de preuve", () => {
+    const session = validerSeance({
+      id: "ses-intervention",
+      date: "2026-08-28T10:00:00.000Z",
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      interventions: [{
+        id: "int-1",
+        type: "read",
+        label: "Lire le cours",
+        source: { kind: "course", ref: "cours-1" },
+        expectedEffect: "preparation",
+      }],
+      genereAutomatiquement: false,
+    });
+    expect(session.interventions?.[0].expectedEffect).toBe("preparation");
+    expect(session.interventions?.[0].proofContract).toBeUndefined();
+  });
+
+  it("refuse un type d'intervention inconnu", () => {
+    expect(() => validerSeance({
+      id: "ses-intervention-invalide",
+      date: "2026-08-28T10:00:00.000Z",
+      domaines: [],
+      skillCodes: [],
+      activites: [],
+      interventions: [{
+        id: "int-1",
+        type: "exercise",
+        label: "Ne pas convertir",
+        source: { kind: "exercise", ref: "ex-1" },
+        expectedEffect: "measurement",
+      }],
+      genereAutomatiquement: false,
+    })).toThrow(/interventions.*type/);
+  });
+
   it("accepte une observation historique sans lui fabriquer de trace", () => {
     const resultat = validerObservation(observationHistorique);
     expect(resultat.source.trace).toBeUndefined();

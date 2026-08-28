@@ -1,7 +1,13 @@
 # Proposition de chantier — orchestration de « Nouveau besoin »
 
-**Statut :** proposition de conception, non validée comme décision produit ou
-architecturale.
+> **Document d'exploration remplacé le 27/08/2026.** Ne pas l'implémenter tel
+> quel. La carte globale a été écartée par l'ADR-099 et l'orchestration cible
+> est désormais décrite dans
+> [`PLAN_INTERFACE_ORCHESTRATION_PEDAGOGIQUE.md`](./PLAN_INTERFACE_ORCHESTRATION_PEDAGOGIQUE.md),
+> conformément à l'ADR-139. Ce fichier reste temporairement comme trace des
+> hypothèses antérieures jusqu'à validation du plan de remplacement.
+
+**Statut :** historique, non validé comme décision produit ou architecturale.
 
 ## Intention
 

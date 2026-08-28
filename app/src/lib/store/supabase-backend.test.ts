@@ -97,6 +97,29 @@ describe("ligne SQL → entité", () => {
     expect(seance.dureeMin ?? null).toBeNull();
     expect(seance.genereAutomatiquement).toBe(false);
   });
+
+  it("lit et écrit le champ interventions sans convertir son contenu imbriqué", () => {
+    const interventions = [{
+      id: "int-1",
+      type: "read",
+      label: "Lire le cours",
+      source: { kind: "course", ref: "cours-1" },
+      expectedEffect: "preparation",
+    }];
+    const seance = ligneVersEntite<LearningSession>({
+      id: "s-intervention",
+      user_id: "u",
+      date: "2026-08-28",
+      domaines: [],
+      skill_codes: [],
+      activites: [],
+      interventions,
+      genere_automatiquement: false,
+    });
+    expect(seance.interventions).toEqual(interventions);
+
+    expect(entiteVersLigne(seance, "u").interventions).toEqual(interventions);
+  });
 });
 
 describe("ligne competences → Skill", () => {

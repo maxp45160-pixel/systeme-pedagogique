@@ -14,6 +14,27 @@
  * par `lib/engine/`.
  */
 
+import type { InterventionSeance } from "./intervention-seance";
+
+export {
+  INTERVENTION_EFFECTS,
+  INTERVENTION_SOURCE_KINDS,
+  INTERVENTION_TYPES,
+  interventionPeutProduireObservation,
+  parseInterventionSeance,
+  parseInterventionsSeance,
+  InterventionSeanceInvalide,
+} from "./intervention-seance";
+export type {
+  InterventionEffect,
+  InterventionProofContract,
+  InterventionSeance,
+  InterventionSource,
+  InterventionSourceKind,
+  InterventionStatus,
+  InterventionType,
+} from "./intervention-seance";
+
 /* ------------------------------------------------------------------ */
 /* Échelles et vocabulaire                                             */
 /* ------------------------------------------------------------------ */
@@ -792,7 +813,10 @@ export interface LearningSession {
   dureeMin?: number;
   domaines: DomaineId[];
   skillCodes: string[];
+  /** Forme historique conservée pour les séances antérieures au lot 1. */
   activites: { type: string; ref: string; libelle: string }[];
+  /** Vocabulaire canonique des gestes ; absent sur les séances historiques. */
+  interventions?: InterventionSeance[];
   resultat?: string;
   difficulte?: string;
   apprentissagePrincipal?: string;

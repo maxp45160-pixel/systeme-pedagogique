@@ -120,6 +120,29 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   échéances d'un module se dérivent à la lecture (`echeancesDuModule`), jamais
   recopiées.
 - Ne pas créer de nouvelle entité pour remplacer `LearningSession`.
+- Le plan pédagogique proposé appartient à **Décide** : il se dérive et se
+  recalcule, il ne se stocke pas. Seules les séances explicitement acceptées
+  deviennent des `LearningSession` planifiées.
+- `LearningSession` est l'épisode de travail unique. Elle peut porter les
+  interventions `resoudre`, `expliquer`, `rappeler`, `lire`, `synthetiser`,
+  `produire`, `diagnostiquer` et `demander-aide` ; aucune nouvelle entité de
+  travail ne remplace un de ces gestes.
+- Une intervention annonce si elle vise une **mesure**, une **préparation** ou
+  un **soutien**. Seul un contrat de preuve recevable produit une Observation ;
+  terminer une lecture, demander de l'aide ou manquer une séance ne modifie
+  jamais par défaut l'état d'une compétence.
+- Retard, refus, déplacement et abandon peuvent invalider ou réordonner le
+  plan, jamais produire une dette, une pénalité ni une mesure de compétence.
+- La préparation à une échéance est une projection dérivée avec ses sources,
+  ses incertitudes et ses réserves ; ne jamais stocker un score de préparation
+  ni convertir l'absence de preuve en zéro.
+- Un calendrier externe est une projection consentie : il peut fournir des
+  indisponibilités et recevoir les séances acceptées. Supabase reste la source
+  de vérité des données Twiny ; les identifiants de synchronisation relèvent de
+  l'infrastructure, pas du modèle apprenant.
+- L'orchestration ne crée aucune nouvelle destination : le tableau de bord
+  pilote, Séances planifie et fait travailler, Mes cours fournit le contexte,
+  Progression relit le long terme.
 - Toute clé de stockage navigateur doit être isolée par compte. Exception
   documentée (décision du 21/08/2026) : les préférences d'appareil non
   personnelles `theme` et `rail` restent globales au navigateur — elles ne

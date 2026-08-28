@@ -1,10 +1,11 @@
 # Contrats du moteur pédagogique
 
-> Statut : **proposition de travail — non validée**.
+> Statut : **proposition de travail — contrats techniques non validés**.
 >
-> Ce document ne modifie aucun statut de `PRODUCT.md` ou
-> `ARCHITECTURE_DECISIONS.md`. Il rassemble les contrats nécessaires pour
-> rendre la refonte testable et réversible.
+> La direction produit « plan dérivé, séances acceptées matérialisées dans
+> `LearningSession`, interventions multiples » a été validée humainement dans
+> l'ADR-139. Les formes TypeScript proposées ici restent à valider et ne
+> modifient aucun statut de construction.
 
 ## 1. But et périmètre
 
@@ -21,6 +22,8 @@ faits observés
   → état dérivé de l'apprenant
   → actions candidates
   → politique pédagogique
+  → plan proposé
+  → séances acceptées
   → intervention
   → nouveaux faits observés
 ```
@@ -251,15 +254,31 @@ décision.
 ```ts
 interface ActionCandidate {
   candidateId: string;
-  source: "existing-activity" | "resume" | "generation" | "legacy-exercise";
+  source:
+    | "existing-activity"
+    | "resume"
+    | "generation"
+    | "legacy-exercise"
+    | "course-protocol"
+    | "resource"
+    | "declared-need";
   target: {
     skillCodes: string[];
     themeIds: string[];
-    goalIds: string[];
+    engagementIds: string[];
+    intentionRefs: string[];
     label?: string;
   };
-  /** `explorer` reste seulement un ancien discriminant d'adaptateur. */
-  family: "entrainer" | "produire";
+  intervention:
+    | "resolve"
+    | "explain"
+    | "recall"
+    | "read"
+    | "synthesize"
+    | "produce"
+    | "diagnose"
+    | "ask-for-help";
+  expectedEffect: "measurement" | "preparation" | "support";
   durationMinutes: number;
   minimumSegmentMinutes?: number;
   cognitiveDemand: MentalCapacity;
@@ -293,10 +312,11 @@ interface ActionCandidate {
 Le modèle actuel se mappe principalement sur `Exercise`, `LearningActivity`,
 `ActivityRun`, `Calibration` et le modèle de répétition espacée.
 
-Le type historique `ActivityFamily` contient encore `explorer`. Tant que cet
-adaptateur existe, une donnée ancienne peut être lue, mais la politique cible
-ne doit plus sélectionner cette famille : la branche documentaire et le
-mini-projet suivent le chemin de note opérationnelle défini par ADR-070.
+Les types historiques `ActivityFamily`, `entrainer`, `produire` et `explorer`
+restent des adaptateurs de lecture tant que leurs consommateurs existent. Ils
+ne doivent plus piloter la politique cible : celle-ci choisit une intervention
+concrète et son effet attendu. La branche documentaire et le mini-projet
+suivent toujours le chemin de note opérationnelle défini par ADR-070.
 
 ## 8. Contrat E — Politique pédagogique
 
@@ -305,10 +325,27 @@ Elle reçoit des faits déjà validés et des états déjà calculés ; elle ne 
 aucun stockage.
 
 ```ts
+interface Engagement {
+  engagementId: string;
+  domainId: string;
+  dueAt: string;
+  label: string;
+  sourceRef: string;
+}
+
+interface AvailabilityWindow {
+  startsAt: string;
+  endsAt: string;
+  sourceRef: string;
+}
+
 interface PolicyInput {
   accountId: string;
   declaredContext: ActionContext;
-  goals: readonly LearningGoal[];
+  intentions: readonly { text: string; sourceRef: string }[];
+  engagements: readonly Engagement[];
+  availability: readonly AvailabilityWindow[];
+  acceptedSessions: readonly LearningSession[];
   skillStates: readonly LearnerSkillState[];
   candidates: readonly ActionCandidate[];
   observedRefusals: readonly {
@@ -333,7 +370,43 @@ interface PolicyDecision {
   reservations: string[];
   policyVersion: string;
 }
+
+interface PlanProposal {
+  slots: Array<{
+    candidate: ActionCandidate;
+    plannedFor: string;
+    durationMinutes: number;
+    reasons: string[];
+    reservations: string[];
+  }>;
+  changesToAcceptedSessions: Array<{
+    sessionId: string;
+    kind: "move" | "shorten" | "cancel";
+    proposedFor?: string;
+    proposedDurationMinutes?: number;
+    reasons: string[];
+  }>;
+  constraints: string[];
+  reservations: string[];
+  policyVersion: string;
+}
+
+type ReadinessEstimate =
+  | { state: "not-estimable"; reservations: string[] }
+  | {
+      state: "clarify" | "reinforce" | "on-track" | "ready-from-available-evidence";
+      engagementId: string;
+      evidenceRefs: string[];
+      reservations: string[];
+      calculatedAt: string;
+      modelVersion: string;
+    };
 ```
+
+`PlanProposal` et `ReadinessEstimate` appartiennent à la couche Décide. Ils
+sont retournés à la lecture et ne deviennent jamais des enregistrements
+autoritaires. Seuls l'acceptation d'un changement et le `LearningSession` qui
+en résulte sont des faits durables.
 
 ### Ordre de décision v0
 
@@ -363,10 +436,16 @@ d'intervention :
 
 ```ts
 interface InterventionRequest {
-  decision: PolicyDecision;
+  sessionId: string;
+  interventionId: string;
   activity: ActionCandidate;
   mode: WorkModeSettings;
   allowedTools: WorkspaceTool[];
+  evidenceContract?: {
+    skillCodes: string[];
+    protocolRef: string;
+    requiredArtifact: string;
+  };
 }
 ```
 
@@ -398,6 +477,8 @@ modifie jamais directement `LearnerSkillState`.
 interface InterventionOutcome {
   interventionId: string;
   status: "completed" | "abandoned";
+  effect: "measurement" | "preparation" | "support";
+  activityFactRef?: string;
   observations: Observation[];
   validatedEvidence: SkillEvidence[];
 }
@@ -406,6 +487,10 @@ interface InterventionOutcome {
 `validatedEvidence` est vide si l'activité a été abandonnée, si la réponse
 requise n'a pas été produite, si le verdict n'a pas été validé ou si le contrat
 de preuve ne permet pas de mesurer ce geste.
+
+Il est également vide pour une intervention de préparation ou de soutien, sauf
+si un contrat de preuve distinct a été annoncé avant l'action puis rempli. Le
+simple statut `completed` ne change jamais cette règle.
 
 Le cycle suivant recalcule alors l'état depuis l'historique complet, et non
 depuis le résultat précédent.
@@ -443,7 +528,12 @@ Avant de remplacer une brique, les propriétés suivantes doivent être testées
 11. une décision change si ses entrées changent, sans modifier les faits
     historiques ;
 12. une nouvelle règle de calcul peut relire l'historique sans migration d'un
-    profil dérivé.
+    profil dérivé ;
+13. une séance candidate non acceptée ne crée aucun `LearningSession` ;
+14. une séance manquée ou déplacée ne produit aucune observation de compétence ;
+15. une intervention de préparation terminée ne produit aucune preuve par
+    défaut ;
+16. le plan et la préparation peuvent être recalculés sans écriture métier.
 
 ## 13. Ordre de migration proposé
 
@@ -454,13 +544,17 @@ Cette séquence est une proposition technique, pas une décision de produit :
 2. introduire une façade pure de modèle apprenant qui expose les dimensions
    séparées tout en alimentant temporairement les consommateurs de
    `robustesse` ;
-3. formaliser `ActionCandidate` comme adaptateur de `Exercise` et des
-   activités existantes ;
-4. faire de la politique le seul point de sélection, sans modifier d'abord le
-   classement interne ;
-5. conserver `prediction.ts` comme modèle falsifiable séparé jusqu'à ce que
+3. formaliser `ActionCandidate` comme adaptateur de `Exercise`, des activités
+   et des protocoles de cours existants ;
+4. étendre `LearningSession` par composition d'interventions, sans créer une
+   entité de travail parallèle ;
+5. faire de la politique le seul point de sélection puis lui ajouter un plan
+   dérivé sur un premier scénario vertical ;
+6. matérialiser uniquement les séances acceptées et tester les faits de refus,
+   déplacement, abandon et achèvement sans mesure ;
+7. conserver `prediction.ts` comme modèle falsifiable séparé jusqu'à ce que
    ses sorties soient confrontées aux résultats ;
-6. seulement ensuite décider si certains anciens champs ou modules peuvent
+8. seulement ensuite décider si certains anciens champs ou modules peuvent
    être retirés.
 
 À aucun moment cette migration ne doit créer une seconde source de vérité,
@@ -476,6 +570,12 @@ une nouvelle entité à côté de `LearningSession`, ou une table de profil dér
 - Quelles observations rendent une inférence de métacognition légitime ?
 - La politique gagne-t-elle réellement en qualité quand les dimensions de
   `robustesse` sont séparées ?
+- Quel niveau de détail de calendrier suffit pour déduire une disponibilité
+  sans importer le contenu privé des événements ?
+- À partir de quel échantillon une hypothèse de motif d'apprentissage peut-elle
+  être montrée sans surinterprétation ?
+- Quelles modifications d'une séance déjà acceptée exigent une nouvelle
+  confirmation explicite ?
 
 Ces questions doivent rester des questions ouvertes jusqu'à ce qu'une personne
 les tranche ou qu'une mesure les réfute. Ce document ne les ferme pas.

@@ -1,6 +1,15 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 3.3 — 26/08/2026.** La nature d'un domaine se déclare désormais :
+**Version 4.0 — 27/08/2026.** La vision d'orchestration pédagogique est
+validée (ADR-139), mais n'est pas encore construite. La cible relie
+explicitement le besoin immédiat et le développement longitudinal par une
+boucle `contexte réel → plan → travail → observations → estimation →
+replanification`. Le plan est une hypothèse dérivée ; seules les séances
+acceptées deviennent des `LearningSession`. Cette version remplace les refus
+de calendrier et de plan jour-par-jour d'ADR-096 et ADR-109 sans réintroduire
+d'objectif structuré ni d'état dérivé persistant.
+
+**Version précédente : 3.3 — 26/08/2026.** La nature d'un domaine se déclare désormais :
 module académique, progression continue, ou à préciser (ADR-138). Le cœur
 longitudinal ne bouge pas — aucune entité nouvelle, aucune mesure venue du
 cadre ; le parcours canonique (§4) dit la déclaration au lieu de la taire.
@@ -22,6 +31,15 @@ inchangés.
 `PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
 restent dans l'historique git. Document vivant : toute modification doit
 préciser ce qui passe d'une catégorie à l'autre.
+
+**Mouvement de la version 4.0.** La promesse passe de « mesurer et recommander
+maintenant » à « comprendre le contexte, planifier, observer et replanifier ».
+Le tableau de bord reste le lieu de pilotage, `LearningSession` reste l'épisode
+de travail unique et le module reste un `Domaine` à usage académique. Le
+changement porte sur l'orchestration au-dessus du moteur existant : contexte
+académique et temporel déclaré, préparation dérivée aux échéances, plan global
+recalculable, synchronisation calendaire consentie et interventions plus
+variées. Aucun de ces éléments n'est déclaré construit par cette version.
 
 **Mouvement de la version 3.2.** Le §4 distingue le cœur permanent du
 positionnement prioritaire et porte la promesse déclinée pour ce public ainsi
@@ -58,20 +76,27 @@ les construire ne démontre pas qu'ils sont efficaces.
 
 ## 1. Ce que le produit est
 
-Une **boucle d'actions d'apprentissage** : contexte déclaré + objectifs +
-profil dérivé → meilleure action étayée maintenant → activité → preuve
-éventuelle → observation → état recalculé.
+Une **boucle d'orchestration pédagogique** : contexte réel déclaré +
+intentions + échéances + temps disponible + état dérivé → plan de travail
+recalculable → meilleure intervention étayée maintenant → activité → preuve
+éventuelle → observation → état recalculé → replanification.
+
+Twiny relie deux horizons. À court terme, il aide à comprendre un cours,
+préparer une évaluation, produire un rendu ou poursuivre un besoin personnel.
+À long terme, chaque preuve recevable enrichit une représentation durable des
+compétences, indépendante du semestre ou du module qui l'a fait apparaître.
+Les structures temporaires de la vie de la personne alimentent donc le modèle
+longitudinal sans devenir elles-mêmes des mesures.
 
 Le noyau implémenté reste, jusqu'au lot 1,
 `SkillEvidence → SkillState → recommandation`. Dans le vocabulaire cible,
-`SkillEvidence` porte aujourd'hui des Observations. Le geste **probant** reste
-l'exercice, mais il n'est pas le seul geste
-d'apprentissage : le **mini-projet** existe, sous forme de note opérationnelle
-(ADR-070). Il produit du travail et du contexte, pas encore une mesure — la
-question de son contrat de preuve se rouvrira quand un projet aura été mené à
-son terme. Explorer, elle, a été retirée faute de surface. Survit aussi
-l'arbitrage à l'instant T — temps disponible et capacité déclarée — qui
-réordonne la file sans qu'aucune table ne l'assiste.
+`SkillEvidence` porte aujourd'hui des Observations. Le geste **probant** le plus
+construit reste l'exercice. La cible validée par ADR-139 étend toutefois
+`LearningSession` à plusieurs interventions : résoudre, expliquer, rappeler,
+lire, synthétiser, produire, diagnostiquer et demander de l'aide. Une
+intervention peut préparer, soutenir ou produire une preuve ; son existence ou
+son achèvement ne deviennent jamais une mesure par défaut. Le mini-projet reste
+une note opérationnelle tant que son contrat de preuve n'est pas tranché.
 
 Autour d'elle, un **instrument de mesure** dont la fonction première est de
 **refuser d'affirmer ce qu'il ne peut pas prouver**. L'utilisateur travaille,
@@ -82,8 +107,11 @@ stocké. Rien de ce qui peut être recalculé n'est persisté.
 
 La recommandation n'est jamais présentée comme absolument optimale. Elle est la
 **meilleure action étayée maintenant**, accompagnée de son pourquoi et de ses
-réserves. Elle vit dans la carte d'action qui existait déjà : la boucle n'a pas
-d'écran à elle, et la file des suivantes reste où elle était.
+réserves. Dans la cible, elle s'inscrit dans un plan : une vue dérivée des actions
+encore plausibles jusqu'aux échéances. Le plan se pilote au tableau de bord et
+se lit dans Séances ; il n'ajoute pas une destination ni une entité métier.
+Seules les séances acceptées sont matérialisées. Déplacer, refuser ou manquer
+une séance déclenche une nouvelle proposition, jamais une dette morale.
 
 **Le vocabulaire d'implémentation ne remonte jamais à la surface.** *Artefact*,
 *snapshot*, *modèle*, *version*, *exécution*, *inventaire recalculé*,
@@ -104,11 +132,12 @@ phrase : **un tracker enregistre ce que tu déclares avoir fait ; ce système
 enregistre ce qui a été observé, et en tire ce qu'il peut honnêtement en tirer
 — souvent moins que ce qu'on aimerait.**
 
-Sur la révision : le produit ne planifie rien — pas de révision programmée,
-pas de parcours jour-par-jour. Il retient depuis le 22/08/2026 (ADR-109)
-l'**engagement déclaré**, un fait daté extérieur (examen, rendu) qui éclaire
-la priorisation ; c'est un fait que la personne déclare, jamais un programme
-que le système exécute.
+Sur la révision : le produit cible une planification adaptative, encore non
+construite. L'**engagement déclaré** reste un fait daté extérieur ; l'emploi du
+temps et les disponibilités restent des faits déclarés ou consentis. Le moteur
+en dérive un plan sans stocker un score de préparation ni fabriquer
+d'intention. Un événement de calendrier ne mesure rien et une séance manquée ne
+produit aucune preuve de compétence.
 
 ### Glossaire courant
 
@@ -142,9 +171,9 @@ l'histoire des décisions.
 
 ## 3. La proposition de valeur, en une ligne
 
-> Savoir **ce que tu sais réellement faire**, avec le degré de certitude qui
-> va avec — et choisir la meilleure action étayée maintenant, pour une raison
-> qu'on peut te montrer.
+> Toujours savoir **quoi faire maintenant, pourquoi le faire et ce que ce
+> travail fait progresser**, en tenant compte de ce que vous préparez, du temps
+> disponible et de ce que les preuves permettent réellement d'affirmer.
 
 | Promesse | État au 28/07/2026 |
 |---|---|
@@ -152,6 +181,7 @@ l'histoire des décisions.
 | « avec le degré de certitude » | ✅ Tenue. Les trois lectures restent distinctes ; l'interface les traduit en « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage ». |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 | « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
+| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), non construite : les séances isolées existent, pas encore le plan global ni sa replanification. |
 
 ## 4. Public
 
@@ -193,22 +223,32 @@ une date arbitraire.
 *(Historique de la cible : « étudiants et autodidactes » du 23/08/2026 ;
 avant, « toute personne souhaitant un suivi longitudinal ».)*
 
-**Promesse pour ce public (25/08/2026) :** « Twiny vous aide à savoir ce que
-vous maîtrisez réellement avant une échéance et à travailler, à chaque séance,
-le point le plus utile. » C'est la déclinaison de la phrase du §3 pour le
-positionnement actuel ; l'une ne remplace pas l'autre.
+**Promesse pour ce public (révisée le 27/08/2026) :** « Twiny organise avec
+vous le travail utile avant vos échéances, l'ajuste à mesure que vous avancez
+et vous montre ce que chaque séance a réellement fait progresser. » C'est la
+déclinaison de la phrase du §3 pour le positionnement actuel ; elle décrit la
+cible et ne doit pas atteindre la vitrine avant que le plan soit construit.
 
 **Parcours canonique :**
 
-1. L'étudiant déclare ses cours ou modules.
-2. Il ajoute une échéance, un exercice à préparer ou un projet à rendre.
-3. Il apporte éventuellement son support de cours.
-4. Twiny propose une activité ciblée.
-5. L'étudiant réalise l'exercice ou le travail demandé.
-6. Le système produit des observations sourcées.
-7. L'étudiant voit ce que son travail a changé.
-8. La prochaine action est recalculée en tenant compte du cours et de
-   l'échéance.
+1. L'étudiant vit une première boucle courte : profil, micro-diagnostic,
+   exercice réel, observation et premier retour de progression.
+2. Il déclare ou importe son cadre : modules, cours suivis, échéances,
+   disponibilités et supports utiles.
+3. Twiny confronte ce contexte aux compétences attendues, à l'état observé et
+   au temps restant ; ce qu'il ne sait pas reste visible comme incertitude.
+4. Twiny propose un plan de séances jusqu'aux échéances et explique ses choix.
+5. L'étudiant accepte, déplace ou refuse la proposition en une relecture ; les
+   seules séances acceptées deviennent des `LearningSession`.
+6. Chaque séance enchaîne une ou plusieurs interventions adaptées : résoudre,
+   expliquer, rappeler, lire, synthétiser, produire, diagnostiquer ou demander
+   de l'aide.
+7. Les activités qui portent une preuve recevable produisent des observations
+   sourcées ; les autres restent du soutien ou de la préparation.
+8. L'étudiant voit ce que son travail a changé, ce qui reste incertain et son
+   niveau de préparation étayé avant chaque échéance.
+9. Toute nouvelle donnée — cours, échéance, disponibilité, progression,
+   retard, refus ou abandon — recalcule le plan sans sanction ni dette.
 
 Le mécanisme des étapes 1-2 (25/08/2026, ADR-137 ; précisé le 26/08/2026,
 ADR-138) : **un module de cours est un domaine du référentiel** — le cadre
@@ -342,6 +382,16 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 
 ### Décidé
 
+**Décision produit validée le 27/08/2026, non construite — orchestration
+adaptative (ADR-139).** Le plan devient le circuit principal : il est dérivé,
+explicable et recalculable ; seules les séances acceptées sont persistées sous
+forme de `LearningSession`. Le calendrier est une projection consentie du plan,
+jamais une source de vérité pédagogique. Une préparation à l'échéance reste une
+vue dérivée avec réserves. Retard, refus et abandon peuvent replanifier, mais ne
+mesurent aucune compétence. Cette décision remplace uniquement les interdits de
+planification d'ADR-096 et ADR-109 ; elle conserve leurs refus de fabriquer une
+intention ou un objectif structuré.
+
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
 gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
@@ -377,32 +427,40 @@ mémoire avant de vérifier contre le cours (cartes de rappel déterministes,
 n'existe ; les dates des séances travaillées se dérivent des sessions à la
 lecture, et seuls les faits déclarés (intention, plan validé) s'inscrivent au
 journal de la fiche. Les dimensions sont des intentifs de séance — elles ne
-mesurent rien.
+mesurent rien. **C'est l'implémentation actuelle, pas la cible finale du
+planificateur.** ADR-139 conserve l'analyse du cours, l'ancrage documentaire et
+les interventions déterministes, mais retire à chaque PDF la responsabilité de
+construire son propre plan isolé : les candidats relus doivent alimenter le
+plan global, qui arbitre entre tous les cours, échéances et besoins.
 ✅ **Construire et utiliser en parallèle** est le mode de travail retenu.
 ✅ **La boucle est le produit** (ADR-066). Son arbitrage — temps disponible,
 capacité déclarée — vit dans la carte d'action et fonctionne sans aucune table.
 🔄 **Les familles Explorer et Produire ont été retirées le 15/08 (ADR-070)** :
 la seconde avait produit une exécution planifiée, jamais démarrée, et aucune
-preuve. L'exercice redevient le geste unique, non par principe mais faute d'un
-usage qui justifie les autres.
+preuve. ADR-139 ne les restaure pas : elle remplace cette taxonomie par des
+interventions concrètes dans `LearningSession`, chacune indiquant si elle vise
+une mesure, une préparation ou un soutien.
 ✅ **Le contexte immédiat est déclaré, jamais deviné** : temps disponible,
 capacité mentale ressentie, intention, cible facultative et note verbatim.
-✅ **Le parcours est une file d'actions dérivée** (ADR-096). Le système
+🔄 **Le parcours était limité à une file d'actions dérivée** (ADR-096), puis
+étendu par ADR-139 en plan temporel dérivé. Le système
 d'objectifs structurés du lot 4 a été retiré le 21/08/2026 après retrait
 humain explicite : il ne convenait pas. Le parcours se dérive des faits
-(recommandations du moteur, ordonnées par l'espace actif) et n'est visible
-que par les actions recommandées — jamais comme surface autonome. Les
+(recommandations du moteur, ordonnées par l'espace actif, échéances et
+disponibilités) et reste visible dans les surfaces existantes — tableau de bord
+et Séances, jamais comme nouvelle destination. Les
 intentions déclarées restent des textes verbatim du profil
 (`objectif_moyen_terme`, `objectif_long_terme`), sans extraction ni
 rattachement automatique. Nuance du 22/08/2026 : une date détectée dans un
 besoin ouvre le chemin assisté vers l'engagement déclaré (ADR-109) — une
 proposition explicite, jamais une écriture automatique.
-✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-109). Une
+✅ **L'engagement est un fait déclaré, pas un objectif** (ADR-109, amendée par
+ADR-139). Une
 échéance extérieure — examen, rendu — se déclare verbatim avec sa date et
 éclaire la priorisation par un seul facteur de proximité (fenêtre J-21 →
-veille). Elle n'est ni un objectif structuré — ADR-096 reste debout — ni un
-retour au parcours planifié : pas de calendrier, pas de rappels, pas de plan
-jour-par-jour.
+veille dans l'implémentation actuelle). Elle n'est pas un objectif structuré.
+La phrase qui interdisait calendrier et plan jour-par-jour est remplacée :
+l'échéance devient l'une des entrées du plan dérivé, sans devenir une mesure.
 ✅ **Le mode épreuve est une déclaration de séance, pas une mesure** (ADR-110).
 Déclaré au départ sur la séance et irréversible, il change l'habillage du
 déroulé — chrono plein écran, indices masqués, correction à la fin — et rien
@@ -425,10 +483,12 @@ projet réellement mené — pas d'avance.
 ✅ **Une preuve originale ne se réécrit pas.** 🔄 Le journal de rectifications
 qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
-✅ **`LearningSession` reste l'épisode de travail unique.** Plusieurs activités
+✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
+interventions d'ADR-139 est validée mais non construite. Plusieurs activités
 durables peuvent rester ouvertes, mais une seule séance peut être `en-cours`
 par compte. Les exercices historiques passent par un adaptateur sans copie ni
-double écriture.
+double écriture. Aucune entité parallèle n'est créée pour la lecture, la
+synthèse, la production, le diagnostic ou l'aide.
 🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :
 `learning_loop_mode` a été retiré avec la boucle qu'il gardait (ADR-070). La
 suppression des 7 tables a fait l'objet de l'autorisation distincte que cette
@@ -649,13 +709,15 @@ pur et vérifié ; ce qu'on lui donne à manger ne l'était pas.**
 
 Une fonctionnalité n'entre pas dans ce produit parce qu'elle est intéressante,
 mais parce qu'elle sert la boucle du §1 et la phrase du §3. Depuis le
-25/08/2026 (ADR-135), toute proposition doit d'abord répondre **oui** à au
-moins une de ces quatre questions :
+25/08/2026 (ADR-135), complétée le 27/08 par ADR-139, toute proposition doit
+d'abord répondre **oui** à au moins une de ces cinq questions :
 
 1. Aide-t-elle l'étudiant à décider quoi travailler avant une échéance ?
 2. Produit-elle une observation plus fiable de ce qu'il sait faire ?
 3. Rend-elle l'évolution de son niveau plus compréhensible ?
 4. Réduit-elle fortement la friction pour accomplir l'une de ces trois choses ?
+5. Aide-t-elle à construire ou ajuster un plan réaliste sans demander à
+   l'étudiant d'administrer le système ?
 
 Être simplement *compatible* avec les études ne suffit pas. Cette grille
 s'applique **à toute proposition, y compris celles venant d'une session
@@ -665,9 +727,9 @@ Claude.**
 
 | Priorité | Fonctionnalités | Traitement |
 |---|---|---|
-| Cœur | Compétences, exercices, tentatives, observations, état, progression, recommandation | Renforcer, rendre immédiatement compréhensible |
-| Cadre étudiant | Cours/modules, échéances, examens, projets académiques | Relier directement à la boucle principale |
-| Facilitateurs | Dépôt de cours, tuteur, séances, mode épreuve, notes utiles au travail | Conserver seulement lorsqu'ils réduisent la friction |
+| Cœur | Compétences, interventions, tentatives, observations, état, progression, recommandation, plan dérivé | Renforcer, rendre immédiatement compréhensible |
+| Cadre étudiant | Cours/modules, emploi du temps, disponibilités, échéances, examens, projets académiques | Relier directement à la boucle principale |
+| Facilitateurs | Dépôt de cours, tuteur, `LearningSession`, mode épreuve, calendrier externe, notes utiles au travail | Conserver seulement lorsqu'ils réduisent la friction |
 | Administration | Référentiel, relations, classements, maintenance documentaire | Secondaire et contextuel |
 | Hors priorité | Contextes professionnels, moteur multi-persona, productivité universelle | Ne plus développer à court/moyen terme |
 

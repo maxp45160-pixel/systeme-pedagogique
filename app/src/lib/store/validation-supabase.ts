@@ -26,6 +26,7 @@ import {
   PARAMETRE_PAR_NOM,
   type AjustementInscrit,
 } from "@/lib/engine/reglages";
+import { parseInterventionsSeance } from "@/lib/domain/intervention-seance";
 
 type Objet = Record<string, unknown>;
 
@@ -321,6 +322,14 @@ export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSes
     texte(activite.ref, `${chemin}.activites[${index}].ref`);
     texte(activite.libelle, `${chemin}.activites[${index}].libelle`);
   });
+  if (seance.interventions !== undefined) {
+    try {
+      parseInterventionsSeance(seance.interventions, `${chemin}.interventions`);
+    } catch (error) {
+      if (error instanceof Error) refuser(`${chemin}.interventions`, error.message);
+      throw error;
+    }
+  }
   for (const cle of ["resultat", "difficulte", "apprentissagePrincipal", "prochaineAction", "notePersonnelle"] as const) {
     optionnel(seance, cle, chemin, (v, c) => texte(v, c, true));
   }
