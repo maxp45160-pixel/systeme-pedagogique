@@ -541,8 +541,15 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
 
     // Seul l'engagement ouvert rattaché à CE domaine remonte — clos, étranger
     // et non rattaché restent chez eux. Trié du plus proche au plus lointain.
-    expect(vues.domaines[0].echeancesModule).toEqual([
-      { id: "eng-proche", type: "examen", libelle: "Échéance eng-proche", echeanceLe: "2026-09-05", jours: 11 },
+    expect(vues.domaines[0].orchestrationModule.deadlines).toEqual([
+      expect.objectContaining({
+        id: "eng-proche",
+        type: "examen",
+        label: "Échéance eng-proche",
+        dueAt: "2026-09-05",
+        daysRemaining: 11,
+        preparation: "non-estimable",
+      }),
     ]);
   });
 
@@ -559,6 +566,6 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       etatsLot5(etat(competence)),
     );
 
-    expect(vues.domaines[0].echeancesModule).toEqual([]);
+    expect(vues.domaines[0].orchestrationModule.deadlines).toEqual([]);
   });
 });

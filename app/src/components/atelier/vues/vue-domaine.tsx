@@ -29,6 +29,11 @@ import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-li
 import { ParenteDomaine } from "./parente-domaine";
 import { usageDuDomaine } from "@/lib/domain/usage-domaine";
 import { ModaleUsageDomaine } from "@/components/referentiel/modale-usage-domaine";
+import {
+  libelleEffetIntervention,
+  renduPourIntervention,
+} from "@/lib/domain/intervention-rendus";
+import type { PreparationState } from "@/lib/engine/planification-temporelle";
 
 /**
  * Les lectures des mêmes compétences : « Fiches » les liste, « Arbre » les
@@ -37,6 +42,14 @@ import { ModaleUsageDomaine } from "@/components/referentiel/modale-usage-domain
  * filtrer un arbre en couperait les chemins.
  */
 type ModeLecture = "fiches" | "arbre" | "progression";
+
+const LIBELLES_PREPARATION: Record<PreparationState, string> = {
+  "non-estimable": "Non estimable",
+  "a-eclaircir": "À éclaircir",
+  "a-renforcer": "À renforcer",
+  "en-bonne-voie": "En bonne voie",
+  "pret-d-apres-les-preuves-disponibles": "Prêt d'après les preuves disponibles",
+};
 
 export function VueDomaine({
   vue,
@@ -239,48 +252,111 @@ export function VueDomaine({
               modifiable={!vue.domaine.archive}
               ouvrirDomaine={(id) => ouvrirElement(`domaine:${id}`)}
             />
-            {!vue.domaine.archive && (
+            {!vue.domaine.archive && usage.type === "module" && (
               /*
-               * Le cadre du module (ADR-138) : les échéances déclarées SUR ce
-               * domaine, dérivées des engagements — et le geste qui en déclare
-               * une depuis ici, pré-remplie. Rien n'est stocké dans la vue :
-               * la liste se recalcule à chaque lecture.
+               * Lot 8 : ces deux lectures viennent des séances acceptées, des
+               * engagements et des états de compétence. Elles ne recopient ni
+               * plan, ni échéance, ni préparation dans le document du module.
                */
-              <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
-                    Échéances du module
-                  </h3>
-                  <BoutonEcheance
-                    competences={vue.skills
-                      .filter((skill) => !skill.archive)
-                      .map(({ code, intitule }) => ({ code, intitule }))}
-                    modules={vue.domainesExistants.map(({ id, nom }) => ({ id, nom }))}
-                    initial={{ moduleDomaineId: vue.domaine.id }}
-                    libelle="Déclarer une échéance pour ce module"
-                  />
-                </div>
-                {vue.echeancesModule.length === 0 ? (
-                  <p className="mt-2 text-xs leading-relaxed text-texte-discret">
-                    Aucune échéance liée à ce module. Un examen, un rendu, un partiel à date
-                    orientera les priorités de travail.
-                  </p>
-                ) : (
-                  <ul className="mt-2 divide-y divide-bordure/60">
-                    {vue.echeancesModule.map((echeance) => (
-                      <li key={echeance.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1.5">
-                        <span className="text-sm font-medium text-texte">{echeance.libelle}</span>
-                        <Etiquette ton={echeance.jours < 0 ? "alerte" : echeance.jours <= 3 ? "primaire" : "neutre"}>
-                          {libelleCompte(echeance.jours)}
-                        </Etiquette>
-                        <span className="ml-auto shrink-0 font-mono text-[0.625rem] text-texte-discret">
-                          {echeance.echeanceLe}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                      Cette semaine
+                    </h3>
+                    <span className="chiffres text-[0.6875rem] text-texte-discret">
+                      {vue.orchestrationModule.thisWeek.length}
+                    </span>
+                  </div>
+                  {vue.orchestrationModule.thisWeek.length === 0 ? (
+                    <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+                      Aucune séance acceptée pour ce module cette semaine.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 divide-y divide-bordure/60">
+                      {vue.orchestrationModule.thisWeek.map((session) => (
+                        <li key={session.sessionId} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2">
+                          <span className="text-sm font-medium text-texte">
+                            {session.interventionLabel ?? "Intervention à préciser"}
+                          </span>
+                          <Etiquette ton={session.status === "en-cours" ? "primaire" : "neutre"}>
+                            {session.status === "en-cours" ? "En cours" : "Planifiée"}
+                          </Etiquette>
+                          {session.interventionType && session.expectedEffect ? (
+                            <span className="text-xs text-texte-attenue">
+                              {renduPourIntervention({ type: session.interventionType }).label}
+                              {" · "}
+                              {libelleEffetIntervention(session.expectedEffect)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-texte-discret">
+                              {session.reservations[0]}
+                            </span>
+                          )}
+                          <span className="ml-auto shrink-0 text-xs text-texte-discret">
+                            {dateCourte(session.plannedFor)}
+                            {session.durationMinutes ? ` · ${session.durationMinutes} min` : ""}
+                          </span>
+                          <Bouton
+                            variante="discret"
+                            taille="petite"
+                            onClick={() => router.push(`/seances?session=${encodeURIComponent(session.sessionId)}`)}
+                          >
+                            Ouvrir
+                          </Bouton>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                <section className="rounded-xl border border-bordure bg-surface px-4 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-texte-discret">
+                      Échéances
+                    </h3>
+                    <BoutonEcheance
+                      competences={vue.skills
+                        .filter((skill) => !skill.archive)
+                        .map(({ code, intitule }) => ({ code, intitule }))}
+                      modules={vue.domainesExistants.map(({ id, nom }) => ({ id, nom }))}
+                      initial={{ moduleDomaineId: vue.domaine.id }}
+                      libelle="Déclarer une échéance pour ce module"
+                    />
+                  </div>
+                  {vue.orchestrationModule.deadlines.length === 0 ? (
+                    <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+                      Aucune échéance liée à ce module. Un examen ou un rendu déclaré orientera le plan.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 divide-y divide-bordure/60">
+                      {vue.orchestrationModule.deadlines.map((deadline) => (
+                        <li key={deadline.id} className="py-2">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                            <span className="text-sm font-medium text-texte">{deadline.label}</span>
+                            <Etiquette ton={deadline.daysRemaining < 0 ? "alerte" : deadline.preparation === "non-estimable" || deadline.preparation === "a-eclaircir" ? "info" : "neutre"}>
+                              {LIBELLES_PREPARATION[deadline.preparation]}
+                            </Etiquette>
+                            <span className="ml-auto shrink-0 text-xs text-texte-discret">
+                              {libelleCompte(deadline.daysRemaining)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-texte-attenue">
+                            {deadline.evidenceRefs.length > 0
+                              ? `${deadline.evidenceRefs.length} preuve${deadline.evidenceRefs.length > 1 ? "s" : ""} disponible${deadline.evidenceRefs.length > 1 ? "s" : ""}`
+                              : "Aucune preuve disponible : préparation non estimable."}
+                          </p>
+                          {deadline.reservations.length > 0 && (
+                            <p className="mt-1 text-xs text-texte-discret">
+                              Réserve : {deadline.reservations[0]}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
             )}
             {vue.ressources.length > 0 && (
               /*

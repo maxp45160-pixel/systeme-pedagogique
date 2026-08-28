@@ -21,6 +21,7 @@ import {
   type User,
   type UsageDomaine,
 } from "@/lib/domain/types";
+import { motifRefusDisponibilitesDeclarees, motifRefusPeriodeDeclaree } from "@/lib/domain/contexte-orchestration";
 import type { Engagement } from "@/lib/domain/engagement";
 import { motifRefusOrigineSeance } from "@/lib/domain/protocole-cours";
 import {
@@ -576,6 +577,14 @@ export function validerUser(valeur: unknown, chemin = "profile"): User {
   texte(user.objectifLongTerme, `${chemin}.objectifLongTerme`);
   date(user.debutSuivi, `${chemin}.debutSuivi`);
   optionnel(user, "preferencesPedagogiques", chemin, textes);
+  if (user.periodeDeclaree !== undefined) {
+    const motif = motifRefusPeriodeDeclaree(user.periodeDeclaree);
+    if (motif) refuser(`${chemin}.periodeDeclaree`, motif);
+  }
+  if (user.disponibilitesDeclarees !== undefined) {
+    const motif = motifRefusDisponibilitesDeclarees(user.disponibilitesDeclarees);
+    if (motif) refuser(`${chemin}.disponibilitesDeclarees`, motif);
+  }
   return user as unknown as User;
 }
 

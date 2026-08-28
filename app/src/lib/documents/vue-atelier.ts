@@ -11,6 +11,7 @@ import {
   type Skill,
   type SkillObservation,
   type SkillState,
+  type LearningSession,
 } from "@/lib/domain/types";
 import {
   construireArbreDomaine,
@@ -31,11 +32,7 @@ import {
   parentsPossibles,
 } from "@/lib/domain/hierarchie-domaines";
 import { retraitsParCode, type EtatRetrait } from "@/lib/domain/referentiel-compte";
-import {
-  echeancesDuModule,
-  joursRestants,
-  type Engagement,
-} from "@/lib/domain/engagement";
+import type { Engagement } from "@/lib/domain/engagement";
 import type { IndexDocumentaire } from "./index";
 import { PREFIXE_PREUVE, idPreuve } from "./nature-document";
 import {
@@ -52,6 +49,10 @@ import {
   type DocumentCorpus,
   type FilRessource,
 } from "./fils-corpus";
+import {
+  construireLectureOrchestrationModule,
+  type LectureOrchestrationModule,
+} from "@/lib/engine/module-orchestration";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -239,19 +240,8 @@ export interface VueDomaineAtelier {
   arbre: ArbreDomaine;
   /** Position déclarée sur la carte des savoirs, `null` tant que personne n'a tranché. */
   rattachementCarte: RattachementCarte | null;
-  /**
-   * Les échéances ouvertes déclarées SUR ce module — dérivées des engagements
-   * (ADR-137), du plus proche au plus lointain, avec leur distance en jours.
-   * Correspondance par identifiant exact : une échéance liée à un sous-domaine
-   * reste chez lui.
-   */
-  echeancesModule: Array<{
-    id: string;
-    type: string;
-    libelle: string;
-    echeanceLe: string;
-    jours: number;
-  }>;
+  /** Séances acceptées et préparation aux échéances, recalculées à la lecture. */
+  orchestrationModule: LectureOrchestrationModule;
   /**
    * Candidats proposés, `null` dès qu'un rattachement existe : on ne propose
    * pas de reclasser ce qui vient d'être arbitré. Vide quand rien n'atteint le
@@ -373,6 +363,8 @@ export function construireVuesAtelier(
    */
   engagements: Engagement[] = [],
   now: Date = new Date(),
+  /** Séances acceptées : faits relus, jamais candidates ni plan persistant. */
+  sessions: readonly LearningSession[] = [],
 ): {
   domaines: VueDomaineAtelier[];
   competences: VueCompetenceAtelier[];
@@ -640,13 +632,13 @@ export function construireVuesAtelier(
           documents: corpus,
           observations: observationsReferentiel,
         }),
-        echeancesModule: echeancesDuModule(domaine.id, engagements).map((engagement) => ({
-          id: engagement.id,
-          type: engagement.type,
-          libelle: engagement.libelle,
-          echeanceLe: engagement.echeanceLe,
-          jours: joursRestants(engagement.echeanceLe, now),
-        })),
+        orchestrationModule: construireLectureOrchestrationModule({
+          domainId: domaine.id,
+          sessions,
+          engagements,
+          skillStates: etats,
+          now,
+        }),
       };
     });
 

@@ -404,6 +404,7 @@ export function WorkspaceDocument({
 
   // --- Faire lire par le tuteur (extraction PDF, puis proposition) ---
   const pdfPresent = pieces.some((piece) => piece.mimeType === MIME_PDF);
+  const sourceAttachmentId = pieces.find((piece) => piece.mimeType === MIME_PDF)?.id;
 
   async function lancerLectureTuteur() {
     if (lectureTuteur.phase === "extraction") return;
@@ -664,7 +665,7 @@ export function WorkspaceDocument({
                 ficheId={id}
                 compteId={compteId}
                 trace={traceProtocole}
-                pdfPresent={pdfPresent}
+                sourceAttachmentId={sourceAttachmentId}
               />
             )}
 
@@ -904,6 +905,7 @@ export function WorkspaceDocument({
       {protocoleApresLecture && compteId && (
         <ModaleProtocole
           ficheId={id}
+          sourceAttachmentId={sourceAttachmentId ?? ""}
           compteId={compteId}
           intentionInitiale={traceProtocole?.intention}
           demarrageAutomatique={Boolean(traceProtocole?.intention)}

@@ -228,6 +228,13 @@ export interface Domaine {
 /* Entités                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Fenêtre de disponibilité déclarée — fait de contexte, jamais capacité inférée. */
+export interface DisponibiliteDeclaree {
+  startsAt: string;
+  endsAt: string;
+  sourceRef: string;
+}
+
 export interface User {
   id: string;
   prenom: string;
@@ -245,6 +252,10 @@ export interface User {
    * il ne les infère jamais lui-même.
    */
   preferencesPedagogiques?: string[];
+  /** Période académique ou horizon textuel confirmé par la personne. */
+  periodeDeclaree?: string;
+  /** Fenêtres explicites reçues du profil ; absence ≠ indisponibilité. */
+  disponibilitesDeclarees?: DisponibiliteDeclaree[];
 }
 
 /** Position dans l'arbre de progression du domaine. */
@@ -732,6 +743,8 @@ export type PorteeSeance =
 export interface OrigineSeance {
   genre: "protocole-cours";
   ficheId: string;
+  /** PDF exact analysé ; absent uniquement sur les séances historiques. */
+  pieceId?: string;
   /** Titre relu de la séance du protocole, tel que validé par la personne. */
   titre: string;
   dimension: import("./protocole-cours").DimensionSeance;

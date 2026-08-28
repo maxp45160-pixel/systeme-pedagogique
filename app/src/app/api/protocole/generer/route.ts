@@ -9,6 +9,7 @@ import {
   estIntentionCours,
   motifRefusIntentionLibre,
 } from "@/lib/domain/protocole-cours";
+import { actionsCandidatesDepuisProtocole } from "@/lib/engine/protocole-candidats";
 
 /**
  * Route de génération du plan de révision d'un cours (ADR-130).
@@ -16,9 +17,9 @@ import {
  * Calquée sur `/api/intention` : même choix de moteur via `resoudreMoteur`
  * (le quota de la clé serveur est décompté là et nulle part ailleurs,
  * ADR-116), même abandon propagé, même honnêteté. La différence est dans la
- * demande : le serveur relit lui-même la fiche, le texte extrait du PDF et le
- * référentiel actif — le client ne porte que l'intention déclarée, qui est un
- * fait de la personne, pas une donnée de confiance.
+ * demande : le serveur relit lui-même la fiche, vérifie l'attachement PDF
+ * exact demandé par l'écran et relit le référentiel actif — le client ne porte
+ * qu'une intention et une identité de source à revalider, jamais le contenu.
  *
  * **Route et non Server Action** : seule la requête client peut porter la
  * config `localStorage` (`cle-client.ts`), et la progression part en SSE.
@@ -32,6 +33,7 @@ export const maxDuration = 300;
 
 interface CorpsProtocole {
   ficheId?: string;
+  sourceAttachmentId?: string;
   intention?: string;
   intentionLibre?: string;
   config?: ConfigTuteurClient;
@@ -67,6 +69,10 @@ export async function POST(request: Request) {
 
   const ficheId = (corps.ficheId ?? "").trim();
   if (!ficheId) return Response.json({ erreur: "fiche-vide" }, { status: 400 });
+  const sourceAttachmentId = (corps.sourceAttachmentId ?? "").trim();
+  if (!sourceAttachmentId) {
+    return Response.json({ erreur: "pdf-source-vide" }, { status: 400 });
+  }
 
   const intention = corps.intention;
   if (!estIntentionCours(intention)) {
@@ -113,11 +119,18 @@ export async function POST(request: Request) {
           envoyer("erreur", { message: "Ce document n'est pas une fiche support de cours." });
           return "fin";
         }
+        if (Boolean(analyse.frontMatter.archive)) {
+          envoyer("erreur", { message: "Ce cours est archivé. Reprenez-le avant de recomposer son travail." });
+          return "fin";
+        }
         loguer(`fiche lue (« ${analyse.titre} »)`);
 
         // Le texte du PDF vient du cache borné existant (ADR-113). Un échec
         // d'extraction est un échec affiché : rien n'est fabriqué.
-        const extrait = await extraireTexteSupportAction(ficheId).catch((cause: unknown) => {
+        const extrait = await extraireTexteSupportAction(
+          ficheId,
+          sourceAttachmentId,
+        ).catch((cause: unknown) => {
           loguer(`échec extraction : ${cause instanceof Error ? cause.message : "inconnu"}`);
           return null;
         });
@@ -191,6 +204,29 @@ export async function POST(request: Request) {
         if (resultat.erreur || !resultat.protocole) {
           envoyer("erreur", { message: resultat.erreur ?? "La conception du plan a échoué." });
           return "fin";
+        }
+
+        const domainId = typeof analyse.frontMatter.domaine === "string"
+          ? analyse.frontMatter.domaine.trim()
+          : "";
+        const adaptation = actionsCandidatesDepuisProtocole({
+          courseDocumentId: ficheId,
+          sourceAttachmentId,
+          domainId,
+          documentArchived: Boolean(analyse.frontMatter.archive),
+          activeDomainIds: new Set(
+            ctx.referentiel.domaines
+              .filter((domain) => !domain.archive)
+              .map((domain) => domain.id),
+          ),
+          activeSkillCodes: ctx.referentiel.codesActifs,
+          engagements: ctx.donnees.engagements,
+          protocol: resultat.protocole,
+        });
+        if (adaptation.reservations.length > 0) {
+          envoyer("reserve-candidats", { reservations: adaptation.reservations });
+        } else {
+          envoyer("candidats-plan", { candidates: adaptation.candidates });
         }
 
         envoyer("protocole", {

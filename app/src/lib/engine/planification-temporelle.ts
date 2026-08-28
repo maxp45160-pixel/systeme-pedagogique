@@ -161,7 +161,7 @@ function stateForEngagement(
   if (sansObservation.length > 0) {
     return {
       engagementId: engagement.id,
-      state: "a-eclaircir",
+      state: "non-estimable",
       evidenceRefs,
       reasons: ["absence de preuve sur une compétence ciblée : un diagnostic est préférable"],
       reservations: ["absence de preuve ≠ niveau nul"],

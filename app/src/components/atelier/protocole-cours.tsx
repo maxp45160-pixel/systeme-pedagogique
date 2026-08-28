@@ -79,12 +79,12 @@ const SUGGESTIONS_INTENTION_COURS: readonly {
 export function ProtocoleCoursPanel({  ficheId,
   compteId,
   trace = { seances: [], journal: [] },
-  pdfPresent,
+  sourceAttachmentId,
 }: {
   ficheId: string;
   compteId: string;
   trace?: TraceProtocole;
-  pdfPresent: boolean;
+  sourceAttachmentId?: string;
 }) {
   const router = useRouter();
   const [modaleOuverte, setModaleOuverte] = useState(false);
@@ -116,13 +116,13 @@ export function ProtocoleCoursPanel({  ficheId,
         <Bouton
           variante="principal"
           onClick={() => setModaleOuverte(true)}
-          disabled={!pdfPresent}
+          disabled={!sourceAttachmentId}
         >
           {planDejaCompose ? "Recomposer le plan de révision" : "Composer le plan de révision"}
         </Bouton>
       </div>
 
-      {!pdfPresent && (
+      {!sourceAttachmentId && (
         <p className="mt-3 text-[0.6875rem] text-texte-discret">
           Le protocole part du PDF attaché : déposez-le d’abord dans « Ressource attachée ».
         </p>
@@ -173,6 +173,7 @@ export function ProtocoleCoursPanel({  ficheId,
       {modaleOuverte && (
         <ModaleProtocole
           ficheId={ficheId}
+          sourceAttachmentId={sourceAttachmentId ?? ""}
           compteId={compteId}
           intentionInitiale={trace.intention}
           demarrageAutomatique={Boolean(trace.intention)}
@@ -201,6 +202,7 @@ type EtatModale =
 
 export function ModaleProtocole({
   ficheId,
+  sourceAttachmentId,
   compteId,
   intentionInitiale,
   demarrageAutomatique = false,
@@ -208,6 +210,7 @@ export function ModaleProtocole({
   surTermine,
 }: {
   ficheId: string;
+  sourceAttachmentId: string;
   compteId: string;
   /**
    * L'intention déjà déclarée au dépôt du cours (ADR-130). Présente : la
@@ -273,6 +276,7 @@ export function ModaleProtocole({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ficheId,
+          sourceAttachmentId,
           intention: intentionChoisie,
           intentionLibre: intentionLibre.trim(),
           config: lireConfigTuteur(compteId) ?? undefined,
@@ -355,6 +359,7 @@ export function ModaleProtocole({
       try {
         const resultat = await planifierSeanceProtocoleAction({
           ficheId,
+          pieceId: sourceAttachmentId,
           titre: seance.titre,
           dimension: seance.dimension,
           codes: seance.codes,

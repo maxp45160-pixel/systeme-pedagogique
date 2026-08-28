@@ -181,21 +181,35 @@ document, ses exercices Feynman et ses cartes de rappel sont conservés, mais
 ils alimentent les actions candidates du plan global. Il ne matérialise plus
 un plan isolé par document.
 
+**État d'intégration du lot 8.** L'adaptateur de candidates, l'ancrage au PDF
+exact et les deux lectures dérivées de la fiche module sont construits et
+testés localement. La dernière phrase ci-dessus reste la cible : l'ancien
+écrivain du protocole est conservé tant que la collecte des disponibilités et
+l'acceptation atomique ne savent pas préserver sa commande documentaire. Ce
+maintien temporaire n'est pas une seconde cible validée et ne monte aucun
+statut.
+
 ## 6. Mise en contexte progressive
 
 Le premier succès rapide actuel est conservé. Ensuite, une carte temporaire
 « Préparer votre période » guide progressivement :
 
 1. confirmer l'année ou la période ;
-2. confirmer les domaines suivis ;
-3. connecter un calendrier ou déclarer quelques disponibilités ;
-4. confirmer les échéances connues ;
+2. relire les domaines suivis déjà déclarés ;
+3. déclarer quelques disponibilités (la connexion calendrier reste un chantier
+   d'infrastructure séparé) ;
+4. confirmer les échéances déjà connues ;
 5. relire le premier lot de séances.
 
 Chaque étape est courte, ignorable et reprise automatiquement. Le système
 préremplit ce qu'il sait et ne redemande jamais un fait déjà fiable. Les
 ambiguïtés sont confirmées au moment où elles deviennent utiles, plutôt que
 dans un grand assistant administratif initial.
+
+État de construction : la carte progressive est branchée au profil après le
+premier succès. Elle écrit seulement la période et les fenêtres déclarées ; les
+étapes ignorées sont un état d'interface local, isolé par compte. Le plan global
+et l'arbitrage de besoins concurrents restent à raccorder au planificateur.
 
 ## 7. Calendrier externe
 
@@ -313,7 +327,7 @@ Les nouvelles vues n'ajoutent pas de classes de bouton ad hoc.
 | engagements et échéances | partiel | préparation non estimée et vues dupliquées |
 | ressources de cours | partiel | protocole isolé du reste du plan |
 | multi-interventions | absent comme contrat commun | rendus dispersés, centrés exercice |
-| disponibilités | absent | aucun contexte temporel global |
+| disponibilités | partiel | fenêtres déclarées sur le profil ; calendrier externe et arbitrage global à construire |
 | synchronisation calendrier | absente | contrat d'infrastructure à concevoir |
 | replanification | locale et partielle | pas de diff explicable ni d'acceptation atomique |
 | besoins continus concurrents | partiel | deux chemins d'interface au lieu d'un arbitrage |

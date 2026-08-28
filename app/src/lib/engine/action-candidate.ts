@@ -10,6 +10,7 @@ import type {
   RecommendedLearningAction,
 } from "@/lib/domain/adaptive-learning";
 import type { Recommandation } from "./recommend";
+import type { DimensionSeance } from "@/lib/domain/protocole-cours";
 
 export const ACTION_CANDIDATE_SOURCES = [
   "existing-activity",
@@ -35,6 +36,14 @@ export interface ActionCandidateTarget {
   label?: string;
 }
 
+export interface OrigineCandidateProtocole {
+  courseDocumentId: string;
+  sourceAttachmentId: string;
+  domainId: string;
+  dimension: DimensionSeance;
+  instruction: string;
+}
+
 /**
  * Adaptateur de sortie : une candidate n'est pas encore une décision et ne
  * devient pas une séance tant qu'elle n'est pas acceptée.
@@ -53,6 +62,8 @@ export interface ActionCandidate {
   constraints: string[];
   reservations: string[];
   sourceVersion?: number;
+  /** Commande documentaire transitoire, uniquement pour une candidate de cours. */
+  courseProtocolOrigin?: OrigineCandidateProtocole;
 }
 
 export interface ActionCandidateAdapterOptions {
@@ -155,6 +166,18 @@ export function motifRefusActionCandidate(candidate: ActionCandidate): string | 
   }
   if (candidate.target.intentionRefs?.some((ref) => !texteNonVide(ref))) {
     return "référence d'intention invalide";
+  }
+  if (candidate.source === "course-protocol") {
+    const origin = candidate.courseProtocolOrigin;
+    if (!origin) return "origine du protocole de cours absente";
+    if (!texteNonVide(origin.courseDocumentId)
+      || !texteNonVide(origin.sourceAttachmentId)
+      || !texteNonVide(origin.domainId)
+      || !texteNonVide(origin.instruction)) {
+      return "origine du protocole de cours invalide";
+    }
+  } else if (candidate.courseProtocolOrigin) {
+    return "origine de protocole portée par une autre source";
   }
   return null;
 }

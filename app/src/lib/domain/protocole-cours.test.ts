@@ -8,8 +8,10 @@ import {
   exerciceExplicationPour,
   exerciceRappelPour,
   motifRefusIntentionLibre,
+  motifRefusDomaineCours,
   motifRefusOrigineSeance,
   motifRefusProtocole,
+  sourcePdfOrigineSeance,
   type ProtocoleCours,
 } from "./protocole-cours";
 import { motifRefusBlueprint } from "./seance";
@@ -143,6 +145,29 @@ describe("motifRefusProtocole", () => {
 });
 
 describe("motifRefusOrigineSeance — l'origine protocole d'un blueprint", () => {
+  it("accepte un PDF source explicite et refuse une référence vide", () => {
+    const origine = {
+      genre: "protocole-cours",
+      ficheId: "cours-logistique",
+      pieceId: "pdf-source-1",
+      titre: "Comprendre le cours",
+      dimension: "comprehension" as const,
+    };
+    expect(motifRefusOrigineSeance(origine)).toBeNull();
+    expect(motifRefusOrigineSeance({ ...origine, pieceId: "" })).toContain("PDF source");
+  });
+
+  it("désigne le PDF d'origine sans lui substituer un autre attachement", () => {
+    expect(sourcePdfOrigineSeance({
+      ficheId: "cours-logistique",
+      pieceId: "pdf-analyse",
+    })).toEqual({
+      courseDocumentId: "cours-logistique",
+      sourceAttachmentId: "pdf-analyse",
+    });
+    expect(sourcePdfOrigineSeance({ ficheId: "cours-historique" })).toBeNull();
+  });
+
   it("accepte une origine complète", () => {
     expect(
       motifRefusOrigineSeance({
@@ -336,5 +361,14 @@ describe("exerciceRappelPour — mémorisation = rappel actif (ADR-134)", () => 
     expect(borne.dureeEstimeeMin).toBeLessThanOrEqual(240);
     // Titre de cours manquant : un repli honnête, jamais un nom inventé.
     expect(borne.correction).toContain("le cours attaché à cette fiche");
+  });
+});
+
+describe("motifRefusDomaineCours", () => {
+  it("refuse un domaine absent ou archivé sans fabriquer de rattachement", () => {
+    const actifs = new Set(["maths"]);
+    expect(motifRefusDomaineCours("maths", actifs)).toBeNull();
+    expect(motifRefusDomaineCours("orphelin", actifs)).toContain("absent ou archivé");
+    expect(motifRefusDomaineCours("", actifs)).toContain("absent ou archivé");
   });
 });

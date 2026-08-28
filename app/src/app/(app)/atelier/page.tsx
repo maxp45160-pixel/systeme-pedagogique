@@ -176,6 +176,7 @@ export default async function PageAtelier(props: {
     contexte.carteIndividuelle.competencesLocales,
     contexte.donnees.engagements,
     contexte.now,
+    contexte.donnees.sessions,
   );
   const vuesCompetences = new Map(vues.competences.map((vue) => [vue.code, vue]));
   const vuesExercices = new Map(vues.exercices.map((vue) => [vue.id, vue]));

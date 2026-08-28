@@ -155,7 +155,7 @@ describe("planifierTemps — v0 pur et déterministe", () => {
       ],
     }));
     expect(plan.slots[0].candidate.candidateId).toBe("diagnose");
-    expect(plan.readiness[0].state).toBe("a-eclaircir");
+    expect(plan.readiness[0].state).toBe("non-estimable");
   });
 
   it("départage deux échéances concurrentes par date puis identifiant", () => {
@@ -240,7 +240,7 @@ describe("planifierTemps — v0 pur et déterministe", () => {
         observations: [{ id: "obs-1" } as SkillState["observations"][number]],
       })],
     }));
-    expect(avant.readiness[0].state).toBe("a-eclaircir");
+    expect(avant.readiness[0].state).toBe("non-estimable");
     expect(apres.readiness[0].state).toBe("en-bonne-voie");
   });
 
@@ -265,7 +265,7 @@ describe("planifierTemps — v0 pur et déterministe", () => {
       ],
     }));
     expect(plan.readiness.map((item) => item.state)).toEqual([
-      "a-eclaircir",
+      "non-estimable",
       "pret-d-apres-les-preuves-disponibles",
       "a-renforcer",
     ]);

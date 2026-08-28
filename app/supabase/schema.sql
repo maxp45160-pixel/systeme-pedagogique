@@ -31,9 +31,34 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   objectif_long_terme       TEXT NOT NULL DEFAULT 'Objectif à long terme à renseigner',
   debut_suivi               TEXT NOT NULL DEFAULT CURRENT_DATE::text,
   preferences_pedagogiques  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  periode_declaree          TEXT,
+  disponibilites_declarees  JSONB,
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'profiles_periode_declaree_non_vide'
+       AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_periode_declaree_non_vide
+      CHECK (periode_declaree IS NULL OR btrim(periode_declaree) <> '');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'profiles_disponibilites_declarees_tableau'
+       AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_disponibilites_declarees_tableau
+      CHECK (disponibilites_declarees IS NULL OR jsonb_typeof(disponibilites_declarees) = 'array');
+  END IF;
+END;
+$$;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 

@@ -441,13 +441,18 @@ séances ; appliquer délègue à la frontière `accepterPlan`, qui revalide pui
 écrit le lot atomiquement et idempotemment. La v0 refuse une extension de durée
 plutôt que de l'appliquer implicitement.
 
-La migration additive `20260828150000_lot_5_revision_plan.sql` ajoute le fait
-de créneau `sessions.duree_planifiee_min` et étend la RPC existante pour le
-raccourcissement dans la même transaction. Elle a été
-préparée le 28/08/2026 mais n'est pas appliquée : l'état Supabase réel a été
-vérifié avant sa préparation et l'historique distant ne porte toujours pas les
-versions des lots 1 et 3. Aucun rejeu n'est autorisé sans validation du
-workflow d'infrastructure.
+La migration additive `20260828150000_lot_5_revision_plan.sql` décrit le fait
+de créneau `sessions.duree_planifiee_min` et l'extension de la RPC existante
+pour le raccourcissement dans la même transaction. La vérification Supabase
+réelle du 28/08/2026 voit déjà cette colonne, sa contrainte et les fonctions
+`accepter_plan`/`accepter_plan_lot3_legacy`, mais l'entrée de migration n'est
+pas dans l'historique distant (qui s'arrête à `20260825221304`). Les versions
+locales `20260828110000_interventions_seance.sql`,
+`20260828120000_lot_3_acceptation_plan.sql` et
+`20260828150000_lot_5_revision_plan.sql` sont donc non enregistrées, sans que
+la provenance de leur application puisse être inférée. Aucun rejeu ni
+réconciliation DDL n'est autorisé sans validation du workflow
+d'infrastructure.
 
 ### Lecture « À venir » des séances (lot 6)
 
@@ -487,11 +492,13 @@ une seule RPC transactionnelle. La migration additive
 séance et un reçu d'idempotence par compte. La vérification Supabase du
 28/08/2026 confirme que `sessions.interventions`,
 `sessions.origine_proposition`, `orchestration_command_receipts` et la RPC
-`accepter_plan(text,jsonb)` sont présents dans la base réelle. En revanche les
-versions locales `20260828110000_interventions_seance.sql` et
-`20260828120000_lot_3_acceptation_plan.sql` sont absentes de l'historique
-distant retourné par Supabase : aucun fichier n'est rejoué et sa
-réconciliation relève du workflow d'infrastructure approuvé. Le reçu ne conserve ni
+`accepter_plan(text,jsonb)` sont présents dans la base réelle, avec RLS actif
+sur `sessions`, `engagements` et `orchestration_command_receipts`. En revanche
+les versions locales `20260828110000_interventions_seance.sql`,
+`20260828120000_lot_3_acceptation_plan.sql` et
+`20260828150000_lot_5_revision_plan.sql` sont absentes de l'historique distant
+retourné par Supabase : aucun fichier n'est rejoué et leur réconciliation
+relève du workflow d'infrastructure approuvé. Le reçu ne conserve ni
 `PlanPropose`, ni `readiness`, ni observations. Les annulations sont des faits
 archivables (`abandonnee`) et les déplacements ne touchent aucune observation.
 En v0, un déplacement n'est accepté que si la durée déjà déclarée de la séance
@@ -694,3 +701,59 @@ Cette tranche ne demande aucune migration : la colonne JSONB `interventions`
 existe déjà. Le champ de statut reste facultatif afin de préserver les lignes
 historiques. Les règles de présentation Feynman/rappel sont des hypothèses
 d'intégration de rendu, non des vérités pédagogiques.
+
+## 16. Protocole de cours et lectures du module (lot 8)
+
+`lib/engine/protocole-candidats.ts` adapte purement un `ProtocoleCours` relu en
+`ActionCandidate[]`. Il réutilise `motifRefusProtocole` comme seule validation
+des séances et des codes ; il ajoute uniquement les gardes propres à cette
+frontière : fiche, PDF source et domaine vivants. L'identité stable inclut la
+fiche, l'attachement PDF et le rang relu. Deux PDF du même cours ne peuvent donc
+pas être confondus et un document archivé, un domaine orphelin ou un code
+invalide reste en réserve.
+
+La candidate transporte une commande documentaire transitoire
+`courseProtocolOrigin` — fiche, attachement, domaine, dimension et consigne.
+Elle appartient à Décide et n'est pas persistée. Les nouvelles séances du
+chemin historique portent seulement `blueprint.origine.pieceId`, fait minimal
+nécessaire pour que la préparation différée relise le PDF effectivement
+analysé plutôt que le dernier PDF attaché. Les séances historiques sans ce
+champ restent lisibles ; leur préparation n'utilise aucun PDF de substitution
+et signale simplement l'ancrage documentaire manquant.
+
+`lib/engine/module-orchestration.ts` dérive, pour une fiche module, les séances
+acceptées de la semaine et la préparation qualitative de ses échéances. Il ne
+lit ni Supabase ni l'horloge et ne persiste rien. L'absence de toute preuve est
+canonisée en `non-estimable`; elle peut motiver un diagnostic sans devenir
+`a-eclaircir`, niveau nul ou pourcentage.
+
+La matérialisation directe du protocole n'est pas encore retirée : sans
+disponibilités déclarées dans le parcours et sans projection du
+`blueprint.origine` par la RPC d'acceptation, le nouveau chemin n'a pas la
+parité de génération différée. Aucun changement de schéma n'est introduit dans
+ce lot ; le retrait reste conditionné à une relève atomique testée.
+
+## 17. Contexte progressif déclaré (lot 9)
+
+`lib/domain/contexte-orchestration.ts` valide et normalise les faits déclarés
+par la personne : une période libre et des fenêtres `startsAt`/`endsAt` portant
+une `sourceRef` explicite. Il ne déduit aucune disponibilité, capacité ou
+préparation. Les modules vivants sont relus comme domaines déjà connus et ne
+sont pas redemandés ; les engagements ouverts sont seulement comptés pour
+afficher les échéances existantes.
+
+`components/dashboard/carte-preparation-periode.tsx` est une surface
+progressive, non une nouvelle destination. Elle est proposée après un premier
+succès, se reprend par étape et mémorise uniquement les étapes ignorées dans
+une clé `localStorage` isolée par compte. Les faits pédagogiques restent dans
+Supabase via `modifierProfil`; la carte ne stocke ni plan, ni état de
+préparation, ni score. `validation-supabase.ts` et `referentiel-actions.ts`
+partagent les mêmes validateurs de domaine et refusent les valeurs invalides.
+
+La migration additive `20260828201530_lot_9_contexte_declare.sql` a été
+appliquée le 28/08/2026 et son entrée est présente dans l'historique distant
+comme `lot_9_contexte_declare`. Elle ajoute deux colonnes nullable au profil et
+des contraintes de forme ; aucune table, RLS ou entité de travail n'est
+introduite. Les migrations locales des lots 1, 3 et 5 restent non enregistrées
+dans l'historique Supabase vérifié : leur application ne peut pas être inférée
+et n'a pas été rejouée.

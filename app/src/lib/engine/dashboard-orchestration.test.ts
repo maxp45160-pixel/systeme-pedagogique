@@ -128,7 +128,7 @@ describe("tableau de bord orchestration — rendu et interaction", () => {
 
   it("expose l'absence de preuve sans la transformer en niveau", () => {
     const result = view({ engagements: [engagement()] });
-    expect(result.deadline).toMatchObject({ state: "a-eclaircir", evidenceCount: 0 });
+    expect(result.deadline).toMatchObject({ state: "non-estimable", evidenceCount: 0 });
     expect(result.deadline?.unknowns).toContain("Entropie et irréversibilités");
     expect(result.deadline?.proofs).toEqual([]);
   });

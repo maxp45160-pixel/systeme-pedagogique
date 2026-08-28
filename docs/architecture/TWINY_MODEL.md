@@ -260,12 +260,15 @@ Le modèle ci-dessus décrit une direction validée, pas un état construit.
 
 - Le référentiel par compte, les preuves, observations, états dérivés et la
   recommandation immédiate existent en partie dans le code courant.
-- `LearningSession` existe, mais son extension à toutes les interventions
-  décrites ici reste à construire.
+- `LearningSession` existe et son registre multi-interventions est outillé
+  localement ; sa validation en parcours réel reste ouverte.
 - Les engagements, ressources de cours et séances datées existent sous des
   formes partielles.
-- Le plan global, la préparation aux échéances, la replanification groupée, la
-  synchronisation calendrier et les hypothèses de motifs ne sont pas construits.
+- Le plan temporel pur, l'acceptation et la replanification groupée sont
+  outillés localement. Le protocole de cours fournit des candidates et la fiche
+  module dérive ses lectures, mais le raccordement global n'a pas encore la
+  parité nécessaire pour retirer son ancien écrivain. La synchronisation
+  calendrier et les hypothèses de motifs ne sont pas construites.
 
 Toute migration commence par comparer ce modèle au code et à la base réels.
 Elle reste verticale, réversible et sans refonte globale.

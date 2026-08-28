@@ -3,16 +3,17 @@
 /**
  * Écritures du protocole de traitement d'un cours (ADR-130, ADR-131).
  *
- * Le protocole lui-même n'est pas une entité : il devient des `LearningSession`
- * planifiées, dont le `blueprint.origine` porte la trace de la fiche cours qui
- * les a fait naître. Trois gestes, qu'il faut tenir séparés :
+ * Le protocole lui-même n'est pas une entité : sa cible est de fournir des
+ * candidates au plan global. Tant que cette frontière ne sait pas encore
+ * transporter la commande documentaire, le chemin historique ci-dessous reste
+ * disponible : les séances planifiées portent dans `blueprint.origine` la
+ * trace de la fiche et du PDF qui les ont fait naître. Trois gestes, qu'il
+ * faut tenir séparés :
  *
- * 1. **`planifierSeanceProtocoleAction`** — la séance relue et cochée devient
- *    une vraie séance planifiée IMMÉDIATEMENT : composition avec le stock
- *    existant, écriture, et c'est tout. Aucun appel au tuteur : ce qui manque
- *    reste un manquant annoncé, et la commande (`origine.codes` + `consigne`)
- *    voyage dans l'origine (ADR-131). Créer un plan entier coûte des
- *    millisecondes — plus jamais une file d'appels LLM à la validation.
+ * 1. **`planifierSeanceProtocoleAction`** — compatibilité historique : la
+ *    séance relue et cochée devient une vraie séance planifiée immédiatement,
+ *    sans appel au tuteur. Ce chemin sera retiré avec la relève globale, pas
+ *    avant que l'acceptation atomique sache conserver l'origine documentaire.
  *
  * 2. **`preparerSeancePlanifieeAction`** — AU DÉMARRAGE de la séance, les
  *    manquants sont générés (le manquant est la commande passée au tuteur,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/documents/markdown";
 import { lireDocument, modifierDocument } from "./documents";
 import { extraireTexteSupportAction } from "./extraction-pdf";
+import { lirePiecesJointes } from "./document-attachments";
 import { dorsaleCompte, lire, modifier } from "./db";
 import { chargerContexte } from "./context";
 import { creerSeance } from "./seance-actions";
@@ -56,8 +58,10 @@ import {
   estIntentionCours,
   exerciceExplicationPour,
   exerciceRappelPour,
+  motifRefusDomaineCours,
   motifRefusIntentionLibre,
   motifRefusProtocole,
+  sourcePdfOrigineSeance,
   type DimensionSeance,
   type IntentionCours,
   type ProtocoleCours,
@@ -75,6 +79,8 @@ function budgetParExercice(dureeCibleMin: number, nombreExercices: number): numb
 
 export interface EntreeSeanceProtocole {
   ficheId: string;
+  /** PDF exact relu lors de la conception ; jamais « le plus récent » par défaut. */
+  pieceId: string;
   titre: string;
   dimension: DimensionSeance;
   codes: string[];
@@ -109,6 +115,22 @@ export async function planifierSeanceProtocoleAction(
   // Garde d'authentification : redirige sans session, comme toute écriture.
   await dorsaleCompte();
   const ctx = await chargerContexte();
+  const fiche = await lireDocument(entree.ficheId);
+  const analyseFiche = analyserDocumentMarkdown(fiche.id, fiche.contenuMd);
+  if (Boolean(analyseFiche.frontMatter.archive)) {
+    throw new Error("Ce cours est archivé. Reprenez-le avant de recomposer son travail.");
+  }
+  const domainId = typeof analyseFiche.frontMatter.domaine === "string"
+    ? analyseFiche.frontMatter.domaine.trim()
+    : "";
+  const refusDomaine = motifRefusDomaineCours(
+    domainId,
+    new Set(ctx.referentiel.domaines.filter((domain) => !domain.archive).map((domain) => domain.id)),
+  );
+  if (refusDomaine) throw new Error(refusDomaine);
+  const pdfSource = (await lirePiecesJointes(entree.ficheId))
+    .find((piece) => piece.id === entree.pieceId && piece.mimeType === "application/pdf");
+  if (!pdfSource) throw new Error("Le PDF source de ce protocole est introuvable.");
 
   const seance: SeanceProtocole = {
     titre: entree.titre,
@@ -175,6 +197,7 @@ export async function planifierSeanceProtocoleAction(
         origine: {
           genre: "protocole-cours",
           ficheId: entree.ficheId,
+          pieceId: entree.pieceId,
           titre: seance.titre,
           dimension: seance.dimension,
           // La commande différée (ADR-131) : ce que le démarrage passera au
@@ -338,8 +361,14 @@ export async function preparerSeancePlanifieeAction(
      */
     let ancrage: string | undefined;
     try {
-      const extrait = await extraireTexteSupportAction(origine.ficheId);
-      ancrage = extrait.extrait.trim() || undefined;
+      const source = sourcePdfOrigineSeance(origine);
+      if (source) {
+        const extrait = await extraireTexteSupportAction(
+          source.courseDocumentId,
+          source.sourceAttachmentId,
+        );
+        ancrage = extrait.extrait.trim() || undefined;
+      }
     } catch {
       ancrage = undefined;
     }

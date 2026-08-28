@@ -281,6 +281,50 @@ describe("profil", () => {
     });
   });
 
+  it("relit la période et les disponibilités déclarées sans les dériver", () => {
+    const user = profilVersUser(
+      {
+        id: "compte-1",
+        prenom: "Maxime",
+        formation: "BUT QLIO",
+        objectif_moyen_terme: "Objectif moyen terme",
+        objectif_long_terme: "Objectif long terme",
+        debut_suivi: "2026-07-24",
+        preferences_pedagogiques: [],
+        periode_declaree: "semestre d'automne 2026",
+        disponibilites_declarees: [
+          {
+            startsAt: "2026-08-28T09:00:00.000Z",
+            endsAt: "2026-08-28T10:00:00.000Z",
+            sourceRef: "declaree:profil",
+          },
+        ],
+      },
+      defaut,
+    );
+    expect(user.periodeDeclaree).toBe("semestre d'automne 2026");
+    expect(user.disponibilitesDeclarees).toEqual([
+      {
+        startsAt: "2026-08-28T09:00:00.000Z",
+        endsAt: "2026-08-28T10:00:00.000Z",
+        sourceRef: "declaree:profil",
+      },
+    ]);
+  });
+
+  it("refuse des disponibilités mal formées venues de Supabase", () => {
+    const ligne = {
+      id: "compte-1",
+      prenom: "Alice",
+      formation: "Formation",
+      objectif_moyen_terme: "Objectif moyen terme",
+      objectif_long_terme: "Objectif long terme",
+      debut_suivi: "2026-07-26",
+      preferences_pedagogiques: [],
+    };
+    expect(() => profilVersUser({ ...ligne, disponibilites_declarees: "demain" }, defaut)).toThrow(/profile\.disponibilitesDeclarees/);
+  });
+
   it("refuse une préférence mal formée venue de Supabase", () => {
     const ligne = {
       id: "compte-1",

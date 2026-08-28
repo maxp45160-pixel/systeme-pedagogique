@@ -87,20 +87,24 @@ l'application d'une migration de son seul fichier local.
 
 ### État Supabase vérifié le 28/08/2026
 
-La liste des migrations distante s'arrête à
-`20260825221304_usage_domaine_declare`. Une vérification en lecture seule de la
-base réelle montre pourtant les objets des deux premiers fichiers locaux
-ci-dessous ; la migration du lot 5, elle, reste seulement préparée localement :
+La liste des migrations distante s'arrête désormais à
+`20260828201530_lot_9_contexte_declare`. Une vérification en lecture seule de la
+base réelle montre les objets des trois premiers fichiers locaux ci-dessous ;
+seule la migration du lot 9 possède une entrée distante explicitement créée et
+vérifiée dans ce chantier :
 
 | Version locale | Objets constatés dans Supabase réel | Historique distant | Action |
 |---|---|---|---|
 | `20260828110000_interventions_seance.sql` | `public.sessions.interventions` (`jsonb`) | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
 | `20260828120000_lot_3_acceptation_plan.sql` | `public.sessions.origine_proposition`, `public.orchestration_command_receipts`, `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
-| `20260828150000_lot_5_revision_plan.sql` | aucun objet lot 5 constaté (`sessions.duree_planifiee_min` absente ; remplacement additif de `public.accepter_plan(text,jsonb)` non installé) | absente (préparée localement) | ne pas appliquer sans autorisation ; vérifier les deux versions précédentes et l'état de la RPC avant déploiement |
+| `20260828150000_lot_5_revision_plan.sql` | `public.sessions.duree_planifiee_min`, sa contrainte et l'extension visible de `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; provenance non inférable, réconcilier par le workflow d'infrastructure |
+| `20260828201530_lot_9_contexte_declare.sql` | `public.profiles.periode_declaree`, `public.profiles.disponibilites_declarees` et leurs contraintes de forme | présente (`20260828201530`) | appliquée et vérifiée le 28/08/2026 |
 
-Cette présence d'objets ne constitue ni une nouvelle validation produit ni une
-raison de rejouer une DDL. Toute correction de l'historique doit être additive,
-tracée et autorisée séparément.
+La présence d'objets des lots 1, 3 et 5 ne constitue ni une nouvelle validation
+produit ni une raison de rejouer une DDL : leur provenance reste inconnue. La
+migration du lot 9 est la seule appliquée explicitement dans ce chantier ; sa
+présence dans l'historique ne promeut aucun statut produit. Toute correction de
+l'historique doit être additive, tracée et autorisée séparément.
 
 ### Lecture des séances (lot 6)
 
@@ -1516,10 +1520,11 @@ de séance et la palette Bureau, ainsi que `PRODUCT.md`,
 
 **Persistance et migration.** Aucun schéma, donnée, route ou migration n'a été
 ajouté pour le lot 6. Une lecture Supabase en date du 28/08/2026 confirme que
-l'historique distant s'arrête à `20260825221304_usage_domaine_declare` ; les
-versions locales des lots 1, 3 et 5 ne sont pas inscrites dans cet historique
-(les objets des lots 1 et 3 sont toutefois constatés, tandis que le lot 5 n'est
-pas constaté). Cette divergence est documentée, non corrigée ni rejouée ici.
+l'historique distant inclut désormais `20260828201530_lot_9_contexte_declare`.
+Les versions locales des lots 1, 3 et 5 ne sont pas inscrites dans cet
+historique, bien que leurs objets soient constatés dans la base réelle ; leur
+divergence est documentée, non corrigée ni rejouée ici. Le lot 9 ajoute
+seulement les deux colonnes déclaratives du profil et leurs garde-fous.
 
 **Vérifications.** Tests ciblés lot 6 : 2 fichiers, 8 tests réussis. TypeScript
 (`tsc --noEmit`) et ESLint passent (11 avertissements préexistants). Le build

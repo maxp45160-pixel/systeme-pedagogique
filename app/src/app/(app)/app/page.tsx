@@ -11,10 +11,12 @@ import {
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 import { TableauBordOrchestration } from "@/components/dashboard/tableau-bord-orchestration";
+import { CartePreparationPeriode } from "@/components/dashboard/carte-preparation-periode";
 import { construireVueTableauBordOrchestration } from "@/lib/engine/dashboard-orchestration";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { prenomPourSalutation, resoudreIdentite } from "@/lib/domain/identite";
 import { estModuleActif } from "@/lib/domain/usage-domaine";
+import { estOuvert } from "@/lib/domain/engagement";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string }>;
@@ -56,6 +58,19 @@ async function ContenuTableauDeBord({ instant }: { instant: ContexteInstant }) {
         </h1>
         <p className="mt-4 font-serif text-lg text-texte-attenue">{dateAffichee}</p>
       </header>
+
+      <CartePreparationPeriode
+        compteId={ctx.donnees.user.id}
+        observationsCount={ctx.global.nombreObservations}
+        periodeDeclaree={ctx.donnees.user.periodeDeclaree}
+        disponibilitesDeclarees={ctx.donnees.user.disponibilitesDeclarees}
+        modules={ctx.referentiel.domaines
+          .filter(estModuleActif)
+          .map(({ id, nom }) => ({ id, nom }))}
+        engagementsOuverts={ctx.donnees.engagements
+          .filter(estOuvert)
+          .map(({ id, libelle, echeanceLe }) => ({ id, libelle, echeanceLe }))}
+      />
 
       <TableauBordOrchestration
         view={view}

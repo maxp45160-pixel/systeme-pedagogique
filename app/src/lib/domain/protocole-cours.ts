@@ -26,7 +26,7 @@
  */
 
 import { DUREE_ESTIMEE_MAX, DUREE_ESTIMEE_MIN, TEMPS_DECLARE_MAX } from "./exercice";
-import type { Exercise } from "./types";
+import type { Exercise, OrigineSeance } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Intention du cours                                                   */
@@ -67,6 +67,17 @@ export const INTENTION_LIBRE_MAX = 500;
 export function motifRefusIntentionLibre(texte: string): string | null {
   if (texte.length > INTENTION_LIBRE_MAX) {
     return `L'intention libre est trop longue : ${texte.length} caractères pour ${INTENTION_LIBRE_MAX} au plus.`;
+  }
+  return null;
+}
+
+/** Le support d'un protocole doit encore appartenir à un domaine vivant. */
+export function motifRefusDomaineCours(
+  domainId: string,
+  activeDomainIds: ReadonlySet<string>,
+): string | null {
+  if (!domainId.trim() || !activeDomainIds.has(domainId)) {
+    return "Le domaine du cours est absent ou archivé.";
   }
   return null;
 }
@@ -374,6 +385,7 @@ export function motifRefusOrigineSeance(
   origine: {
     genre: string;
     ficheId: string;
+    pieceId?: unknown;
     titre: string;
     dimension: unknown;
     /** Présents sur une écriture en préparation différée (ADR-131) — relu comme le reste. */
@@ -386,6 +398,10 @@ export function motifRefusOrigineSeance(
   }
   if (!origine.ficheId.trim()) {
     return "Une séance de protocole désigne la fiche cours qui l'a fait naître.";
+  }
+  if (origine.pieceId !== undefined
+    && (typeof origine.pieceId !== "string" || !origine.pieceId.trim())) {
+    return "Le PDF source d'une séance de protocole est invalide.";
   }
   const titre = origine.titre.trim();
   if (!titre || titre.length > TITRE_ORIGINE_MAX) {
@@ -418,4 +434,19 @@ export function motifRefusOrigineSeance(
     }
   }
   return null;
+}
+
+/**
+ * Désigne le seul PDF qu'une séance de protocole est autorisée à relire.
+ * L'absence d'attachement est conservée pour les séances historiques ; elle
+ * n'est jamais remplacée ici par un autre document.
+ */
+export function sourcePdfOrigineSeance(
+  origine: Pick<OrigineSeance, "ficheId" | "pieceId">,
+): { courseDocumentId: string; sourceAttachmentId: string } | null {
+  if (!origine.pieceId) return null;
+  return {
+    courseDocumentId: origine.ficheId,
+    sourceAttachmentId: origine.pieceId,
+  };
 }

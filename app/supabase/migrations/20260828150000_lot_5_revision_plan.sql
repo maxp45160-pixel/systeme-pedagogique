@@ -1,8 +1,10 @@
 -- Lot 5 — revue groupée des changements d'un plan recalculé.
 --
--- État au 28/08/2026 : migration préparée, NON appliquée. Les objets du lot 3
--- existent dans Supabase mais leurs versions ne figurent pas dans l'historique
--- distant ; ne pas rejouer ni appliquer cette migration sans le workflow
+-- État au 28/08/2026 : migration NON appliquée comme version enregistrée ; la
+-- colonne, la contrainte et les fonctions décrites sont visibles dans Supabase
+-- réel, mais cette version n'est pas inscrite dans l'historique distant
+-- (qui s'arrête à 20260825221304). La provenance de cette application ne peut
+-- pas être inférée ; ne pas rejouer ni appliquer ce fichier sans le workflow
 -- d'autorisation prévu. Elle ne crée aucune table et ne stocke pas le plan.
 --
 -- Compatibilité additive : l'ancienne fonction est conservée sous un nom

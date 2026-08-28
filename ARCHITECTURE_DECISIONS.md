@@ -7752,8 +7752,9 @@ skeuomorphie laissait un registre administratif à sa place.
 
 * **Le cahier ouvre toujours sur la page du jour.** Seuls les liens explicites
   (`?jour=`, `?session=`) ouvrent ailleurs. Le marque-page et sa clé localStorage
-  sont supprimés (`stockage-local.ts` ne porte plus que des préférences
-  d'appareil) ; `pageDOuverture` disparaît du domaine. L'URL n'est plus
+  sont supprimés (`stockage-local.ts` ne porte plus de marque-page ; il ne
+  conserve que des préférences d'appareil et des marqueurs d'interface
+  facultatifs isolés par compte) ; `pageDOuverture` disparaît du domaine. L'URL n'est plus
   réécrite à la navigation : un `?jour=` posé par `replaceState` serait devenu
   un lien explicite au rechargement et aurait réintroduit l'ouverture dans le
   passé.
@@ -7780,7 +7781,8 @@ skeuomorphie laissait un registre administratif à sa place.
 - ⚠️ Un lien profond vers un feuillet précis (`?f=2`) n'existe plus : aucun
   usage connu, la route ignorait déjà ce paramètre après migration.
 - `AGENTS.md` §garde-fous : la mention du marque-page comme donnée isolée par
-  compte disparaît avec lui ; `theme` et `rail` restent l'exception documentée.
+  compte disparaît avec lui ; `theme` et `rail` restent l'exception globale,
+  tandis que les marqueurs d'interface sont isolés par compte.
 
 ---
 
@@ -7984,8 +7986,9 @@ C'est l'écran où l'on passe le plus de temps.
   positionné, donc peint au-dessus du contenu non positionné qui le suit. Les
   numéros restaient visibles, les initiales disparaissaient. La maquette
   portait le `z-index` qui l'évite ; le portage l'avait perdu.
-- `AGENTS.md` §garde-fous : inchangé. `theme` et `rail` restent la seule
-  exception d'isolation par compte, et `RailEnSeance` n'y touche pas.
+- `AGENTS.md` §garde-fous : inchangé pour les préférences globales : `theme` et
+  `rail` restent l'exception d'isolation par compte, tandis que les marqueurs
+  d'interface facultatifs restent isolés ; `RailEnSeance` n'y touche pas.
 
 ---
 
@@ -11034,10 +11037,24 @@ en ✅. Au 28/08/2026, le planificateur pur, la frontière d'acceptation et le
 diff/revue groupée sont testés localement ; les objets des lots 1 et 3 sont
 présents dans la base réelle, mais les versions locales `20260828110000` et
 `20260828120000` ne figurent pas dans l'historique distant vérifié le
-28/08/2026. La colonne et la RPC prévues par la migration additive
-`20260828150000_lot_5_revision_plan.sql` ne sont pas présentes dans Supabase :
-la migration est seulement préparée pour le raccourcissement. Cet écart ne
-vaut pas autorisation de rejouer une DDL et ne promeut aucun statut.
+28/08/2026. La colonne, sa contrainte et la RPC prévues par la migration
+additive `20260828150000_lot_5_revision_plan.sql` sont visibles dans Supabase
+réel, mais l'entrée de cette migration n'est pas dans l'historique distant,
+qui s'arrête à `20260825221304`. Les versions locales des lots 1, 3 et 5
+restent donc non enregistrées, sans qu'une application ponctuelle puisse être
+déduite. Cet écart ne vaut pas autorisation de rejouer une DDL et ne promeut
+aucun statut.
+
+Le lot 9 ajoute uniquement au profil les faits déclarés nécessaires au contexte
+progressif : `periode_declaree` et `disponibilites_declarees`. La migration
+additive a été appliquée le 28/08/2026 et vérifiée dans l'historique Supabase
+sous la version `20260828201530` (`lot_9_contexte_declare`). Les étapes ignorées
+par la carte sont un état d'interface `localStorage` isolé par compte ; aucun
+plan, score de préparation ou objectif n'est persisté. La carte ne demande pas
+à nouveau les domaines déjà déclarés et ne fabrique pas une capacité en
+l'absence de disponibilité. Cette tranche outille le contexte mais ne démontre
+pas encore l'arbitrage réel de besoins concurrents ; le statut de l'ADR reste
+donc ❓.
 
 **Amende** [ADR-096](#adr-096) et [ADR-109](#adr-109). Elle conserve leur refus
 d'un objectif structuré fabriqué ou persisté, mais remplace leur refus de la
@@ -11119,11 +11136,12 @@ jamais le plan complet. Une candidate ignorée n'écrit aucune séance, une séa
 `en-cours` ou terminée est protégée, et une annulation ou un raccourcissement
 conserve l'absence d'observation fabriquée.
 La migration `20260828120000_lot_3_acceptation_plan.sql` décrit des objets
-désormais présents dans Supabase réel, mais sa version et celle du lot 1
-(`20260828110000_interventions_seance.sql`) restent absentes de l'historique
-distant. L'écart doit être réconcilié par le workflow d'infrastructure ; il ne
-faut pas rejouer ces fichiers ni considérer cette présence comme une validation
-de la brique.
+désormais présents dans Supabase réel, mais sa version, celle du lot 1
+(`20260828110000_interventions_seance.sql`) et celle du lot 5
+(`20260828150000_lot_5_revision_plan.sql`) restent absentes de l'historique
+distant vérifié le 28/08/2026. L'écart doit être réconcilié par le workflow
+d'infrastructure ; il ne faut pas rejouer ces fichiers ni considérer cette
+présence comme une validation de la brique.
 
 L'exécution du lot 7 réutilise cette extension sans nouvelle table ni route.
 `sessions.interventions` peut porter un `statut` facultatif de geste ; les
@@ -11140,6 +11158,14 @@ cette ADR reste donc ❓.
   analyse, ses exercices ancrés et ses gestes Feynman/rappel sont conservés ;
   sa matérialisation directe de plusieurs séances est retirée lorsque le plan
   global la remplace effectivement.
+  Au lot 8, l'adaptateur pur existe et distingue la fiche du PDF exact ; les
+  nouvelles origines historiques conservent cet attachement pour la génération
+  différée. Les vues « Cette semaine » et « Échéances » d'un module se dérivent
+  des séances acceptées, engagements et preuves. L'ancien écrivain reste en
+  place : les disponibilités confirmées ne sont pas encore fournies par le
+  parcours et la RPC d'acceptation ne transporte pas encore le blueprint
+  documentaire. Le retirer avant cette parité violerait ADR-131/132 ; cette
+  étape ne change donc pas le statut ❓ de la présente ADR.
 - Le compositeur manuel reste un échappatoire secondaire pour un besoin hors
   plan ; il cesse d'être le parcours nominal.
 - `/seances` expose par défaut une chronologie dérivée des `LearningSession`

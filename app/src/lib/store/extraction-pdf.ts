@@ -41,6 +41,7 @@ export interface ExtraitSupport {
 
 export async function extraireTexteSupportAction(
   documentId: string,
+  sourceAttachmentId?: string,
 ): Promise<ExtraitSupport> {
   const identifiant = documentId.trim();
   if (!identifiant) throw new Error("Fiche introuvable.");
@@ -52,17 +53,23 @@ export async function extraireTexteSupportAction(
   }
 
   // Dernier PDF attaché : c'est lui que « faire lire » désigne.
-  const { data: lignes, error } = await dorsale.supabase
+  let requete = dorsale.supabase
     .from("document_attachments")
     .select("id, storage_path")
     .eq("user_id", dorsale.userId)
     .eq("document_id", identifiant)
-    .eq("mime_type", MIME_PDF)
+    .eq("mime_type", MIME_PDF);
+  if (sourceAttachmentId) requete = requete.eq("id", sourceAttachmentId);
+  const { data: lignes, error } = await requete
     .order("created_at", { ascending: false })
     .limit(1);
   verifier("lecture de la pièce jointe PDF", error);
   const piece = ((lignes ?? []) as Array<{ id: string; storage_path: string }>)[0];
-  if (!piece) throw new Error("Aucun PDF n'est attaché à cette ressource.");
+  if (!piece) {
+    throw new Error(sourceAttachmentId
+      ? "Le PDF source de cette séance n'est plus attaché à ce cours."
+      : "Aucun PDF n'est attaché à cette ressource.");
+  }
 
   const cache = lireCacheExtrait(document.frontmatter, piece.id);
   if (cache) {

@@ -181,7 +181,7 @@ l'histoire des décisions.
 | « avec le degré de certitude » | ✅ Tenue. Les trois lectures restent distinctes ; l'interface les traduit en « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage ». |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 | « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
-| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), planificateur v0 et frontière d'acceptation préparés ; les objets Supabase des lots 1 et 3 sont présents, mais leurs deux versions de migration ne figurent pas dans l'historique distant et le parcours global n'est pas encore validé en conditions réelles. |
+| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), planificateur v0 et frontière d'acceptation préparés ; les objets Supabase des lots 1, 3 et 5 sont visibles, mais leurs trois versions de migration ne figurent pas dans l'historique distant et le parcours global n'est pas encore validé en conditions réelles. |
 
 ## 4. Public
 
@@ -393,14 +393,19 @@ planification d'ADR-096 et ADR-109 ; elle conserve leurs refus de fabriquer une
 intention ou un objectif structuré.
 Les lots 0 à 6 ont posé les contrats, le planificateur temporel pur, la
 frontière d'acceptation, la revue groupée locale et la lecture opérationnelle
-des séances acceptées ; les objets additifs des
-lots 1 et 3 sont présents dans Supabase réel mais les versions
-`20260828110000` et `20260828120000` ne sont pas inscrites dans l'historique
-distant. Les objets de durée du lot 5 ne sont pas présents ; la migration
-`20260828150000_lot_5_revision_plan.sql` est préparée mais reste en attente.
-Aucun statut de construction n'est promu avant une validation humaine et un
-scénario réel de bout en bout ; les migrations ne doivent pas être rejouées
-pour corriger cet écart.
+des séances acceptées. La vérification Supabase réelle du 28/08/2026 confirme
+que les colonnes `interventions`, `origine_proposition` et
+`duree_planifiee_min`, le reçu d'idempotence et les fonctions
+`accepter_plan(text,jsonb)`/`accepter_plan_lot3_legacy(text,jsonb)` sont
+présents, avec RLS actif. L'historique distant s'arrête toutefois à
+`20260825221304` : les versions locales
+`20260828110000_interventions_seance.sql`,
+`20260828120000_lot_3_acceptation_plan.sql` et
+`20260828150000_lot_5_revision_plan.sql` n'y sont pas enregistrées. La
+présence des objets ne permet pas d'inférer quelle instruction les a créés ;
+aucun fichier n'est rejoué et la réconciliation relève du workflow
+d'infrastructure approuvé. Aucun statut de construction n'est promu avant une
+validation humaine et un scénario réel de bout en bout.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
@@ -497,8 +502,9 @@ existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 interventions d'ADR-139, au diff de revue groupée et à la chronologie À venir est
 outillée côté domaine, engine, acceptation et `/seances` ; les objets Supabase additifs sont présents, mais les
 versions de migration ne figurent pas dans l'historique distant et doivent être
-réconciliées sans rejeu. Le raccourcissement de durée attend la migration
-`20260828150000` non appliquée. Plusieurs activités durables et séances
+réconciliées sans rejeu. La colonne de durée planifiée et la RPC de
+raccourcissement sont visibles dans l'état réel, mais leur entrée de migration
+`20260828150000` n'est pas enregistrée. Plusieurs activités durables et séances
 peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séance
 en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
@@ -786,6 +792,52 @@ la source de vérité des exercices et le contrat de preuve est le seul chemin
 vers une Observation. Le statut facultatif du geste est conservé dans le JSONB
 déjà porté par la séance : il ne crée ni entité ni score dérivé. Les séances
 historiques sont adaptées sans réécriture.
+
+### Lot 8 — cours et plan global
+
+❓ Le protocole d'un cours possède désormais un adaptateur pur vers les actions
+candidates du plan global. L'identité de chaque candidate distingue la fiche et
+le PDF effectivement analysé ; ce PDF précis voyage dans l'origine des nouvelles
+séances du chemin historique et reste le seul que la génération différée puisse
+relire. Une séance historique sans cette origine reste lisible, mais ne choisit
+aucun PDF de substitution. Un document archivé, un domaine orphelin ou un code
+hors référentiel est refusé ou mis en réserve, jamais remplacé par un exercice
+générique.
+
+La fiche d'un module dérive « Cette semaine » des `LearningSession` acceptées et
+« Échéances » des engagements et preuves disponibles. Ces lectures ne stockent
+ni échéance recopiée, ni plan, ni préparation. Sans preuve, la préparation est
+« Non estimable » ; le besoin de diagnostic reste une raison d'action, pas une
+mesure.
+
+Le raccordement reste partiel : l'interface ne collecte pas encore de
+disponibilités confirmées pour ces candidates et la frontière atomique du lot 3
+ne conserve pas encore le `blueprint.origine` documentaire requis par la
+préparation différée. La matérialisation directe historique du protocole reste
+donc en place jusqu'à cette parité ; elle ne doit être retirée que dans le même
+changement que sa relève globale testée. Le statut d'ADR-139 reste ❓.
+
+### Lot 9 — contexte progressif et besoins concurrents
+
+🔬 Une carte temporaire « Préparer votre période » apparaît après le premier
+succès observé. Elle relit les domaines vivants et les engagements existants,
+puis permet de déclarer une période, quelques disponibilités et de confirmer les
+échéances déjà connues, une étape à la fois. Les faits sont écrits dans les
+colonnes additives du profil ; l'étape ignorée seulement est mémorisée dans un
+`localStorage` isolé par compte. Aucun plan, score de préparation, objectif ou
+nouvelle entité de travail n'est créé. Les lectures de modules et d'échéances
+restent dérivées et une absence de disponibilité demeure une absence de fait,
+jamais une capacité fabriquée.
+
+La migration a été appliquée et vérifiée dans Supabase le 28/08/2026 sous la
+version distante `20260828201530` (`lot_9_contexte_declare`). Elle ajoute
+`profiles.periode_declaree` et `profiles.disponibilites_declarees` avec leurs
+garde-fous de forme. Les versions locales antérieures des lots 1, 3 et 5
+restent absentes de l'historique distant ; leur présence fonctionnelle ne vaut
+pas reconstitution de leurs entrées et aucun rejeu n'a été effectué. Le
+planificateur n'arbitre pas encore les besoins concurrents dans cette carte :
+la prochaine étape sûre est de lui fournir ces faits confirmés et de tester la
+tension entre échéances et continuité.
 
 ---
 
