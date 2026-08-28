@@ -47,6 +47,8 @@ export interface CreneauPropose {
 
 export interface PlanPropose {
   slots: CreneauPropose[];
+  /** Disponibilités déclarées utilisées pour placer les créneaux (transitoire). */
+  availability?: AvailabilityWindow[];
   readiness: PreparationEcheance[];
   constraints: string[];
   reservations: string[];
@@ -206,6 +208,17 @@ function readinessFor(
     .slice()
     .sort((left, right) => left.echeanceLe.localeCompare(right.echeanceLe) || left.id.localeCompare(right.id))
     .map((engagement) => stateForEngagement(engagement, states));
+}
+
+/**
+ * Lecture qualitative réutilisable par les écrans qui affichent une échéance.
+ * La préparation reste dérivée : ce point d'entrée ne persiste ni plan ni score.
+ */
+export function evaluerPreparationEcheances(
+  engagements: readonly Engagement[],
+  states: readonly SkillState[],
+): PreparationEcheance[] {
+  return readinessFor(engagements, states);
 }
 
 function dureeSessionAcceptee(session: LearningSession): number | null {
@@ -429,7 +442,7 @@ export function planifierTemps(
 
   if (now === null) {
     for (const classe of classes) reservations.push(`${classe.candidate.candidateId} non planifiée : instant invalide`);
-    return { slots, readiness, constraints, reservations };
+    return { slots, availability: input.availability.map((window) => ({ ...window })), readiness, constraints, reservations };
   }
 
   for (const classe of classes) {
@@ -477,7 +490,13 @@ export function planifierTemps(
     reservations.push("besoin continu non placé : capacité occupée ou indisponible");
   }
 
-  return { slots, readiness, constraints, reservations };
+  return {
+    slots,
+    availability: input.availability.map((window) => ({ ...window })),
+    readiness,
+    constraints,
+    reservations,
+  };
 }
 
 export type PlanProposal = PlanPropose;

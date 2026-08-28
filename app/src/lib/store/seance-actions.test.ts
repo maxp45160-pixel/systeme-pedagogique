@@ -24,7 +24,7 @@ vi.mock("./supabase-backend", () => ({ verifier: vi.fn() }));
 vi.mock("./cloture-exercice", () => ({ cloreExerciceAtomiquement: vi.fn() }));
 vi.mock("@/lib/seed/exercises", () => ({ EXERCICES_DIAGNOSTIC: [] }));
 
-import { creerSeanceFocusExercice } from "./seance-actions";
+import { annulerSeance, creerSeanceFocusExercice } from "./seance-actions";
 
 const EXERCICE: Exercise = {
   id: "ex-focus",
@@ -75,5 +75,34 @@ describe("création d'une séance focus", () => {
 
     await expect(creerSeanceFocusExercice(EXERCICE.id)).resolves.toBe("ses-nouvelle");
     expect(mocks.ajouter).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("annulation d'une séance planifiée", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.dorsaleCompte.mockResolvedValue({});
+  });
+
+  it("conserve le fait abandonné sans créer d'observation", async () => {
+    mocks.lire.mockResolvedValue([{
+      id: "ses-planifiee",
+      date: "2026-08-28T09:00:00.000Z",
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "planifiee",
+      planifieePour: "2026-08-28T09:00:00.000Z",
+    } satisfies LearningSession]);
+
+    await expect(annulerSeance("ses-planifiee")).resolves.toBe("/seances");
+    expect(mocks.modifier).toHaveBeenCalledWith(
+      "sessions",
+      "ses-planifiee",
+      { statut: "abandonnee", renonceeLe: expect.any(String) },
+      {},
+    );
+    expect(mocks.ajouter).not.toHaveBeenCalled();
   });
 });

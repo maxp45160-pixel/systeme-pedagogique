@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { resoudreIdentite } from "./identite";
+import { prenomPourSalutation, resoudreIdentite } from "./identite";
 
 describe("resoudreIdentite", () => {
+  it("raccourcit un identifiant de courriel automatique pour la salutation", () => {
+    const compte = { email: "maxime.peyredieu@gmail.com", user_metadata: {} };
+    const identite = resoudreIdentite(compte, { prenom: "maxime.peyredieu" });
+    expect(prenomPourSalutation(identite, compte)).toBe("Maxime");
+  });
+
+  it("garde le prénom déclaré et ne montre pas le nom de famille", () => {
+    const compte = { email: "maxime@test.com", user_metadata: { full_name: "Maxime Peyredieu" } };
+    const identite = resoudreIdentite(compte, null);
+    expect(prenomPourSalutation(identite, compte)).toBe("Maxime");
+  });
+
   it("extrait le nom et l'avatar depuis Google OAuth (picture + full_name)", () => {
     const compte = {
       email: "maxime.dupont@gmail.com",

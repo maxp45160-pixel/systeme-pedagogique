@@ -414,7 +414,9 @@ en résulte sont des faits durables.
 dans les disponibilités déclarées, en protégeant les `LearningSession` déjà
 acceptées. Il reçoit son instant de référence en paramètre : il ne lit ni
 l'horloge, ni Supabase, ni l'environnement, et son `PlanPropose` n'est pas
-persisté.
+persisté. La proposition transporte aussi, à titre transitoire, les fenêtres
+de disponibilité qui ont permis de placer ses créneaux ; elles sont revalidées
+avant toute acceptation et ne deviennent pas des faits pédagogiques.
 
 Les règles de départage (échéance la plus proche, puis identifiant stable) et
 la conservation d'un candidat `declared-need` sans engagement sont des
@@ -422,6 +424,34 @@ hypothèses v0 d'orchestration, pas des vérités pédagogiques. De même, le
 libellé `pret-d-apres-les-preuves-disponibles` repose provisoirement sur le
 palier existant `5`, sans nouveau seuil de calibration, pour être réévalué avec
 des données.
+
+### Acceptation et matérialisation v0 (lot 3)
+
+`lib/domain/acceptation-plan.ts` est la frontière pure qui relit une proposition
+affichée et un choix explicite. Elle refuse les candidates inconnues, les
+créneaux incohérents ou hors disponibilité, les compétences/domaines absents,
+les échéances fermées et les séances déjà `en-cours` ou terminées. Elle projette
+uniquement les candidates acceptées en `LearningSession` planifiées ; une durée
+annoncée reste dans l'intervention comme estimation et ne devient jamais
+`dureeMin`, qui est une durée réellement observée.
+
+`lib/store/plan-actions.ts` revalide le compte et les faits courants puis appelle
+une seule RPC transactionnelle. La migration additive
+`20260828120000_lot_3_acceptation_plan.sql` ajoute la provenance compacte de la
+séance et un reçu d'idempotence par compte. La vérification Supabase du
+28/08/2026 confirme que `sessions.interventions`,
+`sessions.origine_proposition`, `orchestration_command_receipts` et la RPC
+`accepter_plan(text,jsonb)` sont présents dans la base réelle. En revanche les
+versions locales `20260828110000_interventions_seance.sql` et
+`20260828120000_lot_3_acceptation_plan.sql` sont absentes de l'historique
+distant retourné par Supabase : aucun fichier n'est rejoué et sa
+réconciliation relève du workflow d'infrastructure approuvé. Le reçu ne conserve ni
+`PlanPropose`, ni `readiness`, ni observations. Les annulations sont des faits
+archivables (`abandonnee`) et les déplacements ne touchent aucune observation.
+En v0, un déplacement n'est accepté que si la durée déjà déclarée de la séance
+et une fenêtre de disponibilité couvrante sont relisibles : c'est une
+hypothèse de sûreté transactionnelle, pas une vérité pédagogique ni un nouveau
+seuil de calibration.
 
 ### Ordre de décision v0
 

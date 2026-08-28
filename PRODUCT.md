@@ -181,7 +181,7 @@ l'histoire des décisions.
 | « avec le degré de certitude » | ✅ Tenue. Les trois lectures restent distinctes ; l'interface les traduit en « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage ». |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 | « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
-| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), non construite : les séances isolées existent, pas encore le plan global ni sa replanification. |
+| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), planificateur v0 et frontière d'acceptation préparés ; les objets Supabase des lots 1 et 3 sont présents, mais leurs deux versions de migration ne figurent pas dans l'historique distant et le parcours global n'est pas encore validé en conditions réelles. |
 
 ## 4. Public
 
@@ -382,8 +382,8 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 
 ### Décidé
 
-**Décision produit validée le 27/08/2026, non construite — orchestration
-adaptative (ADR-139).** Le plan devient le circuit principal : il est dérivé,
+**Décision produit validée le 27/08/2026 — orchestration adaptative
+(ADR-139), encore en validation d'intégration.** Le plan devient le circuit principal : il est dérivé,
 explicable et recalculable ; seules les séances acceptées sont persistées sous
 forme de `LearningSession`. Le calendrier est une projection consentie du plan,
 jamais une source de vérité pédagogique. Une préparation à l'échéance reste une
@@ -391,6 +391,12 @@ vue dérivée avec réserves. Retard, refus et abandon peuvent replanifier, mais
 mesurent aucune compétence. Cette décision remplace uniquement les interdits de
 planification d'ADR-096 et ADR-109 ; elle conserve leurs refus de fabriquer une
 intention ou un objectif structuré.
+Les lots 0 à 3 ont posé les contrats, le planificateur temporel pur et la
+frontière d'acceptation ; les objets additifs sont présents dans Supabase réel
+mais les versions `20260828110000` et `20260828120000` ne sont pas inscrites
+dans l'historique distant. Aucun statut de construction n'est promu avant une
+validation humaine et un scénario réel de bout en bout ; les migrations ne
+doivent pas être rejouées pour corriger cet écart.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
@@ -484,9 +490,11 @@ projet réellement mené — pas d'avance.
 qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
-interventions d'ADR-139 est validée mais non construite. Plusieurs activités
-durables peuvent rester ouvertes, mais une seule séance peut être `en-cours`
-par compte. Les exercices historiques passent par un adaptateur sans copie ni
+interventions d'ADR-139 est outillée côté domaine et acceptation ; les objets
+Supabase additifs sont présents, mais les versions de migration ne figurent pas
+dans l'historique distant et doivent être réconciliées sans rejeu. Plusieurs activités durables et séances
+peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séance
+en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
 synthèse, la production, le diagnostic ou l'aide.
 🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :

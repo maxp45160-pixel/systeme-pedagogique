@@ -139,13 +139,14 @@ function texteNonVide(valeur: unknown): valeur is string {
 /** Retourne une réserve plutôt que de laisser une candidate invalide entrer dans le plan. */
 export function motifRefusActionCandidate(candidate: ActionCandidate): string | null {
   if (!texteNonVide(candidate.candidateId)) return "identité de candidate absente";
+  if (!ACTION_CANDIDATE_SOURCES.includes(candidate.source)) return "source de candidate inconnue";
   if (!texteNonVide(candidate.title)) return "libellé de candidate absent";
   if (!INTERVENTION_TYPES.includes(candidate.intervention)) return "type d'intervention inconnu";
   if (!INTERVENTION_EFFECTS.includes(candidate.expectedEffect)) return "effet attendu inconnu";
   if (!Number.isInteger(candidate.durationMinutes) || candidate.durationMinutes <= 0) {
     return "durée de candidate invalide";
   }
-  if (!Array.isArray(candidate.target.skillCodes)
+  if (!candidate.target || !Array.isArray(candidate.target.skillCodes)
     || candidate.target.skillCodes.some((code) => !texteNonVide(code))) {
     return "cibles de compétence invalides";
   }

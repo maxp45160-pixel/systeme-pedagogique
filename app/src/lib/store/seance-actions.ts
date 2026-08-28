@@ -25,7 +25,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, dorsaleCompte, lire, modifier, nouvelId, type DorsaleCompte } from "./db";
-import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
 import {
   avancementSeance,
@@ -691,10 +690,9 @@ export async function renoncerSeance(seanceId: string): Promise<void> {
  * Annule une séance qui n'a pas commencé.
  *
  * Elle refuse plutôt que de se replier en silence (ADR-027) : une séance en
- * cours porte des tentatives, et
- * les tentatives ne s'effacent pas. Le geste attendu là est de la terminer, pas
- * de la faire disparaître — une fonction qui fait autre chose que ce que son nom
- * annonce s'érode.
+ * cours porte des tentatives, et les tentatives ne s'effacent pas. Une séance
+ * planifiée est conservée comme fait abandonné et renoncé ; aucune observation
+ * n'est produite par l'annulation.
  */
 export async function annulerSeance(seanceId: string): Promise<string> {
   const dorsale = await dorsaleCompte();
@@ -706,12 +704,12 @@ export async function annulerSeance(seanceId: string): Promise<string> {
     );
   }
 
-  const { error } = await dorsale.supabase
-    .from("sessions")
-    .delete()
-    .eq("user_id", dorsale.userId)
-    .eq("id", seanceId);
-  verifier("annulation de la séance", error);
+  await modifier(
+    "sessions",
+    seanceId,
+    { statut: "abandonnee", renonceeLe: new Date().toISOString() },
+    dorsale,
+  );
   revalidatePath("/", "layout");
   // Destination retournée, pas `redirect` : voir `demarrerSeance`.
   return "/seances";

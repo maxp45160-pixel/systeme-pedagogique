@@ -33,6 +33,27 @@ export interface DonneesProfil {
   avatarUrl?: string | null;
 }
 
+/**
+ * Prénom court pour une salutation. Un identifiant de courriel de repli ne
+ * constitue pas un nom d'affichage : `maxime.peyredieu` devient donc
+ * « Maxime », tandis qu'un nom déclaré garde son premier mot.
+ */
+export function prenomPourSalutation(
+  identite: IdentiteUtilisateur,
+  compte?: DonneesCompteAuth | null,
+): string {
+  const nom = identite.nom.trim();
+  if (nom.length === 0) return "Compte";
+  const emailPart =
+    typeof compte?.email === "string" && compte.email.includes("@")
+      ? compte.email.split("@")[0].trim()
+      : null;
+  const nomIssuDuCourriel = Boolean(emailPart && nom.toLowerCase() === emailPart.toLowerCase());
+  const candidat = (nomIssuDuCourriel ? nom.split(/[._-]+/u)[0] : nom.split(/\s+/u)[0]).trim();
+  if (candidat.length === 0) return "Compte";
+  return candidat.charAt(0).toLocaleUpperCase("fr-FR") + candidat.slice(1);
+}
+
 export function resoudreIdentite(
   compte?: DonneesCompteAuth | null,
   profil?: DonneesProfil | null,

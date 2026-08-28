@@ -61,6 +61,32 @@ describe("validation de la frontière Supabase", () => {
     })).toThrow(/interventions.*type/);
   });
 
+  it("valide la provenance compacte sans accepter une forme vide", () => {
+    const session = validerSeance({
+      id: "ses-provenance",
+      date: "2026-08-28T10:00:00.000Z",
+      domaines: [],
+      skillCodes: [],
+      activites: [],
+      origineProposition: {
+        propositionRef: "plan-1",
+        candidateId: "c-1",
+        source: "existing-activity",
+      },
+      genereAutomatiquement: false,
+    });
+    expect(session.origineProposition?.propositionRef).toBe("plan-1");
+    expect(() => validerSeance({
+      id: "ses-provenance-invalide",
+      date: "2026-08-28T10:00:00.000Z",
+      domaines: [],
+      skillCodes: [],
+      activites: [],
+      origineProposition: { propositionRef: "", candidateId: "c-1", source: "x" },
+      genereAutomatiquement: false,
+    })).toThrow(/origineProposition\.propositionRef/);
+  });
+
   it("accepte une observation historique sans lui fabriquer de trace", () => {
     const resultat = validerObservation(observationHistorique);
     expect(resultat.source.trace).toBeUndefined();

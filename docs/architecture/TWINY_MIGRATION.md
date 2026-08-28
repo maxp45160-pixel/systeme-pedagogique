@@ -85,6 +85,21 @@ l'application d'une migration de son seul fichier local.
 
 ## 4. Roadmap et frontières
 
+### État Supabase vérifié le 28/08/2026
+
+La liste des migrations distante s'arrête à
+`20260825221304_usage_domaine_declare`. Une vérification en lecture seule de la
+base réelle montre pourtant les objets des deux fichiers locaux suivants :
+
+| Version locale | Objets constatés dans Supabase réel | Historique distant | Action |
+|---|---|---|---|
+| `20260828110000_interventions_seance.sql` | `public.sessions.interventions` (`jsonb`) | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
+| `20260828120000_lot_3_acceptation_plan.sql` | `public.sessions.origine_proposition`, `public.orchestration_command_receipts`, `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
+
+Cette présence d'objets ne constitue ni une nouvelle validation produit ni une
+raison de rejouer une DDL. Toute correction de l'historique doit être additive,
+tracée et autorisée séparément.
+
 ### Lot 0 — Contrats et continuité
 
 **Objectif.** Verrouiller le vocabulaire, les frontières métier, les ADR et le

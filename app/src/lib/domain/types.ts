@@ -780,6 +780,19 @@ export interface BlueprintSeance {
 }
 
 /**
+ * Provenance minimale d'une séance acceptée depuis un plan éphémère.
+ *
+ * Le plan complet reste dans la couche Décide et n'est jamais persisté. Ces
+ * trois faits suffisent à relire pourquoi la séance existe sans recopier les
+ * raisons, contraintes ou réserves recalculables du plan.
+ */
+export interface OrigineProposition {
+  propositionRef: string;
+  candidateId: string;
+  source: string;
+}
+
+/**
  * Ce qu'on DEMANDE à l'assemblage — le blueprint avant qu'il soit rempli.
  *
  * Jamais persisté : `composerSeance` (lib/engine/caf.ts) en dérive un
@@ -817,6 +830,8 @@ export interface LearningSession {
   activites: { type: string; ref: string; libelle: string }[];
   /** Vocabulaire canonique des gestes ; absent sur les séances historiques. */
   interventions?: InterventionSeance[];
+  /** Provenance compacte d'une acceptation de plan ; absente des historiques. */
+  origineProposition?: OrigineProposition;
   resultat?: string;
   difficulte?: string;
   apprentissagePrincipal?: string;

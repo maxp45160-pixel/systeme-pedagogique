@@ -131,7 +131,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
 | [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
-| [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, non construite — aucune montée en ✅ |
+| [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, outillage local préparé ; migration en attente — aucune montée en ✅ |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -11027,9 +11027,14 @@ d'orchestration et ses arbitrages le 27/08/2026, avec cette précision :
 contenant d'exercices scolaires et de porter aussi les autres interventions
 d'apprentissage.
 
-**Statut de la brique.** Direction tranchée, non construite. Elle reste ❓ tant
-que le premier plan global n'est pas calculé, relu, matérialisé et recalculé en
-conditions réelles ; cette ADR n'autorise aucune montée automatique en ✅.
+**Statut de la brique.** Direction tranchée, partiellement outillée. Elle reste
+❓ tant que le premier plan global n'est pas calculé, relu, matérialisé et
+recalculé en conditions réelles ; cette ADR n'autorise aucune montée automatique
+en ✅. Au 28/08/2026, le planificateur pur et la frontière d'acceptation sont
+testés localement ; leurs objets Supabase additifs sont présents dans la base
+réelle, mais les versions locales `20260828110000` et `20260828120000` ne
+figurent pas dans l'historique distant vérifié le 28/08/2026. Cet écart ne vaut
+pas autorisation de rejouer une DDL et ne promeut aucun statut.
 
 **Amende** [ADR-096](#adr-096) et [ADR-109](#adr-109). Elle conserve leur refus
 d'un objectif structuré fabriqué ou persisté, mais remplace leur refus de la
@@ -11099,6 +11104,20 @@ faire de l'emploi du temps une mesure sur la personne.
     voit jamais un moteur, une file de calcul ou une maintenance à administrer.
 
 ### Conséquences sur l'existant
+
+L'acceptation v0 passe par une frontière unique : la proposition affichée est
+revalidée contre le compte, le référentiel, les échéances et les séances
+existantes, puis une seule commande transactionnelle matérialise les séances
+acceptées. Un reçu par compte rend le double envoi idempotent ; il ne conserve
+que l'empreinte et le résultat minimal, jamais le plan complet. Une candidate
+ignorée n'écrit aucune séance, une séance `en-cours` ou terminée est protégée,
+et une annulation conserve un fait de séance sans toucher aux observations.
+La migration `20260828120000_lot_3_acceptation_plan.sql` décrit des objets
+désormais présents dans Supabase réel, mais sa version et celle du lot 1
+(`20260828110000_interventions_seance.sql`) restent absentes de l'historique
+distant. L'écart doit être réconcilié par le workflow d'infrastructure ; il ne
+faut pas rejouer ces fichiers ni considérer cette présence comme une validation
+de la brique.
 
 - `recommander` et la politique d'action existante restent le seul classement
   pédagogique ; le planificateur les compose dans le temps, il ne les duplique

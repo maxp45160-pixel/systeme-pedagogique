@@ -14,6 +14,7 @@ import {
   type Exercise,
   type ExerciseAttempt,
   type LearningSession,
+  type OrigineProposition,
   type RefusRecommandation,
   type Skill,
   type SkillObservation,
@@ -309,6 +310,18 @@ function validerBlueprint(valeur: unknown, chemin: string): void {
   }
 }
 
+function validerOrigineProposition(
+  valeur: unknown,
+  chemin: string,
+): OrigineProposition {
+  const origine = objet(valeur, chemin);
+  return {
+    propositionRef: texte(origine.propositionRef, `${chemin}.propositionRef`),
+    candidateId: texte(origine.candidateId, `${chemin}.candidateId`),
+    source: texte(origine.source, `${chemin}.source`),
+  };
+}
+
 export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSession {
   const seance = objet(valeur, chemin);
   texte(seance.id, `${chemin}.id`);
@@ -329,6 +342,9 @@ export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSes
       if (error instanceof Error) refuser(`${chemin}.interventions`, error.message);
       throw error;
     }
+  }
+  if (seance.origineProposition !== undefined) {
+    validerOrigineProposition(seance.origineProposition, `${chemin}.origineProposition`);
   }
   for (const cle of ["resultat", "difficulte", "apprentissagePrincipal", "prochaineAction", "notePersonnelle"] as const) {
     optionnel(seance, cle, chemin, (v, c) => texte(v, c, true));
