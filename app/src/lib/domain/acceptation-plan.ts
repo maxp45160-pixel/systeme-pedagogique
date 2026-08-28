@@ -20,13 +20,15 @@ import {
 } from "@/lib/engine/action-candidate";
 import type { CreneauPropose, PlanPropose } from "@/lib/engine/planification-temporelle";
 
-export type ActionAjustementSeance = "move" | "cancel";
+export type ActionAjustementSeance = "move" | "shorten" | "cancel";
 
 export interface AjustementSeance {
   sessionId: string;
   action: ActionAjustementSeance;
-  /** Requis pour un déplacement ; absent pour une annulation. */
+  /** Requis pour un déplacement ou un raccourcissement déplacé. */
   plannedFor?: string;
+  /** Requis pour un raccourcissement ; ne peut dépasser la durée actuelle (rejeu idempotent égal accepté). */
+  durationMinutes?: number;
 }
 
 /** Choix explicite de la personne, reçu avec la proposition affichée. */
@@ -76,6 +78,7 @@ export interface AjustementPlanifie {
   sessionId: string;
   action: ActionAjustementSeance;
   plannedFor?: string;
+  durationMinutes?: number;
 }
 
 /** Charge utile minimale de la commande RPC ; elle ne contient pas le plan. */
@@ -210,6 +213,9 @@ function validerDisponibilites(plan: PlanPropose, fenetres: readonly FenetreDisp
 }
 
 function dureeSessionEstimee(session: LearningSession): number | null {
+  if (typeof session.dureePlanifieeMin === "number" && Number.isInteger(session.dureePlanifieeMin) && session.dureePlanifieeMin > 0) {
+    return session.dureePlanifieeMin;
+  }
   const dureeMin = session.dureeMin;
   if (typeof dureeMin === "number" && Number.isInteger(dureeMin) && dureeMin > 0) return dureeMin;
   const durees = (session.interventions ?? []).map((intervention) => intervention.estimatedDurationMinutes);
@@ -259,7 +265,7 @@ function validerAjustements(
   idsUniques(ajustements.map((item) => item.sessionId), "adjustments.sessionId");
   const parId = new Map(sessionsExistantes.map((session) => [session.id, session]));
   return ajustements.map((item) => {
-    if (item.action !== "move" && item.action !== "cancel") refuser(`action d'ajustement inconnue pour ${item.sessionId}`);
+    if (item.action !== "move" && item.action !== "shorten" && item.action !== "cancel") refuser(`action d'ajustement inconnue pour ${item.sessionId}`);
     const existante = parId.get(item.sessionId);
     if (sessionsExistantes && !existante) {
       refuser(`séance ${item.sessionId} introuvable dans le compte`);
@@ -270,19 +276,34 @@ function validerAjustements(
         refuser(`séance ${item.sessionId} déjà ${statut}, elle est protégée`);
       }
     }
-    if (item.action === "move") {
-      const plannedFor = dateValide(item.plannedFor, `adjustments.${item.sessionId}.plannedFor`);
+    if (item.action === "move" || item.action === "shorten") {
+      if (item.action === "move" && item.durationMinutes !== undefined) {
+        refuser(`un déplacement ne modifie pas la durée (${item.sessionId})`);
+      }
       if (!existante) refuser(`séance ${item.sessionId} sans fait de durée pour le déplacement`);
       const duration = dureeSessionEstimee(existante);
       if (duration === null) refuser(`séance ${item.sessionId} sans durée revalidable pour le déplacement`);
+      const plannedFor = dateValide(
+        item.plannedFor ?? existante.planifieePour ?? existante.date,
+        `adjustments.${item.sessionId}.plannedFor`,
+      );
+      const nouvelleDuree = item.action === "shorten" ? item.durationMinutes : duration;
+      if (item.action === "shorten" && (!Number.isInteger(nouvelleDuree) || (nouvelleDuree ?? 0) <= 0 || (nouvelleDuree ?? 0) > duration)) {
+        refuser(`séance ${item.sessionId} sans durée de raccourcissement valide`);
+      }
       const start = Date.parse(plannedFor);
-      const end = start + duration * 60_000;
+      const end = start + (nouvelleDuree ?? duration) * 60_000;
       if (!fenetres.some((fenetre) => fenetre.debut <= start && end <= fenetre.fin)) {
         refuser(`déplacement de ${item.sessionId} hors des disponibilités déclarées`);
       }
-      return { sessionId: item.sessionId, action: item.action, plannedFor };
+      return {
+        sessionId: item.sessionId,
+        action: item.action,
+        plannedFor,
+        ...(item.action === "shorten" ? { durationMinutes: nouvelleDuree } : {}),
+      };
     }
-    if (item.plannedFor !== undefined) refuser(`une annulation ne porte pas de nouveau créneau (${item.sessionId})`);
+    if (item.plannedFor !== undefined || item.durationMinutes !== undefined) refuser(`une annulation ne porte ni créneau ni durée (${item.sessionId})`);
     return { sessionId: item.sessionId, action: item.action };
   }).sort((a, b) => a.sessionId.localeCompare(b.sessionId));
 }

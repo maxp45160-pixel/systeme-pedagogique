@@ -222,6 +222,9 @@ export function evaluerPreparationEcheances(
 }
 
 function dureeSessionAcceptee(session: LearningSession): number | null {
+  if (session.dureePlanifieeMin !== undefined && Number.isInteger(session.dureePlanifieeMin) && session.dureePlanifieeMin > 0) {
+    return session.dureePlanifieeMin;
+  }
   if (session.dureeMin !== undefined && Number.isInteger(session.dureeMin) && session.dureeMin > 0) {
     return session.dureeMin;
   }

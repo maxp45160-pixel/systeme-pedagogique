@@ -89,16 +89,26 @@ l'application d'une migration de son seul fichier local.
 
 La liste des migrations distante s'arrête à
 `20260825221304_usage_domaine_declare`. Une vérification en lecture seule de la
-base réelle montre pourtant les objets des deux fichiers locaux suivants :
+base réelle montre pourtant les objets des deux premiers fichiers locaux
+ci-dessous ; la migration du lot 5, elle, reste seulement préparée localement :
 
 | Version locale | Objets constatés dans Supabase réel | Historique distant | Action |
 |---|---|---|---|
 | `20260828110000_interventions_seance.sql` | `public.sessions.interventions` (`jsonb`) | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
 | `20260828120000_lot_3_acceptation_plan.sql` | `public.sessions.origine_proposition`, `public.orchestration_command_receipts`, `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
+| `20260828150000_lot_5_revision_plan.sql` | aucun objet lot 5 constaté (`sessions.duree_planifiee_min` absente ; remplacement additif de `public.accepter_plan(text,jsonb)` non installé) | absente (préparée localement) | ne pas appliquer sans autorisation ; vérifier les deux versions précédentes et l'état de la RPC avant déploiement |
 
 Cette présence d'objets ne constitue ni une nouvelle validation produit ni une
 raison de rejouer une DDL. Toute correction de l'historique doit être additive,
 tracée et autorisée séparément.
+
+### Lecture des séances (lot 6)
+
+Le lot 6 est sans migration : `lib/engine/seances-a-venir.ts` ne fait que
+projeter les `LearningSession` déjà lues et la route `/seances` conserve les
+liens et le Cahier existants. L'historique Supabase vérifié reste la référence
+pour les lots précédents ; aucune présence de colonne ou de fonction dans le
+schéma local ne vaut preuve d'application distante.
 
 ### Lot 0 — Contrats et continuité
 
@@ -1483,3 +1493,47 @@ une compétence sans observation est simplement non évaluée — invariant 3,
 absence de preuve ≠ zéro, sans intermédiaire déclaratif. Code touché :
 `types.ts` (champ + union du statut), `skill-state.ts`,
 `contexte.ts` (marqueur « ?D »), `validation-supabase.ts`, fixture et tests.
+
+### Passage de relais — lot 6 — 28/08/2026
+
+**Périmètre livré.** La route existante `/seances` ouvre désormais la lecture
+« À venir » : une projection pure regroupe les `LearningSession` acceptées
+encore `planifiee` ou `en-cours` par jour, dans l'ordre temporel, avec heure,
+durée connue, intervention, domaine, effet attendu, statut et réserves. Une
+date absente ou invalide, une intervention manquante ou un domaine absent reste
+visible comme réserve ; aucune valeur pédagogique n'est fabriquée. Les
+séances historiques restent dans le Cahier/calendrier. Les paramètres
+`?vue=cahier`, `?vue=bureau`, `?jour=`, `?session=` et le mode focus restent
+compatibles. Le ConcepteurSeance n'est accessible que par l'action secondaire
+« Préparer autre chose ».
+
+**Fichiers du lot.** `app/src/lib/domain/vue-seances.ts`,
+`app/src/lib/engine/seances-a-venir.ts` et son test,
+`app/src/components/seances/seances-a-venir.tsx` et son test,
+`cahier-interactif.tsx`, la page `/seances`, `cahier-archive.tsx`, les actions
+de séance et la palette Bureau, ainsi que `PRODUCT.md`,
+`ENGINE_CONTRACTS.md` et `ARCHITECTURE_DECISIONS.md`.
+
+**Persistance et migration.** Aucun schéma, donnée, route ou migration n'a été
+ajouté pour le lot 6. Une lecture Supabase en date du 28/08/2026 confirme que
+l'historique distant s'arrête à `20260825221304_usage_domaine_declare` ; les
+versions locales des lots 1, 3 et 5 ne sont pas inscrites dans cet historique
+(les objets des lots 1 et 3 sont toutefois constatés, tandis que le lot 5 n'est
+pas constaté). Cette divergence est documentée, non corrigée ni rejouée ici.
+
+**Vérifications.** Tests ciblés lot 6 : 2 fichiers, 8 tests réussis. TypeScript
+(`tsc --noEmit`) et ESLint passent (11 avertissements préexistants). Le build
+Next.js et la suite complète avaient été vérifiés ; la suite complète conserve
+un échec préexistant dans `store/marge-actions.test.ts` lié à la date du jour.
+La tentative de capture interactive a atteint `/login` faute de session
+authentifiée disponible ; aucune donnée ni authentifiant n'a été saisi. Le
+contrôle visuel authentifié reste donc à effectuer dans un environnement de
+test connecté.
+
+**Limite connue et prochain lot.** Le bouton « Déplacer » ouvre une explication
+accessible : le dépôt ne possède pas encore de commande de déplacement directe
+ni de sélecteur de disponibilités dans cette vue. Il ne modifie donc jamais une
+séance acceptée ; la conséquence doit passer par un recalcul de plan et un
+choix explicite, conformément à ADR-139. La prochaine étape sûre est de valider
+humainement ce parcours et de brancher, si nécessaire, cette frontière au
+workflow de révision du lot 5 sans nouvelle entité ni écriture implicite.

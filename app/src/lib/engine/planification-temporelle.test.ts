@@ -122,6 +122,14 @@ describe("planifierTemps — v0 pur et déterministe", () => {
     expect(plan.constraints).toContain("aucune disponibilité déclarée exploitable");
   });
 
+  it("protège la durée de créneau déclarée sans la confondre avec le réel", () => {
+    const plan = planifierTemps(input({
+      availability: [{ startsAt: "2026-08-28T08:30:00.000Z", endsAt: "2026-08-28T12:00:00.000Z", sourceRef: "agenda:matin" }],
+      acceptedSessions: [session({ dureePlanifieeMin: 15, blueprint: undefined })],
+    }));
+    expect(plan.slots[0]?.plannedFor).toBe("2026-08-28T08:45:00.000Z");
+  });
+
   it("ne planifie pas dans une disponibilité déjà passée", () => {
     const plan = planifierTemps(input({
       availability: [{

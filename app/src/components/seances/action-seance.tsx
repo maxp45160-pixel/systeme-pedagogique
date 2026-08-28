@@ -31,6 +31,7 @@ export function ActionSeance({
   variante = "principal",
   taille = "normale",
   titre,
+  className,
 }: {
   action: (seanceId: string) => Promise<string | void>;
   seanceId: string;
@@ -38,6 +39,7 @@ export function ActionSeance({
   variante?: "principal" | "secondaire" | "discret" | "danger";
   taille?: "normale" | "compacte" | "petite";
   titre?: string;
+  className?: string;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -52,6 +54,7 @@ export function ActionSeance({
         title={titre}
         disabled={enCours}
         enChargement={enCours}
+        className={className}
         onClick={() => {
           setErreur(null);
           demarrer(async () => {

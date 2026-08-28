@@ -163,4 +163,17 @@ describe("tableau de bord orchestration — rendu et interaction", () => {
     expect(markup).toContain("Déclarer une échéance");
     expect(markup).toContain("Voir les séances");
   });
+
+  it("expose une entrée unique vers la revue groupée quand un diff est fourni", () => {
+    const markup = renderToStaticMarkup(createElement(TableauBordOrchestration, {
+      view: view(),
+      revision: {
+        diff: { changes: [], silentCandidateIds: [], conflicts: [], constraints: [], reservations: [] },
+        onAppliquer: () => undefined,
+        onModifier: () => undefined,
+        onGarder: () => undefined,
+      },
+    }));
+    expect(markup).toContain("Revoir les changements");
+  });
 });

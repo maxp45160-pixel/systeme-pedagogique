@@ -161,6 +161,69 @@ describe("préparation pure de l'acceptation d'un plan", () => {
     )).toThrow(/disponibilités/);
   });
 
+  it("prépare un raccourcissement explicite sans toucher aux preuves", () => {
+    const session = {
+      id: "ses-short",
+      date: SLOT_START,
+      planifieePour: SLOT_START,
+      dureeMin: 30,
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "planifiee",
+    } as LearningSession;
+    const commande = preparerCommandeAcceptationPlan(
+      plan(),
+      choix({ adjustments: [{ sessionId: "ses-short", action: "shorten", durationMinutes: 15 }] }),
+      { ...contexte, sessionsExistantes: [session] },
+    );
+    expect(commande.adjustments).toEqual([{
+      sessionId: "ses-short",
+      action: "shorten",
+      plannedFor: SLOT_START,
+      durationMinutes: 15,
+    }]);
+  });
+
+  it("refuse d'allonger une séance acceptée par un raccourcissement", () => {
+    const session = {
+      id: "ses-short",
+      date: SLOT_START,
+      planifieePour: SLOT_START,
+      dureeMin: 30,
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "planifiee",
+    } as LearningSession;
+    expect(() => preparerCommandeAcceptationPlan(
+      plan(),
+      choix({ adjustments: [{ sessionId: "ses-short", action: "shorten", durationMinutes: 45 }] }),
+      { ...contexte, sessionsExistantes: [session] },
+    )).toThrow(/raccourcissement valide/);
+  });
+
+  it("tolère le même raccourcissement lors d'un rejeu idempotent", () => {
+    const session = {
+      id: "ses-short",
+      date: SLOT_START,
+      planifieePour: SLOT_START,
+      dureePlanifieeMin: 15,
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "planifiee",
+    } as LearningSession;
+    expect(() => preparerCommandeAcceptationPlan(
+      plan(),
+      choix({ adjustments: [{ sessionId: "ses-short", action: "shorten", durationMinutes: 15 }] }),
+      { ...contexte, sessionsExistantes: [session] },
+    )).not.toThrow();
+  });
+
   it("refuse les chevauchements des créneaux acceptés", () => {
     const second = candidate("c-2");
     const overlapping: PlanPropose = {

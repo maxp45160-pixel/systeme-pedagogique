@@ -27,6 +27,7 @@ export function ActionPreparerSeance({
   libelle = "Préparer et démarrer",
   taille = "normale",
   instantanee = false,
+  className,
 }: {
   seanceId: string;
   /** Présent : la clé personnelle du compte est proposée au tuteur si écrite. */
@@ -35,6 +36,7 @@ export function ActionPreparerSeance({
   taille?: "normale" | "compacte" | "petite";
   /** Vrai : la préparation n'appelle pas le tuteur (ADR-133) — pas d'annonce d'attente. */
   instantanee?: boolean;
+  className?: string;
 }) {
   const router = useRouter();
   const [phase, setPhase] = useState<"repos" | "preparation" | "demarrage">("repos");
@@ -48,6 +50,7 @@ export function ActionPreparerSeance({
         taille={taille}
         disabled={phase !== "repos"}
         enChargement={phase !== "repos"}
+        className={className}
         onClick={() => {
           setErreur(null);
           setPhase("preparation");

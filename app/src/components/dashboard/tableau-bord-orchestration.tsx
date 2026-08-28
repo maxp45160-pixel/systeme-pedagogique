@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import { ModaleRevuePlan, type RevuePlanProps } from "@/components/dashboard/modale-revue-plan";
 import type {
   DashboardDayEntry,
   DashboardDeadline,
@@ -318,13 +319,46 @@ export function TableauBordOrchestration({
   view,
   competences = [],
   modules = [],
+  revision,
 }: {
   view: DashboardOrchestrationView;
   competences?: { code: string; intitule: string }[];
   modules?: { id: string; nom: string }[];
+  /** Optionnel : le parent applicatif fournit le diff et la frontière d'écriture. */
+  revision?: Pick<RevuePlanProps, "diff" | "onAppliquer" | "onModifier" | "onGarder">;
 }) {
+  const [revisionOuverte, setRevisionOuverte] = useState(false);
+
+  const fermerRevision = () => setRevisionOuverte(false);
+  const garderRevision = () => {
+    revision?.onGarder();
+    fermerRevision();
+  };
+  const modifierRevision = () => {
+    revision?.onModifier();
+    fermerRevision();
+  };
+  const appliquerRevision = async () => {
+    if (!revision) return;
+    await revision.onAppliquer();
+    fermerRevision();
+  };
+
   return (
     <div className="space-y-5 sm:space-y-6" data-testid="tableau-bord-orchestration">
+      {revision && (
+        <div className="flex justify-end">
+          <Bouton
+            variante="secondaire"
+            taille="normale"
+            onClick={() => setRevisionOuverte(true)}
+            aria-haspopup="dialog"
+            aria-expanded={revisionOuverte}
+          >
+            Revoir les changements
+          </Bouton>
+        </div>
+      )}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-7 xl:grid-cols-12 xl:gap-6">
         <div className="space-y-5 xl:col-span-7">
           <Journee view={view} />
@@ -350,6 +384,16 @@ export function TableauBordOrchestration({
         </div>
       </div>
       <BandeauJours view={view} />
+      {revision && (
+        <ModaleRevuePlan
+          {...revision}
+          ouverte={revisionOuverte}
+          onFermer={fermerRevision}
+          onAppliquer={appliquerRevision}
+          onModifier={modifierRevision}
+          onGarder={garderRevision}
+        />
+      )}
     </div>
   );
 }

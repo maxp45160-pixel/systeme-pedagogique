@@ -212,6 +212,34 @@ describe("frontière serveur d'acceptation de plan", () => {
     ]);
   });
 
+  it("transmet un raccourcissement explicite dans le même lot", async () => {
+    const session = {
+      id: "ses-short",
+      date: "2026-08-28T08:00:00.000Z",
+      planifieePour: "2026-08-28T08:00:00.000Z",
+      dureeMin: 30,
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "planifiee",
+    };
+    mocks.lire.mockImplementation(async (nom: string) => nom === "sessions" ? [session] : []);
+    await accepterPlan(plan, {
+      requestId: "request-short",
+      propositionRef: "proposition-1",
+      acceptedCandidateIds: ["c-1"],
+      ignoredCandidateIds: [],
+      adjustments: [{ sessionId: "ses-short", action: "shorten", durationMinutes: 15 }],
+    });
+    expect(mocks.rpc.mock.calls[0][1].p_payload.adjustments).toEqual([{
+      sessionId: "ses-short",
+      action: "shorten",
+      plannedFor: "2026-08-28T08:00:00.000Z",
+      durationMinutes: 15,
+    }]);
+  });
+
   it("ne fabrique aucune écriture si la transaction RPC est refusée", async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "conflit", code: "40001" } });
     await expect(accepterPlan(plan, {

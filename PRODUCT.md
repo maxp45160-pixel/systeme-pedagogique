@@ -391,12 +391,16 @@ vue dérivée avec réserves. Retard, refus et abandon peuvent replanifier, mais
 mesurent aucune compétence. Cette décision remplace uniquement les interdits de
 planification d'ADR-096 et ADR-109 ; elle conserve leurs refus de fabriquer une
 intention ou un objectif structuré.
-Les lots 0 à 3 ont posé les contrats, le planificateur temporel pur et la
-frontière d'acceptation ; les objets additifs sont présents dans Supabase réel
-mais les versions `20260828110000` et `20260828120000` ne sont pas inscrites
-dans l'historique distant. Aucun statut de construction n'est promu avant une
-validation humaine et un scénario réel de bout en bout ; les migrations ne
-doivent pas être rejouées pour corriger cet écart.
+Les lots 0 à 6 ont posé les contrats, le planificateur temporel pur, la
+frontière d'acceptation, la revue groupée locale et la lecture opérationnelle
+des séances acceptées ; les objets additifs des
+lots 1 et 3 sont présents dans Supabase réel mais les versions
+`20260828110000` et `20260828120000` ne sont pas inscrites dans l'historique
+distant. Les objets de durée du lot 5 ne sont pas présents ; la migration
+`20260828150000_lot_5_revision_plan.sql` est préparée mais reste en attente.
+Aucun statut de construction n'est promu avant une validation humaine et un
+scénario réel de bout en bout ; les migrations ne doivent pas être rejouées
+pour corriger cet écart.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
@@ -490,13 +494,23 @@ projet réellement mené — pas d'avance.
 qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
-interventions d'ADR-139 est outillée côté domaine et acceptation ; les objets
-Supabase additifs sont présents, mais les versions de migration ne figurent pas
-dans l'historique distant et doivent être réconciliées sans rejeu. Plusieurs activités durables et séances
+interventions d'ADR-139, au diff de revue groupée et à la chronologie À venir est
+outillée côté domaine, engine, acceptation et `/seances` ; les objets Supabase additifs sont présents, mais les
+versions de migration ne figurent pas dans l'historique distant et doivent être
+réconciliées sans rejeu. Le raccourcissement de durée attend la migration
+`20260828150000` non appliquée. Plusieurs activités durables et séances
 peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séance
 en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
 synthèse, la production, le diagnostic ou l'aide.
+🔬 **La vue nominale de Séances est « À venir »** (lot 6). Elle relit les
+`LearningSession` acceptées encore planifiées ou en cours dans une chronologie
+groupée par jour ; l'Historique conserve le Cahier et son calendrier, et les
+liens jour/focus existants restent compatibles. Les absences de date,
+d'intervention ou de domaine sont montrées comme réserves, jamais complétées
+par une valeur pédagogique inventée. Le compositeur manuel devient l'action
+secondaire « Préparer autre chose » ; aucun déplacement n'est écrit sans
+recalcul et choix explicites.
 🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :
 `learning_loop_mode` a été retiré avec la boucle qu'il gardait (ADR-070). La
 suppression des 7 tables a fait l'objet de l'autorisation distincte que cette

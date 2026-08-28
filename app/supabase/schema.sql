@@ -471,6 +471,8 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   user_id                  UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   date                     TEXT NOT NULL,
   duree_min                INTEGER,
+  -- Durée de créneau acceptée, distincte d'une durée réellement observée.
+  duree_planifiee_min      INTEGER CHECK (duree_planifiee_min IS NULL OR duree_planifiee_min > 0),
   domaines                 TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   skill_codes              TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   -- Compatibilité de lecture avec les séances historiques. Les nouvelles
@@ -3297,6 +3299,8 @@ DECLARE
   v_session_id TEXT;
   v_planned TIMESTAMPTZ;
   v_duration INTEGER;
+  v_current_duration INTEGER;
+  v_new_duration INTEGER;
   v_statut TEXT;
   v_accepted_ids JSONB := '[]'::JSONB;
   v_adjusted_ids JSONB := '[]'::JSONB;
@@ -3348,10 +3352,15 @@ BEGIN
     SELECT value FROM jsonb_array_elements(coalesce(p_payload->'adjustments', '[]'::JSONB))
   LOOP
     v_session_id := btrim(coalesce(v_item->>'sessionId', ''));
-    IF v_session_id = '' OR coalesce(v_item->>'action', '') NOT IN ('move', 'cancel') THEN
+    IF v_session_id = '' OR coalesce(v_item->>'action', '') NOT IN ('move', 'shorten', 'cancel') THEN
       RAISE EXCEPTION 'Ajustement de séance invalide.' USING ERRCODE = '22023';
     END IF;
-    SELECT statut INTO v_statut
+    SELECT statut, coalesce(
+      duree_planifiee_min,
+      duree_min,
+      (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)
+         FROM jsonb_array_elements(coalesce(sessions.interventions, '[]'::JSONB)) AS interventions(intervention))
+    ) INTO v_statut, v_current_duration
       FROM public.sessions
      WHERE user_id = v_uid AND id = v_session_id
      FOR UPDATE;
@@ -3368,6 +3377,37 @@ BEGIN
       UPDATE public.sessions
          SET statut = 'abandonnee', renoncee_le = coalesce(renoncee_le, now()::TEXT)
        WHERE user_id = v_uid AND id = v_session_id;
+    ELSIF v_item->>'action' = 'shorten' THEN
+      IF coalesce(v_item->>'durationMinutes', '') !~ '^[1-9][0-9]*$' THEN
+        RAISE EXCEPTION 'Un raccourcissement exige une durée positive.' USING ERRCODE = '22023';
+      END IF;
+      v_new_duration := (v_item->>'durationMinutes')::INTEGER;
+      IF v_current_duration IS NULL OR v_new_duration > v_current_duration THEN
+        RAISE EXCEPTION 'La séance % ne peut pas être allongée par ce raccourcissement.', v_session_id USING ERRCODE = '40001';
+      END IF;
+      IF v_item ? 'plannedFor' THEN
+        IF btrim(coalesce(v_item->>'plannedFor', '')) = '' THEN
+          RAISE EXCEPTION 'Le créneau de raccourcissement est invalide.' USING ERRCODE = '22023';
+        END IF;
+        v_planned := (v_item->>'plannedFor')::TIMESTAMPTZ;
+      ELSE
+        v_planned := (SELECT coalesce(planifiee_pour, date)::TIMESTAMPTZ FROM public.sessions WHERE user_id = v_uid AND id = v_session_id);
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM public.sessions s
+         WHERE s.user_id = v_uid AND s.id <> v_session_id
+           AND s.statut IN ('planifiee', 'en-cours') AND s.planifiee_pour IS NOT NULL
+           AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => v_new_duration::DOUBLE PRECISION)
+           AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
+             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
+             (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
+                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
+      ) THEN
+        RAISE EXCEPTION 'Créneau de raccourcissement en conflit pour la séance %.', v_session_id USING ERRCODE = '40001';
+      END IF;
+      UPDATE public.sessions
+         SET date = v_planned::TEXT, planifiee_pour = v_planned::TEXT, duree_planifiee_min = v_new_duration
+       WHERE user_id = v_uid AND id = v_session_id;
     ELSE
       IF btrim(coalesce(v_item->>'plannedFor', '')) = '' THEN
         RAISE EXCEPTION 'Un déplacement exige plannedFor.' USING ERRCODE = '22023';
@@ -3379,11 +3419,11 @@ BEGIN
            AND s.statut IN ('planifiee', 'en-cours')
            AND s.planifiee_pour IS NOT NULL
            AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => coalesce(
-             (s.duree_min)::DOUBLE PRECISION,
+             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
              (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
                 FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
            AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
-             (s.duree_min)::DOUBLE PRECISION,
+             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
              (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
                 FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
       ) THEN
@@ -3471,7 +3511,7 @@ BEGIN
          AND s.statut IN ('planifiee', 'en-cours') AND s.planifiee_pour IS NOT NULL
          AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => v_duration::DOUBLE PRECISION)
          AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
-           (s.duree_min)::DOUBLE PRECISION,
+           coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
            (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
               FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
     ) THEN
@@ -3479,10 +3519,10 @@ BEGIN
     END IF;
 
     INSERT INTO public.sessions (
-      id, user_id, date, domaines, skill_codes, activites, interventions,
+      id, user_id, date, duree_planifiee_min, domaines, skill_codes, activites, interventions,
       genere_automatiquement, statut, planifiee_pour, origine_proposition
     ) VALUES (
-      v_session_id, v_uid, v_item->>'plannedFor',
+      v_session_id, v_uid, v_item->>'plannedFor', v_duration,
       ARRAY(SELECT jsonb_array_elements_text(v_item->'domaines')),
       ARRAY(SELECT jsonb_array_elements_text(v_item->'skillCodes')),
       v_item->'activites', v_item->'interventions', false, 'planifiee',

@@ -425,6 +425,51 @@ libellé `pret-d-apres-les-preuves-disponibles` repose provisoirement sur le
 palier existant `5`, sans nouveau seuil de calibration, pour être réévalué avec
 des données.
 
+### Revue groupée d'un plan recalculé (lot 5)
+
+`lib/engine/revision-plan.ts` compare purement les séances `planifiee` déjà
+acceptées au plan recalculé. L'origine `candidateId` est l'identité stable de
+la comparaison ; les séances en cours, historiques ou sans durée/provenance
+restent protégées. Le diff expose `conserver`, `deplacer`, `raccourcir`,
+`annuler` et `ajouter`, avec raisons, contraintes, réserves et conflits
+impossibles. Une
+candidate non acceptée n'entre pas dans la revue (`silentCandidateIds`).
+
+`components/dashboard/modale-revue-plan.tsx` regroupe ces changements dans la
+modale existante. Fermer, modifier ou garder ferme la revue sans toucher aux
+séances ; appliquer délègue à la frontière `accepterPlan`, qui revalide puis
+écrit le lot atomiquement et idempotemment. La v0 refuse une extension de durée
+plutôt que de l'appliquer implicitement.
+
+La migration additive `20260828150000_lot_5_revision_plan.sql` ajoute le fait
+de créneau `sessions.duree_planifiee_min` et étend la RPC existante pour le
+raccourcissement dans la même transaction. Elle a été
+préparée le 28/08/2026 mais n'est pas appliquée : l'état Supabase réel a été
+vérifié avant sa préparation et l'historique distant ne porte toujours pas les
+versions des lots 1 et 3. Aucun rejeu n'est autorisé sans validation du
+workflow d'infrastructure.
+
+### Lecture « À venir » des séances (lot 6)
+
+`lib/engine/seances-a-venir.ts` est une projection pure des
+`LearningSession` acceptées encore ouvertes (`planifiee` ou `en-cours`). Elle
+ne lit ni Supabase, ni l'horloge, ni l'environnement et ne persiste aucun
+résultat. Le tri est chronologique, stable par identifiant, puis regroupé par
+jour civil ; une date invalide est conservée sous « Date à préciser » avec une
+réserve plutôt que transformée en jour arbitraire. Une séance historique
+planifiée sans `planifieePour` utilise sa `date` existante. Les interventions
+sont lues par `lireInterventionsSeance` : une activité historique non
+correspondante reste en réserve et n'est jamais convertie en geste ou en effet.
+
+La route `/seances` rend cette projection par défaut. `?vue=cahier` conserve
+l'archive et son calendrier, tandis que `?jour=`, `?session=` et
+`?vue=bureau` gardent la lecture Bureau et les liens profonds existants. Le
+compositeur est derrière l'action secondaire « Préparer autre chose ». Les
+actions de démarrage et d'annulation réutilisent leurs Server Actions ; le
+contrôle de déplacement n'écrit rien tant qu'un recalcul et un choix explicite
+ne sont pas disponibles. Cette limite est une hypothèse d'intégration v0, pas
+une règle pédagogique et ne nécessite pas de migration.
+
 ### Acceptation et matérialisation v0 (lot 3)
 
 `lib/domain/acceptation-plan.ts` est la frontière pure qui relit une proposition
@@ -432,8 +477,9 @@ affichée et un choix explicite. Elle refuse les candidates inconnues, les
 créneaux incohérents ou hors disponibilité, les compétences/domaines absents,
 les échéances fermées et les séances déjà `en-cours` ou terminées. Elle projette
 uniquement les candidates acceptées en `LearningSession` planifiées ; une durée
-annoncée reste dans l'intervention comme estimation et ne devient jamais
-`dureeMin`, qui est une durée réellement observée.
+annoncée reste dans l'intervention comme estimation et, après le lot 5, peut
+être recopiée comme `dureePlanifieeMin`, fait de créneau distinct de `dureeMin`,
+qui reste une durée réellement observée.
 
 `lib/store/plan-actions.ts` revalide le compte et les faits courants puis appelle
 une seule RPC transactionnelle. La migration additive

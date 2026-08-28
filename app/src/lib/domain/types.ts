@@ -819,11 +819,13 @@ export interface LearningSession {
   id: string;
   date: string;
   /**
-   * Durée en minutes. Optionnel : une séance récapitulative (importée d'une
-   * synthèse, sans chronométrage) n'a pas de durée réelle — on ne fabrique pas
-   * un 0 trompeur (protocole anti-hallucination §7).
+   * Durée réellement observée en minutes. Optionnel : une séance
+   * récapitulative (importée d'une synthèse, sans chronométrage) n'en a pas —
+   * on ne fabrique pas un 0 trompeur (protocole anti-hallucination §7).
    */
   dureeMin?: number;
+  /** Durée de créneau acceptée, distincte d'une durée réellement observée. */
+  dureePlanifieeMin?: number;
   domaines: DomaineId[];
   skillCodes: string[];
   /** Forme historique conservée pour les séances antérieures au lot 1. */

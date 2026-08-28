@@ -102,7 +102,9 @@ function interventionDeSeance(
   const intervention = lecture.interventions[index];
   if (!intervention) return null;
   const plannedFor = session.planifieePour ?? session.date;
-  const durationMinutes = intervention.estimatedDurationMinutes;
+  const durationMinutes = lecture.interventions.length === 1 && session.dureePlanifieeMin !== undefined
+    ? session.dureePlanifieeMin
+    : intervention.estimatedDurationMinutes;
   return {
     id: `${session.id}:${intervention.id}`,
     sessionId: session.id,
@@ -134,7 +136,7 @@ function entriesForSession(session: LearningSession): DashboardDayEntry[] {
     timeLabel: heure(session.planifieePour ?? session.date),
     label: titreSeance(session, lecture),
     type: "read",
-    durationMinutes: session.dureeMin ?? session.blueprint?.dureeCibleMin,
+    durationMinutes: session.dureePlanifieeMin ?? session.dureeMin ?? session.blueprint?.dureeCibleMin,
     effect: "support",
     reason: "La séance acceptée reste lisible ; son intervention détaillée est à éclaircir.",
     href: `/seances?session=${encodeURIComponent(session.id)}`,

@@ -327,6 +327,7 @@ export function validerSeance(valeur: unknown, chemin = "sessions"): LearningSes
   texte(seance.id, `${chemin}.id`);
   date(seance.date, `${chemin}.date`);
   optionnel(seance, "dureeMin", chemin, (v, c) => nombre(v, c, { min: 0, entier: true }));
+  optionnel(seance, "dureePlanifieeMin", chemin, (v, c) => nombre(v, c, { min: 1, entier: true }));
   textes(seance.domaines, `${chemin}.domaines`);
   textes(seance.skillCodes, `${chemin}.skillCodes`);
   tableau(seance.activites, `${chemin}.activites`).forEach((item, index) => {
