@@ -775,6 +775,18 @@ Tout le reste relève du refus ci-dessus. Un outil intéressant, visible par
 défaut, hors du chemin d'une preuve, est la définition de la dérive de
 périmètre.
 
+### Lot 7 — exécution multi-interventions
+
+🔬 Une `LearningSession` peut exécuter plusieurs interventions dans une même
+coquille. Le registre canonique réutilise les chemins Résoudre/Diagnostiquer,
+Feynman, rappel, lecture, écriture et tiroir du tuteur. Chaque geste expose sa
+source, sa durée et son effet ; terminer une préparation ou un soutien dit
+explicitement qu'aucune nouvelle mesure n'a été produite. Les tentatives restent
+la source de vérité des exercices et le contrat de preuve est le seul chemin
+vers une Observation. Le statut facultatif du geste est conservé dans le JSONB
+déjà porté par la séance : il ne crée ni entité ni score dérivé. Les séances
+historiques sont adaptées sans réécriture.
+
 ---
 
 ## Annexe — envisagé puis écarté

@@ -1537,3 +1537,32 @@ séance acceptée ; la conséquence doit passer par un recalcul de plan et un
 choix explicite, conformément à ADR-139. La prochaine étape sûre est de valider
 humainement ce parcours et de brancher, si nécessaire, cette frontière au
 workflow de révision du lot 5 sans nouvelle entité ni écriture implicite.
+
+### Passage de relais — lot 7 — 28/08/2026
+
+**Périmètre livré.** `LearningSession` porte l'exécution d'une séquence
+d'interventions via le registre exhaustif `lib/domain/intervention-rendus.ts`
+et la projection pure `lib/domain/intervention-execution.ts`.
+`VueSeanceDetail` conserve le chemin historique mono-exercice et rend une séance
+canonique dans une même coquille : navigation clavier entre interventions,
+métadonnées (type, durée, source, effet), réemploi de `VueExercice`, Feynman et
+rappel déterministes, Atelier et `TiroirTuteur`. La clôture des gestes
+non-exercice est explicite, idempotente et n'écrit aucune Observation ;
+préparation, soutien, abandon et absence de preuve sont nommés sans valeur par
+défaut.
+
+**Compatibilité et persistance.** Le champ facultatif `statut` est ajouté à la
+forme JSONB déjà validée par `sessions.interventions`. Aucune table, route,
+migration ou donnée n'est créée pour le lot 7. Les anciennes séances passent
+par `lireInterventionsSeance`, qui réserve les activités non reconnues.
+
+**Vérifications.** Tests domaine et rendu ciblés couvrent l'exhaustivité du
+registre, l'adaptation historique, les statuts, les métadonnées et le message
+d'absence de mesure. `tsc --noEmit` est exécuté. Le contrôle visuel authentifié
+reste à faire : le serveur local disponible redirige vers `/login` sans session
+de test, comme au lot 6.
+
+**Hypothèses et limites.** Les interventions Feynman et rappel sont affichées
+dans la séance et proposent le chemin existant ; leur enregistrement spécialisé
+reste celui des écrans actuels et n'est pas transformé en nouvelle mini-route.
+Le déplacement et la composition globale restent ceux des lots précédents.

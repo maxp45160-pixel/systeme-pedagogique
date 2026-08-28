@@ -60,6 +60,12 @@ export interface InterventionSeance {
   targetSkillCodes?: string[];
   expectedEffect: InterventionEffect;
   proofContract?: InterventionProofContract;
+  /**
+   * Fait d'exécution facultatif. Absent sur les séances historiques et sur
+   * une intervention qui n'a pas encore été menée ; il ne constitue jamais
+   * une Observation ni une mesure dérivée.
+   */
+  statut?: InterventionStatus;
 }
 
 export type InterventionStatus = "completed" | "abandoned";
@@ -161,6 +167,14 @@ export function parseInterventionSeance(
     resultat.proofContract = validerPreuve(
       intervention.proofContract,
       `${chemin}.proofContract`,
+    );
+  }
+
+  if (intervention.statut !== undefined) {
+    resultat.statut = enumeration(
+      intervention.statut,
+      ["completed", "abandoned"] as const,
+      `${chemin}.statut`,
     );
   }
 

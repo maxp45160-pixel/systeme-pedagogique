@@ -24,7 +24,7 @@ vi.mock("./supabase-backend", () => ({ verifier: vi.fn() }));
 vi.mock("./cloture-exercice", () => ({ cloreExerciceAtomiquement: vi.fn() }));
 vi.mock("@/lib/seed/exercises", () => ({ EXERCICES_DIAGNOSTIC: [] }));
 
-import { annulerSeance, creerSeanceFocusExercice } from "./seance-actions";
+import { annulerSeance, creerSeanceFocusExercice, terminerIntervention } from "./seance-actions";
 
 const EXERCICE: Exercise = {
   id: "ex-focus",
@@ -101,6 +101,40 @@ describe("annulation d'une séance planifiée", () => {
       "sessions",
       "ses-planifiee",
       { statut: "abandonnee", renonceeLe: expect.any(String) },
+      {},
+    );
+    expect(mocks.ajouter).not.toHaveBeenCalled();
+  });
+});
+
+describe("clôture d'une intervention sans observation", () => {
+  it("met à jour uniquement le statut canonique", async () => {
+    vi.clearAllMocks();
+    mocks.dorsaleCompte.mockResolvedValue({});
+    const session = {
+      id: "ses-multi",
+      date: "2026-08-28T09:00:00.000Z",
+      domaines: ["developpement"],
+      skillCodes: ["DEV-01"],
+      activites: [],
+      genereAutomatiquement: false,
+      statut: "en-cours",
+      interventions: [{
+        id: "i-read",
+        type: "read",
+        label: "Lire",
+        source: { kind: "document", ref: "doc-1" },
+        expectedEffect: "preparation",
+      }],
+    } as LearningSession;
+    mocks.lire.mockResolvedValue([session]);
+    mocks.modifier.mockResolvedValue(session);
+
+    await expect(terminerIntervention("ses-multi", "i-read")).resolves.toContain("intervention=i-read");
+    expect(mocks.modifier).toHaveBeenCalledWith(
+      "sessions",
+      "ses-multi",
+      { interventions: [{ ...session.interventions![0], statut: "completed" }] },
       {},
     );
     expect(mocks.ajouter).not.toHaveBeenCalled();

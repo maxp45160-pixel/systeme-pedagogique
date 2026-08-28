@@ -49,6 +49,7 @@ export default async function PageSeances(props: {
   searchParams: Promise<{
     session?: string;
     exercice?: string;
+    intervention?: string;
     evaluer?: string;
     bilan?: string;
     abandon?: string;
@@ -80,6 +81,7 @@ export default async function PageSeances(props: {
         <VueSeanceDetail
           id={session}
           exerciceDemande={exercice}
+          interventionDemande={recherche.intervention}
           recherche={recherche}
           sas={recherche.sas === "1"}
         />
@@ -107,6 +109,7 @@ export default async function PageSeances(props: {
         rechercheTexte={recherche.q}
         session={session}
         exercice={exercice}
+        intervention={recherche.intervention}
         recherche={recherche}
         sasDemande={recherche.sas === "1"}
         {...(recherche.composer === "1"
@@ -239,6 +242,7 @@ async function ContenuBureau({
   rechercheTexte,
   session,
   exercice,
+  intervention,
   recherche,
   sasDemande = false,
   composition,
@@ -251,6 +255,7 @@ async function ContenuBureau({
   rechercheTexte?: string;
   session?: string;
   exercice?: string;
+  intervention?: string;
   recherche?: EtapeRecherche;
   /** L'URL porte `sas=1` : la séance dépliée ouvre sur son sas (ADR-103). */
   sasDemande?: boolean;
@@ -292,6 +297,7 @@ async function ContenuBureau({
     if (statutOuvert === "en-cours" || statutOuvert === "planifiee") {
       const suite = new URLSearchParams({ session: seanceOuverte.id, focus: "1" });
       if (exercice) suite.set("exercice", exercice);
+      if (intervention) suite.set("intervention", intervention);
       if (sasDemande) suite.set("sas", "1");
       redirect(`/seances?${suite.toString()}`);
     }
@@ -348,6 +354,7 @@ async function ContenuBureau({
                 <VueSeanceDetail
                   id={seanceOuverte.id}
                   exerciceDemande={exercice}
+                  interventionDemande={intervention}
                   recherche={recherche}
                   sas={sasDemande}
                   plein={false}

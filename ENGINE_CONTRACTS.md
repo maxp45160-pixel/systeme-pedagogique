@@ -670,3 +670,27 @@ une nouvelle entité à côté de `LearningSession`, ou une table de profil dér
 
 Ces questions doivent rester des questions ouvertes jusqu'à ce qu'une personne
 les tranche ou qu'une mesure les réfute. Ce document ne les ferme pas.
+
+## 15. Exécution multi-interventions (lot 7)
+
+`lib/domain/intervention-rendus.ts` est le registre exhaustif des huit types
+canoniques. Il associe chaque geste à un seul chemin existant : exercice,
+Feynman déterministe, rappel actif, document, écriture ou tiroir du tuteur.
+`lib/domain/intervention-execution.ts` projette l'état courant depuis les
+tentatives et le statut facultatif du geste ; l'absence de preuve ne devient
+jamais une observation. Les statuts `completed`/`abandoned` dans
+`sessions.interventions` sont des faits d'exécution additifs au JSONB existant,
+pas une nouvelle entité ni un résultat pédagogique dérivé.
+
+`RenduIntervention` suit ce registre, affiche type, durée, source et effet, et
+délègue la résolution/diagnostic à `VueExercice`. La clôture des autres gestes
+passe par `terminerIntervention`, idempotente et sans écriture d'observation.
+Une préparation ou un soutien terminé l'annonce explicitement. Les documents
+et le tuteur ne sont ouverts qu'après un geste explicite ; aucun contenu
+documentaire n'est injecté dans le contexte permanent (ADR-124). Les séances
+anciennes restent lisibles par `lireInterventionsSeance`.
+
+Cette tranche ne demande aucune migration : la colonne JSONB `interventions`
+existe déjà. Le champ de statut reste facultatif afin de préserver les lignes
+historiques. Les règles de présentation Feynman/rappel sont des hypothèses
+d'intégration de rendu, non des vérités pédagogiques.

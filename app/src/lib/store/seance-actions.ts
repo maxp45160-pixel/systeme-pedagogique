@@ -9,11 +9,12 @@
  *
  * ## Ce que ce module ne stocke pas
  *
- * L'avancement d'une séance — qui est fait, qui reste — n'est écrit nulle part.
- * Il se dérive des tentatives à chaque lecture (`avancementSeance`), comme les
- * niveaux se dérivent des observations (P1). Une colonne « exercices terminés »
- * aurait été une seconde vérité, libre de diverger de la première au premier
- * abandon non enregistré.
+ * L'avancement des exercices — qui est fait, qui reste — n'est écrit nulle
+ * part. Il se dérive des tentatives à chaque lecture (`avancementSeance`),
+ * comme les niveaux se dérivent des observations (P1). Les gestes
+ * non-exercice peuvent toutefois porter le fait explicite de leur clôture dans
+ * `sessions.interventions.statut` ; ce statut n'est ni une mesure ni un
+ * remplacement de la projection des tentatives.
  *
  * Ce qui est écrit à la clôture — `dureeMin`, `resultat` — n'est pas une mesure
  * indépendante : c'est la somme observée à cet instant, rangée au journal parce
@@ -49,6 +50,15 @@ import type {
   ExerciseAttempt,
   LearningSession,
 } from "@/lib/domain/types";
+import { parseInterventionsSeance } from "@/lib/domain/intervention-seance";
+import { lireInterventionsSeance } from "@/lib/domain/legacy-session-intervention-adapter";
+import { renduPourIntervention } from "@/lib/domain/intervention-rendus";
+import {
+  interventionsTerminees,
+  interventionsAReprendre,
+  lireExecutionInterventions,
+  resumeInterventions,
+} from "@/lib/domain/intervention-execution";
 
 /**
  * Les exercices que le compte peut réellement dérouler, par identifiant.
@@ -302,7 +312,12 @@ function dureeObservee(
   seance: LearningSession,
   tentatives: ExerciseAttempt[],
 ): number | null {
-  const prevus = new Set(exercicesDeLaSeance(seance));
+  const prevus = new Set([
+    ...exercicesDeLaSeance(seance),
+    ...lireInterventionsSeance(seance).interventions
+      .filter((intervention) => intervention.source.kind === "exercise")
+      .map((intervention) => intervention.source.ref),
+  ]);
   const durees = tentatives
     .filter(
       (t) =>
@@ -392,6 +407,55 @@ export async function terminerSeance(seanceId: string): Promise<string> {
 }
 
 /**
+ * Clôt un geste non-exercice dans la séance courante.
+ *
+ * Le statut est un fait d'exécution rangé dans le JSONB déjà porté par la
+ * séance ; il ne constitue ni une Observation ni une nouvelle entité de
+ * travail. Les rendus exercice restent exclusivement clôturés par leur
+ * parcours de preuve (`VueExercice`).
+ */
+export async function terminerIntervention(
+  seanceId: string,
+  interventionId: string,
+): Promise<string> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
+  if (statutSeance(seance) !== "en-cours") {
+    throw new Error("Cette intervention ne peut être clôturée que dans une séance en cours.");
+  }
+  if (seance.interventions === undefined) {
+    throw new Error("Cette séance historique ne porte pas d'intervention canonique à clôturer.");
+  }
+
+  const interventions = parseInterventionsSeance(seance.interventions);
+  const index = interventions.findIndex((intervention) => intervention.id === interventionId);
+  if (index < 0) throw new Error("Intervention introuvable dans cette séance.");
+  const intervention = interventions[index];
+  if (renduPourIntervention(intervention).kind === "exercise") {
+    throw new Error("Une intervention d'exercice se clôture par son parcours de preuve.");
+  }
+  if (intervention.statut === "completed" || intervention.statut === "abandoned") {
+    return `/seances?session=${encodeURIComponent(seanceId)}&intervention=${encodeURIComponent(interventionId)}`;
+  }
+
+  const misesAJour = interventions.map((candidate, candidateIndex) =>
+    candidateIndex === index ? { ...candidate, statut: "completed" as const } : candidate,
+  );
+  const modifiee = await modifier("sessions", seanceId, { interventions: misesAJour }, dorsale);
+  if (!modifiee) throw new Error("La séance n'est plus accessible dans ce compte.");
+  revalidatePath("/", "layout");
+  return `/seances?session=${encodeURIComponent(seanceId)}&intervention=${encodeURIComponent(interventionId)}`;
+}
+
+/** Variante liée pour les composants clients qui reçoivent une Server Action. */
+export async function terminerInterventionPourSeance(
+  interventionId: string,
+  seanceId: string,
+): Promise<string> {
+  return terminerIntervention(seanceId, interventionId);
+}
+
+/**
  * Écrit la clôture d'une séance menée à son terme — sans aucune navigation.
  *
  * Corps commun de `terminerSeance` et de la clôture automatique du premier
@@ -409,13 +473,21 @@ export async function ecrireClotureSeance(seanceId: string): Promise<void> {
 
   const tentatives = await lire("attempts", dorsale);
   const avancement = avancementSeance(seance, tentatives);
+  const execution = seance.interventions !== undefined
+    ? lireExecutionInterventions(seance, tentatives).executions
+    : undefined;
+  if (seance.interventions !== undefined) {
+    if (!execution || !interventionsTerminees(execution)) {
+      throw new Error("Toutes les interventions doivent être traitées avant de clôturer la séance.");
+    }
+  }
 
   await modifier(
     "sessions",
     seanceId,
     {
       statut: "terminee",
-      resultat: resumeSeance(avancement),
+      resultat: execution ? resumeInterventions(execution) : resumeSeance(avancement),
       dureeMin: dureeObservee(seance, tentatives),
     },
     dorsale,
@@ -516,7 +588,12 @@ async function ecrireAbandon(
   const date = new Date().toISOString();
   const tentatives = await lire("attempts", dorsale);
   const parId = await catalogueExercices(dorsale);
-  const prevus = new Set(exercicesDeLaSeance(seance));
+  const prevus = new Set([
+    ...exercicesDeLaSeance(seance),
+    ...lireInterventionsSeance(seance).interventions
+      .filter((intervention) => intervention.source.kind === "exercise")
+      .map((intervention) => intervention.source.ref),
+  ]);
 
   /*
    * Les tentatives encore ouvertes de la séance sont refermées ici.
@@ -540,10 +617,18 @@ async function ecrireAbandon(
       : Math.max(1, ecouleMin);
     const activite = seance.activites.find(
       (item) => item.type === "exercice" && item.ref === tentative.exerciseId,
-    );
+    ) ?? lireInterventionsSeance(seance).interventions
+      .find(
+        (intervention) =>
+          intervention.source.kind === "exercise" &&
+          intervention.source.ref === tentative.exerciseId,
+      );
     if (!activite) {
       throw new Error(`Séance incohérente : activité absente pour ${tentative.exerciseId}.`);
     }
+    const activiteJournal = "ref" in activite
+      ? activite
+      : { type: "exercice", ref: activite.source.ref, libelle: activite.label };
 
     await cloreExerciceAtomiquement({
       tentative: {
@@ -563,7 +648,7 @@ async function ecrireAbandon(
         dureeMin: duree,
         domaines: exercice ? [exercice.domaine] : seance.domaines,
         skillCodes: exercice ? exercice.competences : seance.skillCodes,
-        activites: [activite],
+        activites: [activiteJournal],
         resultat: "Tentative abandonnée — aucune observation enregistrée",
         genereAutomatiquement: true,
       },
@@ -576,13 +661,18 @@ async function ecrireAbandon(
   // partie du temps observé de la séance.
   const apres = await lire("attempts", dorsale);
   const avancement = avancementSeance(seance, apres);
+  const execution = seance.interventions !== undefined
+    ? lireExecutionInterventions(seance, apres).executions
+    : undefined;
 
   await modifier(
     "sessions",
     seance.id,
     {
       statut: "abandonnee",
-      resultat: resumeSeanceAbandonnee(avancement),
+      resultat: execution
+        ? resumeInterventions(execution, true)
+        : resumeSeanceAbandonnee(avancement),
       dureeMin: dureeObservee(seance, apres),
     },
     dorsale,
@@ -611,7 +701,12 @@ export async function reprendreSeance(seanceId: string): Promise<string> {
   }
 
   const tentatives = await lire("attempts", dorsale);
-  if (!peutReprendreSeance(seance, avancementSeance(seance, tentatives))) {
+  const peutReprendre = seance.interventions !== undefined
+    ? statutSeance(seance) === "abandonnee" &&
+      !seance.renonceeLe &&
+      interventionsAReprendre(lireExecutionInterventions(seance, tentatives).executions)
+    : peutReprendreSeance(seance, avancementSeance(seance, tentatives));
+  if (!peutReprendre) {
     throw new Error(
       "Cette séance n'a rien à reprendre : toutes ses activités ont été traitées. Compose-en une nouvelle.",
     );

@@ -11125,6 +11125,14 @@ distant. L'écart doit être réconcilié par le workflow d'infrastructure ; il 
 faut pas rejouer ces fichiers ni considérer cette présence comme une validation
 de la brique.
 
+L'exécution du lot 7 réutilise cette extension sans nouvelle table ni route.
+`sessions.interventions` peut porter un `statut` facultatif de geste ; les
+tentatives restent la source de vérité des rendus exercice, et
+`terminerIntervention` ne crée aucune Observation. Le registre de rendu et sa
+projection sont des choix d'intégration réversibles tant que la vérification
+réelle du premier parcours multi-interventions n'a pas eu lieu : le statut de
+cette ADR reste donc ❓.
+
 - `recommander` et la politique d'action existante restent le seul classement
   pédagogique ; le planificateur les compose dans le temps, il ne les duplique
   pas.

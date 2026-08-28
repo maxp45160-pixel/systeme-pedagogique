@@ -62,6 +62,13 @@ describe("contrat canonique InterventionSeance", () => {
     }));
     expect(interventionPeutProduireObservation(geste, "abandoned")).toBe(false);
   });
+
+  it("lit un statut d'exécution sans le confondre avec une Observation", () => {
+    expect(parseInterventionSeance(intervention("read", { statut: "completed" })).statut)
+      .toBe("completed");
+    expect(() => parseInterventionSeance(intervention("read", { statut: "done" })))
+      .toThrow(/statut/);
+  });
 });
 
 describe("lecture historique des séances", () => {

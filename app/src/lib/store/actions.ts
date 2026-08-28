@@ -154,9 +154,12 @@ async function destinationApresExercice(
   // Lecture ciblée : la séance citée suffit, pas la table entière.
   const seance = await lireParId("sessions", navigation.seanceId, dorsale);
   const valide =
-    seance?.activites.some(
+    (seance?.activites.some(
       (activite) => activite.type === "exercice" && activite.ref === exerciceId,
-    ) ?? false;
+    ) ?? false) ||
+    (seance?.interventions?.some(
+      (intervention) => intervention.source.kind === "exercise" && intervention.source.ref === exerciceId,
+    ) ?? false);
   if (!valide || !seance) return urlExercice(exerciceId, undefined, etape);
 
   /*
