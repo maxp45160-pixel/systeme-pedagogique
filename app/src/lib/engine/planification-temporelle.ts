@@ -63,6 +63,48 @@ export interface PlanificateurTemporelInput {
   candidates: readonly ActionCandidate[];
   refusObserved: readonly RefusObserve[];
   acceptedSessions: readonly LearningSession[];
+  /** Référence stable de la proposition courante, hors refus de cette proposition. */
+  propositionRef?: string;
+}
+
+type EntreesReferenceProposition = Pick<
+  PlanificateurTemporelInput,
+  "engagements" | "availability" | "skillStates" | "candidates" | "acceptedSessions"
+>;
+
+function serialiserStable(valeur: unknown): string {
+  if (valeur === null) return "null";
+  if (typeof valeur === "string") return JSON.stringify(valeur);
+  if (typeof valeur === "number" || typeof valeur === "boolean") return String(valeur);
+  if (typeof valeur === "undefined") return "undefined";
+  if (Array.isArray(valeur)) return `[${valeur.map(serialiserStable).join(",")}]`;
+  if (typeof valeur === "object") {
+    return `{${Object.entries(valeur as Record<string, unknown>)
+      .sort(([gauche], [droite]) => gauche.localeCompare(droite))
+      .map(([cle, contenu]) => `${JSON.stringify(cle)}:${serialiserStable(contenu)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(String(valeur));
+}
+
+function empreinteStable(texte: string): string {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < texte.length; index += 1) {
+    hash ^= texte.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Référence opaque et déterministe d'une même proposition.
+ *
+ * L'horloge et les refus sont volontairement hors empreinte : le temps qui
+ * passe ou le fait d'avoir écarté la proposition ne doivent pas la rallumer.
+ * Les entrées qui composent réellement le plan, elles, changent la référence.
+ */
+export function referenceStableProposition(input: EntreesReferenceProposition): string {
+  return `plan-${empreinteStable(serialiserStable(input))}`;
 }
 
 interface Intervalle {
@@ -93,6 +135,7 @@ function instant(valeur: string): number | null {
 function dateRefusActive(refus: RefusObserve, now: number): boolean {
   const observe = instant(refus.observedAt);
   if (observe === null || observe > now) return false;
+  if (refus.propositionRef) return true;
   if (!refus.expiresAt) return true;
   const expiration = instant(refus.expiresAt);
   return expiration !== null && expiration > now;
@@ -334,9 +377,15 @@ function libre(
   );
 }
 
-function refusalMatch(candidate: ActionCandidate, refus: readonly RefusObserve[], now: number): RefusObserve | null {
+function refusalMatch(
+  candidate: ActionCandidate,
+  refus: readonly RefusObserve[],
+  now: number,
+  propositionRef?: string,
+): RefusObserve | null {
   return refus.find((item) => {
     if (!dateRefusActive(item, now)) return false;
+    if (item.propositionRef) return item.propositionRef === propositionRef;
     // Une portée activité ne devient jamais un refus de compétence : le fait
     // historique porte l'un ou l'autre, et la présence de `candidateId`
     // l'emporte sur un éventuel code recopié par l'adaptateur.
@@ -351,6 +400,7 @@ function classerCandidats(
   readiness: readonly PreparationEcheance[],
   refus: readonly RefusObserve[],
   now: number,
+  propositionRef: string | undefined,
   reserves: string[],
 ): CandidateClasse[] {
   const parPreparation = new Map(readiness.map((item) => [item.engagementId, item]));
@@ -367,7 +417,7 @@ function classerCandidats(
       reserves.push(`${candidate.candidateId} exclue : ${motif}`);
       continue;
     }
-    const refusActif = refusalMatch(candidate, refus, now);
+    const refusActif = refusalMatch(candidate, refus, now, propositionRef);
     if (refusActif) {
       reserves.push(`${candidate.candidateId} refusée selon ${refusActif.sourceRef}`);
       continue;
@@ -428,6 +478,7 @@ export function planifierTemps(
     readiness,
     input.refusObserved,
     nowTimestamp,
+    input.propositionRef,
     reservations,
   );
   const diagnosticRequis = readiness.some((item) =>

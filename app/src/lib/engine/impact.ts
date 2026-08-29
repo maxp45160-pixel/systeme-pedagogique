@@ -384,6 +384,8 @@ export function suiteApresTravail(entrees: {
   exercices: readonly Exercise[];
   tentatives: readonly ExerciseAttempt[];
   now?: Date;
+  /** Exclusion déterministe du ou des exercices déjà traversés dans ce parcours. */
+  exercicesExclus?: ReadonlySet<string>;
 }): SuiteTravail {
   const now = entrees.now ?? new Date();
   const calibrations = entrees.calibrations ? new Map(entrees.calibrations) : undefined;
@@ -394,6 +396,11 @@ export function suiteApresTravail(entrees: {
     1,
     calibrations,
     now,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    entrees.exercicesExclus,
   );
   return {
     exerciceSuivant: rec?.exercice

@@ -1,5 +1,5 @@
 /**
- * Faits de contexte déclarés pour l'orchestration progressive.
+ * Faits de contexte déclarés pour l'orchestration temporelle.
  *
  * Ce module ne planifie rien : il valide et projette uniquement les faits que
  * la personne a confirmés. Une disponibilité n'est jamais une capacité
@@ -10,35 +10,14 @@ import type { DisponibiliteDeclaree } from "./types";
 
 export const SOURCE_DISPONIBILITE_PROFIL = "declaree:profil";
 
-export const ETAPES_CONTEXTE = [
-  "periode",
-  "modules",
-  "disponibilites",
-  "echeances",
-] as const;
-
-export type EtapeContexte = (typeof ETAPES_CONTEXTE)[number];
-
 export interface EntreeDisponibiliteDeclaree {
   startsAt: string;
   endsAt: string;
   sourceRef?: string;
 }
 
-export interface LectureProgressionContexte {
-  prochaineEtape: EtapeContexte | null;
-  termine: boolean;
-  confirmees: Record<EtapeContexte, boolean>;
-}
-
 function texteNonVide(valeur: unknown): valeur is string {
   return typeof valeur === "string" && valeur.trim().length > 0;
-}
-
-export function motifRefusPeriodeDeclaree(valeur: unknown): string | null {
-  if (!texteNonVide(valeur)) return "une période déclarée non vide est attendue";
-  if (valeur.trim().length > 120) return "la période déclarée est trop longue";
-  return null;
 }
 
 export function motifRefusDisponibiliteDeclaree(
@@ -70,6 +49,18 @@ export function motifRefusDisponibilitesDeclarees(valeur: unknown): string | nul
     const motif = motifRefusDisponibiliteDeclaree(disponibilite, `disponibilites[${index}]`);
     if (motif) return motif;
   }
+  for (let premier = 0; premier < valeur.length; premier += 1) {
+    const gauche = valeur[premier] as EntreeDisponibiliteDeclaree;
+    for (let second = premier + 1; second < valeur.length; second += 1) {
+      const droite = valeur[second] as EntreeDisponibiliteDeclaree;
+      if (
+        Date.parse(gauche.startsAt) < Date.parse(droite.endsAt) &&
+        Date.parse(droite.startsAt) < Date.parse(gauche.endsAt)
+      ) {
+        return `disponibilites[${premier}] et disponibilites[${second}] se chevauchent`;
+      }
+    }
+  }
   return null;
 }
 
@@ -85,37 +76,34 @@ export function normaliserDisponibilitesDeclarees(
   }));
 }
 
-export function normaliserPeriodeDeclaree(valeur: string): string {
-  const periode = valeur.trim();
-  const motif = motifRefusPeriodeDeclaree(periode);
-  if (motif) throw new Error(`Période refusée : ${motif}.`);
-  return periode;
+export function ajouterDisponibiliteDeclaree(
+  existantes: readonly DisponibiliteDeclaree[],
+  entree: EntreeDisponibiliteDeclaree,
+): DisponibiliteDeclaree[] {
+  return normaliserDisponibilitesDeclarees([...existantes, entree]);
 }
 
-export function progressionContexte({
-  periodeDeclaree,
-  disponibilitesDeclarees,
-  nombreEcheancesOuvertes,
-  etapesIgnorees = [],
-}: {
-  periodeDeclaree?: string;
-  disponibilitesDeclarees?: readonly DisponibiliteDeclaree[];
-  nombreEcheancesOuvertes: number;
-  etapesIgnorees?: readonly EtapeContexte[];
-}): LectureProgressionContexte {
-  const ignorees = new Set(etapesIgnorees);
-  const confirmees: Record<EtapeContexte, boolean> = {
-    periode: Boolean(periodeDeclaree?.trim()) || ignorees.has("periode"),
-    // Les modules vivants sont déjà des domaines déclarés du référentiel. La
-    // carte les relit mais ne redemande pas une confirmation administrative.
-    modules: true,
-    disponibilites: Boolean(disponibilitesDeclarees && disponibilitesDeclarees.length > 0) || ignorees.has("disponibilites"),
-    echeances: nombreEcheancesOuvertes > 0 || ignorees.has("echeances"),
-  };
-  const prochaineEtape = ETAPES_CONTEXTE.find((etape) => !confirmees[etape]) ?? null;
-  return {
-    prochaineEtape,
-    termine: prochaineEtape === null,
-    confirmees,
-  };
+export function modifierDisponibiliteDeclaree(
+  existantes: readonly DisponibiliteDeclaree[],
+  index: number,
+  entree: EntreeDisponibiliteDeclaree,
+): DisponibiliteDeclaree[] {
+  if (!Number.isInteger(index) || index < 0 || index >= existantes.length) {
+    throw new Error("Le créneau à modifier est introuvable.");
+  }
+  return normaliserDisponibilitesDeclarees(
+    existantes.map((creneau, position) => (position === index ? entree : creneau)),
+  );
+}
+
+export function supprimerDisponibiliteDeclaree(
+  existantes: readonly DisponibiliteDeclaree[],
+  index: number,
+): DisponibiliteDeclaree[] {
+  if (!Number.isInteger(index) || index < 0 || index >= existantes.length) {
+    throw new Error("Le créneau à supprimer est introuvable.");
+  }
+  return normaliserDisponibilitesDeclarees(
+    existantes.filter((_, position) => position !== index),
+  );
 }

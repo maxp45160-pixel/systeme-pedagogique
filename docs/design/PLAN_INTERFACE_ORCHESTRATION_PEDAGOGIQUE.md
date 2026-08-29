@@ -1,6 +1,11 @@
 # Orchestration pédagogique — solution d'interface
 
-> Statut : **proposition d'implémentation à valider — non construite**.
+> Statut : **première tranche construite — intégration complète à valider**.
+>
+> Le tableau de bord calcule maintenant une proposition éphémère à partir du
+> contexte déclaré et des recommandations historiques, puis permet d'accepter
+> explicitement les séances retenues. La replanification et les candidats de
+> cours restent à construire.
 >
 > Les contrats produit viennent de `PRODUCT.md` et de l'ADR-139. Les choix
 > précis d'interface et le séquencement ci-dessous sont une traduction de ces
@@ -9,15 +14,18 @@
 ## Référence visuelle validée du tableau de bord
 
 Maxime a validé le 27/08/2026 la composition « Votre journée » avec la carte
-d'échéance détaillée. Cette image est la cible de fidélité du futur tableau de
-bord ; elle ne signifie pas que l'interface est construite.
+d'échéance détaillée. Cette image reste la cible de fidélité de la composition
+du tableau de bord ; elle ne décrit pas à elle seule le parcours de proposition
+et de replanification.
 
 ![Cible validée du tableau de bord d'orchestration](./assets/tableau-de-bord-orchestration-cible.png)
 
 La mise en œuvre doit conserver la structure, la densité, la hiérarchie et le
-langage visuel de cette référence. Les données réelles peuvent changer les
-libellés et le nombre de lignes, jamais transformer l'écran en grille de cartes
-ou en interface de maintenance.
+langage visuel de cette référence. La première carte de proposition s'insère
+au-dessus de cette composition, avec divulgation progressive des réserves ;
+elle disparaît après acceptation et ne transforme pas l'écran en interface de
+maintenance. Les données réelles peuvent changer les libellés et le nombre de
+lignes.
 
 ## 1. Résultat recherché
 
@@ -123,6 +131,23 @@ groupée dans une `Modale` :
 L'acceptation applique le lot de manière atomique. La personne arbitre une
 proposition compréhensible ; elle ne déplace pas les dépendances une par une.
 
+### 3.4 Proposition de séances
+
+La carte affiche une proposition éphémère, jamais un écran technique. Chaque
+séance est cochée par défaut et peut être arbitrée individuellement. Au-delà
+d'une séance, les actions « Tout sélectionner » et « Tout désélectionner »
+réduisent le coût de lecture. « Accepter les séances sélectionnées » ne crée
+que les séances cochées ; « Ignorer cette proposition » permet de tout refuser
+sans créer de `LearningSession`.
+
+La référence opaque de la carte est stable pour les mêmes échéances, créneaux,
+états, recommandations et séances acceptées. Le refus entier est conservé
+comme un fait de planification dans la table de refus existante et empêche la
+réapparition jusqu'à un changement matériel. Une carte vide explique la cause
+en termes de disponibilités, d'échéances ou de travaux. Les réserves techniques
+et erreurs de service sont traduites à l'écran et restent détaillées dans les
+journaux ; aucun identifiant interne n'est affiché.
+
 ## 4. Séances
 
 ### 4.1 Page d'entrée
@@ -189,27 +214,25 @@ l'acceptation atomique ne savent pas préserver sa commande documentaire. Ce
 maintien temporaire n'est pas une seconde cible validée et ne monte aucun
 statut.
 
-## 6. Mise en contexte progressive
+## 6. Configuration des créneaux et échéances
 
-Le premier succès rapide actuel est conservé. Ensuite, une carte temporaire
-« Préparer votre période » guide progressivement :
+Le premier succès rapide actuel est conservé. Ensuite, le tableau de bord
+expose une carte permanente « Vos créneaux et échéances » :
 
-1. confirmer l'année ou la période ;
-2. relire les domaines suivis déjà déclarés ;
-3. déclarer quelques disponibilités (la connexion calendrier reste un chantier
-   d'infrastructure séparé) ;
-4. confirmer les échéances déjà connues ;
-5. relire le premier lot de séances.
+1. ajouter plusieurs créneaux avec jour, début et fin ;
+2. modifier ou supprimer un créneau existant ;
+3. refuser les plages inversées et les chevauchements ;
+4. déclarer plusieurs échéances successivement via le formulaire existant.
 
-Chaque étape est courte, ignorable et reprise automatiquement. Le système
-préremplit ce qu'il sait et ne redemande jamais un fait déjà fiable. Les
-ambiguïtés sont confirmées au moment où elles deviennent utiles, plutôt que
-dans un grand assistant administratif initial.
+La carte reste réouvrable sans état local de progression. Les faits sont relus
+depuis Supabase, l'absence de créneau reste une absence de fait et le calendrier
+externe demeure un chantier d'infrastructure séparé. Aucun vocabulaire de
+période ni aucune étape à acquitter ne sont nécessaires.
 
-État de construction : la carte progressive est branchée au profil après le
-premier succès. Elle écrit seulement la période et les fenêtres déclarées ; les
-étapes ignorées sont un état d'interface local, isolé par compte. Le plan global
-et l'arbitrage de besoins concurrents restent à raccorder au planificateur.
+État de construction : l'éditeur de créneaux est branché au profil et transmet
+le tableau complet au planificateur. L'échéance est créée par
+ModaleEngagement, réutilisée sans nouvelle entité. Le plan global et
+l'arbitrage de besoins concurrents restent à raccorder au planificateur.
 
 ## 7. Calendrier externe
 
@@ -323,13 +346,13 @@ Les nouvelles vues n'ajoutent pas de classes de bouton ad hoc.
 | Capacité cible | État actuel | Écart principal |
 |---|---|---|
 | recommandation immédiate | solide | taxonomie d'intervention trop étroite |
-| séances acceptées et datées | partiel | pas de plan global ni de revue groupée |
+| séances acceptées et datées | première tranche | proposition et acceptation branchées ; revue après recalcul à intégrer |
 | engagements et échéances | partiel | préparation non estimée et vues dupliquées |
 | ressources de cours | partiel | protocole isolé du reste du plan |
 | multi-interventions | absent comme contrat commun | rendus dispersés, centrés exercice |
 | disponibilités | partiel | fenêtres déclarées sur le profil ; calendrier externe et arbitrage global à construire |
 | synchronisation calendrier | absente | contrat d'infrastructure à concevoir |
-| replanification | locale et partielle | pas de diff explicable ni d'acceptation atomique |
+| replanification | locale et partielle | diff et frontière existent ; déclenchement depuis le tableau de bord à intégrer |
 | besoins continus concurrents | partiel | deux chemins d'interface au lieu d'un arbitrage |
 | motifs d'apprentissage | absent | seuils et protocole expérimental à définir |
 
@@ -366,6 +389,12 @@ dans
 - ajouter la chronologie « À venir » dans Séances ;
 - ajouter la revue groupée et atomique des ajustements ;
 - rendre le concepteur manuel secondaire.
+
+**État au 28/08/2026 :** la première tranche est branchée sur le tableau de
+bord. Les recommandations historiques alimentent une proposition éphémère ;
+la personne peut accepter tout ou partie du lot via la frontière atomique
+existante, puis retrouver les séances dans `/seances`. La revue d'un recalcul
+qui touche des séances déjà acceptées reste séparée et non branchée.
 
 ### Lot 4 — séance multi-interventions
 

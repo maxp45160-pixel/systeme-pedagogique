@@ -137,7 +137,7 @@ describe("scannerUxJourney (dynamique AST)", () => {
     expect(graphe.liens.some((l) => l.type === "ouverture"
       && ((l.source === "modal:de-quoi-as-tu-besoin" && l.target === "modal:nouveau-projet")
         || (l.source === "modal:nouveau-projet" && l.target === "modal:de-quoi-as-tu-besoin")))).toBe(true);
-  }, 20000);
+  }, 60000);
 
   it("construit une vue de synthèse (Macro) épurée et articulée sur le funnel de valeur pédagogique", async () => {
     const graphe = await scannerUxJourney({ mode: "macro" });

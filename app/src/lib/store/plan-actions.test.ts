@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   dorsaleCompte: vi.fn(),
   lire: vi.fn(),
   lireReferentiel: vi.fn(),
+  from: vi.fn(),
   rpc: vi.fn(),
   revalidatePath: vi.fn(),
   verifier: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock("./db", () => ({ dorsaleCompte: mocks.dorsaleCompte, lire: mocks.lire })
 vi.mock("./referentiel", () => ({ lireReferentiel: mocks.lireReferentiel }));
 vi.mock("./supabase-backend", () => ({ verifier: mocks.verifier }));
 
-import { accepterPlan } from "./plan-actions";
+import { accepterPlan, refuserPropositionPlan } from "./plan-actions";
 
 const candidate: ActionCandidate = {
   candidateId: "c-1",
@@ -59,7 +60,7 @@ describe("frontière serveur d'acceptation de plan", () => {
     vi.clearAllMocks();
     mocks.dorsaleCompte.mockResolvedValue({
       userId: "compte-1",
-      supabase: { rpc: mocks.rpc },
+      supabase: { rpc: mocks.rpc, from: mocks.from },
     });
     mocks.lireReferentiel.mockResolvedValue(referentiel);
     mocks.lire.mockResolvedValue([]);
@@ -73,6 +74,9 @@ describe("frontière serveur d'acceptation de plan", () => {
         ignoredCandidateIds: [],
       },
       error: null,
+    });
+    mocks.from.mockReturnValue({
+      insert: vi.fn().mockResolvedValue({ error: null }),
     });
   });
 
@@ -249,5 +253,32 @@ describe("frontière serveur d'acceptation de plan", () => {
       ignoredCandidateIds: [],
     })).rejects.toThrow(/conflit/);
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("mémorise le refus entier avec un identifiant déterministe et tolère son rejeu", async () => {
+    const insert = vi.fn()
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { code: "23505", message: "duplicate key" } });
+    mocks.from.mockReturnValue({ insert });
+
+    await refuserPropositionPlan("plan-ab12");
+    await refuserPropositionPlan("plan-ab12");
+
+    expect(mocks.from).toHaveBeenCalledWith("refus_recommandations");
+    expect(insert).toHaveBeenNthCalledWith(1, {
+      id: "plan-refus:plan-ab12",
+      user_id: "compte-1",
+      code: null,
+      exercice_id: null,
+      proposition_ref: "plan-ab12",
+      date: expect.any(String),
+    });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("refuse une référence vide avant toute écriture", async () => {
+    await expect(refuserPropositionPlan(" ")).rejects.toThrow(/invalide/);
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });

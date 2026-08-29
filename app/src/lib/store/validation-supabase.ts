@@ -21,7 +21,7 @@ import {
   type User,
   type UsageDomaine,
 } from "@/lib/domain/types";
-import { motifRefusDisponibilitesDeclarees, motifRefusPeriodeDeclaree } from "@/lib/domain/contexte-orchestration";
+import { motifRefusDisponibilitesDeclarees } from "@/lib/domain/contexte-orchestration";
 import type { Engagement } from "@/lib/domain/engagement";
 import { motifRefusOrigineSeance } from "@/lib/domain/protocole-cours";
 import {
@@ -367,6 +367,7 @@ export function validerRefus(valeur: unknown, chemin = "refusRecommandations"): 
   texte(refus.id, `${chemin}.id`);
   optionnel(refus, "code", chemin, texte);
   optionnel(refus, "exerciceId", chemin, texte);
+  optionnel(refus, "propositionRef", chemin, texte);
   date(refus.date, `${chemin}.date`);
   return refus as unknown as RefusRecommandation;
 }
@@ -577,10 +578,6 @@ export function validerUser(valeur: unknown, chemin = "profile"): User {
   texte(user.objectifLongTerme, `${chemin}.objectifLongTerme`);
   date(user.debutSuivi, `${chemin}.debutSuivi`);
   optionnel(user, "preferencesPedagogiques", chemin, textes);
-  if (user.periodeDeclaree !== undefined) {
-    const motif = motifRefusPeriodeDeclaree(user.periodeDeclaree);
-    if (motif) refuser(`${chemin}.periodeDeclaree`, motif);
-  }
   if (user.disponibilitesDeclarees !== undefined) {
     const motif = motifRefusDisponibilitesDeclarees(user.disponibilitesDeclarees);
     if (motif) refuser(`${chemin}.disponibilitesDeclarees`, motif);

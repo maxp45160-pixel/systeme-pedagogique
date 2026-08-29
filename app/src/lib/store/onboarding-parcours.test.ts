@@ -227,6 +227,18 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     );
     // La tentative est bien close (abandonnée), la séance reste en cours.
     expect(db.attempts[0].statut).toBe("abandonnee");
+    expect(mocks.cloreExerciceAtomiquement.mock.calls[0][0].observations).toEqual([]);
     expect(mocks.modifier).not.toHaveBeenCalled();
+
+    // Une confirmation répétée converge vers le même état : elle ne recrée
+    // ni séance ni entrée de journal.
+    const replay = await abandonnerExercice(
+      "att-1",
+      EXERCICE.id,
+      3,
+      { seanceId: seance.id },
+    );
+    expect(replay).toBe(destination);
+    expect(mocks.cloreExerciceAtomiquement).toHaveBeenCalledTimes(1);
   });
 });

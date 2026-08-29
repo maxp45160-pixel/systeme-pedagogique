@@ -1,15 +1,44 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.0 — 27/08/2026.** La vision d'orchestration pédagogique est
-validée (ADR-139), mais n'est pas encore construite. La cible relie
-explicitement le besoin immédiat et le développement longitudinal par une
-boucle `contexte réel → plan → travail → observations → estimation →
-replanification`. Le plan est une hypothèse dérivée ; seules les séances
-acceptées deviennent des `LearningSession`. Cette version remplace les refus
+**Version 4.2 — 29/08/2026.** La vision d'orchestration pédagogique est
+validée (ADR-139) et sa première tranche d'interface est branchée : le tableau
+de bord calcule une proposition éphémère depuis le contexte déclaré et les
+recommandations, puis prépare une commande qui ne porte que sur les séances
+acceptées. La matérialisation distante reste à vérifier. La boucle
+complète `contexte réel → plan → travail → observations → estimation →
+replanification` reste à valider en conditions réelles. Le plan est une
+hypothèse dérivée ; seules les séances acceptées deviennent des
+`LearningSession`. Cette version remplace les refus
 de calendrier et de plan jour-par-jour d'ADR-096 et ADR-109 sans réintroduire
 d'objectif structuré ni d'état dérivé persistant.
 
-**Version précédente : 3.3 — 26/08/2026.** La nature d'un domaine se déclare désormais :
+La frontière distante d'acceptation atomique est désormais fonctionnelle et
+prouvée côté PostgreSQL. La reproduction du 29/08/2026 avait montré que `sum(integer)`
+renvoie `bigint`, que `coalesce` conserve ce type et que
+`make_interval(mins => ...)` attend `integer`. Les définitions distantes
+contiennent désormais le cast explicite du résultat de `sum`, et les cas NULL,
+individuel et agrégé passent. La même exécution distante avait ensuite révélé
+que le rejeu idempotent était filtré par RLS : le `FOR UPDATE` porté par la
+lecture du reçu append-only n'avait aucune politique UPDATE, donc un second
+appel retombait sur une collision d'insertion. La correction locale
+`20260829072035_corriger_somme_intervalle_acceptation_plan.sql` est enregistrée
+à distance sous `20260829075048` dans
+`supabase_migrations.schema_migrations`. Le correctif additif
+`20260829101500_corriger_idempotence_acceptation_plan.sql` retire uniquement ce
+verrou de ligne ; il est enregistré à distance sous `20260829145745`.
+
+Le parcours de correction d'un exercice ne bloque plus sur une panne du
+tuteur : l'état « correction en cours » est lisible, la relance est explicite
+et sérialisée, et un résultat déjà reçu est retrouvé au rechargement sans
+nouvel appel. Une relance explicitement demandée est une nouvelle génération
+assumée ; aucun double-clic ni rechargement ne la déclenche en douce. Après
+expiration ou erreur, « Terminer sans mesure » clôt la tentative sans résultat
+ni observation ; la réponse attendue devient alors consultable. Une observation
+ne peut donc naître qu'après une correction recevable puis l'acceptation du
+bilan. L'exercice diagnostic qui vient d'être mené est aussi exclu de
+l'enchaînement immédiat du même parcours, sans modifier la calibration.
+
+**Version précédente : 4.1 — 28/08/2026.** La nature d'un domaine se déclare désormais :
 module académique, progression continue, ou à préciser (ADR-138). Le cœur
 longitudinal ne bouge pas — aucune entité nouvelle, aucune mesure venue du
 cadre ; le parcours canonique (§4) dit la déclaration au lieu de la taire.
@@ -181,7 +210,7 @@ l'histoire des décisions.
 | « avec le degré de certitude » | ✅ Tenue. Les trois lectures restent distinctes ; l'interface les traduit en « ce que vous avez montré », « bilan à confirmer / solide » et « ancrage ». |
 | « quoi travailler ensuite » | 🟡 **La boucle a tourné en entier le 01/08** (ADR-030). La difficulté produite a suivi le conseil de la calibration sur les deux compétences où il existait — le 3ᵉ maillon est démontré. La seconde moitié du test reste à mesurer : les deux tentatives ont été abandonnées en 1 minute, donc aucune dimension n'a pu reculer. |
 | « parmi plusieurs façons d'apprendre » | 🔬 **Deux gestes existent** depuis le 15/08 : l'exercice et le mini-projet, ce dernier sur le chemin documentaire (ADR-070). Reste à vérifier — aucun projet n'a encore été mené à son terme. |
-| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139), planificateur v0 et frontière d'acceptation préparés ; les objets Supabase des lots 1, 3 et 5 sont visibles, mais leurs trois versions de migration ne figurent pas dans l'historique distant et le parcours global n'est pas encore validé en conditions réelles. |
+| « organiser le travail jusqu'aux échéances » | ❓ Vision validée le 27/08 (ADR-139) ; le tableau de bord calcule désormais une première proposition éphémère à partir du contexte déclaré et permet l'acceptation atomique de séances. La revue après changement d'une séance acceptée, les candidats de cours et le parcours global restent à valider en conditions réelles. |
 
 ## 4. Public
 
@@ -397,15 +426,22 @@ des séances acceptées. La vérification Supabase réelle du 28/08/2026 confirm
 que les colonnes `interventions`, `origine_proposition` et
 `duree_planifiee_min`, le reçu d'idempotence et les fonctions
 `accepter_plan(text,jsonb)`/`accepter_plan_lot3_legacy(text,jsonb)` sont
-présents, avec RLS actif. L'historique distant s'arrête toutefois à
-`20260825221304` : les versions locales
+présents, avec RLS actif. Les versions locales
 `20260828110000_interventions_seance.sql`,
 `20260828120000_lot_3_acceptation_plan.sql` et
-`20260828150000_lot_5_revision_plan.sql` n'y sont pas enregistrées. La
-présence des objets ne permet pas d'inférer quelle instruction les a créés ;
-aucun fichier n'est rejoué et la réconciliation relève du workflow
-d'infrastructure approuvé. Aucun statut de construction n'est promu avant une
-validation humaine et un scénario réel de bout en bout.
+`20260828150000_lot_5_revision_plan.sql` n'y sont pas enregistrées. Une
+migration corrective `20260828212629` (`corriger_intervalle_acceptation_plan`)
+a été appliquée, mais sa correction était incomplète : les casts des opérandes
+avaient été ramenés à `INTEGER` sans convertir le résultat `BIGINT` de `sum`
+avant `make_interval`. La correction additive
+`20260829072035_corriger_somme_intervalle_acceptation_plan.sql` a ensuite
+produit les définitions distantes corrigées ; elle est enregistrée sous la
+version distante `20260829075048`. La migration additive
+`20260829101500_corriger_idempotence_acceptation_plan.sql`, enregistrée sous la
+version distante `20260829145745`, supprime le verrou RLS incompatible. La
+preuve distante transactionnelle de sélection, d'idempotence, de tout-ou-rien,
+d'absence de plan dérivé et d'absence d'observation passe désormais. Aucun
+statut de construction n'est promu avant un scénario réel de bout en bout.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
@@ -810,34 +846,42 @@ ni échéance recopiée, ni plan, ni préparation. Sans preuve, la préparation 
 « Non estimable » ; le besoin de diagnostic reste une raison d'action, pas une
 mesure.
 
-Le raccordement reste partiel : l'interface ne collecte pas encore de
-disponibilités confirmées pour ces candidates et la frontière atomique du lot 3
-ne conserve pas encore le `blueprint.origine` documentaire requis par la
-préparation différée. La matérialisation directe historique du protocole reste
-donc en place jusqu'à cette parité ; elle ne doit être retirée que dans le même
-changement que sa relève globale testée. Le statut d'ADR-139 reste ❓.
+La proposition du tableau de bord reste dérivée et porte une référence opaque
+et stable pour les mêmes entrées matérielles. La personne peut sélectionner
+une partie, tout sélectionner, tout désélectionner ou ignorer toute la
+proposition. Ignorer écrit seulement ce fait dans `refus_recommandations` ;
+aucune `LearningSession`, observation, dette ou pénalité n'en découle. Une
+proposition ignorée ne revient pas tant que ses échéances, créneaux, travaux
+disponibles ou séances acceptées n'ont pas changé. Les états sans séance
+expliquent la cause en langage courant ; les identifiants et détails techniques
+restent dans les journaux.
 
-### Lot 9 — contexte progressif et besoins concurrents
+Le raccordement reste partiel : la première intégration fournit les
+disponibilités déclarées au planificateur et accepte les candidates historiques
+du tableau de bord, mais ne branche pas encore les candidats de cours ni la
+revue d'un recalcul qui toucherait des séances déjà acceptées. La
+matérialisation directe historique du protocole reste donc en place jusqu'à
+cette parité ; elle ne doit être retirée que dans le même changement que sa
+relève globale testée. Le statut d'ADR-139 reste ❓.
 
-🔬 Une carte temporaire « Préparer votre période » apparaît après le premier
-succès observé. Elle relit les domaines vivants et les engagements existants,
-puis permet de déclarer une période, quelques disponibilités et de confirmer les
-échéances déjà connues, une étape à la fois. Les faits sont écrits dans les
-colonnes additives du profil ; l'étape ignorée seulement est mémorisée dans un
-`localStorage` isolé par compte. Aucun plan, score de préparation, objectif ou
-nouvelle entité de travail n'est créé. Les lectures de modules et d'échéances
-restent dérivées et une absence de disponibilité demeure une absence de fait,
-jamais une capacité fabriquée.
+### Lot 9 — créneaux et échéances concrètes
 
-La migration a été appliquée et vérifiée dans Supabase le 28/08/2026 sous la
-version distante `20260828201530` (`lot_9_contexte_declare`). Elle ajoute
-`profiles.periode_declaree` et `profiles.disponibilites_declarees` avec leurs
-garde-fous de forme. Les versions locales antérieures des lots 1, 3 et 5
-restent absentes de l'historique distant ; leur présence fonctionnelle ne vaut
-pas reconstitution de leurs entrées et aucun rejeu n'a été effectué. Le
-planificateur n'arbitre pas encore les besoins concurrents dans cette carte :
-la prochaine étape sûre est de lui fournir ces faits confirmés et de tester la
-tension entre échéances et continuité.
+🔬 Le tableau de bord expose désormais une configuration permanente et courte :
+la personne ajoute, modifie ou supprime plusieurs créneaux disponibles, puis
+déclare plusieurs échéances depuis le même écran. Les créneaux sont conservés
+dans le tableau déclaré du profil et validés ensemble ; une plage inversée ou
+un chevauchement est refusé. Une absence de créneau demeure une absence de fait,
+jamais une faiblesse ou une indisponibilité fabriquée. Aucun parcours local à
+acquitter, calendrier externe, plan, score ou nouvelle entité de travail n'est
+créé.
+
+La migration additive `20260828201530` (`lot_9_contexte_declare`) a été
+appliquée et vérifiée dans Supabase le 28/08/2026. Le code n'utilise plus la
+colonne historique `profiles.periode_declaree`, qui n'alimentait aucune
+décision ; la migration de retrait `20260829155409_retirer_periode_declaree_inutile.sql`
+est préparée localement mais reste à appliquer. La base distante contient
+encore cette colonne et une valeur sur un profil jusqu'à autorisation de ce
+retrait. `profiles.disponibilites_declarees` reste la seule donnée de créneaux.
 
 ---
 

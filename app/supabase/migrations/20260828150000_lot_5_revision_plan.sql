@@ -3,7 +3,7 @@
 -- État au 28/08/2026 : migration NON appliquée comme version enregistrée ; la
 -- colonne, la contrainte et les fonctions décrites sont visibles dans Supabase
 -- réel, mais cette version n'est pas inscrite dans l'historique distant
--- (qui s'arrête à 20260825221304). La provenance de cette application ne peut
+-- (qui contient désormais la correction partielle 20260828212629). La provenance de cette application ne peut
 -- pas être inférée ; ne pas rejouer ni appliquer ce fichier sans le workflow
 -- d'autorisation prévu. Elle ne crée aucune table et ne stocke pas le plan.
 --

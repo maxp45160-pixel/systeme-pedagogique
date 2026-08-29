@@ -62,6 +62,34 @@ describe("creerEngagement", () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
+  it("permet de déclarer plusieurs échéances successivement", async () => {
+    mocks.nouvelId.mockReturnValueOnce("eng-premiere").mockReturnValueOnce("eng-seconde");
+
+    await creerEngagement({
+      type: "examen",
+      libelle: "Partiel 1",
+      echeanceLe: "2026-09-05",
+    });
+    await creerEngagement({
+      type: "rendu",
+      libelle: "Dossier 2",
+      echeanceLe: "2026-09-12",
+    });
+
+    expect(mocks.ajouter).toHaveBeenNthCalledWith(
+      1,
+      "engagements",
+      expect.objectContaining({ id: "eng-premiere", libelle: "Partiel 1" }),
+      {},
+    );
+    expect(mocks.ajouter).toHaveBeenNthCalledWith(
+      2,
+      "engagements",
+      expect.objectContaining({ id: "eng-seconde", libelle: "Dossier 2" }),
+      {},
+    );
+  });
+
   it("refuse bruyamment un code hors référentiel du compte, sans rien écrire", async () => {
     await expect(
       creerEngagement({

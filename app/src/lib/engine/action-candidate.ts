@@ -103,7 +103,7 @@ export function actionCandidateDepuisRecommandation(
       engagementIds: options.engagementIds ? [...options.engagementIds] : [],
       label: exercice.titre,
     },
-    intervention: "resolve",
+    intervention: exercice.diagnostic ? "diagnose" : "resolve",
     expectedEffect: "measurement",
     title: exercice.titre,
     durationMinutes: exercice.dureeEstimeeMin,
@@ -185,6 +185,8 @@ export function motifRefusActionCandidate(candidate: ActionCandidate): string | 
 export interface RefusObserve {
   candidateId?: string;
   skillCode?: string;
+  /** Refus d'une proposition de plan entière, valable jusqu'à changement d'entrée. */
+  propositionRef?: string;
   observedAt: string;
   expiresAt?: string;
   sourceRef: string;
@@ -201,8 +203,9 @@ export function refusObserveDepuisRefusRecommandation(
   return {
     candidateId: refus.exerciceId ? `legacy-exercise:${refus.exerciceId}` : undefined,
     skillCode: refus.code,
+    propositionRef: refus.propositionRef,
     observedAt: refus.date,
-    expiresAt,
+    expiresAt: refus.propositionRef ? undefined : expiresAt,
     sourceRef: `refus:${refus.id}`,
   };
 }

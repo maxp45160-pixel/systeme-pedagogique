@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   creerDocument: vi.fn(),
@@ -35,7 +35,11 @@ function formData(ligne: string, jour?: string): FormData {
 }
 
 describe("noterDansLaMarge — le jour déclaré par le formulaire", () => {
+  afterEach(() => vi.useRealTimers());
+
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-25T12:00:00Z"));
     vi.clearAllMocks();
     mocks.lireContenuMarge.mockResolvedValue(null);
     mocks.creerDocument.mockResolvedValue(undefined);

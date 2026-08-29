@@ -115,6 +115,10 @@ export async function VueExercice(props: {
     [...tentativesDeCetteSeance]
       .filter((a) => a.statut === "terminee")
       .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
+  const derniereCloturee =
+    [...tentativesDeCetteSeance]
+      .filter((a) => a.statut !== "en-cours")
+      .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
 
   /*
    * Deux chemins mènent désormais à `?abandon=1` :
@@ -170,6 +174,7 @@ export async function VueExercice(props: {
       exercices: ctx.donnees.exercises,
       tentatives: ctx.donnees.attempts,
       now: ctx.now,
+      exercicesExclus: new Set([exercice.id]),
     })
     : null;
 
@@ -603,14 +608,15 @@ export async function VueExercice(props: {
           rouvre l'exercice pour le refaire — même précaution que la correction
           repliée dans la fiche (`titresReplies` du Markdown).
         */}
-        {!enCours && derniereTerminee && (
+        {!enCours && derniereCloturee && (
           <PanneauPliable
             ouvertParDefaut={false}
             titre={<span className="text-sm font-medium">Réponse attendue</span>}
             sousEntete={
               <p className="mt-0.5 text-xs text-texte-attenue">
-                Exercice terminé — ce qui était attendu, pour relire votre bilan avec un point de
-                comparaison.
+                {derniereCloturee.statut === "abandonnee"
+                  ? "Exercice clos sans mesure — ce qui était attendu, si vous souhaitez comparer."
+                  : "Exercice terminé — ce qui était attendu, pour relire votre bilan avec un point de comparaison."}
               </p>
             }
           >
@@ -749,11 +755,11 @@ export async function VueExercice(props: {
                     />
                     <div className="px-4 py-3.5">
                       {/*
-                        `BilanAssiste` lance la relecture puis rend le même
-                        `FormulaireBilan`, pré-rempli. En cas d'échec — 503,
-                        fournisseur sans outils, verdict illisible — il rend le
-                        formulaire NU avec la raison. Le chemin manuel n'est
-                        donc jamais perdu.
+                        `BilanAssiste` rend le formulaire uniquement après une
+                        correction recevable. En cas d'échec ou d'expiration,
+                        il propose une reprise explicite ou « Terminer sans
+                        mesure » : aucune auto-évaluation de secours ne peut
+                        fabriquer une observation sans correction.
                       */}
                       <BilanAssiste
                         exercice={exercice}

@@ -18,7 +18,7 @@
  * dérivation (ADR-039). Le serveur décide, le composant annonce.
  */
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { abandonnerExercice } from "@/lib/store/actions";
 import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
@@ -30,6 +30,8 @@ export function BoutonAbandon({
   dureeMin,
   codes,
   navigation,
+  mode = "abandon",
+  avantConfirmation,
 }: {
   attemptId: string;
   exerciceId: string;
@@ -38,13 +40,20 @@ export function BoutonAbandon({
   /** Compétences visées, citées dans l'annonce : c'est d'elles qu'il s'agit. */
   codes: string[];
   navigation?: ContexteNavigationExercice;
+  /** Variante explicite utilisée quand la correction n'est pas recevable. */
+  mode?: "abandon" | "sans-mesure";
+  /** Coupe une demande en cours avant d'afficher la confirmation. */
+  avantConfirmation?: () => void;
 }) {
   const router = useRouter();
   const [confirme, setConfirme] = useState(false);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const actionLancee = useRef(false);
 
   function abandonner() {
+    if (actionLancee.current) return;
+    actionLancee.current = true;
     setErreur(null);
     demarrer(async () => {
       try {
@@ -58,6 +67,7 @@ export function BoutonAbandon({
         router.push(destination);
         router.refresh();
       } catch (e) {
+        actionLancee.current = false;
         setErreur(e instanceof Error ? e.message : "Impossible de clore la tentative.");
       }
     });
@@ -65,8 +75,16 @@ export function BoutonAbandon({
 
   if (!confirme) {
     return (
-      <Bouton onClick={() => setConfirme(true)} disabled={enCours} variante="secondaire" taille="petite">
-        Abandonner cette tentative
+      <Bouton
+        onClick={() => {
+          avantConfirmation?.();
+          setConfirme(true);
+        }}
+        disabled={enCours}
+        variante="secondaire"
+        taille="petite"
+      >
+        {mode === "sans-mesure" ? "Terminer sans mesure" : "Abandonner cette tentative"}
       </Bouton>
     );
   }
@@ -76,12 +94,23 @@ export function BoutonAbandon({
       {/* L'annonce du geste, avant qu'il ne se produise (ADR-027). */}
       <BandeauInfo ton="info" taille="compacte">
         <p className="text-texte-attenue">
-          <span className="font-medium text-texte">Cet exercice ne comptera pas.</span> Un
-          abandon n{"'"}est pas un échec : un échec est une mesure, il suppose qu{"'"}on ait
-          essayé. Votre niveau sur {codes.join(", ")} restera inchangé.
+          <span className="font-medium text-texte">
+            {mode === "sans-mesure" ? "Aucune mesure ne sera enregistrée." : "Cet exercice ne comptera pas."}
+          </span>{" "}
+          {mode === "sans-mesure"
+            ? "La correction n'est pas disponible : la tentative sera close sans résultat, sans observation et sans score."
+            : "Un abandon n'est pas un échec : un échec est une mesure, il suppose qu'on ait essayé. Votre niveau sur "}
+          {mode === "abandon" && `${codes.join(", ")} restera inchangé.`}
           <br />
           La tentative passe en abandonnée et reste au journal — elle explique pourquoi
           aucune difficulté n{"'"}est conseillée pour le prochain exercice.
+          {mode === "sans-mesure" && (
+            <>
+              <br />
+              La réponse attendue sera consultable après cette sortie, sans vous demander de
+              fabriquer une autoévaluation.
+            </>
+          )}
         </p>
       </BandeauInfo>
 
@@ -93,7 +122,11 @@ export function BoutonAbandon({
 
       <div className="flex flex-wrap items-center gap-2">
         <Bouton onClick={abandonner} disabled={enCours} variante="secondaire" taille="petite">
-          {enCours ? "Clôture…" : "Confirmer l'abandon"}
+          {enCours
+            ? "Clôture…"
+            : mode === "sans-mesure"
+              ? "Confirmer : terminer sans mesure"
+              : "Confirmer l'abandon"}
         </Bouton>
         <button
           type="button"

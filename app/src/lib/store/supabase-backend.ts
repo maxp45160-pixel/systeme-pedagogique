@@ -130,6 +130,10 @@ export function profilVersUser(
     );
   }
   const user = ligneVersEntite<User>(ligne);
+  // Transition tolérée jusqu'à l'application de la migration de retrait :
+  // une ancienne colonne ne doit pas réapparaître dans le domaine par simple
+  // lecture de profiles.select("*").
+  delete (user as unknown as Record<string, unknown>).periodeDeclaree;
   if (user.id !== defaut.id) {
     throw new DonneeSupabaseInvalide("profile.id", `identifiant du compte ${defaut.id} attendu`);
   }

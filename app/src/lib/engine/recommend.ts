@@ -517,13 +517,16 @@ function choisirExercice(
   termineesParExercice: Map<string, ExerciseAttempt[]>,
   cible: Difficulte,
   exercicesRefuses: Set<string>,
+  exercicesExclus: ReadonlySet<string>,
 ): { exercice: Exercise | null; toutRefuse: boolean } {
   const recommandables = exercices.filter(
     (ex) =>
       ex.competences.includes(etat.skill.code) &&
       recommandable(ex, etat, termineesParExercice),
   );
-  const candidats = recommandables.filter((ex) => !exercicesRefuses.has(ex.id));
+  const candidats = recommandables.filter(
+    (ex) => !exercicesRefuses.has(ex.id) && !exercicesExclus.has(ex.id),
+  );
   if (candidats.length === 0) {
     return { exercice: null, toutRefuse: recommandables.length > 0 };
   }
@@ -596,6 +599,12 @@ export function recommander(
    * ignorés ici même (`estOuvert`) ; hors fenêtre, ils ne pèsent rien.
    */
   engagements?: Engagement[],
+  /**
+   * Exclusion de parcours, non persistée : elle empêche de reproposer
+   * immédiatement l'exercice qui vient d'être mené, sans détourner la
+   * calibration ni créer un faux refus utilisateur.
+   */
+  exercicesExclus: ReadonlySet<string> = new Set(),
 ): Recommandation[] {
   const parCode = new Map(etats.map((e) => [e.skill.code, e]));
   const termineesParExercice = indexerTerminees(tentatives);
@@ -632,6 +641,7 @@ export function recommander(
         termineesParExercice,
         cible,
         refus.exercices,
+        exercicesExclus,
       );
 
       // La calibration règle la DIFFICULTÉ ; elle ne re-classe pas les

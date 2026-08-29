@@ -128,7 +128,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [133](#adr-133) | Une séance « compréhension » du protocole demande de reformuler, pas de produire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [134](#adr-134) | Une séance « mémorisation » du protocole demande de restituer de mémoire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [135](#adr-135) | **Une seule application, un seul noyau, une expérience d'abord étudiante** | ✅ Acceptée (25/08) |
-| [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, hypothèse non réfutée (25/08) — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
+| [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, amendée le 29/08, hypothèse non réfutée — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
 | [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
 | [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, planificateur/acceptation/revue locale préparés ; migration lot 5 en attente — aucune montée en ✅ |
@@ -10751,8 +10751,10 @@ réouverture sur intuition.
 <a name="adr-136"></a>
 ## ADR-136 — Le parcours ne bloque jamais sans dire pourquoi, et ne montre la réponse qu'après coup 🔬
 
-**Statut :** 🔬 construit le 25/08/2026, hypothèse non réfutée. Décisions posées
-par le plan de friction du 25/08/2026 et implémentées le même jour.
+**Statut :** 🔬 construit le 25/08/2026, amendé le 29/08/2026, hypothèse non
+réfutée. Les décisions initiales viennent du plan de friction du 25/08/2026 ;
+la reprise de correction et la sortie sans mesure ont été ajoutées après
+reproduction de l'impasse.
 
 ### Contexte
 
@@ -10773,13 +10775,20 @@ fortement la friction du geste qui produit une observation.
    l'action serveur, rafraîchit explicitement l'écran, affiche une attente
    nommée et propose un repli manuel (`<form action>`) si elle échoue.
    L'invariant ADR-030 reste entier : l'automatisme n'écrit toujours rien.
-2. **Deux horloges bornent la correction.** À 10 s, sortie manuelle proposée
-   (« Je ne sais pas encore ») ; à 25 s, interruption automatique du flux —
-   qui coupe aussi la génération côté serveur via `request.signal`. La route
-   passe de 300 à 60 s de plafond et journalise TTFT, durée totale,
-   fournisseur et issue (aucun retry n'existe dans les moteurs). La sortie
-   manuelle n'appelle aucun LLM et n'écrit aucune observation fabriquée : le
-   bilan s'ouvre nu, à décider.
+2. **Deux horloges bornent la correction.** À 10 s, la sortie « Terminer sans
+   mesure » devient disponible ; à 25 s, le flux est interrompu, ce qui coupe
+   aussi la génération côté serveur via `request.signal`. La route passe de
+   300 à 60 s de plafond et journalise TTFT, durée totale, fournisseur et
+   issue. Une seule demande est active à la fois ; aucune relance automatique
+   n'existe. Un verdict déjà reçu est conservé dans le `sessionStorage` isolé
+   du compte et retrouvé au rechargement. Une expiration, une erreur ou un
+   rechargement expose une relance explicite et « Terminer sans mesure » ; ce
+   dernier réutilise `abandonnerExercice`, n'écrit ni résultat ni observation,
+   et rend la réponse attendue consultable. Une relance explicitement demandée
+   constitue une nouvelle génération ; ni double-clic ni rechargement ne peut
+   la déclencher en douce. Le formulaire de bilan n'est rendu
+   qu'après une correction recevable : aucune auto-évaluation de secours n'est
+   imposée, et aucune observation ne peut être produite sans cette correction.
 3. **Une inscription ambiguë reste ambiguë.** La classification vit dans
    `lib/auth/inscription.ts` (testée) : erreur explicite de doublon → bascule
    vers la connexion avec l'e-mail conservé ; succès sans identités (le
@@ -10815,11 +10824,14 @@ fortement la friction du geste qui produit une observation.
 
 L'hypothèse est réfutée si : un p95 de correction par fournisseur repasse
 au-delà de 30 s malgré l'interruption (le plafond serveur devra être revu avec
-ses logs) ; si des comptes légitimes abandonnent l'inscription faute de
-comprendre le résultat neutre ; ou si la consultation de la « Réponse attendue »
-après coup se révèle servir à recopier plutôt qu'à comparer — auquel cas le
-panneau redeviendra replié derrière un geste encore plus coûteux, ou sera
-retiré.
+ses logs) ; si une relance ou un double clic produit deux demandes actives ; si
+un rechargement perd un verdict déjà reçu ; si une expiration permet d'écrire
+une observation sans correction recevable ; si la sortie sans mesure ne clôt
+pas la tentative idempotemment ; si l'exercice diagnostic tout juste mené est
+reproposé dans le même parcours ; ou si la consultation de la « Réponse
+attendue » après coup se révèle servir à recopier plutôt qu'à comparer — auquel
+cas le panneau redeviendra replié derrière un geste encore plus coûteux, ou
+sera retiré.
 
 ---
 
@@ -11039,22 +11051,49 @@ présents dans la base réelle, mais les versions locales `20260828110000` et
 `20260828120000` ne figurent pas dans l'historique distant vérifié le
 28/08/2026. La colonne, sa contrainte et la RPC prévues par la migration
 additive `20260828150000_lot_5_revision_plan.sql` sont visibles dans Supabase
-réel, mais l'entrée de cette migration n'est pas dans l'historique distant,
-qui s'arrête à `20260825221304`. Les versions locales des lots 1, 3 et 5
-restent donc non enregistrées, sans qu'une application ponctuelle puisse être
-déduite. Cet écart ne vaut pas autorisation de rejouer une DDL et ne promeut
-aucun statut.
+réel, mais l'entrée de cette migration n'est pas enregistrée. Une migration
+corrective `20260828212629` (`corriger_intervalle_acceptation_plan`) a bien
+remplacé les casts `DOUBLE PRECISION` incompatibles avec `make_interval`, mais
+la reproduction du 29/08/2026 avait prouvé que `sum(integer)` renvoie encore
+`BIGINT` et que l'appel échoue avant l'insertion. La correction additive
+`20260829072035_corriger_somme_intervalle_acceptation_plan.sql` a ensuite
+produit les définitions distantes corrigées : les trois formes de durée passent
+désormais. La preuve distante transactionnelle de sélection, d'absence de plan
+dérivé, d'absence d'observation, de tout-ou-rien et d'absence de candidate
+ignorée passe. Le rejeu identique avait toutefois été bloqué : le `FOR UPDATE`
+de la lecture du reçu append-only était filtré par RLS faute de politique
+UPDATE, et l'appel retombait sur une collision d'insertion. Son entrée est présente dans
+`supabase_migrations.schema_migrations` sous la version distante
+`20260829075048`, avec son effet visible dans les deux fonctions. Le correctif
+additif `20260829101500_corriger_idempotence_acceptation_plan.sql` retire ce
+verrou de ligne par remplacement littéral borné ; il est enregistré sous la
+version distante `20260829145745`. Les versions locales historiques des lots
+1, 3 et 5 restent donc non enregistrées, sans qu'un rejeu puisse être déduit.
+Cet écart ne vaut pas autorisation de rejouer une DDL historique et ne permet
+pas, à lui seul, de promouvoir le statut.
 
-Le lot 9 ajoute uniquement au profil les faits déclarés nécessaires au contexte
-progressif : `periode_declaree` et `disponibilites_declarees`. La migration
-additive a été appliquée le 28/08/2026 et vérifiée dans l'historique Supabase
-sous la version `20260828201530` (`lot_9_contexte_declare`). Les étapes ignorées
-par la carte sont un état d'interface `localStorage` isolé par compte ; aucun
-plan, score de préparation ou objectif n'est persisté. La carte ne demande pas
-à nouveau les domaines déjà déclarés et ne fabrique pas une capacité en
-l'absence de disponibilité. Cette tranche outille le contexte mais ne démontre
-pas encore l'arbitrage réel de besoins concurrents ; le statut de l'ADR reste
-donc ❓.
+Le tableau de bord branche désormais une première tranche de ce contrat : il
+fournit au planificateur les disponibilités déclarées, les recommandations
+historiques et les séances déjà acceptées, puis propose un lot éphémère dont
+la personne peut accepter tout ou partie. L'acceptation passe par la frontière
+atomique existante ; aucun plan complet n'est persisté. Cette intégration ne
+couvre pas encore les candidats de cours ni la replanification d'un ensemble
+qui toucherait des séances déjà acceptées.
+
+Le lot 9 ajoute au profil les créneaux déclarés nécessaires au contexte
+temporel concret : `disponibilites_declarees`. La migration additive
+`20260828201530` (`lot_9_contexte_declare`) a été appliquée le 28/08/2026 et
+vérifiée dans l'historique Supabase. La période textuelle historique n'alimentait
+aucune décision du moteur ni du planificateur ; le code et l'interface l'ont
+retirée, avec une migration additive de suppression préparée localement sous
+`20260829155409_retirer_periode_declaree_inutile.sql`. Elle n'est pas encore
+appliquée : la base distante contient donc toujours cette colonne et une valeur
+existante. L'état d'interface `localStorage` de l'ancien assistant a été retiré.
+La carte permanente conserve les créneaux, détecte les chevauchements et permet
+de déclarer plusieurs échéances sans reprendre un parcours. Aucun plan, score de
+préparation ou objectif n'est persisté et l'absence de disponibilité reste une
+absence de fait. Cette tranche outille le contexte mais ne démontre pas encore
+l'arbitrage réel de besoins concurrents ; le statut de l'ADR reste donc ❓.
 
 **Amende** [ADR-096](#adr-096) et [ADR-109](#adr-109). Elle conserve leur refus
 d'un objectif structuré fabriqué ou persisté, mais remplace leur refus de la
@@ -11122,6 +11161,13 @@ faire de l'emploi du temps une mesure sur la personne.
     Séances en porte la chronologie et l'exécution, Mes cours fournit le
     contexte, Progression conserve la lecture longitudinale. L'utilisateur ne
     voit jamais un moteur, une file de calcul ou une maintenance à administrer.
+11. **L'arbitrage entier reste un fait de refus, pas un état du plan.** La
+    référence de proposition est calculée de façon stable à partir des entrées
+    matérielles du planificateur, hors horloge et hors refus déjà observés. La
+    commande « Ignorer cette proposition » réutilise `refus_recommandations`
+    avec cette référence ; elle est idempotente et le moteur l'exclut jusqu'à
+    une modification matérielle. La carte traduit les réserves et erreurs en
+    langage courant ; les identifiants internes restent dans les journaux.
 
 ### Conséquences sur l'existant
 
@@ -11162,10 +11208,12 @@ cette ADR reste donc ❓.
   nouvelles origines historiques conservent cet attachement pour la génération
   différée. Les vues « Cette semaine » et « Échéances » d'un module se dérivent
   des séances acceptées, engagements et preuves. L'ancien écrivain reste en
-  place : les disponibilités confirmées ne sont pas encore fournies par le
-  parcours et la RPC d'acceptation ne transporte pas encore le blueprint
-  documentaire. Le retirer avant cette parité violerait ADR-131/132 ; cette
-  étape ne change donc pas le statut ❓ de la présente ADR.
+  place : les disponibilités déclarées sont maintenant fournies au
+  planificateur par le tableau de bord, mais la RPC d'acceptation ne transporte
+  pas encore le blueprint documentaire et les candidats de cours ne sont pas
+  encore composés avec les recommandations historiques. Le retirer avant cette
+  parité violerait ADR-131/132 ; cette étape ne change donc pas le statut ❓ de
+  la présente ADR.
 - Le compositeur manuel reste un échappatoire secondaire pour un besoin hors
   plan ; il cesse d'être le parcours nominal.
 - `/seances` expose par défaut une chronologie dérivée des `LearningSession`

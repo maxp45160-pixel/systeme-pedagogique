@@ -252,8 +252,6 @@ export interface User {
    * il ne les infère jamais lui-même.
    */
   preferencesPedagogiques?: string[];
-  /** Période académique ou horizon textuel confirmé par la personne. */
-  periodeDeclaree?: string;
   /** Fenêtres explicites reçues du profil ; absence ≠ indisponibilité. */
   disponibilitesDeclarees?: DisponibiliteDeclaree[];
 }
@@ -639,7 +637,9 @@ export interface VerdictTuteur {
  *
  * Fait observé : l'utilisateur a écarté une suggestion. Stocké en base pour
  * que le moteur de recommandation puisse l'exclure de la file pendant la
- * durée d'expiration (7 jours, gérée à la lecture).
+ * durée d'expiration (7 jours, gérée à la lecture). Une proposition de plan
+ * entière porte toutefois une `propositionRef` stable et reste écartée jusqu'à
+ * un changement matériel de ses entrées.
  */
 export interface RefusRecommandation {
   id: string;
@@ -662,6 +662,8 @@ export interface RefusRecommandation {
    * ceux posés quand aucune activité n'était proposée (repli « Générer »).
    */
   exerciceId?: string;
+  /** Proposition de plan écartée en entier, sans durée d'expiration. */
+  propositionRef?: string;
   /** Date du refus (ISO). */
   date: string;
 }

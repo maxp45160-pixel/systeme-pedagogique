@@ -9,10 +9,8 @@
  * demanderait une décision de rétention qui n'a pas été prise.
  *
  * Ici vivent les préférences d'appareil sans contenu pédagogique — `theme`,
- * `rail` (décision du 21/08/2026) — et des marqueurs d'interface facultatifs
- * isolés par compte, comme les étapes ignorées de l'assistant de période. Ces
- * marqueurs ne contiennent aucun fait pédagogique et ne remplacent jamais
- * Supabase. Le cahier, lui, n'y stocke plus
+ * `rail` (décision du 21/08/2026). Elles ne contiennent aucun fait pédagogique
+ * et ne remplacent jamais Supabase. Le cahier, lui, n'y stocke plus
  * rien : son marque-page rouvrait la lecture plusieurs jours en arrière,
  * une friction plutôt qu'un confort — il ouvre désormais toujours sur la
  * page du jour.

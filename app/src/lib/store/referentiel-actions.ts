@@ -38,7 +38,6 @@ import {
 } from "@/lib/domain/usage-domaine";
 import {
   normaliserDisponibilitesDeclarees,
-  normaliserPeriodeDeclaree,
   type EntreeDisponibiliteDeclaree,
 } from "@/lib/domain/contexte-orchestration";
 import type {
@@ -763,7 +762,6 @@ export interface ModificationProfil {
   objectifMoyenTerme?: string;
   objectifLongTerme?: string;
   preferencesPedagogiques?: string[];
-  periodeDeclaree?: string;
   disponibilitesDeclarees?: EntreeDisponibiliteDeclaree[];
 }
 
@@ -774,9 +772,6 @@ export async function modifierProfil(champs: ModificationProfil): Promise<void> 
   if (champs.objectifMoyenTerme !== undefined) ligne.objectif_moyen_terme = champs.objectifMoyenTerme.trim();
   if (champs.objectifLongTerme !== undefined) ligne.objectif_long_terme = champs.objectifLongTerme.trim();
   if (champs.preferencesPedagogiques !== undefined) ligne.preferences_pedagogiques = champs.preferencesPedagogiques.map((preference) => preference.trim()).filter(Boolean);
-  if (champs.periodeDeclaree !== undefined) {
-    ligne.periode_declaree = normaliserPeriodeDeclaree(champs.periodeDeclaree);
-  }
   if (champs.disponibilitesDeclarees !== undefined) {
     ligne.disponibilites_declarees = normaliserDisponibilitesDeclarees(champs.disponibilitesDeclarees);
   }

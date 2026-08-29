@@ -234,6 +234,7 @@ export async function VueSeanceDetail({
         exercices: ctx.donnees.exercises,
         tentatives: ctx.donnees.attempts,
         now: ctx.now,
+        exercicesExclus: new Set(ids),
       })
       : null;
   }
@@ -296,6 +297,7 @@ export async function VueSeanceDetail({
       exercices: ctx.donnees.exercises,
       tentatives: ctx.donnees.attempts,
       now: ctx.now,
+      exercicesExclus: new Set(ids),
     })
     : null;
   const suivant = [...avancement.enCours, ...avancement.restants]

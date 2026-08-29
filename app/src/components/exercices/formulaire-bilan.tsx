@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Dimension, Exercise } from "@/lib/domain/types";
 import { LIBELLES_DIMENSIONS } from "@/lib/domain/types";
@@ -91,6 +91,7 @@ export function FormulaireBilan({
   const [detaille, setDetaille] = useState(!criteresReplies);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+  const soumissionLancee = useRef(false);
   const router = useRouter();
 
   const justifications = propositionInitiale?.justifications ?? {};
@@ -117,11 +118,12 @@ export function FormulaireBilan({
   }`;
 
   const soumettre = useCallback(() => {
+    if (soumissionLancee.current) return;
     setErreur(null);
 
-    // Une absence de verdict n'est pas une réussite implicite. Le formulaire
-    // nu doit rester explicitement à décider, y compris quand la relecture du
-    // tuteur a échoué ou a été abandonnée.
+    // Une absence de verdict n'est pas une réussite implicite. Ce formulaire
+    // n'est rendu qu'après une proposition recevable, mais le résultat reste
+    // explicitement à décider par la personne.
     if (resultat === null) {
       setErreur("Dites d'abord comment ça s'est passé.");
       return;
@@ -131,6 +133,10 @@ export function FormulaireBilan({
       setErreur("Il reste des points à évaluer.");
       return;
     }
+
+    // La transition désactive le bouton après le rendu suivant ; le ref ferme
+    // aussi la fenêtre très courte d'un double clic synchronisé.
+    soumissionLancee.current = true;
 
     // Agrège les critères par dimension : moyenne des critères qui la visent.
     const parDimension = new Map<Dimension, number[]>();
@@ -180,12 +186,13 @@ export function FormulaireBilan({
         router.push(destination);
         router.refresh();
       } catch (e) {
+        soumissionLancee.current = false;
         setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       }
     });
   }, [
     resultat, tousRenseignes, exercice, criteres, attemptId,
-    duree, notes, aide, propositionInitiale, navigation,
+    duree, notes, aide, propositionInitiale, navigation, router,
   ]);
 
   useEffect(() => {

@@ -281,7 +281,23 @@ describe("profil", () => {
     });
   });
 
-  it("relit la période et les disponibilités déclarées sans les dériver", () => {
+  it("refuse un profil d'un autre compte au lieu de le mélanger", () => {
+    expect(() => profilVersUser(
+      {
+        id: "compte-2",
+        prenom: "Autre",
+        formation: "Formation",
+        objectif_moyen_terme: "Objectif moyen terme",
+        objectif_long_terme: "Objectif long terme",
+        debut_suivi: "2026-07-24",
+        preferences_pedagogiques: [],
+        disponibilites_declarees: [],
+      },
+      defaut,
+    )).toThrow(/compte-1/);
+  });
+
+  it("relit les disponibilités déclarées sans les dériver", () => {
     const user = profilVersUser(
       {
         id: "compte-1",
@@ -291,7 +307,7 @@ describe("profil", () => {
         objectif_long_terme: "Objectif long terme",
         debut_suivi: "2026-07-24",
         preferences_pedagogiques: [],
-        periode_declaree: "semestre d'automne 2026",
+        periode_declaree: "ancienne donnée ignorée",
         disponibilites_declarees: [
           {
             startsAt: "2026-08-28T09:00:00.000Z",
@@ -302,7 +318,7 @@ describe("profil", () => {
       },
       defaut,
     );
-    expect(user.periodeDeclaree).toBe("semestre d'automne 2026");
+    expect(user).not.toHaveProperty("periodeDeclaree");
     expect(user.disponibilitesDeclarees).toEqual([
       {
         startsAt: "2026-08-28T09:00:00.000Z",
@@ -390,6 +406,28 @@ describe("charge utile de charger_tout", () => {
     expect(resultat.collections.refusRecommandations).toEqual([
       { id: "ref-1", code: "DEV-01", exerciceId: "ex-1", date: "2026-08-07" },
     ]);
+  });
+
+  it("conserve la référence d'un refus de proposition entière", () => {
+    const resultat = convertirResultatRPC(
+      chargeComplete({
+        refus_recommandations: [{
+          id: "plan-refus:plan-ab12",
+          user_id: "compte-1",
+          code: null,
+          exercice_id: null,
+          proposition_ref: "plan-ab12",
+          date: "2026-08-29T10:00:00Z",
+        }],
+      }),
+      defautProfil,
+    );
+
+    expect(resultat.collections.refusRecommandations).toEqual([{
+      id: "plan-refus:plan-ab12",
+      propositionRef: "plan-ab12",
+      date: "2026-08-29T10:00:00Z",
+    }]);
   });
 
   it("convertit les réglages moteur rapportés par la RPC", () => {

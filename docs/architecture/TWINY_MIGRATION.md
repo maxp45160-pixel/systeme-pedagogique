@@ -85,26 +85,34 @@ l'application d'une migration de son seul fichier local.
 
 ## 4. Roadmap et frontières
 
-### État Supabase vérifié le 28/08/2026
+### État Supabase vérifié le 29/08/2026
 
 La liste des migrations distante s'arrête désormais à
-`20260828201530_lot_9_contexte_declare`. Une vérification en lecture seule de la
+`20260829145745_corriger_idempotence_acceptation_plan`. Une vérification en
+lecture seule de la
 base réelle montre les objets des trois premiers fichiers locaux ci-dessous ;
-seule la migration du lot 9 possède une entrée distante explicitement créée et
-vérifiée dans ce chantier :
+seule la migration du lot 9 et la correction de type possèdent une entrée
+distante explicitement créée et vérifiée dans ce chantier :
 
 | Version locale | Objets constatés dans Supabase réel | Historique distant | Action |
 |---|---|---|---|
 | `20260828110000_interventions_seance.sql` | `public.sessions.interventions` (`jsonb`) | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
 | `20260828120000_lot_3_acceptation_plan.sql` | `public.sessions.origine_proposition`, `public.orchestration_command_receipts`, `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; réconcilier par le workflow d'infrastructure |
 | `20260828150000_lot_5_revision_plan.sql` | `public.sessions.duree_planifiee_min`, sa contrainte et l'extension visible de `public.accepter_plan(text,jsonb)` | absente | ne pas rejouer ; provenance non inférable, réconcilier par le workflow d'infrastructure |
-| `20260828201530_lot_9_contexte_declare.sql` | `public.profiles.periode_declaree`, `public.profiles.disponibilites_declarees` et leurs contraintes de forme | présente (`20260828201530`) | appliquée et vérifiée le 28/08/2026 |
+| `20260828201530_lot_9_contexte_declare.sql` | `public.profiles.periode_declaree`, `public.profiles.disponibilites_declarees` et leurs contraintes de forme | présente (`20260828201530`) | appliquée et vérifiée le 28/08/2026 ; la période est désormais inutilisée |
+| `20260829155409_retirer_periode_declaree_inutile.sql` | suppression de `public.profiles.periode_declaree` et de sa contrainte | absente | préparée localement, non appliquée ; 1 valeur distante à perdre après autorisation |
+| `20260828212423_corriger_intervalle_acceptation_plan.sql` | casts `DOUBLE PRECISION` remplacés dans les deux fonctions d'acceptation | présente sous `20260828212629` | appliquée, mais insuffisante : `sum(integer)` reste `BIGINT` |
+| `20260829072035_corriger_somme_intervalle_acceptation_plan.sql` | cast explicite du résultat de `sum(integer)` avant `make_interval` | présente sous `20260829075048` | appliquée et vérifiée le 29/08/2026 |
+| `20260829101500_corriger_idempotence_acceptation_plan.sql` | lecture idempotente du reçu sans verrou UPDATE incompatible avec sa RLS append-only | présente sous `20260829145745` | appliquée et vérifiée le 29/08/2026 |
+| `20260829163836_memoriser_refus_proposition_plan.sql` | `public.refus_recommandations.proposition_ref` et sa contrainte de forme | absente | préparée localement, non appliquée ; autorisation requise avant exécution |
 
 La présence d'objets des lots 1, 3 et 5 ne constitue ni une nouvelle validation
-produit ni une raison de rejouer une DDL : leur provenance reste inconnue. La
-migration du lot 9 est la seule appliquée explicitement dans ce chantier ; sa
-présence dans l'historique ne promeut aucun statut produit. Toute correction de
-l'historique doit être additive, tracée et autorisée séparément.
+produit ni une raison de rejouer une DDL : leur provenance reste inconnue. Le
+lot 9 et la correction de type sont visibles à distance et possèdent chacune
+une entrée d'historique vérifiable dans ce chantier. Toute correction de
+l'historique doit être additive, tracée et autorisée séparément. La preuve
+distante de sélection, de tout-ou-rien et de rejeu idempotent est passée ; la
+correction reste additive et ne réécrit aucune migration historique.
 
 ### Lecture des séances (lot 6)
 

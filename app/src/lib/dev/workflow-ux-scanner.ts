@@ -552,7 +552,7 @@ function construireUxAtomique(
       type: "etape",
       libelle: "Acte 2 : Mesurer",
       groupe: "exercice",
-      badge: "Auto-évaluation",
+      badge: "Mesure",
     });
 
     // 1. Entrée dans la résolution depuis le workspace

@@ -433,14 +433,15 @@ Collecter juste assez de contexte sans créer un centre d'administration.
 ### Prompt du lot
 
 ```text
-Implémente le lot 9 : mise en contexte progressive et arbitrage des besoins
+Implémente le lot 9 : mise en contexte concrète et arbitrage des besoins
 concurrents.
 
-Conserve le premier succès rapide de /demarrer. Après celui-ci, affiche sur le
-tableau de bord une carte temporaire “Préparer votre période” qui fait confirmer
-progressivement période, modules, disponibilités et échéances. Chaque étape est
-courte, facultative, préremplie avec les faits fiables et reprise sans demander
-de maintenance. Une information déjà confirmée n'est pas redemandée.
+Conserve le premier succès rapide de /demarrer. Affiche sur le tableau de
+bord une carte permanente “Vos créneaux et échéances” qui permet d'ajouter,
+modifier et supprimer plusieurs disponibilités, en refusant les plages
+inversées et les chevauchements. Permets aussi de déclarer plusieurs
+échéances successivement via le formulaire existant. La carte doit rester
+réouvrable sans progression locale ni maintenance d'un assistant.
 
 “Déclarer un besoin” reste l'entrée unique. Un besoin continu peut porter un
 rythme ou un horizon déclarés sans devenir un objectif structuré fabriqué. Le
@@ -448,9 +449,11 @@ planificateur arbitre échéances et continuité ; s'il ne peut tout placer, il
 montre la tension et propose un compromis, sans supprimer silencieusement une
 séance acceptée.
 
-Teste reprise de l'assistant, étape ignorée, contexte partiel, deux échéances,
-besoin continu, capacité insuffisante et absence de disponibilité. Vérifie que
-la personne n'a jamais une boîte de tâches de configuration à vider.
+Teste trois créneaux, la modification du deuxième, la suppression du premier,
+le rechargement, l'isolation entre comptes, plusieurs échéances, les
+chevauchements, le clavier, le mobile et les messages d'erreur. Vérifie que
+l'absence de disponibilité ne devient jamais une faiblesse et qu'aucune
+nouvelle entité ni aucun calendrier externe n'est créé.
 ```
 
 ## 14. Lot 10 — calendrier externe

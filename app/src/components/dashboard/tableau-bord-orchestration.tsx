@@ -19,6 +19,10 @@ import {
 } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import {
+  CartePropositionPlan,
+  type PropositionPlanDashboard,
+} from "@/components/dashboard/carte-proposition-plan";
 import { ModaleRevuePlan, type RevuePlanProps } from "@/components/dashboard/modale-revue-plan";
 import type {
   DashboardDayEntry,
@@ -319,11 +323,14 @@ export function TableauBordOrchestration({
   view,
   competences = [],
   modules = [],
+  proposition,
   revision,
 }: {
   view: DashboardOrchestrationView;
   competences?: { code: string; intitule: string }[];
   modules?: { id: string; nom: string }[];
+  /** Proposition éphémère ; seules les séances choisies franchissent la frontière d'écriture. */
+  proposition?: PropositionPlanDashboard;
   /** Optionnel : le parent applicatif fournit le diff et la frontière d'écriture. */
   revision?: Pick<RevuePlanProps, "diff" | "onAppliquer" | "onModifier" | "onGarder">;
 }) {
@@ -346,6 +353,7 @@ export function TableauBordOrchestration({
 
   return (
     <div className="space-y-5 sm:space-y-6" data-testid="tableau-bord-orchestration">
+      {proposition && <CartePropositionPlan key={proposition.propositionRef} proposition={proposition} />}
       {revision && (
         <div className="flex justify-end">
           <Bouton

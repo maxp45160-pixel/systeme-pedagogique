@@ -102,24 +102,57 @@ export async function accepterPlan(
   proposition: PlanPropose,
   choix: ChoixPlan,
 ): Promise<ResultatAcceptationPlan> {
-  const dorsale = await dorsaleCompte();
-  const [referentiel, engagements, sessions] = await Promise.all([
-    lireReferentiel(dorsale),
-    lire("engagements", dorsale),
-    lire("sessions", dorsale),
-  ]);
-  const contexte: ContexteAcceptationPlan = {
-    ...contexteDepuisReferentiel(referentiel),
-    engagementsOuverts: new Set(engagements.filter(estOuvert).map((engagement) => engagement.id)),
-    sessionsExistantes: sessions,
-  };
-  const commande = preparerCommandeAcceptationPlan(proposition, choix, contexte);
-  const { data, error } = await dorsale.supabase.rpc("accepter_plan", {
-    p_request_id: commande.requestId,
-    p_payload: payloadCommande(commande),
-  });
-  verifier("acceptation atomique du plan", error);
-  const resultat = resultatDepuisRPC(data);
-  revalidatePath("/", "layout");
-  return resultat;
+  try {
+    const dorsale = await dorsaleCompte();
+    const [referentiel, engagements, sessions] = await Promise.all([
+      lireReferentiel(dorsale),
+      lire("engagements", dorsale),
+      lire("sessions", dorsale),
+    ]);
+    const contexte: ContexteAcceptationPlan = {
+      ...contexteDepuisReferentiel(referentiel),
+      engagementsOuverts: new Set(engagements.filter(estOuvert).map((engagement) => engagement.id)),
+      sessionsExistantes: sessions,
+    };
+    const commande = preparerCommandeAcceptationPlan(proposition, choix, contexte);
+    const { data, error } = await dorsale.supabase.rpc("accepter_plan", {
+      p_request_id: commande.requestId,
+      p_payload: payloadCommande(commande),
+    });
+    verifier("acceptation atomique du plan", error);
+    const resultat = resultatDepuisRPC(data);
+    revalidatePath("/", "layout");
+    return resultat;
+  } catch (cause) {
+    console.error("[plan] acceptation de proposition :", cause);
+    throw cause;
+  }
+}
+
+/**
+ * Déclare le refus de la proposition entière dans le journal déjà existant.
+ * L'identifiant déterministe rend les doubles clics et les reprises réseau
+ * idempotents, sans persister le plan lui-même.
+ */
+export async function refuserPropositionPlan(propositionRef: string): Promise<void> {
+  if (typeof propositionRef !== "string" || propositionRef.trim() === "" || propositionRef.length > 200) {
+    throw new Error("Référence de proposition invalide.");
+  }
+
+  try {
+    const dorsale = await dorsaleCompte();
+    const { error } = await dorsale.supabase.from("refus_recommandations").insert({
+      id: `plan-refus:${propositionRef}`,
+      user_id: dorsale.userId,
+      code: null,
+      exercice_id: null,
+      proposition_ref: propositionRef,
+      date: new Date().toISOString(),
+    });
+    if (error && error.code !== "23505") verifier("refus de proposition de plan", error);
+    revalidatePath("/", "layout");
+  } catch (cause) {
+    console.error("[plan] refus de proposition :", cause);
+    throw cause;
+  }
 }

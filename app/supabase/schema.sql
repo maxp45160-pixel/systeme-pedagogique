@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   objectif_long_terme       TEXT NOT NULL DEFAULT 'Objectif à long terme à renseigner',
   debut_suivi               TEXT NOT NULL DEFAULT CURRENT_DATE::text,
   preferences_pedagogiques  TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
-  periode_declaree          TEXT,
   disponibilites_declarees  JSONB,
   created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -39,15 +38,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-     WHERE conname = 'profiles_periode_declaree_non_vide'
-       AND conrelid = 'public.profiles'::regclass
-  ) THEN
-    ALTER TABLE public.profiles
-      ADD CONSTRAINT profiles_periode_declaree_non_vide
-      CHECK (periode_declaree IS NULL OR btrim(periode_declaree) <> '');
-  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
      WHERE conname = 'profiles_disponibilites_declarees_tableau'
@@ -594,9 +584,11 @@ CREATE INDEX IF NOT EXISTS orchestration_receipts_user_created_idx
 --
 -- Un refus est un fait observé : l'utilisateur a écarté une suggestion.
 -- Il est stocké en base (et non en localStorage) pour que le moteur de
--- recommandation puisse le prendre en compte au prochain calcul. Le refus
--- expire après 7 jours — le filtrage se fait à la lecture, jamais à
--- l'écriture.
+-- recommandation puisse le prendre en compte au prochain calcul. Un refus
+-- d'une proposition entière porte sa référence stable et reste actif tant
+-- que les entrées matérielles de cette proposition n'ont pas changé ; les
+-- refus ciblés expirent après 7 jours. Le filtrage se fait à la lecture,
+-- jamais à l'écriture.
 -- --------------------------------------------------------------------
 
 -- `exercice_id` NULL = refus de la compétence entière. Renseigné, le refus
@@ -608,13 +600,30 @@ CREATE TABLE IF NOT EXISTS public.refus_recommandations (
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   code        TEXT,
   exercice_id TEXT,
+  proposition_ref TEXT,
   date        TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id)
 );
 
 ALTER TABLE public.refus_recommandations
-  ADD COLUMN IF NOT EXISTS exercice_id TEXT;
+  ADD COLUMN IF NOT EXISTS exercice_id TEXT,
+  ADD COLUMN IF NOT EXISTS proposition_ref TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'refus_recommandations_proposition_ref_non_vide'
+      AND conrelid = 'public.refus_recommandations'::regclass
+  ) THEN
+    ALTER TABLE public.refus_recommandations
+      ADD CONSTRAINT refus_recommandations_proposition_ref_non_vide
+      CHECK (proposition_ref IS NULL OR btrim(proposition_ref) <> '');
+  END IF;
+END
+$$;
 
 -- --------------------------------------------------------------------
 -- 7bis. Corpus documentaire Markdown (source canonique)
@@ -3306,8 +3315,11 @@ REVOKE ALL ON FUNCTION public.scinder_domaine(
 GRANT EXECUTE ON FUNCTION public.scinder_domaine(
   text, integer, text, text, text, text, text, text, text, text[]) TO authenticated;
 
--- Lot 3 — frontière transactionnelle d'acceptation d'un plan éphémère.
-CREATE OR REPLACE FUNCTION public.accepter_plan(
+-- Lot 3 — implémentation héritée conservée par la frontière du lot 5.
+-- La fonction est interne au chemin d'acceptation ; elle n'est pas un second
+-- parcours d'interface. Sa définition est conservée ici car Supabase réel la
+-- expose sous ce nom et `accepter_plan` l'appelle directement.
+CREATE OR REPLACE FUNCTION public.accepter_plan_lot3_legacy(
   p_request_id TEXT,
   p_payload JSONB
 ) RETURNS JSONB
@@ -3324,8 +3336,6 @@ DECLARE
   v_session_id TEXT;
   v_planned TIMESTAMPTZ;
   v_duration INTEGER;
-  v_current_duration INTEGER;
-  v_new_duration INTEGER;
   v_statut TEXT;
   v_accepted_ids JSONB := '[]'::JSONB;
   v_adjusted_ids JSONB := '[]'::JSONB;
@@ -3364,8 +3374,7 @@ BEGIN
   SELECT payload_hash, result
     INTO v_stored_hash, v_result
     FROM public.orchestration_command_receipts
-   WHERE user_id = v_uid AND request_id = p_request_id
-   FOR UPDATE;
+   WHERE user_id = v_uid AND request_id = p_request_id;
   IF FOUND THEN
     IF v_stored_hash IS DISTINCT FROM v_payload_hash THEN
       RAISE EXCEPTION 'request_id déjà utilisé pour une autre commande.' USING ERRCODE = '40001';
@@ -3377,15 +3386,10 @@ BEGIN
     SELECT value FROM jsonb_array_elements(coalesce(p_payload->'adjustments', '[]'::JSONB))
   LOOP
     v_session_id := btrim(coalesce(v_item->>'sessionId', ''));
-    IF v_session_id = '' OR coalesce(v_item->>'action', '') NOT IN ('move', 'shorten', 'cancel') THEN
+    IF v_session_id = '' OR coalesce(v_item->>'action', '') NOT IN ('move', 'cancel') THEN
       RAISE EXCEPTION 'Ajustement de séance invalide.' USING ERRCODE = '22023';
     END IF;
-    SELECT statut, coalesce(
-      duree_planifiee_min,
-      duree_min,
-      (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)
-         FROM jsonb_array_elements(coalesce(sessions.interventions, '[]'::JSONB)) AS interventions(intervention))
-    ) INTO v_statut, v_current_duration
+    SELECT statut INTO v_statut
       FROM public.sessions
      WHERE user_id = v_uid AND id = v_session_id
      FOR UPDATE;
@@ -3402,55 +3406,30 @@ BEGIN
       UPDATE public.sessions
          SET statut = 'abandonnee', renoncee_le = coalesce(renoncee_le, now()::TEXT)
        WHERE user_id = v_uid AND id = v_session_id;
-    ELSIF v_item->>'action' = 'shorten' THEN
-      IF coalesce(v_item->>'durationMinutes', '') !~ '^[1-9][0-9]*$' THEN
-        RAISE EXCEPTION 'Un raccourcissement exige une durée positive.' USING ERRCODE = '22023';
-      END IF;
-      v_new_duration := (v_item->>'durationMinutes')::INTEGER;
-      IF v_current_duration IS NULL OR v_new_duration > v_current_duration THEN
-        RAISE EXCEPTION 'La séance % ne peut pas être allongée par ce raccourcissement.', v_session_id USING ERRCODE = '40001';
-      END IF;
-      IF v_item ? 'plannedFor' THEN
-        IF btrim(coalesce(v_item->>'plannedFor', '')) = '' THEN
-          RAISE EXCEPTION 'Le créneau de raccourcissement est invalide.' USING ERRCODE = '22023';
-        END IF;
-        v_planned := (v_item->>'plannedFor')::TIMESTAMPTZ;
-      ELSE
-        v_planned := (SELECT coalesce(planifiee_pour, date)::TIMESTAMPTZ FROM public.sessions WHERE user_id = v_uid AND id = v_session_id);
-      END IF;
-      IF EXISTS (
-        SELECT 1 FROM public.sessions s
-         WHERE s.user_id = v_uid AND s.id <> v_session_id
-           AND s.statut IN ('planifiee', 'en-cours') AND s.planifiee_pour IS NOT NULL
-           AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => v_new_duration::DOUBLE PRECISION)
-           AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
-             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
-             (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
-                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
-      ) THEN
-        RAISE EXCEPTION 'Créneau de raccourcissement en conflit pour la séance %.', v_session_id USING ERRCODE = '40001';
-      END IF;
-      UPDATE public.sessions
-         SET date = v_planned::TEXT, planifiee_pour = v_planned::TEXT, duree_planifiee_min = v_new_duration
-       WHERE user_id = v_uid AND id = v_session_id;
     ELSE
       IF btrim(coalesce(v_item->>'plannedFor', '')) = '' THEN
         RAISE EXCEPTION 'Un déplacement exige plannedFor.' USING ERRCODE = '22023';
       END IF;
       v_planned := (v_item->>'plannedFor')::TIMESTAMPTZ;
       IF EXISTS (
-        SELECT 1 FROM public.sessions s
-         WHERE s.user_id = v_uid AND s.id <> v_session_id
+        SELECT 1
+          FROM public.sessions s
+         WHERE s.user_id = v_uid
+           AND s.id <> v_session_id
            AND s.statut IN ('planifiee', 'en-cours')
            AND s.planifiee_pour IS NOT NULL
            AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => coalesce(
-             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
-             (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
-                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
+             (s.duree_min)::INTEGER,
+             (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)),
+             0
+           ))
            AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
-             coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
-             (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
-                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
+             (s.duree_min)::INTEGER,
+             (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+                FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)),
+             0
+           ))
       ) THEN
         RAISE EXCEPTION 'Créneau de déplacement en conflit pour la séance %.', v_session_id USING ERRCODE = '40001';
       END IF;
@@ -3465,8 +3444,10 @@ BEGIN
     SELECT value FROM jsonb_array_elements(coalesce(p_payload->'accepted', '[]'::JSONB))
   LOOP
     v_session_id := btrim(coalesce(v_item->>'sessionId', ''));
-    IF v_session_id = '' OR btrim(coalesce(v_item->>'candidateId', '')) = ''
-       OR coalesce(v_item->>'source', '') NOT IN ('existing-activity', 'resume', 'generation', 'legacy-exercise', 'course-protocol', 'resource', 'declared-need') OR btrim(coalesce(v_item->>'plannedFor', '')) = ''
+    IF v_session_id = ''
+       OR btrim(coalesce(v_item->>'candidateId', '')) = ''
+       OR coalesce(v_item->>'source', '') NOT IN ('existing-activity', 'resume', 'generation', 'legacy-exercise', 'course-protocol', 'resource', 'declared-need')
+       OR btrim(coalesce(v_item->>'plannedFor', '')) = ''
        OR coalesce(v_item->>'durationMinutes', '') !~ '^[1-9][0-9]*$'
     THEN
       RAISE EXCEPTION 'Séance acceptée invalide.' USING ERRCODE = '22023';
@@ -3482,7 +3463,8 @@ BEGIN
       RAISE EXCEPTION 'Composition de séance acceptée invalide.' USING ERRCODE = '22023';
     END IF;
     IF v_item ? 'observations' OR EXISTS (
-      SELECT 1 FROM jsonb_array_elements(v_item->'interventions') AS interventions(intervention)
+      SELECT 1
+        FROM jsonb_array_elements(v_item->'interventions') AS interventions(intervention)
        WHERE jsonb_typeof(intervention) IS DISTINCT FROM 'object'
           OR btrim(coalesce(intervention->>'id', '')) = ''
           OR coalesce(intervention->>'type', '') NOT IN ('resolve', 'explain', 'recall', 'read', 'synthesize', 'produce', 'diagnose', 'ask-for-help')
@@ -3502,52 +3484,64 @@ BEGIN
       RAISE EXCEPTION 'Provenance de séance incohérente.' USING ERRCODE = '22023';
     END IF;
     IF EXISTS (
-      SELECT 1 FROM jsonb_array_elements_text(v_item->'skillCodes') AS codes(code)
+      SELECT 1
+        FROM jsonb_array_elements_text(v_item->'skillCodes') AS codes(code)
        WHERE NOT EXISTS (
          SELECT 1 FROM public.competences c
-          WHERE c.user_id = v_uid AND c.code = codes.code AND c.active AND NOT c.archive)
+          WHERE c.user_id = v_uid AND c.code = codes.code
+            AND c.active AND NOT c.archive
+       )
     ) THEN
       RAISE EXCEPTION 'Une compétence de la séance est inconnue, inactive ou archivée.' USING ERRCODE = '40001';
     END IF;
     IF EXISTS (
-      SELECT 1 FROM jsonb_array_elements_text(v_item->'domaines') AS domaines(domaine)
+      SELECT 1
+        FROM jsonb_array_elements_text(v_item->'domaines') AS domaines(domaine)
        WHERE NOT EXISTS (
          SELECT 1 FROM public.domaines d
-          WHERE d.user_id = v_uid AND d.id = domaines.domaine AND NOT d.archive)
+          WHERE d.user_id = v_uid AND d.id = domaines.domaine AND NOT d.archive
+       )
     ) THEN
       RAISE EXCEPTION 'Un domaine de la séance est inconnu ou archivé.' USING ERRCODE = '40001';
     END IF;
     IF EXISTS (
-      SELECT 1 FROM public.competences c
+      SELECT 1
+        FROM public.competences c
        WHERE c.user_id = v_uid
          AND c.code IN (SELECT code FROM jsonb_array_elements_text(v_item->'skillCodes') AS codes(code))
          AND NOT EXISTS (
            SELECT 1 FROM jsonb_array_elements_text(v_item->'domaines') AS domaines(domaine)
-            WHERE domaines.domaine = c.domaine)
+            WHERE domaines.domaine = c.domaine
+         )
     ) THEN
       RAISE EXCEPTION 'Les domaines ne couvrent pas les compétences acceptées.' USING ERRCODE = '22023';
+    END IF;
+    IF EXISTS (
+      SELECT 1
+        FROM public.sessions s
+       WHERE s.user_id = v_uid
+         AND s.id <> v_session_id
+         AND s.statut IN ('planifiee', 'en-cours')
+         AND s.planifiee_pour IS NOT NULL
+         AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => v_duration::INTEGER)
+         AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
+           (s.duree_min)::INTEGER,
+           (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+              FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)),
+           0
+         ))
+    ) THEN
+      RAISE EXCEPTION 'Créneau de séance en conflit : %.', v_session_id USING ERRCODE = '40001';
     END IF;
     IF EXISTS (SELECT 1 FROM public.sessions WHERE user_id = v_uid AND id = v_session_id) THEN
       RAISE EXCEPTION 'Une séance porte déjà l''identité %.', v_session_id USING ERRCODE = '40001';
     END IF;
-    IF EXISTS (
-      SELECT 1 FROM public.sessions s
-       WHERE s.user_id = v_uid AND s.id <> v_session_id
-         AND s.statut IN ('planifiee', 'en-cours') AND s.planifiee_pour IS NOT NULL
-         AND s.planifiee_pour::TIMESTAMPTZ < v_planned + make_interval(mins => v_duration::DOUBLE PRECISION)
-         AND v_planned < s.planifiee_pour::TIMESTAMPTZ + make_interval(mins => coalesce(
-           coalesce(s.duree_planifiee_min, s.duree_min)::DOUBLE PRECISION,
-           (SELECT sum((intervention->>'estimatedDurationMinutes')::DOUBLE PRECISION)
-              FROM jsonb_array_elements(coalesce(s.interventions, '[]'::JSONB)) AS interventions(intervention)), 0))
-    ) THEN
-      RAISE EXCEPTION 'Créneau de séance en conflit : %.', v_session_id USING ERRCODE = '40001';
-    END IF;
 
     INSERT INTO public.sessions (
-      id, user_id, date, duree_planifiee_min, domaines, skill_codes, activites, interventions,
+      id, user_id, date, domaines, skill_codes, activites, interventions,
       genere_automatiquement, statut, planifiee_pour, origine_proposition
     ) VALUES (
-      v_session_id, v_uid, v_item->>'plannedFor', v_duration,
+      v_session_id, v_uid, v_item->>'plannedFor',
       ARRAY(SELECT jsonb_array_elements_text(v_item->'domaines')),
       ARRAY(SELECT jsonb_array_elements_text(v_item->'skillCodes')),
       v_item->'activites', v_item->'interventions', false, 'planifiee',
@@ -3567,6 +3561,177 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.accepter_plan_lot3_legacy(TEXT, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.accepter_plan_lot3_legacy(TEXT, JSONB) TO authenticated;
+
+-- Lot 5 - frontiere canonique d'acceptation et de revue groupee.
+-- La forme ci-dessous est alignee sur la definition distante verifiee.
+CREATE OR REPLACE FUNCTION public.accepter_plan(p_request_id text, p_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_replayed BOOLEAN := false;
+  v_adjustments JSONB := coalesce(p_payload->'adjustments', '[]'::JSONB);
+  v_normalized JSONB := '[]'::JSONB;
+  v_shortens JSONB := '[]'::JSONB;
+  v_item JSONB;
+  v_normalized_item JSONB;
+  v_session_id TEXT;
+  v_planned TEXT;
+  v_duration INTEGER;
+  v_current_duration INTEGER;
+  v_statut TEXT;
+  v_result JSONB;
+BEGIN
+  -- Le reçu est la frontière d'idempotence : un rejeu identique doit rester
+  -- un no-op, y compris pour l'enrichissement de durée ci-dessous. Le verrou
+  -- est le même que celui pris par la fonction héritée.
+  IF v_uid IS NOT NULL THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(v_uid::TEXT || ':orchestration', 0)
+    );
+    SELECT EXISTS (
+      SELECT 1
+        FROM public.orchestration_command_receipts
+       WHERE user_id = v_uid AND request_id = p_request_id
+    ) INTO v_replayed;
+  END IF;
+
+  -- Une forme invalide doit garder les diagnostics de la frontière lot 3.
+  IF jsonb_typeof(v_adjustments) IS DISTINCT FROM 'array' THEN
+    RETURN public.accepter_plan_lot3_legacy(p_request_id, p_payload);
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_adjustments)
+  LOOP
+    IF coalesce(v_item->>'action', '') = 'shorten' THEN
+      v_session_id := btrim(coalesce(v_item->>'sessionId', ''));
+      IF v_session_id = ''
+         OR coalesce(v_item->>'durationMinutes', '') !~ '^[1-9][0-9]*$'
+      THEN
+        RAISE EXCEPTION 'Raccourcissement de séance invalide.' USING ERRCODE = '22023';
+      END IF;
+      v_duration := (v_item->>'durationMinutes')::INTEGER;
+
+      SELECT coalesce(planifiee_pour, date) INTO v_planned
+        FROM public.sessions
+       WHERE user_id = auth.uid() AND id = v_session_id;
+      IF NOT FOUND OR v_planned IS NULL THEN
+        RAISE EXCEPTION 'Séance introuvable ou sans créneau : %.', v_session_id USING ERRCODE = '42501';
+      END IF;
+
+      v_normalized_item := jsonb_set(v_item, '{action}', to_jsonb('move'::TEXT));
+      IF NOT (v_normalized_item ? 'plannedFor') THEN
+        v_normalized_item := jsonb_set(v_normalized_item, '{plannedFor}', to_jsonb(v_planned));
+      END IF;
+      v_shortens := v_shortens || jsonb_build_array(jsonb_build_object(
+        'sessionId', v_session_id,
+        'durationMinutes', v_duration
+      ));
+    ELSE
+      v_normalized_item := v_item;
+    END IF;
+    v_normalized := v_normalized || jsonb_build_array(v_normalized_item);
+  END LOOP;
+
+  v_result := public.accepter_plan_lot3_legacy(
+    p_request_id,
+    jsonb_set(p_payload, '{adjustments}', v_normalized)
+  );
+
+  IF v_replayed THEN
+    RETURN v_result;
+  END IF;
+
+  -- La fonction legacy a déjà verrouillé et validé le statut. On reprend le
+  -- verrou avant la réduction ; tout reste dans la transaction appelante.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(v_shortens)
+  LOOP
+    v_session_id := v_item->>'sessionId';
+    v_duration := (v_item->>'durationMinutes')::INTEGER;
+    SELECT statut, coalesce(
+      duree_planifiee_min,
+      duree_min,
+      (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+         FROM jsonb_array_elements(coalesce(sessions.interventions, '[]'::JSONB)) AS interventions(intervention))
+    ) INTO v_statut, v_current_duration
+      FROM public.sessions
+     WHERE user_id = auth.uid() AND id = v_session_id
+     FOR UPDATE;
+    IF NOT FOUND OR v_statut IS DISTINCT FROM 'planifiee' THEN
+      RAISE EXCEPTION 'La séance % n''est plus planifiée et reste protégée.', v_session_id USING ERRCODE = '40001';
+    END IF;
+    IF v_current_duration IS NULL OR v_duration > v_current_duration THEN
+      RAISE EXCEPTION 'La séance % ne peut pas être allongée par ce raccourcissement.', v_session_id USING ERRCODE = '40001';
+    END IF;
+    UPDATE public.sessions
+       SET duree_planifiee_min = v_duration
+     WHERE user_id = auth.uid() AND id = v_session_id;
+  END LOOP;
+
+  -- Les séances acceptées par la fonction legacy sont enrichies avec leur
+  -- durée de créneau déclarée ; `duree_min` reste réservé au réel observé.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(coalesce(p_payload->'accepted', '[]'::JSONB))
+  LOOP
+    v_session_id := btrim(coalesce(v_item->>'sessionId', ''));
+    IF v_session_id <> '' AND coalesce(v_item->>'durationMinutes', '') ~ '^[1-9][0-9]*$' THEN
+      UPDATE public.sessions
+         SET duree_planifiee_min = (v_item->>'durationMinutes')::INTEGER
+       WHERE user_id = auth.uid() AND id = v_session_id;
+    END IF;
+  END LOOP;
+
+  -- La fonction héritée ne connaît pas encore la durée de créneau du lot 5.
+  -- Cette vérification après son écriture (toujours dans la même transaction)
+  -- protège donc aussi les séances existantes dont `duree_min` est absente ou
+  -- représente une durée réellement observée différente du créneau annoncé.
+  IF EXISTS (
+    WITH cibles AS (
+      SELECT btrim(value->>'sessionId') AS session_id
+        FROM jsonb_array_elements(v_normalized) AS items(value)
+       WHERE coalesce(value->>'action', '') IN ('move', 'shorten')
+      UNION
+      SELECT btrim(value->>'sessionId') AS session_id
+        FROM jsonb_array_elements(coalesce(p_payload->'accepted', '[]'::JSONB)) AS items(value)
+    )
+    SELECT 1
+      FROM cibles
+      JOIN public.sessions cible
+        ON cible.user_id = v_uid AND cible.id = cibles.session_id
+      JOIN public.sessions autre
+        ON autre.user_id = v_uid AND autre.id <> cible.id
+       AND autre.statut IN ('planifiee', 'en-cours')
+       AND autre.planifiee_pour IS NOT NULL
+     WHERE cible.statut IN ('planifiee', 'en-cours')
+       AND cible.planifiee_pour IS NOT NULL
+       AND cible.planifiee_pour::TIMESTAMPTZ < autre.planifiee_pour::TIMESTAMPTZ
+         + make_interval(mins => coalesce(
+           autre.duree_planifiee_min,
+           autre.duree_min,
+           (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+              FROM jsonb_array_elements(coalesce(autre.interventions, '[]'::JSONB)) AS interventions(intervention)),
+           0
+         ))
+       AND autre.planifiee_pour::TIMESTAMPTZ < cible.planifiee_pour::TIMESTAMPTZ
+         + make_interval(mins => coalesce(
+           cible.duree_planifiee_min,
+           cible.duree_min,
+           (SELECT sum((intervention->>'estimatedDurationMinutes')::INTEGER)::INTEGER
+              FROM jsonb_array_elements(coalesce(cible.interventions, '[]'::JSONB)) AS interventions(intervention)),
+           0
+         ))
+  ) THEN
+    RAISE EXCEPTION 'Créneau révisé en conflit.' USING ERRCODE = '40001';
+  END IF;
+
+  RETURN v_result;
+END;
+$function$
+
 
 REVOKE ALL ON FUNCTION public.accepter_plan(TEXT, JSONB) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.accepter_plan(TEXT, JSONB) TO authenticated;

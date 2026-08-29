@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         erreur: "reponse-trop-longue",
-        message: `Réponse trop longue (plus de ${REPONSE_MAX_CARACTERES} caractères). Gardez l'essentiel : c'est ce qui compte. Sinon, remplissez le bilan à la main.`,
+        message: `Réponse trop longue (plus de ${REPONSE_MAX_CARACTERES} caractères). Gardez l'essentiel, puis relancez la correction.`,
       },
       { status: 400 },
     );
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
   let ttftMs: number | null = null;
 
   const resolu = await resoudreMoteur(corps.config, {
-    conseil: "Remplis le bilan à la main en attendant.",
+    conseil: "Réessayez la correction ou terminez sans mesure.",
   });
   if (!resolu.ok) return resolu.reponse;
   const { moteur } = resolu;

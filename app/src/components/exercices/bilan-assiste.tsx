@@ -1,63 +1,54 @@
 "use client";
 
 /**
- * Le bilan, précédé d'une relecture par le tuteur.
+ * Parcours de correction assistée d'une tentative.
  *
- * Ce composant ne décide de rien : il lance un appel, convertit ce qui revient,
- * et rend `FormulaireBilan` — pré-rempli si la conversion a réussi, nu sinon.
- * Toute la logique de lecture vit dans `lib/tutor/conversion-correction.ts`,
- * testée (ADR-039 : une décision dans un `.tsx` est hors de portée de Vitest).
- *
- * Trois choix qui méritent leur ligne :
- *
- * 1. **Un seul lancement par montage.** Un garde `useRef` et un
- *    `AbortController` annulé au démontage — même motif que `modale-exercice.tsx`.
- *    Sans eux, un re-rendu relancerait une génération, et N envois rapprochés
- *    donneraient N appels simultanés, donc un 429 sur palier gratuit.
- * 2. **Le repli est immédiat et il se dit.** Erreur, 503, fournisseur sans
- *    outils, conversion refusée : dans tous ces cas le formulaire s'affiche nu
- *    avec la raison. Jamais un écran bloqué, jamais un verdict à moitié.
- * 3. **La conversion refusée est traitée comme une absence de verdict, pas
- *    comme un verdict partiel.** Un formulaire à moitié pré-rempli ressemble à
- *    un formulaire pré-rempli : la personne validerait des cases qu'elle
- *    croirait relues.
+ * La correction est une proposition : elle ne produit jamais directement une
+ * observation. Tant qu'aucune proposition recevable n'est arrivée, l'écran
+ * offre uniquement une reprise explicite ou la clôture « sans mesure ».
+ * L'ancien repli vers un formulaire vide était trompeur : il obligeait la
+ * personne à fabriquer une auto-évaluation après une panne du tuteur.
  */
 
 import { useEffect, useRef, useState } from "react";
 import type { Exercise } from "@/lib/domain/types";
+import {
+  DELAI_INTERRUPTION_CORRECTION_MS,
+  DELAI_SORTIE_CORRECTION_MS,
+  reprendreCorrection,
+  type CauseCorrectionIndisponible,
+  type EtatCorrectionPersiste,
+} from "@/lib/domain/correction-exercice";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { convertirCorrection } from "@/lib/tutor/conversion-correction";
 import type { PropositionCorrection } from "@/lib/tutor/outils";
-import { Bouton, PointActif } from "@/components/ui/primitives";
-import { FormulaireBilan, type PropositionBilan } from "./formulaire-bilan";
+import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
+import { BoutonAbandon } from "./abandon";
 import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
+import {
+  cleParCompte,
+  effacerSession,
+  ecrireSession,
+  lireSession,
+} from "@/lib/ui/stockage-session";
+import type { PropositionBilan } from "./formulaire-bilan";
+import { FormulaireBilan } from "./formulaire-bilan";
 
 type Etat =
   | { phase: "correction" }
   | { phase: "prete"; proposition: PropositionBilan }
-  | { phase: "nue"; raison: string | null };
+  | {
+      phase: "indisponible";
+      cause: CauseCorrectionIndisponible;
+      raison: string;
+    };
 
-/*
- * Les deux horloges de l'attente (25/08/2026).
- *
- * Une correction dépassant la minute était vécue comme une panne — et l'était
- * parfois. Le plafond serveur valait 300 s : cinq minutes devant un écran qui
- * ne dit rien. Désormais :
- *
- * - à **10 s**, la sortie manuelle est proposée (« Je ne sais pas encore ») :
- *   le formulaire s'ouvre NU, sans appel LLM, et rien n'est écrit sans la
- *   relecture de la personne — aucune observation n'est fabriquée par
- *   l'abandon (P5, et invariant « abandon ≠ preuve ») ;
- * - à **25 s**, l'attente est interrompue automatiquement : le flux est
- *   annulé (ce qui interrompt aussi la génération côté serveur via
- *   `request.signal`) et le formulaire manuel s'ouvre avec la raison.
- *
- * La mesure fine (TTFT, durée totale, fournisseur) vit dans les logs de la
- * route `/api/exercices/corriger` ; ici, seul ce que la personne vit est
- * affiché.
- */
-const DELAI_SORTIE_PROPOSEE_MS = 10_000;
-const DELAI_INTERRUPTION_MS = 25_000;
+type CorrectionPersiste = EtatCorrectionPersiste<PropositionCorrection>;
+
+const RAISON_EXPIRATION =
+  "La relecture par le tuteur a été interrompue après 25 secondes d'attente.";
+const RAISON_RELECTURE_INDISPONIBLE =
+  "Aucune correction recevable n'a été obtenue. La tentative reste disponible pour une nouvelle demande.";
 
 export function BilanAssiste({
   exercice,
@@ -74,21 +65,70 @@ export function BilanAssiste({
   compteId: string;
   navigation?: ContexteNavigationExercice;
 }) {
+  const cleEtat = cleParCompte(`correction:exercice:${attemptId}`, compteId);
   const [etat, setEtat] = useState<Etat>({ phase: "correction" });
+  const [hydrate, setHydrate] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
-  /** Secondes écoulées depuis le lancement — affiché, et seuil des deux horloges. */
   const [secondes, setSecondes] = useState(0);
   const abandonRef = useRef<AbortController | null>(null);
+  /** Une seule requête active : protège les doubles clics et le mode strict. */
   const lanceRef = useRef(false);
 
   useEffect(() => {
-    // Le garde survit aux re-rendus et au double montage du mode strict : une
-    // correction se paie, elle ne se relance pas parce que React a remonté.
-    if (lanceRef.current) return;
-    lanceRef.current = true;
+    let actif = true;
+    queueMicrotask(() => {
+      if (!actif) return;
+      const sauvegarde = reprendreCorrection(
+        lireSession<CorrectionPersiste>(cleEtat),
+      );
 
+      if (!sauvegarde) {
+        setHydrate(true);
+        return;
+      }
+
+      if (sauvegarde.phase === "prete") {
+        const conversion = convertirCorrection(
+          sauvegarde.correction,
+          exercice.criteres.length,
+        );
+        if (conversion.ok) {
+          setEtat({ phase: "prete", proposition: conversion.valeur });
+        } else {
+          effacerSession(cleEtat);
+          setEtat({
+            phase: "indisponible",
+            cause: "erreur",
+            raison:
+              "La correction conservée n'est plus lisible. Aucune observation n'a été produite.",
+          });
+        }
+      } else {
+        setEtat({
+          phase: "indisponible",
+          cause: sauvegarde.cause,
+          raison: sauvegarde.raison,
+        });
+      }
+      setHydrate(true);
+    });
+    return () => {
+      actif = false;
+    };
+  }, [cleEtat, exercice.criteres.length]);
+
+  useEffect(() => {
+    if (!hydrate || etat.phase !== "correction" || lanceRef.current) return;
+
+    lanceRef.current = true;
     const abandon = new AbortController();
     abandonRef.current = abandon;
+    ecrireSession(cleEtat, {
+      phase: "en-cours",
+      lanceeLe: Date.now(),
+    } satisfies CorrectionPersiste);
+    setProgression(null);
+    setSecondes(0);
 
     void (async () => {
       try {
@@ -103,13 +143,17 @@ export function BilanAssiste({
         });
 
         if (!reponse.ok || !reponse.body) {
-          const donnees = (await reponse.json().catch(() => null)) as { message?: string } | null;
-          setEtat({
-            phase: "nue",
-            raison:
-              donnees?.message ??
-              "Le tuteur n'a pas pu relire votre réponse. Remplissez le bilan à la main.",
+          const donnees = (await reponse.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          if (abandon.signal.aborted) return;
+          const raison = donnees?.message ?? RAISON_RELECTURE_INDISPONIBLE;
+          ecrireSession(cleEtat, {
+            phase: "indisponible",
+            cause: "erreur",
+            raison,
           });
+          setEtat({ phase: "indisponible", cause: "erreur", raison });
           return;
         }
 
@@ -129,12 +173,19 @@ export function BilanAssiste({
 
           for (const bloc of blocs) {
             const lignes = bloc.split("\n");
-            const type = lignes.find((l) => l.startsWith("event:"))?.slice(6).trim() ?? "message";
-            const donnees = lignes.find((l) => l.startsWith("data:"))?.slice(5).trim();
+            const type =
+              lignes.find((ligne) => ligne.startsWith("event:"))?.slice(6).trim() ??
+              "message";
+            const donnees = lignes
+              .find((ligne) => ligne.startsWith("data:"))
+              ?.slice(5)
+              .trim();
             if (!donnees) continue;
 
             if (type === "proposition") {
-              recue = (JSON.parse(donnees) as { correction: PropositionCorrection }).correction;
+              recue = (
+                JSON.parse(donnees) as { correction: PropositionCorrection }
+              ).correction;
             } else if (type === "erreur") {
               message = (JSON.parse(donnees) as { message: string }).message;
             } else if (type === "proposition-en-cours") {
@@ -143,115 +194,176 @@ export function BilanAssiste({
           }
         }
 
+        if (abandon.signal.aborted) return;
         if (!recue) {
-          setEtat({ phase: "nue", raison: message });
+          const raison = message ?? RAISON_RELECTURE_INDISPONIBLE;
+          ecrireSession(cleEtat, {
+            phase: "indisponible",
+            cause: "erreur",
+            raison,
+          });
+          setEtat({ phase: "indisponible", cause: "erreur", raison });
           return;
         }
 
         const conversion = convertirCorrection(recue, exercice.criteres.length);
         if (!conversion.ok) {
-          // Volontairement traité comme une absence de verdict : un bilan à
-          // moitié pré-rempli ressemble à un bilan pré-rempli.
-          setEtat({
-            phase: "nue",
-            raison:
-              "Le verdict du tuteur était incomplet ou illisible : il n'a pas été retenu. Remplis le bilan à la main.",
+          const raison =
+            "Le verdict du tuteur était incomplet ou illisible. Aucune observation n'a été produite.";
+          ecrireSession(cleEtat, {
+            phase: "indisponible",
+            cause: "erreur",
+            raison,
           });
+          setEtat({ phase: "indisponible", cause: "erreur", raison });
           return;
         }
 
+        // Le cache évite de facturer une nouvelle génération lors d'un simple
+        // rechargement avant l'acceptation du bilan.
+        ecrireSession(cleEtat, {
+          phase: "prete",
+          correction: recue,
+        });
         setEtat({ phase: "prete", proposition: conversion.valeur });
       } catch {
-        if (!abandon.signal.aborted) {
-          setEtat({ phase: "nue", raison: "Relecture interrompue." });
-        }
+        if (abandon.signal.aborted) return;
+        const raison = "La relecture du tuteur a échoué. Aucune observation n'a été produite.";
+        ecrireSession(cleEtat, {
+          phase: "indisponible",
+          cause: "erreur",
+          raison,
+        });
+        setEtat({ phase: "indisponible", cause: "erreur", raison });
       }
     })();
 
     return () => abandon.abort();
-  }, [attemptId, compteId, exercice.criteres.length]);
+  }, [
+    attemptId,
+    cleEtat,
+    compteId,
+    exercice.criteres.length,
+    etat.phase,
+    hydrate,
+  ]);
 
-  /*
-   * L'horloge visible et l'interruption automatique vivent dans le MÊME
-   * intervalle : le seuil est franchi dans le rappel (un système externe qui
-   * notifie), pas dans un effet de re-rendu — et l'écran affiche la seconde
-   * écoulée pendant que le compte tourne.
-   */
   useEffect(() => {
-    if (etat.phase !== "correction") return;
+    if (!hydrate || etat.phase !== "correction") return;
     const debut = Date.now();
     const minuterie = setInterval(() => {
-      const ecoulees = Math.round((Date.now() - debut) / 1000);
-      if (ecoulees * 1000 >= DELAI_INTERRUPTION_MS) {
+      const ecoulees = Math.floor((Date.now() - debut) / 1000);
+      if (ecoulees * 1000 >= DELAI_INTERRUPTION_CORRECTION_MS) {
         clearInterval(minuterie);
-        // On coupe le flux : côté serveur, `request.signal` interrompt à son
-        // tour la génération. Le formulaire s'ouvre nu, avec la raison.
         abandonRef.current?.abort();
+        ecrireSession(cleEtat, {
+          phase: "indisponible",
+          cause: "expiration",
+          raison: RAISON_EXPIRATION,
+        });
         setEtat({
-          phase: "nue",
-          raison:
-            "La relecture par le tuteur a été interrompue après 25 secondes d'attente. Remplissez le bilan vous-même : rien n'a été écrit sans votre décision.",
+          phase: "indisponible",
+          cause: "expiration",
+          raison: RAISON_EXPIRATION,
         });
         return;
       }
       setSecondes(ecoulees);
     }, 1_000);
     return () => clearInterval(minuterie);
-  }, [etat.phase]);
+  }, [cleEtat, etat.phase, hydrate]);
 
-  function sortieManuelle() {
+  function arreterPourSortieSansMesure() {
     abandonRef.current?.abort();
-    setEtat({ phase: "nue", raison: null });
+    const raison =
+      "La demande de correction a été arrêtée. La tentative sera clôturée sans résultat ni observation.";
+    ecrireSession(cleEtat, { phase: "indisponible", cause: "erreur", raison });
+    setEtat({ phase: "indisponible", cause: "erreur", raison });
   }
 
+  function relancer() {
+    abandonRef.current?.abort();
+    effacerSession(cleEtat);
+    lanceRef.current = false;
+    setProgression(null);
+    setSecondes(0);
+    setEtat({ phase: "correction" });
+  }
+
+  const sortieSansMesure = (
+    <BoutonAbandon
+      attemptId={attemptId}
+      exerciceId={exercice.id}
+      dureeMin={dureeSuggeree}
+      codes={exercice.competences}
+      navigation={navigation}
+      mode="sans-mesure"
+      avantConfirmation={
+        etat.phase === "correction" ? arreterPourSortieSansMesure : undefined
+      }
+    />
+  );
+
   if (etat.phase === "correction") {
-    const attenteLongue = secondes * 1000 >= DELAI_SORTIE_PROPOSEE_MS;
+    const attenteLongue = secondes * 1000 >= DELAI_SORTIE_CORRECTION_MS;
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
+      <div className="flex flex-col items-center justify-center py-8 text-center" aria-live="polite">
         <PointActif />
         <p className="mt-3 text-sm text-texte-attenue">
-          {progression ?? "Le tuteur relit votre réponse…"}
+          {progression ?? "Correction en cours : le tuteur relit votre réponse…"}
         </p>
-        {attenteLongue ? (
-          <>
-            <p className="mt-1 text-[0.6875rem] text-texte-discret" role="status">
-              {secondes} s — plus long que d&apos;habitude. Vous pouvez remplir le bilan sans
-              attendre.
+        <p className="mt-1 text-[0.6875rem] text-texte-discret">
+          {secondes} s — aucune observation n&apos;est encore écrite.
+        </p>
+        {attenteLongue && (
+          <div className="mt-4 space-y-2">
+            <p className="max-w-sm text-[0.6875rem] text-texte-discret">
+              La correction prend plus longtemps que prévu. Vous pouvez attendre, ou terminer
+              sans mesure ; votre réponse restera conservée.
             </p>
-            <Bouton onClick={sortieManuelle} variante="principal" taille="petite" className="mt-4">
-              Je ne sais pas encore
-            </Bouton>
-            <p className="mt-2 max-w-xs text-[0.6875rem] leading-relaxed text-texte-discret">
-              Ouvre le bilan à remplir vous-même, critère par critère. Aucun appel au tuteur,
-              et rien n&apos;est écrit à votre place.
-            </p>
-          </>
-        ) : (
-          <p className="mt-1 text-[0.6875rem] text-texte-discret">
-            Son verdict sera une proposition : vous le relisez et vous décidez.
-          </p>
+            {sortieSansMesure}
+          </div>
         )}
       </div>
     );
   }
 
-  return (
-    <div className="space-y-3">
-      {etat.phase === "nue" && etat.raison && (
-        <p className="rounded-md border border-bordure bg-surface-2 px-3 py-2 text-[0.6875rem] text-texte-attenue">
-          {etat.raison}
+  if (etat.phase === "indisponible") {
+    return (
+      <div className="space-y-3">
+        <BandeauInfo ton="danger" taille="compacte">
+          <p role="alert" className="text-danger">
+            <span className="font-medium">Correction indisponible.</span> {etat.raison}
+          </p>
+          <p className="mt-1 text-texte-attenue">
+            Aucune preuve n&apos;a été produite et aucune observation ne sera écrite sans
+            correction recevable. Vous n&apos;avez pas à vous autoévaluer pour continuer.
+          </p>
+        </BandeauInfo>
+        <div className="flex flex-wrap items-center gap-2">
+          <Bouton onClick={relancer} variante="principal" taille="petite">
+            Réessayer la correction
+          </Bouton>
+          {sortieSansMesure}
+        </div>
+        <p className="text-[0.6875rem] text-texte-discret">
+          Une nouvelle demande est toujours explicite. Si la clé du service est partagée, elle
+          peut consommer une génération ; aucun nouvel appel n&apos;est lancé au rechargement.
+          Après la clôture sans mesure, la réponse attendue restera consultable.
         </p>
-      )}
+      </div>
+    );
+  }
 
-      <FormulaireBilan
-        exercice={exercice}
-        attemptId={attemptId}
-        dureeSuggeree={dureeSuggeree}
-        indicesUtilises={indicesUtilises}
-        propositionInitiale={etat.phase === "prete" ? etat.proposition : undefined}
-        criteresReplies={etat.phase === "prete"}
-        navigation={navigation}
-      />
-    </div>
+  return (
+    <FormulaireBilan
+      exercice={exercice}
+      attemptId={attemptId}
+      dureeSuggeree={dureeSuggeree}
+      indicesUtilises={indicesUtilises}
+      propositionInitiale={etat.proposition}
+      criteresReplies
+      navigation={navigation}
+    />
   );
 }

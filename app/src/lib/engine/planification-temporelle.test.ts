@@ -6,7 +6,12 @@ import {
   actionCandidateDepuisRecommandation,
   type ActionCandidate,
 } from "./action-candidate";
-import { planifierTemps, type PlanificateurTemporelInput } from "./planification-temporelle";
+import { actionCandidatesDepuisRecommandations } from "./plan-candidates";
+import {
+  planifierTemps,
+  referenceStableProposition,
+  type PlanificateurTemporelInput,
+} from "./planification-temporelle";
 import type { Recommandation } from "./recommend";
 
 const NOW = "2026-08-28T08:00:00.000Z";
@@ -114,6 +119,44 @@ describe("planifierTemps — v0 pur et déterministe", () => {
       candidates: [candidate("b"), candidate("a")],
     });
     expect(planifierTemps(entree)).toEqual(planifierTemps(entree));
+  });
+
+  it("conserve la référence d'une proposition et la change avec une entrée matérielle", () => {
+    const entree = input();
+    const identique = { ...entree, candidates: [...entree.candidates] };
+    const modifiee = {
+      ...entree,
+      availability: [{ ...entree.availability[0], sourceRef: "agenda:soir" }],
+    };
+
+    expect(referenceStableProposition(entree)).toBe(referenceStableProposition(identique));
+    expect(referenceStableProposition(entree)).not.toBe(referenceStableProposition(modifiee));
+  });
+
+  it("écarte une proposition refusée jusqu'à la modification de ses entrées", () => {
+    const entree = input();
+    const propositionRef = referenceStableProposition(entree);
+    const refus = [{
+      propositionRef,
+      observedAt: NOW,
+      sourceRef: "refus:plan-1",
+    }];
+
+    const refusee = planifierTemps({ ...entree, propositionRef, refusObserved: refus });
+    expect(refusee.slots).toEqual([]);
+    expect(refusee.reservations.join(" ")).toContain("refusée");
+
+    const entreeModifiee = {
+      ...entree,
+      availability: [{ ...entree.availability[0], sourceRef: "agenda:soir" }],
+    };
+    const nouvelleRef = referenceStableProposition(entreeModifiee);
+    const reproposee = planifierTemps({
+      ...entreeModifiee,
+      propositionRef: nouvelleRef,
+      refusObserved: refus,
+    });
+    expect(reproposee.slots).toHaveLength(1);
   });
 
   it("ne fabrique aucun créneau sans disponibilité", () => {
@@ -317,5 +360,55 @@ describe("adaptation des recommandations historiques", () => {
     };
     expect(actionCandidateDepuisActionRecommandee(action, { expectedEffect: "preparation" }).intervention)
       .toBe("read");
+  });
+
+  it("préserve le diagnostic de l'exercice dans la candidate", () => {
+    const recommandation = {
+      etat: { skill: { code: "DEV-01" } },
+      valeur: 1,
+      facteurs: [],
+      raison: "aucune preuve",
+      exercice: {
+        id: "diag-1",
+        titre: "Diagnostic",
+        competences: ["DEV-01"],
+        dureeEstimeeMin: 20,
+        diagnostic: true,
+      },
+      difficulteCible: 2,
+      dureeEstimeeMin: 20,
+      calibration: null,
+    } as unknown as Recommandation;
+
+    expect(actionCandidateDepuisRecommandation(recommandation)?.intervention).toBe("diagnose");
+  });
+
+  it("ne repropose pas une candidate déjà acceptée et active", () => {
+    const recommandation = {
+      etat: { skill: { code: "DEV-01" } },
+      valeur: 1,
+      facteurs: [],
+      raison: "à travailler",
+      exercice: { id: "ex-1", titre: "Résoudre", competences: ["DEV-01"], dureeEstimeeMin: 30 },
+      difficulteCible: 2,
+      dureeEstimeeMin: 30,
+      calibration: null,
+    } as unknown as Recommandation;
+
+    expect(actionCandidatesDepuisRecommandations([recommandation], [session({
+      origineProposition: {
+        propositionRef: "plan-1",
+        candidateId: "legacy-exercise:ex-1",
+        source: "legacy-exercise",
+      },
+    })])).toEqual([]);
+    expect(actionCandidatesDepuisRecommandations([recommandation], [session({
+      statut: "terminee",
+      origineProposition: {
+        propositionRef: "plan-1",
+        candidateId: "legacy-exercise:ex-1",
+        source: "legacy-exercise",
+      },
+    })])).toHaveLength(1);
   });
 });
