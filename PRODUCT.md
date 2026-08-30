@@ -1,12 +1,13 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.4 — 29/08/2026.** La vision d'orchestration pédagogique est
-validée (ADR-139) et sa première tranche d'interface est branchée : le tableau
-de bord calcule une proposition éphémère depuis les recommandations, échéances,
-besoins déclarés, disponibilités et séances déjà connues, puis prépare une
-commande qui ne porte que sur les séances acceptées. Les candidats de protocole
-de cours sont composés par le même adaptateur lorsqu'un protocole relu est
-disponible ; ils ne sont pas stockés. La boucle
+**Version 4.8 — 30/08/2026.** La vision d'orchestration pédagogique reste
+validée comme direction (ADR-139), mais sa composition d'interface expérimentale
+a été retirée le 30/08 après retour arrière. Le tableau de bord visible est
+revenu à sa composition précédente ; les fondations de planification,
+d'acceptation, de revue et de chronologie restent dans le dépôt comme code
+expérimental non raccordé et gelé. Cette itération ajoute seulement la lecture
+réelle des `LearningSession` acceptées du jour : les séances `planifiee` du jour
+civil et toutes les séances `en-cours`, séparées de la recommandation. La boucle
 complète `contexte réel → plan → travail → observations → estimation →
 replanification` reste à valider en conditions réelles. L'acceptation distante
 est prouvée pour les séances ordinaires ; la conservation de l'origine d'un
@@ -14,9 +15,21 @@ candidat de cours dans cette même RPC est désormais déployée et vérifiée d
 la définition distante via la migration additive
 `20260829190000_plan_acceptation_origine_cours.sql` (version Supabase
 `20260829174131`). Le plan est une hypothèse
-dérivée ; seules les séances acceptées deviennent des `LearningSession`. Cette version remplace les refus
+dérivée ; seules les séances acceptées deviennent des `LearningSession`. La
+direction validée remplace les refus
 de calendrier et de plan jour-par-jour d'ADR-096 et ADR-109 sans réintroduire
 d'objectif structuré ni d'état dérivé persistant.
+
+La recommandation globale ne repropose plus un exercice déjà tenté sans
+réussite ultérieure (`partiel` ou `echec`), même lorsqu'il s'agit du seul
+exercice disponible. Quand aucun candidat honnête ne reste, elle laisse le
+repli de génération ou de préparation répondre sans inventer de contenu.
+
+Le tableau de bord visible garde une seule surface de référence pour les
+échéances : « À venir ». Le raccourci de contexte et le résumé prioritaire qui
+répétaient la même échéance ont été retirés ; « Mes cours » reste une entrée
+générale vers le contexte académique. La carte conserve la liste des échéances
+et leurs actions sans changer les faits persistés.
 
 La frontière distante d'acceptation atomique est désormais fonctionnelle et
 prouvée côté PostgreSQL. La reproduction du 29/08/2026 avait montré que `sum(integer)`
@@ -39,9 +52,11 @@ et sérialisée, et un résultat déjà reçu est retrouvé au rechargement sans
 nouvel appel. Une relance explicitement demandée est une nouvelle génération
 assumée ; aucun double-clic ni rechargement ne la déclenche en douce. Après
 expiration ou erreur, « Terminer sans mesure » clôt la tentative sans résultat
-ni observation ; la réponse attendue devient alors consultable. Une observation
-ne peut donc naître qu'après une correction recevable puis l'acceptation du
-bilan. L'exercice diagnostic qui vient d'être mené est aussi exclu de
+ni observation ; la réponse attendue devient alors consultable. Une correction
+recevable est aussi affichée dans le bilan, à côté du feedback, avant son
+acceptation ; elle reste cachée pendant la recherche. Une observation ne peut
+donc naître qu'après une correction recevable puis l'acceptation du bilan.
+L'exercice diagnostic qui vient d'être mené est aussi exclu de
 l'enchaînement immédiat du même parcours, sans modifier la calibration.
 
 **Version précédente : 4.1 — 28/08/2026.** La nature d'un domaine se déclare désormais :
@@ -418,17 +433,20 @@ plafonds numériques : P8 reste 🔬 jusqu'à leur confrontation à l'usage.
 ### Décidé
 
 **Décision produit validée le 27/08/2026 — orchestration adaptative
-(ADR-139), encore en validation d'intégration.** Le plan devient le circuit principal : il est dérivé,
-explicable et recalculable ; seules les séances acceptées sont persistées sous
-forme de `LearningSession`. Le calendrier est une projection consentie du plan,
-jamais une source de vérité pédagogique. Une préparation à l'échéance reste une
-vue dérivée avec réserves. Retard, refus et abandon peuvent replanifier, mais ne
-mesurent aucune compétence. Cette décision remplace uniquement les interdits de
-planification d'ADR-096 et ADR-109 ; elle conserve leurs refus de fabriquer une
-intention ou un objectif structuré.
-Les lots 0 à 6 ont posé les contrats, le planificateur temporel pur, la
-frontière d'acceptation, la revue groupée locale et la lecture opérationnelle
-des séances acceptées. La vérification Supabase réelle du 28/08/2026 confirme
+(ADR-139), direction toujours en validation d'intégration.** Le plan reste
+dérivé, explicable et recalculable ; seules les séances acceptées sont
+persistées sous forme de `LearningSession`. Le calendrier est une projection
+consentie du plan, jamais une source de vérité pédagogique. Une préparation à
+l'échéance reste une vue dérivée avec réserves. Retard, refus et abandon peuvent
+replanifier, mais ne mesurent aucune compétence. Cette décision remplace
+uniquement les interdits de planification d'ADR-096 et ADR-109 ; elle conserve
+leurs refus de fabriquer une intention ou un objectif structuré.
+Les lots 0 à 6 ont posé dans le dépôt les contrats, le planificateur temporel
+pur, la frontière d'acceptation, la revue groupée locale et la lecture
+opérationnelle des séances acceptées. Leur branchement dans la composition
+visible a été retiré lors du retour arrière du 30/08 ; aucune proposition de
+plan globale, revue ou vue `/seances` expérimentale n'est activée par cette
+version. La vérification Supabase réelle du 28/08/2026 confirme
 que les colonnes `interventions`, `origine_proposition` et
 `duree_planifiee_min`, le reçu d'idempotence et les fonctions
 `accepter_plan(text,jsonb)`/`accepter_plan_lot3_legacy(text,jsonb)` sont
@@ -542,7 +560,9 @@ qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
 interventions d'ADR-139, au diff de revue groupée et à la chronologie À venir est
-outillée côté domaine, engine, acceptation et `/seances` ; les objets Supabase
+outillée côté domaine, engine et acceptation. La composition `/seances` issue
+de cette tentative a été retirée le 30/08 ; ces fondations restent
+expérimentales et non raccordées au parcours visible. Les objets Supabase
 additifs sont présents, tandis que les migrations historiques des lots 1, 3 et
 5 restent absentes de l'historique distant et ne sont pas rejouées. La colonne
 de durée planifiée, la RPC de raccourcissement et la conservation du blueprint
@@ -552,14 +572,14 @@ peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séanc
 en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
 synthèse, la production, le diagnostic ou l'aide.
-🔬 **La vue nominale de Séances est « À venir »** (lot 6). Elle relit les
-`LearningSession` acceptées encore planifiées ou en cours dans une chronologie
-groupée par jour ; l'Historique conserve le Cahier et son calendrier, et les
-liens jour/focus existants restent compatibles. Les absences de date,
-d'intervention ou de domaine sont montrées comme réserves, jamais complétées
-par une valeur pédagogique inventée. Le compositeur manuel devient l'action
-secondaire « Préparer autre chose » ; aucun déplacement n'est écrit sans
-recalcul et choix explicites.
+🔬 **La lecture « À venir » de Séances reste expérimentale** (lot 6). Le moteur
+relit les `LearningSession` acceptées encore planifiées ou en cours dans une
+chronologie groupée par jour ; la composition qui la rendait nominale a été
+retirée lors du retour arrière du 30/08. La route visible conserve donc le
+Bureau/Cahier et ses liens jour/focus. Les absences de date, d'intervention ou
+de domaine sont montrées comme réserves, jamais complétées par une valeur
+pédagogique inventée. Aucun déplacement n'est écrit sans recalcul et choix
+explicites.
 🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :
 `learning_loop_mode` a été retiré avec la boucle qu'il gardait (ADR-070). La
 suppression des 7 tables a fait l'objet de l'autorisation distincte que cette
@@ -850,7 +870,7 @@ vers une Observation. Le statut facultatif du geste est conservé dans le JSONB
 déjà porté par la séance : il ne crée ni entité ni score dérivé. Les séances
 historiques sont adaptées sans réécriture.
 
-### Lot 8 — cours et plan global
+### Lot 8 — cours et plan global (fondations expérimentales gelées)
 
 ❓ Le protocole d'un cours possède désormais un adaptateur pur vers les actions
 candidates du plan global. L'identité de chaque candidate distingue la fiche et
@@ -882,6 +902,20 @@ proposition ignorée ne revient pas tant que ses échéances, créneaux, travaux
 disponibles ou séances acceptées n'ont pas changé. Les états sans séance
 expliquent la cause en langage courant ; les identifiants et détails techniques
 restent dans les journaux.
+
+La proposition de plan global, sa revue et son acceptation appartiennent encore
+aux fondations non raccordées de l'itération du 26–30/08. Le tableau de bord
+visible ne les affiche pas : il conserve sa recommandation historique et le bloc
+« Aujourd'hui » ne contient que des séances persistées `planifiee` ou
+`en-cours`.
+
+Lorsqu'une recommandation désigne un exercice déjà disponible, la carte propose
+aussi une planification explicite : la personne choisit une date et une heure,
+puis le chemin canonique de création écrit une seule `LearningSession`
+`planifiee`. Ce geste n'enregistre ni la recommandation ni un plan global ;
+après actualisation, la séance rejoint « Aujourd'hui » seulement si son jour
+civil local correspond. Les recommandations qui ne désignent pas un exercice
+conservent leurs actions existantes.
 
 L'arbitrage est déterministe et ne modifie aucun seuil de calibration : les
 séances actives sont exclues, les codes inactifs sont mis en réserve, puis une

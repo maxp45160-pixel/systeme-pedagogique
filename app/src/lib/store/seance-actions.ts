@@ -250,31 +250,60 @@ export async function creerSeanceFocusExercice(
   const existante = seanceEnCoursPour(exerciceId, await lire("sessions", dorsale));
   if (existante) return existante.id;
 
+  return creerSeance(entreeFocusDepuisExercice(exercice, options), "en-cours");
+}
+
+function entreeFocusDepuisExercice(
+  exercice: Exercise,
+  options: { premierParcours?: boolean } = {},
+  planifieePour?: string,
+): EntreePlanification {
   const maintenant = new Date().toISOString();
   const codePrincipal = exercice.competences[0];
   if (!codePrincipal) throw new Error("Cet exercice ne cible aucune compétence.");
 
-  return creerSeance(
-    {
-      besoin: {
-        codesVises: exercice.competences,
-        tempsDisponibleMin: exercice.dureeEstimeeMin,
-        declareLe: maintenant,
-      },
-      blueprint: {
-        dureeCibleMin: exercice.dureeEstimeeMin,
-        nombreExercices: 1,
-        portee: { type: "mono", domaine: exercice.domaine },
-        cibles: [{
-          code: codePrincipal,
-          difficulte: exercice.difficulte,
-          raison: "Exercice choisi depuis la prochaine action.",
-        }],
-        ...(options.premierParcours ? { premierParcours: true } : {}),
-      },
-      activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+  return {
+    besoin: {
+      codesVises: exercice.competences,
+      tempsDisponibleMin: exercice.dureeEstimeeMin,
+      declareLe: maintenant,
     },
-    "en-cours",
+    blueprint: {
+      dureeCibleMin: exercice.dureeEstimeeMin,
+      nombreExercices: 1,
+      portee: { type: "mono", domaine: exercice.domaine },
+      cibles: [{
+        code: codePrincipal,
+        difficulte: exercice.difficulte,
+        raison: "Exercice choisi depuis la prochaine action.",
+      }],
+      ...(options.premierParcours ? { premierParcours: true } : {}),
+    },
+    activites: [{ type: "exercice", ref: exercice.id, libelle: exercice.titre }],
+    ...(planifieePour ? { planifieePour } : {}),
+  };
+}
+
+/**
+ * Accepte explicitement l'exercice recommandé à une date choisie par la
+ * personne. La recommandation reste une projection : seule cette action crée
+ * la séance persistée qui pourra rejoindre « Aujourd'hui ».
+ */
+export async function planifierExerciceRecommande(
+  exerciceId: string,
+  planifieePour: string,
+): Promise<string> {
+  if (typeof planifieePour !== "string" || !Number.isFinite(Date.parse(planifieePour))) {
+    throw new Error("Choisissez une date et une heure valides.");
+  }
+
+  const dorsale = await dorsaleCompte();
+  const exercice = (await catalogueExercices(dorsale)).get(exerciceId);
+  if (!exercice || exercice.archive) throw new Error("Cet exercice n'est plus disponible.");
+
+  return creerSeance(
+    entreeFocusDepuisExercice(exercice, {}, new Date(planifieePour).toISOString()),
+    "planifiee",
   );
 }
 

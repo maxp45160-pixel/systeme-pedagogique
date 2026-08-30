@@ -839,9 +839,9 @@ describe("actionnabilité — un exercice disponible départage, sans jamais pé
  * de rater. Le remède n'est pas un délai — trois jours ne rendent pas soluble
  * un exercice hors de portée — mais une condition : un progrès démontré.
  *
- * Un échec sévère reste bloqué jusqu'à un progrès démontré. Un partiel reste
- * candidat : il indique une prise exploitable et appelle un ajustement de
- * difficulté, pas une exclusion automatique.
+ * Un résultat non abouti (`echec` ou `partiel`) reste bloqué jusqu'à un progrès
+ * démontré. Sans autre exercice, le moteur préfère ne rien proposer plutôt que
+ * de remettre exactement le même exercice dans la file.
  */
 describe("choix de l'exercice — un résultat non abouti ne redonne pas le même exercice", () => {
   function exo(id: string, difficulte: Difficulte, dureeEstimeeMin = 25): Exercise {
@@ -929,16 +929,19 @@ describe("choix de l'exercice — un résultat non abouti ne redonne pas le mêm
     expect(propose([ex], [tent("ex-1", "echec", 3)], observations)).toBeNull();
   });
 
-  it("un partiel reste candidat pour rester dans une zone de défi utile", () => {
+  it("un partiel ne revient pas tant qu'aucun progrès n'est démontré", () => {
     const ex = exo("ex-1", 2);
     const partiel = observation({ skill: "STAT-01", jours: 3, resultat: "partiel" });
-    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])?.id).toBe("ex-1");
+    expect(propose([ex], [tent("ex-1", "partiel", 3)], [partiel])).toBeNull();
   });
 
-  it("un partiel reste candidat même sans réussite postérieure", () => {
+  it("un partiel revient dès qu'une réussite postérieure le suit sur la compétence", () => {
     const ex = exo("ex-1", 2);
-    const partiel = observation({ skill: "STAT-01", jours: 5, resultat: "partiel" });
-    expect(propose([ex], [tent("ex-1", "partiel", 5)], [partiel])?.id).toBe("ex-1");
+    const observations = [
+      observation({ skill: "STAT-01", jours: 5, resultat: "partiel" }),
+      observation({ skill: "STAT-01", jours: 1, resultat: "reussi", contexte: "Contexte B" }),
+    ];
+    expect(propose([ex], [tent("ex-1", "partiel", 5)], observations)?.id).toBe("ex-1");
   });
 
   it("un abandon ne compte pas : l'exercice reste proposable", () => {

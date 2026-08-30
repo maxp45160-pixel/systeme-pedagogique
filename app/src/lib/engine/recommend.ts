@@ -467,20 +467,17 @@ function indexerTerminees(
  *     possible depuis sa fiche, et fait monter la robustesse ; ce n'est
  *     simplement plus une recommandation.
  *
- *  2. DERNIÈRE TENTATIVE EN ÉCHEC SÉVÈRE — il ne revient qu'après un
- *     **progrès démontré** sur la compétence visée : une observation en réussite
- *     postérieure. Un échec ici signifie un contre-sens ou un hors-sujet ;
- *     reproposer le même exercice sans changement remesurerait la même impasse.
+ *  2. DERNIÈRE TENTATIVE NON CONCLUANTE — `echec` ou `partiel` ne revient
+ *     qu'après un **progrès démontré** sur la compétence visée : une observation
+ *     en réussite postérieure. Reproposer le même exercice sans changement
+ *     remesurerait la même impasse, même lorsqu'il s'agit du seul exercice
+ *     encore présent dans le référentiel.
  *
  *     Le déclencheur est une CONDITION, pas un délai. Un minuteur reproposerait
  *     au bout de trois jours un exercice hors de portée, sans que rien n'ait
  *     changé entre-temps : c'est précisément ce que le produit faisait, et ce
  *     qui donnait le sentiment de tourner en rond. Trois jours ne rendent pas
  *     soluble ce qui ne l'était pas.
- *
- *     Un résultat `partiel` reste au contraire exploitable : il signale qu'il
- *     y a une prise, et la calibration peut ajuster la difficulté pour rester
- *     dans une zone de défi utile.
  *
  *  3. JAMAIS TENTÉ — candidat sans condition.
  *
@@ -495,9 +492,10 @@ function recommandable(
   if (passees.length === 0) return true;
   if (passees.some((t) => t.resultat === "reussi")) return false;
 
-  // Un partiel est une progression exploitable : on ne le transforme pas en
-  // mur. Seul le dernier échec sévère attend une réussite postérieure.
-  if (passees[0].resultat !== "echec") return true;
+  // Une tentative non concluante (échec ou partiel) attend une réussite
+  // postérieure sur la compétence. Sans alternative, le repli honnête est
+  // « rien à proposer » plutôt que de resservir indéfiniment le même exercice.
+  if (passees[0].resultat !== "echec" && passees[0].resultat !== "partiel") return true;
 
   const depuis = dateTentative(passees[0]);
   return etat.observations.some((p) => p.resultat === "reussi" && p.date > depuis);

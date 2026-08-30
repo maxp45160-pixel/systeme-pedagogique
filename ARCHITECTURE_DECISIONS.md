@@ -46,7 +46,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [031](#adr-031) | Les propositions du tuteur passent en sortie structurée | ✅ Acceptée (01/08) |
 | [032](#adr-032) | Ce qu'un validateur rejette n'a pas à être un paragraphe de prompt | ✅ Acceptée (01/08) |
 | [033](#adr-033) | L'aide extérieure se demande, l'autonomie se dérive | ✅ Acceptée (01/08) |
-| [034](#adr-034) | Un exercice échoué ne revient qu'après un progrès démontré | ✅ Acceptée (22/08) |
+| [034](#adr-034) | Un exercice non abouti ne revient qu'après un progrès démontré | ✅ Acceptée (22/08) · amendée (30/08) |
 | [035](#adr-035) | Cycle de vie d'un exercice : le calque d'ADR-027 | ✅ Acceptée (22/08) |
 | [036](#adr-036) | Le tuteur voit le corpus, jamais les énoncés | ✅ Acceptée (22/08) |
 | [037](#adr-037) | P5 reformulé : le tuteur écrit le contenu, jamais la mesure | ✅ Acceptée (03/08) |
@@ -128,7 +128,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [133](#adr-133) | Une séance « compréhension » du protocole demande de reformuler, pas de produire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [134](#adr-134) | Une séance « mémorisation » du protocole demande de restituer de mémoire | 🔬 Construite, hypothèse non réfutée (25/08) |
 | [135](#adr-135) | **Une seule application, un seul noyau, une expérience d'abord étudiante** | ✅ Acceptée (25/08) |
-| [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, amendée le 29/08, hypothèse non réfutée — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
+| [136](#adr-136) | Le parcours ne bloque jamais sans dire pourquoi ; la réponse attendue se lit après coup | 🔬 Construite, amendée les 29 et 30/08, hypothèse non réfutée — amende l'énoncé d'interface d'[ADR-036](#adr-036) |
 | [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
 | [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, planificateur/acceptation/revue locale préparés ; migration lot 5 en attente — aucune montée en ✅ |
@@ -2152,14 +2152,24 @@ qu'il faudra rediscuter — pas le principe.
 ---
 
 <a name="adr-034"></a>
-## ADR-034 — Un exercice sévèrement échoué ne revient qu'après un progrès démontré ✅
+## ADR-034 — Un exercice non abouti ne revient qu'après un progrès démontré ✅
 
 **Date.** 02/08/2026. **Acceptée le 22/08/2026 par Maxime.** Née d'un
 irritant remonté par Maxime :
 
-**Amendement du 22/08.** Seul un `echec` sévère — contre-sens ou hors sujet —
+**Amendement du 22/08 (supersédé le 30/08).** Seul un `echec` sévère —
+contre-sens ou hors sujet —
 bloque l'exercice jusqu'à une réussite ultérieure. Un `partiel` reste
 candidat et appelle un ajustement de difficulté vers une zone de défi utile.
+
+**Amendement du 30/08.** Le tableau de bord a montré qu'un `partiel` pouvait
+réinjecter indéfiniment le même exercice lorsque le stock était réduit à une
+seule candidate. Ce comportement ne produit ni variété ni nouvelle mesure.
+Désormais, `partiel` et `echec` sont tous deux non concluants pour la file de
+recommandation : l'exercice attend une réussite postérieure sur la compétence
+avant de redevenir candidat. Il reste accessible depuis sa fiche ; si aucune
+autre candidate n'existe, le repli honnête est de ne rien proposer ou de
+préparer une génération, sans supprimer ni fabriquer de fait.
 
 > « En suivant le système de "prochaine action", je me retrouve à refaire tous
 > les exos ratés, et qui ne sont pas de mon niveau réel sinon je les aurais
@@ -2201,9 +2211,10 @@ moteur n'avait rien d'autre à servir.
 
 Deux règles dans `choisirExercice`, et un repli.
 
-**1. Exclusion dure.** Un exercice dont la dernière tentative **terminée** est un
-`echec` ne redevient candidat qu'après un **progrès démontré** sur sa compétence
-cible : une preuve en `reussi` postérieure à cet échec.
+**1. Exclusion dure.** Un exercice dont la dernière tentative **terminée** est
+un `echec` ou un `partiel` ne redevient candidat qu'après un **progrès
+démontré** sur sa compétence cible : une preuve en `reussi` postérieure à
+cette tentative.
 
 C'est une **condition, pas un délai**. Un refroidissement temporel reproposerait
 au bout de N jours un exercice hors de portée, sans que rien n'ait changé
@@ -2212,8 +2223,9 @@ sens** : une faiblesse ne disparaît pas sans démonstration, et elle ne se
 remesure pas non plus sans qu'il y ait quelque chose de nouveau à mesurer.
 
 **2. Classement souple.** À écart de difficulté égal, un exercice **jamais
-tenté** passe devant un exercice déjà tenté. Un `partiel` reste candidat — c'est
-un progrès, pas un mur — il descend simplement dans la file.
+tenté** passe devant un exercice déjà tenté. Un résultat non abouti n'est pas
+un mur pédagogique : l'exercice reste accessible directement et redevient
+serviable dès qu'une réussite ultérieure fournit le progrès attendu.
 
 **3. Repli.** Plus aucun candidat ⇒ `exercice: null`, et la carte propose de
 demander un exercice au tuteur, avec la difficulté conseillée et la dimension
@@ -2238,7 +2250,8 @@ proposer.
 
 Deux observations sont nécessaires, et aucune n'a eu lieu :
 
-1. **Échouer un exercice, puis en réussir un autre sur la même compétence.**
+1. **Ne pas conclure une tentative, puis en réussir une autre sur la même
+   compétence.**
    Le premier doit redevenir candidat au tour suivant, et pas avant. Si un
    utilisateur se retrouve durablement sans rien à faire sur une compétence
    qu'il travaille, la condition est trop stricte et le repli vers le tuteur
@@ -10783,7 +10796,8 @@ réouverture sur intuition.
 <a name="adr-136"></a>
 ## ADR-136 — Le parcours ne bloque jamais sans dire pourquoi, et ne montre la réponse qu'après coup 🔬
 
-**Statut :** 🔬 construit le 25/08/2026, amendé le 29/08/2026, hypothèse non
+**Statut :** 🔬 construit le 25/08/2026, amendé le 29/08/2026 et le 30/08/2026,
+hypothèse non
 réfutée. Les décisions initiales viennent du plan de friction du 25/08/2026 ;
 la reprise de correction et la sortie sans mesure ont été ajoutées après
 reproduction de l'impasse.
@@ -10818,7 +10832,9 @@ fortement la friction du geste qui produit une observation.
    dernier réutilise `abandonnerExercice`, n'écrit ni résultat ni observation,
    et rend la réponse attendue consultable. Une relance explicitement demandée
    constitue une nouvelle génération ; ni double-clic ni rechargement ne peut
-   la déclencher en douce. Le formulaire de bilan n'est rendu
+   la déclencher en douce. Dès qu'une correction recevable est arrivée, le
+   bilan affiche aussi la réponse attendue à côté du feedback ; elle reste
+   cachée pendant la recherche. Le formulaire de bilan n'est rendu
    qu'après une correction recevable : aucune auto-évaluation de secours n'est
    imposée, et aucune observation ne peut être produite sans cette correction.
 3. **Une inscription ambiguë reste ambiguë.** La classification vit dans
@@ -10833,11 +10849,12 @@ fortement la friction du geste qui produit une observation.
 5. **Le premier écran pose UNE question.** Le bandeau « Déposer mon cours »
    quitte `/demarrer` ; le geste reste entier dans Mes cours (`?creation=cours`,
    ADR-129) et se rappelle dans le bloc replié « Ensuite ».
-6. **Les critères AVANT la réponse ; la réponse attendue APRÈS coup.** Un
+6. **Les critères AVANT la réponse ; la réponse attendue après le verdict.** Un
    panneau « Ce qui sera évalué » (les critères existants) précède la zone de
-   réponse — le contrat, pas la solution. Une fois l'exercice terminé ET sans
-   tentative en cours, un panneau replié « Réponse attendue » rend la
-   correction consultable. **Cela amende l'énoncé d'interface hérité d'
+   réponse — le contrat, pas la solution. Dès qu'une correction recevable est
+   rendue par le tuteur, le bilan affiche un panneau « Réponse attendue » pour
+   comparer la réponse et le feedback. Une fois l'exercice terminé ET sans
+   tentative en cours, le même panneau replié permet de la relire. **Cela amende l'énoncé d'interface hérité d'
    [ADR-036](#adr-036)** : la correction restait invisible pour TOUJOURS ;
    désormais seule la fenêtre de travail l'est. Le tuteur, lui, ne la voit
    toujours que par son unique chemin ([ADR-041](#adr-041)) — rien ne bouge de
@@ -11105,16 +11122,35 @@ version distante `20260829145745`. Les versions locales historiques des lots
 Cet écart ne vaut pas autorisation de rejouer une DDL historique et ne permet
 pas, à lui seul, de promouvoir le statut.
 
-Le tableau de bord branche désormais une première tranche de ce contrat : il
-fournit au planificateur les disponibilités déclarées, les recommandations
-historiques, les besoins déclarés, les échéances ouvertes et les séances déjà
-acceptées, puis propose un lot éphémère dont la personne peut accepter tout ou
-partie. Un protocole relu est adapté par le même compositeur lorsqu'il est
-fourni par son parcours. L'acceptation passe par la frontière atomique
-existante ; aucun plan complet n'est persisté. La conservation distante du
-blueprint documentaire d'une candidate de cours est couverte par la migration
-additive `20260829190000_plan_acceptation_origine_cours.sql`, enregistrée sous
-la version Supabase `20260829174131` et vérifiée dans la définition de la RPC.
+**État d'intégration au 30/08/2026.** La tentative de traduction visible de
+cette direction a été retirée par retour arrière : le tableau de bord et la
+route `/seances` ont retrouvé leur composition précédente. Les fondations de
+planification, d'acceptation, de revue et de chronologie restent présentes
+comme code expérimental, mais ne sont plus raccordées au parcours utilisateur
+et ne constituent pas une validation du plan global. L'itération 1 branche
+uniquement une projection locale et lisible des `LearningSession`
+acceptées du jour ; elle ne réactive ni proposition globale, ni revue, ni
+nouvelle destination.
+
+**Itération 2 — planification ponctuelle (30/08/2026).** La recommandation
+historique peut maintenant être acceptée pour un exercice disponible par un
+choix explicite de date et d'heure. `planifierExerciceRecommande` relit le
+catalogue du compte puis réutilise `creerSeance` en mode `planifiee` ; aucune
+recommandation, plan global ou nouvelle entité n'est persisté. Cette tranche
+ne change pas le statut ❓ de l'ADR-139 et ne réactive ni revue, ni déplacement,
+ni la vue expérimentale `/seances`.
+
+Le dépôt conserve le branchement expérimental qui fournit au planificateur les
+disponibilités déclarées, les recommandations historiques, les besoins
+déclarés, les échéances ouvertes et les séances déjà acceptées, puis pourrait
+proposer un lot éphémère dont la personne accepte tout ou partie. Ce chemin
+n'est pas appelé par la composition visible actuelle. Un protocole relu reste
+adapté par le même compositeur lorsqu'il est fourni par son parcours.
+L'acceptation passe par la frontière atomique existante ; aucun plan complet
+n'est persisté. La conservation distante du blueprint documentaire d'une
+candidate de cours est couverte par la migration additive
+`20260829190000_plan_acceptation_origine_cours.sql`, enregistrée sous la
+version Supabase `20260829174131` et vérifiée dans la définition de la RPC.
 
 Le lot 9 ajoute au profil les créneaux déclarés nécessaires au contexte
 temporel concret : `disponibilites_declarees`. La migration additive

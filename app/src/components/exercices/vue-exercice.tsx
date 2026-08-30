@@ -27,6 +27,7 @@ import { BoutonEditer } from "@/components/exercices/bouton-editer";
 import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { FocusActe } from "@/components/exercices/focus-acte";
+import { ReponseAttendue } from "@/components/exercices/reponse-attendue";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
 import { indicesMasquesEnEpreuve } from "@/lib/domain/seance";
 import { IconeFleche } from "@/components/ui/icones";
@@ -188,11 +189,10 @@ export async function VueExercice(props: {
    * URL `?correction=1` a été retirée avec l'écran qu'elle ouvrait — seul
    * `?evaluer=1` entre en mesure.
    *
-   * Après coup, elle devient consultable (25/08/2026) : un exercice terminé
-   * sans qu'on puisse jamais lire ce qui était attendu laissait le bilan sans
-   * point de comparaison — « pourquoi ce verdict ? ». Le panneau est replié,
-   * explicite (« réponse attendue »), et n'existe que SANS tentative en cours :
-   * jamais pendant qu'on cherche.
+   * Dès qu'une correction recevable est arrivée, le bilan affiche la réponse
+   * attendue pour donner un point de comparaison au feedback. Après la clôture,
+   * le même panneau replié permet de la relire ; elle reste donc invisible
+   * pendant qu'on cherche, mais plus après que le tuteur a rendu son verdict.
    */
   const enMesure = evaluer === "1";
   // L'énoncé reste toujours atteignable — c'est le contexte, pas une action.
@@ -602,28 +602,20 @@ export async function VueExercice(props: {
 
         {/*
           -------------------- Après coup --------------------
-          La réponse attendue, consultable une fois l'exercice terminé et
-          AUCUNE tentative en cours (25/08/2026). Repliée par défaut : c'est un
-          document de comparaison, pas un contenu qui s'offre au regard de qui
-          rouvre l'exercice pour le refaire — même précaution que la correction
-          repliée dans la fiche (`titresReplies` du Markdown).
+          La réponse attendue reste consultable après clôture, en complément de
+          sa première lecture dans le bilan du tuteur. Repliée par défaut :
+          c'est un document de comparaison, pas un contenu qui s'offre au regard
+          de qui rouvre l'exercice pour le refaire.
         */}
         {!enCours && derniereCloturee && (
-          <PanneauPliable
-            ouvertParDefaut={false}
-            titre={<span className="text-sm font-medium">Réponse attendue</span>}
-            sousEntete={
-              <p className="mt-0.5 text-xs text-texte-attenue">
-                {derniereCloturee.statut === "abandonnee"
-                  ? "Exercice clos sans mesure — ce qui était attendu, si vous souhaitez comparer."
-                  : "Exercice terminé — ce qui était attendu, pour relire votre bilan avec un point de comparaison."}
-              </p>
+          <ReponseAttendue
+            correction={exercice.correction}
+            legende={
+              derniereCloturee.statut === "abandonnee"
+                ? "Exercice clos sans mesure — ce qui était attendu, si vous souhaitez comparer."
+                : "Exercice terminé — ce qui était attendu, pour relire votre bilan avec un point de comparaison."
             }
-          >
-            <div className="px-4 py-3.5 text-sm">
-              <Markdown contenu={exercice.correction} />
-            </div>
-          </PanneauPliable>
+          />
         )}
 
         {enCours && (
@@ -721,10 +713,10 @@ export async function VueExercice(props: {
 
             {/*
               Pendant le travail, la correction de référence reste côté serveur.
-              Le clic ci-dessus ouvre directement le bilan assisté ; aucune
-              étape du parcours ne rend le texte de correction. Elle ne devient
-              consultable qu'après coup, via le panneau « Réponse attendue »
-              ci-dessus — jamais pendant qu'une tentative est ouverte.
+              Le clic ci-dessus ouvre directement le bilan assisté ; dès qu'une
+              correction recevable arrive, celui-ci affiche la réponse attendue
+              à côté du feedback. Après clôture, le panneau ci-dessus permet de
+              la relire — jamais pendant la recherche.
             */}
             {/* -------------------- Acte : Mesurer ----------------------------
               Énoncé et réponse sont repliés : seul le bilan proposé par le

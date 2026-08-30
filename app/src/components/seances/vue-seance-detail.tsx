@@ -151,6 +151,16 @@ export async function VueSeanceDetail({
     (activite) => activite.type === "exercice" && parId.has(activite.ref),
   );
   const ids = activites.map((activite) => activite.ref);
+  /*
+   * Une suite affichée après la clôture est un nouveau parcours, pas une
+   * invitation à rejouer l'une des activités que cette séance vient déjà de
+   * traverser. Garder cet ensemble au niveau de la séance couvre à la fois la
+   * relecture d'un exercice explicite et le bilan agrégé de la séance.
+   */
+  const exercicesDejaTraverses = new Set([
+    ...avancement.menes,
+    ...avancement.abandonnes,
+  ]);
   const demandeDansSeance = exerciceDemande && ids.includes(exerciceDemande) ? exerciceDemande : undefined;
   const explicite = close
     ? demandeDansSeance
@@ -203,6 +213,7 @@ export async function VueSeanceDetail({
         exercices: ctx.donnees.exercises,
         tentatives: ctx.donnees.attempts,
         now: ctx.now,
+        exercicesExclus: exercicesDejaTraverses,
       })
       : null;
   }
@@ -265,6 +276,7 @@ export async function VueSeanceDetail({
       exercices: ctx.donnees.exercises,
       tentatives: ctx.donnees.attempts,
       now: ctx.now,
+      exercicesExclus: exercicesDejaTraverses,
     })
     : null;
   const suivant = [...avancement.enCours, ...avancement.restants]

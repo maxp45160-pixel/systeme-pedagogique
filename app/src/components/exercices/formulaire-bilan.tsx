@@ -10,6 +10,7 @@ import { autonomieObservee, LIBELLE_AIDE, type AideExterne } from "@/lib/engine/
 import { APPRECIATIONS, RESULTATS, type ResultatBilan } from "@/lib/domain/bilan";
 import type { BilanRedige } from "@/lib/tutor/conversion-correction";
 import { BilanRedigeVue } from "@/components/exercices/bilan-redige";
+import { ReponseAttendue } from "@/components/exercices/reponse-attendue";
 import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 
 /*
@@ -373,6 +374,14 @@ export function FormulaireBilan({
         qu'il a lu, et son analyse reste ce qu'elle était.
       */}
       {bilanRedige && <BilanRedigeVue bilan={bilanRedige} />}
+
+      {assiste && (
+        <ReponseAttendue
+          correction={exercice.correction}
+          legende="Comparez votre réponse au corrigé après le retour du tuteur."
+          ouvertParDefaut
+        />
+      )}
 
       {/*
         Aide extérieure — calibrage de l'autonomie enregistrée (ADR-033 / ADR-057).

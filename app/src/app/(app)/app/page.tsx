@@ -3,15 +3,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { chargerReferentiel } from "@/lib/store/referentiel";
-import { formatDateAujourdhui, formatDuree } from "@/lib/engine/dates";
+import { cleJour, formatDateAujourdhui, formatDuree } from "@/lib/engine/dates";
 import { SquelettePage } from "@/components/layout/squelette";
 import { calculerActivite } from "@/lib/engine/historique";
-import { CarteSeanceActive } from "@/components/dashboard/carte-seance-active";
 import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
+import { BlocAujourdHui } from "@/components/dashboard/bloc-aujourd-hui";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
 import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeCalendrier, IconeFleche } from "@/components/ui/icones";
+import { IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -25,15 +25,9 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
 import { CarteEcheances } from "@/components/dashboard/carte-echeances";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
-import { BlocEcheancePrioritaire } from "@/components/dashboard/bloc-echeance-prioritaire";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
-import {
-  estOuvert,
-  joursRestants,
-  libelleCompte,
-  triParUrgence,
-} from "@/lib/domain/engagement";
 import { repartirDomainesParUsage, estModuleActif } from "@/lib/domain/usage-domaine";
+import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
@@ -106,30 +100,14 @@ async function ContenuTableauDeBord({
     joursSansActivite = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
   }
 
-  // Échéance prioritaire la plus proche
-  const engagementsOuverts = triParUrgence(
-    ctx.donnees.engagements.filter(estOuvert),
-  );
-  const echeanceProche = engagementsOuverts.find(
-    (e) => joursRestants(e.echeanceLe, ctx.now) >= 0 && joursRestants(e.echeanceLe, ctx.now) <= 30,
-  );
-
-  /*
-   * Le module de l'échéance prioritaire — résolu côté serveur contre les
-   * domaines vivants du compte. Un lien orphelin (module archivé ou supprimé)
-   * ne s'affiche pas : l'échéance reste un fait entier, sans module inventé.
-   */
-  const modulePrioritaire = (() => {
-    const id = echeanceProche?.moduleDomaineId;
-    if (!id) return null;
-    const domaine = ctx.referentiel.domainesParId.get(id);
-    return domaine && !domaine.archive ? { id, nom: domaine.nom } : null;
-  })();
-
   const seancesActives = [...ctx.donnees.sessions]
     .filter((seance) => statutSeance(seance) === "en-cours")
     .sort((a, b) => b.date.localeCompare(a.date));
-  const seanceActive = seancesActives[0];
+  const seancesOuvertes = ctx.donnees.sessions.filter((seance) => {
+    const statut = statutSeance(seance);
+    return statut === "planifiee" || statut === "en-cours";
+  });
+  const vueSeancesDuJour = construireSeancesDuJour(seancesOuvertes, cleJour(ctx.now));
 
   const exercicesDesSeancesActives = new Set(
     seancesActives
@@ -187,7 +165,7 @@ async function ContenuTableauDeBord({
         recommandationTitre={premiereRecommandation?.etat.skill.intitule}
       />
 
-      {/* En-tête épuré avec résumé de progression intégré & échéance proche */}
+      {/* En-tête épuré avec résumé de progression intégré */}
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-2.5">
         <div className="min-w-0">
           <div className="font-serif text-xs italic text-texte-discret">{dateJour}</div>
@@ -200,19 +178,6 @@ async function ContenuTableauDeBord({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {echeanceProche && (
-            <Link
-              href="#carte-echeances"
-              className="flex items-center gap-2 rounded-full border border-primaire/40 bg-primaire-faible px-3.5 py-1.5 text-xs text-primaire transition-colors hover:bg-primaire/15"
-              title={`Échéance : ${echeanceProche.libelle}`}
-            >
-              <IconeCalendrier className="size-3.5" />
-              <span>
-                <strong className="font-medium text-texte">{echeanceProche.libelle}</strong> : {libelleCompte(joursRestants(echeanceProche.echeanceLe, ctx.now))}
-              </span>
-            </Link>
-          )}
-
           <Link
             href="/progression"
             className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
@@ -240,6 +205,13 @@ async function ContenuTableauDeBord({
         </div>
       </div>
 
+      <BlocAujourdHui
+        sessions={seancesOuvertes}
+        initialView={vueSeancesDuJour}
+        compteId={ctx.donnees.user.id}
+        domaines={ctx.referentiel.domaines.map(({ id, nom }) => ({ id, nom }))}
+      />
+
       {/* Entrée unique de déclaration : le cadre se choisit dans le même geste. */}
       <div className="space-y-1.5">
         <BoutonIntentionDashboard />
@@ -256,19 +228,17 @@ async function ContenuTableauDeBord({
       {/* Deux voies lisibles, un seul référentiel et un seul moteur. */}
       <div className="grid gap-3 sm:grid-cols-2" aria-label="Voies de travail">
         <Link
-          href={echeanceProche ? "#carte-echeances" : "/atelier?document=domaines"}
+          href="/atelier?document=domaines"
           className="group rounded-xl border border-primaire/25 bg-primaire-faible/45 p-4 transition-colors hover:border-primaire/50"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-serif text-base font-medium text-texte">Avant vos échéances</h2>
+            <h2 className="font-serif text-base font-medium text-texte">Mes cours</h2>
             <IconeFleche className="size-4 text-primaire transition-transform group-hover:translate-x-0.5" />
           </div>
           <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            {echeanceProche
-              ? `${echeanceProche.libelle} est la plus proche : retrouvez les compétences ciblées et leur couverture.`
-              : domainesParUsage.modulesActifs.length > 0
-                ? `${domainesParUsage.modulesActifs.length} module${domainesParUsage.modulesActifs.length > 1 ? "s" : ""} actif${domainesParUsage.modulesActifs.length > 1 ? "s" : ""}, sans échéance déclarée pour l'instant.`
-                : "Déclarez un module académique pour préparer vos cours et vos examens."}
+            {domainesParUsage.modulesActifs.length > 0
+              ? `${domainesParUsage.modulesActifs.length} module${domainesParUsage.modulesActifs.length > 1 ? "s" : ""} actif${domainesParUsage.modulesActifs.length > 1 ? "s" : ""}, avec vos cours et vos supports au même endroit.`
+              : "Déclarez un module académique pour retrouver vos cours et vos supports."}
           </p>
         </Link>
         <Link
@@ -291,21 +261,6 @@ async function ContenuTableauDeBord({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">
         {/* Colonne gauche : Focus d'action immédiat & Pistes alternatives */}
         <div className="space-y-3.5 sm:space-y-4 lg:col-span-7 xl:col-span-8 min-w-0">
-          {/*
-            La cible de lecture (PRODUCT.md §5) : l'écran ouvre sur
-            échéance → cours concerné → point fragile ou non observé, puis
-            l'activité en dessous. Le bloc n'existe que s'il y a une échéance
-            pertinente — il ne comble jamais le vide.
-          */}
-          {echeanceProche && (
-            <BlocEcheancePrioritaire
-              engagement={echeanceProche}
-              module={modulePrioritaire}
-              etatsParCode={ctx.etatsParCode}
-              now={ctx.now}
-            />
-          )}
-
           {/* Alerte si des exercices sont déjà en cours */}
           {enCours.length > 0 && (
             <BandeauInfo ton="primaire">
@@ -314,7 +269,7 @@ async function ContenuTableauDeBord({
                 <ul className="mt-1.5 space-y-1.5">
                   {enCours.map(({ id, exercice, depuis }) => (
                     <li
-                      key={exercice.id}
+                      key={id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primaire/20 bg-surface/80 px-2.5 py-1.5 text-xs shadow-xs"
                     >
                       <div className="flex flex-wrap items-baseline gap-2 min-w-0">
@@ -349,29 +304,20 @@ async function ContenuTableauDeBord({
             </BandeauInfo>
           )}
 
-          {/* Action prioritaire (reprise de séance ou action recommandée) */}
+          {/* Recommandation actuelle, distincte des séances acceptées du jour */}
           <div className="[&>*]:min-w-0">
-            {seanceActive ? (
-              <CarteSeanceActive
-                seance={seanceActive}
-                totalSeancesOuvertes={seancesActives.length}
-                referentiel={ctx.referentiel}
-                now={ctx.now}
-              />
-            ) : (
-              <CarteProchaineAction
-                recommandations={recommandationsFile}
-                referentiel={ctx.referentiel}
-                now={ctx.now}
-                compteId={ctx.donnees.user.id}
-                instant={instant}
-                activite={
-                  action?.kind === "activite" || action?.kind === "note" ? action.action : undefined
-                }
-                facteursInstant={action?.facteurs ?? []}
-                reservesInstant={action?.reserves ?? []}
-              />
-            )}
+            <CarteProchaineAction
+              recommandations={recommandationsFile}
+              referentiel={ctx.referentiel}
+              now={ctx.now}
+              compteId={ctx.donnees.user.id}
+              instant={instant}
+              activite={
+                action?.kind === "activite" || action?.kind === "note" ? action.action : undefined
+              }
+              facteursInstant={action?.facteurs ?? []}
+              reservesInstant={action?.reserves ?? []}
+            />
           </div>
 
           {/* Échéances déclarées (fait daté) — absente tant que rien n'est déclaré */}

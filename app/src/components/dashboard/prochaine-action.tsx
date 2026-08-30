@@ -24,6 +24,7 @@ import { formatDuree } from "@/lib/engine/dates";
 import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exercice";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
+import { ActionPlanifierRecommandation } from "@/components/dashboard/action-planifier-recommandation";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
 import type { ReactNode } from "react";
 import {
@@ -277,6 +278,9 @@ export function CarteProchaineAction({
               >
                 Fiche compétence
               </Link>
+              {exercice && (
+                <ActionPlanifierRecommandation key={exercice.id} exerciceId={exercice.id} />
+              )}
             </div>
           </div>
 

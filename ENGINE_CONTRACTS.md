@@ -466,14 +466,38 @@ planifiée sans `planifieePour` utilise sa `date` existante. Les interventions
 sont lues par `lireInterventionsSeance` : une activité historique non
 correspondante reste en réserve et n'est jamais convertie en geste ou en effet.
 
-La route `/seances` rend cette projection par défaut. `?vue=cahier` conserve
-l'archive et son calendrier, tandis que `?jour=`, `?session=` et
-`?vue=bureau` gardent la lecture Bureau et les liens profonds existants. Le
-compositeur est derrière l'action secondaire « Préparer autre chose ». Les
-actions de démarrage et d'annulation réutilisent leurs Server Actions ; le
-contrôle de déplacement n'écrit rien tant qu'un recalcul et un choix explicite
-ne sont pas disponibles. Cette limite est une hypothèse d'intégration v0, pas
-une règle pédagogique et ne nécessite pas de migration.
+La projection reste une fondation expérimentale non raccordée au parcours
+visible après le retour arrière du 30/08/2026 : la route `/seances` rend encore
+le Bureau/Cahier restauré. `?vue=cahier`, `?jour=`, `?session=` et
+`?vue=bureau` conservent donc leurs lectures et liens profonds existants. Le
+compositeur et les actions de la chronologie « À venir » ne sont pas réactivés
+par cette itération. Les actions de démarrage et de reprise utilisées par le
+bloc « Aujourd'hui » réutilisent leurs Server Actions ; aucun déplacement,
+annulation ou réordonnancement n'y est proposé. Cette limite est une décision
+de portée de l'itération, pas une règle pédagogique et ne nécessite pas de
+migration.
+
+### Projection « Aujourd'hui » (itération 1)
+
+`lib/engine/seances-du-jour.ts` dérive une `VueSeancesDuJour` à partir des
+`LearningSession` reçues : toutes les séances `en-cours`, puis les séances
+`planifiee` dont le jour civil demandé correspond. Les séances terminées,
+abandonnées et les historiques sans statut sont exclues. Le résultat est pur,
+stable par horaire puis identifiant et ne fabrique ni durée, ni intervention,
+ni date, ni mesure. Le composant du tableau de bord recoupe le jour avec
+l'horloge du navigateur après hydratation, comme le Cahier, sans introduire de
+réglage de fuseau.
+
+### Acceptation directe d'une recommandation (itération 2)
+
+Quand la recommandation courante porte un exercice disponible, l'interface
+peut appeler `planifierExerciceRecommande(exerciceId, planifieePour)` après un
+choix explicite de date et d'heure. L'action relit l'exercice dans le catalogue
+du compte, construit l'entrée minimale d'une séance unitaire et délègue à
+`creerSeance(..., "planifiee")`. Elle ne persiste ni recommandation ni plan
+global. Une date invalide est refusée ; aucune durée observée, intervention ou
+mesure n'est fabriquée. Après actualisation, la projection du jour relit la
+séance si son jour civil local convient.
 
 ### Acceptation et matérialisation v0 (lot 3)
 
@@ -527,6 +551,13 @@ observables.
 à réunir progressivement derrière cette frontière. Ils ne doivent pas être
 dupliqués par un second classement parallèle.
 
+Une tentative terminée `partiel` ou `echec` est une répétition non concluante :
+l'exercice correspondant est retiré de la file jusqu'à une observation
+`reussi` postérieure sur la compétence. Cette condition vaut aussi quand il
+s'agit de la seule candidate ; le moteur retourne alors `exercice: null` et
+l'interface utilise son repli explicite, sans fabriquer un exercice ni une
+mesure.
+
 ## 9. Contrat F — Intervention et tuteur
 
 La politique ne produit pas directement une mesure. Elle produit une demande
@@ -565,6 +596,12 @@ Le tuteur ne peut pas produire directement :
 - une conclusion sur l'apprenant.
 
 La mesure revient au chemin de soumission et de validation de l'application.
+
+Sur le chemin de correction, la correction de référence reste cachée pendant
+la recherche. Dès qu'une proposition recevable est reçue, l'interface affiche
+le texte de référence à côté du retour du tuteur pour permettre la comparaison ;
+cette lecture ne valide encore aucune mesure. Après clôture, le même panneau
+reste relisible depuis la fiche de l'exercice.
 
 ## 10. Contrat G — Résultat et retour dans la boucle
 

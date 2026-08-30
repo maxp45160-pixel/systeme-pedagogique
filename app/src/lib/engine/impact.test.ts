@@ -431,22 +431,20 @@ describe("suiteApresTravail — l'effet du travail sur la prochaine action", () 
     const diagnostic = exercice({ competences: ["DEV-01"] });
     diagnostic.id = "diag-dev-01";
     diagnostic.diagnostic = true;
-    const tentativeFinie = {
-      ...tentative({ fin: ilYa(0) }),
-      exerciseId: diagnostic.id,
-      resultat: "partiel" as const,
-    };
 
     const sansExclusion = suiteApresTravail({
       etatApres: etat("DEV-01"),
       exercices: [diagnostic],
-      tentatives: [tentativeFinie],
+      // Sans historique, le diagnostic est bien servable : le test isole
+      // l'effet de `exercicesExclus`, sans dépendre de la règle de
+      // recommandation des résultats partiels.
+      tentatives: [],
       now: MAINTENANT,
     });
     const avecExclusion = suiteApresTravail({
       etatApres: etat("DEV-01"),
       exercices: [diagnostic],
-      tentatives: [tentativeFinie],
+      tentatives: [],
       now: MAINTENANT,
       exercicesExclus: new Set([diagnostic.id]),
     });

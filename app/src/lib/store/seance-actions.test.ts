@@ -25,7 +25,12 @@ vi.mock("./supabase-backend", () => ({ verifier: vi.fn() }));
 vi.mock("./cloture-exercice", () => ({ cloreExerciceAtomiquement: mocks.cloreExerciceAtomiquement }));
 vi.mock("@/lib/seed/exercises", () => ({ EXERCICES_DIAGNOSTIC: [] }));
 
-import { annulerSeance, creerSeanceFocusExercice, terminerIntervention } from "./seance-actions";
+import {
+  annulerSeance,
+  creerSeanceFocusExercice,
+  planifierExerciceRecommande,
+  terminerIntervention,
+} from "./seance-actions";
 
 const EXERCICE: Exercise = {
   id: "ex-focus",
@@ -76,6 +81,41 @@ describe("création d'une séance focus", () => {
 
     await expect(creerSeanceFocusExercice(EXERCICE.id)).resolves.toBe("ses-nouvelle");
     expect(mocks.ajouter).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("planification d'une recommandation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.dorsaleCompte.mockResolvedValue({});
+    mocks.nouvelId.mockReturnValue("ses-planifiee");
+  });
+
+  it("écrit une séance planifiée à la date explicitement choisie", async () => {
+    mocks.lire.mockImplementation(async (collection: string) =>
+      collection === "exercises" ? [EXERCICE] : [],
+    );
+
+    await expect(
+      planifierExerciceRecommande(EXERCICE.id, "2026-08-30T14:30:00.000Z"),
+    ).resolves.toBe("ses-planifiee");
+
+    expect(mocks.ajouter).toHaveBeenCalledWith(
+      "sessions",
+      expect.objectContaining({
+        id: "ses-planifiee",
+        statut: "planifiee",
+        planifieePour: "2026-08-30T14:30:00.000Z",
+        activites: [{ type: "exercice", ref: EXERCICE.id, libelle: EXERCICE.titre }],
+      }),
+      {},
+    );
+  });
+
+  it("refuse une date invalide sans écrire de séance", async () => {
+    await expect(planifierExerciceRecommande(EXERCICE.id, "pas-une-date"))
+      .rejects.toThrow("Choisissez une date et une heure valides.");
+    expect(mocks.ajouter).not.toHaveBeenCalled();
   });
 });
 

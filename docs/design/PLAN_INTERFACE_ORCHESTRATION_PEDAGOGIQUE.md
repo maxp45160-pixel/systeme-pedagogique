@@ -1,15 +1,35 @@
 # Orchestration pédagogique — solution d'interface
 
-> Statut : **première tranche construite — intégration complète à valider**.
+> Statut : **composition expérimentale retirée — traduction incrémentale en
+> cours**.
 >
-> Le tableau de bord calcule maintenant une proposition éphémère à partir du
-> contexte déclaré et des recommandations historiques, puis permet d'accepter
-> explicitement les séances retenues. La replanification et les candidats de
-> cours restent à construire.
+> La tentative de traduction de cette vision a été retirée par retour arrière le
+> 30/08/2026. Le tableau de bord et la route `/seances` visibles ont retrouvé
+> leur composition précédente ; le code d'orchestration reste une fondation
+> expérimentale non raccordée et gelée. L'itération 1 branche seulement une
+> projection compacte des `LearningSession` réellement acceptées aujourd'hui,
+> séparée de la recommandation. La replanification, la revue et les candidats
+> de cours restent à valider avant toute réactivation.
+>
+> La composition visible conserve une seule surface de référence pour les
+> échéances (« À venir ») ; les raccourcis et résumés redondants ne font pas
+> partie de la tranche actuelle.
 >
 > Les contrats produit viennent de `PRODUCT.md` et de l'ADR-139. Les choix
 > précis d'interface et le séquencement ci-dessous sont une traduction de ces
 > contrats ; ils ne montent aucun statut de construction.
+
+La section « Aujourd'hui » décrit désormais la seule tranche visible active :
+elle ne propose ni déplacement, ni annulation, ni réordonnancement. Les
+commandes de plan global et la vue « À venir » ci-dessous restent des cibles
+non raccordées tant qu'une validation du parcours réel ne les aura pas
+réouvertes.
+
+La carte de recommandation conserve toutefois un geste secondaire de
+planification pour un exercice déjà disponible. Une date et une heure sont
+choisies explicitement ; la séance planifiée est ensuite relue par
+« Aujourd'hui » après actualisation. Ce geste ponctuel ne réactive pas le plan
+global ni la vue expérimentale `/seances`.
 
 ## Référence visuelle validée du tableau de bord
 
@@ -58,7 +78,7 @@ maintenance. Le plan traverse les surfaces existantes selon leur rôle.
 
 ## 3. Tableau de bord
 
-### 3.1 Hiérarchie cible
+### 3.1 Hiérarchie cible (hors tranche visible actuelle)
 
 La grille actuelle est conservée : contenu principal à gauche, contexte à
 droite sur grand écran, une seule colonne sur mobile.
@@ -80,6 +100,10 @@ Actions :
 - `Depliant` : alternatives calculées, à la place d'un bloc permanent.
 
 #### Aujourd'hui
+
+Dans cette cible, les contrôles de déplacement et d'annulation restent
+réservés à une itération ultérieure ; l'itération 1 n'affiche que le démarrage,
+la reprise et les détails.
 
 Une liste courte montre les `LearningSession` acceptées, dans l'ordre. Chaque
 ligne contient l'heure, la durée, l'intervention, le domaine et un statut en
