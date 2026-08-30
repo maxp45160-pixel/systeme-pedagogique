@@ -674,8 +674,9 @@ export function ModaleExercice({
         {phase === "formulaire" && codesLot && (
           <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
             <p className="text-xs text-texte-attenue">
-              Génération du lot interrompue avant qu&apos;un exercice n&apos;ait été rendu — rien
-              n&apos;a été enregistré.
+              {erreur
+                ? "Aucun exercice n'a pu être préparé pour le moment — rien n'a été enregistré."
+                : "Génération du lot interrompue avant qu'un exercice n'ait été rendu — rien n'a été enregistré."}
             </p>
             <ul className="flex flex-wrap gap-1.5">
               {codesLot.map((c) => (

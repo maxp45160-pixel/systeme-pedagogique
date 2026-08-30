@@ -288,6 +288,11 @@ export async function VueSeanceDetail({
     : null;
   const suivant = [...avancement.enCours, ...avancement.restants]
     .find((ref) => ref !== exerciceActif && ids.includes(ref));
+  const indexExerciceActif = exerciceActif ? ids.indexOf(exerciceActif) : -1;
+  const exercicePrecedent = indexExerciceActif > 0 ? ids[indexExerciceActif - 1] : undefined;
+  const exerciceSuivant = indexExerciceActif >= 0 && indexExerciceActif < ids.length - 1
+    ? ids[indexExerciceActif + 1]
+    : undefined;
   const traites = avancement.menes.length + avancement.abandonnes.length;
   const peutTerminer = avancement.enCours.length === 0 && avancement.restants.length === 0;
 
@@ -595,6 +600,32 @@ export async function VueSeanceDetail({
                   activiteSuivanteId={suivant}
                   seancePeutTerminer={peutTerminer}
                 />
+                {exerciceActif && (exercicePrecedent || exerciceSuivant) && (
+                  <nav
+                    aria-label="Naviguer entre les exercices de la séance"
+                    className="flex flex-wrap items-center justify-between gap-2 border-y border-bordure py-3"
+                  >
+                    {exercicePrecedent ? (
+                      <Link
+                        href={urlExercice(exercicePrecedent, { seanceId: seance.id, plein })}
+                        className={classesLienBouton("secondaire", "petite")}
+                      >
+                        Exercice précédent : {parId.get(exercicePrecedent)?.titre ?? "Exercice"}
+                      </Link>
+                    ) : <span />}
+                    <span className="text-xs text-texte-discret">
+                      {indexExerciceActif + 1} / {ids.length}
+                    </span>
+                    {exerciceSuivant ? (
+                      <Link
+                        href={urlExercice(exerciceSuivant, { seanceId: seance.id, plein })}
+                        className={classesLienBouton("secondaire", "petite")}
+                      >
+                        Exercice suivant : {parId.get(exerciceSuivant)?.titre ?? "Exercice"}
+                      </Link>
+                    ) : <span />}
+                  </nav>
+                )}
                 {relecture && (
                   <div className="flex justify-center">
                     <Link
@@ -777,7 +808,7 @@ function ListeActivites({
   liens = true,
 }: {
   activites: { type: string; ref: string; libelle: string }[];
-  parId: Map<string, { competences: string[]; difficulte: number; dureeEstimeeMin: number }>;
+  parId: Map<string, { titre: string; competences: string[]; difficulte: number; dureeEstimeeMin: number }>;
   avancement: ReturnType<typeof avancementSeance>;
   seanceId: string;
   plein?: boolean;

@@ -22,7 +22,10 @@ import {
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
-import { BoutonIntentionDashboard } from "@/components/intention/bouton-intention";
+import {
+  BoutonIntentionDashboard,
+  VoiesApprentissageDashboard,
+} from "@/components/intention/bouton-intention";
 import { CarteEcheances } from "@/components/dashboard/carte-echeances";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
@@ -228,37 +231,10 @@ async function ContenuTableauDeBord({
         </div>
       </div>
 
-      {/* Deux voies lisibles, un seul référentiel et un seul moteur. */}
-      <div className="grid gap-3 sm:grid-cols-2" aria-label="Voies de travail">
-        <Link
-          href="/atelier?document=domaines"
-          className="group rounded-xl border border-primaire/25 bg-primaire-faible/45 p-4 transition-colors hover:border-primaire/50"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-serif text-base font-medium text-texte">Mes cours</h2>
-            <IconeFleche className="size-4 text-primaire transition-transform group-hover:translate-x-0.5" />
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            {domainesParUsage.modulesActifs.length > 0
-              ? `${domainesParUsage.modulesActifs.length} module${domainesParUsage.modulesActifs.length > 1 ? "s" : ""} actif${domainesParUsage.modulesActifs.length > 1 ? "s" : ""}, avec vos cours et vos supports au même endroit.`
-              : "Déclarez un module académique pour retrouver vos cours et vos supports."}
-          </p>
-        </Link>
-        <Link
-          href="/atelier?document=domaines"
-          className="group rounded-xl border border-bordure bg-surface p-4 transition-colors hover:border-primaire/40"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-serif text-base font-medium text-texte">Progression continue</h2>
-            <IconeFleche className="size-4 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
-            {domainesParUsage.continues.length > 0
-              ? `${domainesParUsage.continues.length} domaine${domainesParUsage.continues.length > 1 ? "s" : ""} travaillé${domainesParUsage.continues.length > 1 ? "s" : ""} dans la durée, hors cours.`
-              : "Déclarez une progression durable à travailler en parallèle de vos cours."}
-          </p>
-        </Link>
-      </div>
+      <VoiesApprentissageDashboard
+        nombreModules={domainesParUsage.modulesActifs.length}
+        nombreProgressions={domainesParUsage.continues.length}
+      />
 
       {/* Grille principale asymétrique : Flux d'action (gauche) + Repères contextuels (droite) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">

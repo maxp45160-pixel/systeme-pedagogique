@@ -20,4 +20,10 @@ describe("composition de la suite après une séance", () => {
     expect(source).toContain("lectureSeule={relecture}");
     expect(source).toContain("Revenir au déroulé de la séance");
   });
+
+  it("permet de circuler entre les exercices dans leur ordre de séance", () => {
+    expect(source).toContain("Naviguer entre les exercices de la séance");
+    expect(source).toContain("Exercice précédent :");
+    expect(source).toContain("Exercice suivant :");
+  });
 });

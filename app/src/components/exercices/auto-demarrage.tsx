@@ -16,10 +16,9 @@
  * continuait d'afficher l'état « pas encore commencée » — aucune zone de
  * réponse, sans message ni geste pour sortir de là. Trois conséquences :
  *
- * - **Attendre puis rafraîchir.** L'action revalide déjà le layout ; le
- *   composant attend sa fin puis recharge explicitement les Server Components
- *   pour que `enCours` devienne vrai et que la zone de réponse apparaisse,
- *   sans rechargement manuel.
+ * - **Attendre puis rafraîchir.** L'action revalide le layout ; le composant
+ *   attend sa fin puis recharge les Server Components pour que `enCours`
+ *   devienne vrai et que la zone de réponse apparaisse.
  * - **Un état de chargement visible.** Entre le clic d'entrée en séance et le
  *   retour du rafraîchissement, l'écran annonce ce qui se passe au lieu de
  *   laisser une carte muette.
@@ -32,47 +31,64 @@
  * abandonnée, qui ne produit AUCUNE preuve (ADR-030). L'automatisme ne fabrique
  * donc pas d'observation fantôme — il avance seulement le moment où le temps
  * commence à courir.
+ *
+ * ## Défaut corrigé (30/08/2026)
+ *
+ * L'App Router active Strict Mode par défaut. Au montage, React exécute donc
+ * l'effet, son nettoyage, puis l'effet survivant. L'ancien verrou `lance`
+ * restait vrai après le nettoyage alors que le premier effet était marqué
+ * démonté : l'écriture finissait, mais aucun effet vivant ne rafraîchissait la
+ * vue. Le démarrage est maintenant différé d'un tour ; le premier passage est
+ * annulé par le rejeu et seul l'effet survivant lance l'action.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { demarrerTentative } from "@/lib/store/actions";
 import { Bouton, Carte, PointActif } from "@/components/ui/primitives";
 import { IconeFleche } from "@/components/ui/icones";
 
+export function planifierDemarrageAutomatique(
+  demarrer: () => Promise<void>,
+  rafraichir: () => void,
+  signalerEchec: () => void,
+): () => void {
+  let actif = true;
+  const minuteur = setTimeout(() => {
+    void demarrer().then(
+      () => {
+        if (actif) rafraichir();
+      },
+      () => {
+        if (actif) signalerEchec();
+      },
+    );
+  }, 0);
+
+  return () => {
+    actif = false;
+    clearTimeout(minuteur);
+  };
+}
+
 export function DemarrageAuto({ exerciseId }: { exerciseId: string }) {
   const router = useRouter();
-  const lance = useRef(false);
   /** `echec` seul rend le repli manuel ; `cours` rend l'écran d'attente. */
   const [etat, setEtat] = useState<"cours" | "echec">("cours");
 
   useEffect(() => {
-    if (lance.current) return;
-    lance.current = true;
-    // Le démontage peut précéder la réponse (rafraîchissement réussi → ce
-    // composant quitte l'arbre) : ne plus écrire d'état après coup.
-    let monte = true;
-    void (async () => {
-      try {
-        // Idempotent côté serveur (`demarrerTentative` ne crée rien si une
-        // tentative est déjà en cours) : un double montage en dev ne duplique pas.
-        await demarrerTentative(exerciseId);
-        if (monte) router.refresh();
-      } catch {
-        if (monte) setEtat("echec");
-      }
-    })();
-    return () => {
-      monte = false;
-    };
+    return planifierDemarrageAutomatique(
+      () => demarrerTentative(exerciseId),
+      () => router.refresh(),
+      () => setEtat("echec"),
+    );
   }, [exerciseId, router]);
 
   if (etat === "echec") {
     /*
      * Repli manuel : un `<form action>` plutôt qu'un second appel programmatique.
      * Next.js gère lui-même l'état d'envoi et le rafraîchissement après une
-     * Server Action posée sur un formulaire — exactement ce que le chemin
-     * automatique vient de manquer.
+     * Server Action posée sur un formulaire.
      */
     return (
       <Carte accent>

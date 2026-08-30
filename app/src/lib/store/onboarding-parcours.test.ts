@@ -18,8 +18,8 @@ import type {
  *     correctif, elle restait « en cours » pour toujours et le tableau de bord
  *     reproposait l'exercice comme si rien n'avait eu lieu (frictions 5 et 6) ;
  *  3. la destination retournée est `/app`, après les écritures ;
- *  4. une séance ordinaire garde exactement sa destination d'avant
- *     (`/seances?session=…&bilan=1`) — aucune régression hors amorce ;
+ *  4. une séance ordinaire conserve le workspace et son bilan après validation
+ *     (`/seances?session=…&exercice=…&bilan=1`) ;
  *  5. un ABANDON sur le premier parcours ne referme rien et ne va pas sur
  *     `/app` : la séance reste en cours, on peut la quitter ou la reprendre.
  *
@@ -187,7 +187,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     expect(mocks.revalidatePath).toHaveBeenCalled();
   });
 
-  it("conserve la destination historique pour une séance ordinaire", async () => {
+  it("conserve le workspace et le bilan après validation d'une séance ordinaire", async () => {
     const seance = await creerSeanceAmorce(false);
     expect(seance.blueprint?.premierParcours).toBeUndefined();
 
@@ -206,7 +206,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     expect(destination).toBe(
       `/seances?session=${encodeURIComponent(seance.id)}&exercice=${EXERCICE.id}&bilan=1`,
     );
-    // Une séance ordinaire ne se referme pas toute seule : c'est un geste.
+    // Une séance ordinaire reste en cours et le bilan reste consultable dans le workspace.
     expect(mocks.modifier).not.toHaveBeenCalled();
   });
 

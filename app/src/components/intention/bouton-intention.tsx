@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import {
   IconeAmpoule,
@@ -125,7 +126,12 @@ export function BoutonIntentionDashboard() {
     }
   };
 
-  const estDeclarationDomaine = cadre !== "besoin";
+  const aideCadre =
+    cadre === "module"
+      ? "Un cours lié à une matière, une période, des supports et des échéances."
+      : cadre === "continu"
+        ? "Un sujet durable à travailler hors d’un cours ou d’un semestre."
+        : null;
 
   return (
     <div className="space-y-2" data-tour="nouveau-besoin">
@@ -151,22 +157,27 @@ export function BoutonIntentionDashboard() {
           }
           className="w-full bg-transparent px-3 py-1.5 text-xs sm:text-sm text-texte placeholder:text-texte-discret focus:outline-none"
         />
-        <select
-          aria-label="Cadre de déclaration"
-          value={cadre}
-          onChange={(e) => setCadre(e.target.value as typeof cadre)}
-          className="max-w-[11rem] shrink-0 rounded-lg border border-bordure bg-surface px-2 py-1.5 text-[0.6875rem] text-texte-attenue focus:border-primaire focus:outline-none"
-        >
-          <option value="besoin">Besoin d’apprentissage</option>
-          <option value="module">Module académique</option>
-          <option value="continu">Progression continue</option>
-        </select>
+        <label className="flex max-w-[17rem] shrink-0 items-center gap-1.5 rounded-lg border border-bordure bg-surface px-2 py-1.5 text-xs text-texte-attenue focus-within:border-primaire">
+          <span className="hidden whitespace-nowrap font-semibold text-texte sm:inline">
+            Je veux…
+          </span>
+          <select
+            aria-label="Je veux…"
+            value={cadre}
+            onChange={(e) => setCadre(e.target.value as typeof cadre)}
+            className="min-w-0 max-w-[13rem] bg-transparent text-[0.6875rem] font-medium text-texte-attenue focus:outline-none sm:text-xs"
+          >
+            <option value="besoin">Travailler maintenant</option>
+            <option value="module">Créer un module de cours</option>
+            <option value="continu">Commencer un apprentissage personnel</option>
+          </select>
+        </label>
 
         <button
           type="submit"
           className="flex items-center gap-1.5 rounded-lg bg-primaire px-3.5 py-1.5 text-xs font-medium text-surface shadow-xs transition-all hover:bg-primaire/90 active:scale-95 shrink-0 cursor-pointer"
         >
-          <span>{estDeclarationDomaine ? "Déclarer" : "Exprimer"}</span>
+          <span>Continuer</span>
           <IconeFleche className="size-3.5" />
         </button>
       </form>
@@ -188,6 +199,119 @@ export function BoutonIntentionDashboard() {
           </button>
         ))}
       </div>}
+      {aideCadre && (
+        <p
+          role="status"
+          className="rounded-lg border border-primaire/15 bg-primaire-faible/30 px-3 py-1.5 text-xs leading-relaxed text-texte-attenue"
+        >
+          <strong className="font-semibold text-texte">
+            {cadre === "module" ? "Module de cours : " : "Apprentissage personnel : "}
+          </strong>
+          {aideCadre}
+        </p>
+      )}
     </div>
+  );
+}
+
+function ContenuVoie({
+  titre,
+  description,
+  creation,
+}: {
+  titre: string;
+  description: string;
+  creation: boolean;
+}) {
+  return (
+    <>
+      <span className="flex items-center justify-between gap-3">
+        <span className="font-serif text-base font-medium text-texte">{titre}</span>
+        {creation ? (
+          <IconePlus className="size-4 text-primaire" aria-hidden />
+        ) : (
+          <IconeFleche
+            className="size-4 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire"
+            aria-hidden
+          />
+        )}
+      </span>
+      <span className="mt-1 block text-xs leading-relaxed text-texte-attenue">
+        {description}
+      </span>
+    </>
+  );
+}
+
+/**
+ * Les deux cadres sont expliqués avant de devenir des destinations.
+ * Une voie vide ouvre directement sa création avec l'usage déjà déclaré ; une
+ * voie existante devient un résumé qui mène au référentiel.
+ */
+export function VoiesApprentissageDashboard({
+  nombreModules,
+  nombreProgressions,
+}: {
+  nombreModules: number;
+  nombreProgressions: number;
+}) {
+  const { ouvrir } = useIntention();
+  const classesCarte =
+    "group w-full rounded-xl border border-bordure bg-surface p-4 text-left shadow-xs transition-colors hover:border-primaire/40 hover:bg-primaire-faible/20 cursor-pointer";
+
+  return (
+    <section className="space-y-2" aria-labelledby="organiser-apprentissage">
+      <h2
+        id="organiser-apprentissage"
+        className="px-1 text-xs font-semibold text-texte-attenue"
+      >
+        Organiser votre apprentissage
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {nombreModules === 0 ? (
+          <button
+            type="button"
+            onClick={() => ouvrir({ usageDomaine: "module" })}
+            className={classesCarte}
+          >
+            <ContenuVoie
+              titre="Créer un module de cours"
+              description="Pour une matière, une période, vos supports et vos échéances."
+              creation
+            />
+          </button>
+        ) : (
+          <Link href="/atelier?document=domaines" className={classesCarte}>
+            <ContenuVoie
+              titre="Mes cours"
+              description={`${nombreModules} module${nombreModules > 1 ? "s" : ""} actif${nombreModules > 1 ? "s" : ""}, avec vos cours et vos supports.`}
+              creation={false}
+            />
+          </Link>
+        )}
+
+        {nombreProgressions === 0 ? (
+          <button
+            type="button"
+            onClick={() => ouvrir({ usageDomaine: "continu" })}
+            className={classesCarte}
+          >
+            <ContenuVoie
+              titre="Créer un apprentissage personnel"
+              description="Un sujet durable à travailler hors d’un cours ou d’un semestre."
+              creation
+            />
+          </button>
+        ) : (
+          <Link href="/atelier?document=domaines" className={classesCarte}>
+            <ContenuVoie
+              titre="Mes apprentissages"
+              description={`${nombreProgressions} sujet${nombreProgressions > 1 ? "s" : ""} travaillé${nombreProgressions > 1 ? "s" : ""} dans la durée, hors cours.`}
+              creation={false}
+            />
+          </Link>
+        )}
+      </div>
+    </section>
   );
 }

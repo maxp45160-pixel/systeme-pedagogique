@@ -9,8 +9,8 @@ const USAGES_DOMAINE: Array<{
   desc: string;
 }> = [
   { id: "indetermine", libelle: "À préciser", desc: "Je déciderai plus tard" },
-  { id: "continu", libelle: "Progression continue", desc: "Durable, hors cours" },
-  { id: "module", libelle: "Module académique", desc: "Un cours, une année" },
+  { id: "continu", libelle: "Apprentissage personnel", desc: "Sujet durable, hors cours" },
+  { id: "module", libelle: "Module de cours", desc: "Matière et période définies" },
 ];
 
 /** Choix partagé par la création et la requalification d'un domaine. */
@@ -35,7 +35,7 @@ export function BlocUsageDomaine({
     <div className="space-y-2 rounded-xl border border-bordure bg-surface-2/30 p-3.5">
       <div>
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-texte-discret">
-          Cadre du domaine
+          Type d’apprentissage
         </p>
         <p className="mt-0.5 text-[0.6875rem] text-texte-discret">
           Ce choix est déclaré par vous ; il ne sera pas déduit du nom ou du contenu.

@@ -42,6 +42,13 @@ describe("composition du tableau de bord", () => {
     expect(carte).toContain("Commencer l’exercice");
   });
 
+  it("confie les deux voies d'apprentissage au point d'entrée actionnable", () => {
+    expect(page).toContain("<VoiesApprentissageDashboard");
+    expect(page).toContain("nombreModules={domainesParUsage.modulesActifs.length}");
+    expect(page).toContain("nombreProgressions={domainesParUsage.continues.length}");
+    expect(page).not.toContain('href="/atelier?document=domaines"\n          className="group rounded-xl');
+  });
+
   it("génère directement un exercice ciblé quand la file n'a plus de candidate", () => {
     const carte = readFileSync(
       new URL("../../../components/dashboard/prochaine-action.tsx", import.meta.url),

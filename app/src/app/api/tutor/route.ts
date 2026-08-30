@@ -5,7 +5,6 @@ import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import {
   controlerPropositionsExercices,
-  messageRefusCoherenceExercice,
 } from "@/lib/tutor/coherence-exercice";
 import type { PropositionExercice } from "@/lib/tutor/proposition";
 
@@ -107,17 +106,11 @@ export async function POST(request: Request) {
         },
       });
 
-      if (candidats.length > 0) {
-        envoyer("proposition-en-cours", { outil: "verifier_coherence_exercice" });
-      }
       const controles = await controlerPropositionsExercices(moteur, candidats, signal);
       for (const { exercice: candidat, controle } of controles) {
         if (controle.ok) {
           envoyer("proposition", { genre: "exercice", exercice: candidat });
-          continue;
         }
-
-        envoyer("proposition-rejetee", { message: messageRefusCoherenceExercice(controle) });
       }
 
       if (fin !== null) envoyer("fin", fin);

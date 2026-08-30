@@ -454,13 +454,17 @@ export function ModaleCompetence({
   const titreModale = estDomaineExistant || competenceSeule
     ? "Ajouter une compétence"
     : usageChoisi === "module"
-      ? "Nouveau module académique"
-      : "Nouveau domaine d’apprentissage";
+      ? "Nouveau module de cours"
+      : usageChoisi === "continu"
+        ? "Nouvel apprentissage personnel"
+        : "Nouveau domaine d’apprentissage";
   const sousTitreModale = estDomaineExistant || competenceSeule
     ? "Ajoutez une compétence observable et mesurable au domaine."
     : usageChoisi === "module"
       ? "Déclarez le cadre de votre cours et relisez les compétences proposées."
-      : "Définissez une nouvelle branche du référentiel et ses compétences.";
+      : usageChoisi === "continu"
+        ? "Définissez un sujet durable à travailler hors d’un cours ou d’un semestre."
+        : "Définissez une nouvelle branche du référentiel et ses compétences.";
 
   return (
     <Modale

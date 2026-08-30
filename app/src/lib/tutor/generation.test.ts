@@ -18,7 +18,7 @@ import {
   genererExercices,
 } from "./generation";
 import { promptComplet } from "./prompt";
-import { OUTIL_COHERENCE_EXERCICE } from "./outils";
+import { OUTIL_COHERENCE_EXERCICE, OUTIL_REPARATION_CORRECTION_EXERCICE } from "./outils";
 
 /*
  * Les constructeurs de prompt rendent désormais deux blocs — le préfixe stable
@@ -261,8 +261,9 @@ describe("construirePromptGeneration — ancrage au cours réel (ADR-132)", () =
  */
 function moteurQuiEmet(
   evenements: { evenement: string; donnees: unknown }[],
-  coherence = true,
+  coherence: boolean | boolean[] = true,
 ): MoteurTuteur {
+  let controles = 0;
   return {
     async repondre({
       envoyer,
@@ -272,12 +273,23 @@ function moteurQuiEmet(
       outils?: { nom: string }[];
     }) {
       if (outils?.some((outil) => outil.nom === OUTIL_COHERENCE_EXERCICE)) {
+        const coherent = Array.isArray(coherence)
+          ? (coherence[controles] ?? false)
+          : coherence;
+        controles += 1;
         envoyer("proposition", {
           genre: "coherence-exercice",
           coherence: {
-            coherent: coherence,
-            motifs: coherence ? [] : ["La correction affirme un fait absent de l'énoncé."],
+            coherent,
+            motifs: coherent ? [] : ["La correction affirme un fait absent de l'énoncé."],
           },
+        });
+        return;
+      }
+      if (outils?.some((outil) => outil.nom === OUTIL_REPARATION_CORRECTION_EXERCICE)) {
+        envoyer("proposition", {
+          genre: "reparation-correction-exercice",
+          correction: { correction: "Correction réparée." },
         });
         return;
       }
@@ -345,7 +357,25 @@ describe("genererExercices — rien n'est fabriqué", () => {
     );
 
     expect(r.exercices).toEqual([]);
-    expect(r.erreur).toContain("correction n'est pas suffisamment étayée");
+    expect(r.erreur).toBe("Nous n'avons pas pu préparer un exercice conforme cette fois. Réessayez.");
+    expect(r.evenements.some((e) => e.evenement === "proposition-rejetee")).toBe(false);
+  });
+
+  it("répare une correction refusée avant de rendre l'exercice", async () => {
+    const r = await genererExercices(
+      moteurQuiEmet(
+        [{
+          evenement: "proposition",
+          donnees: { genre: "exercice", exercice: EXERCICE },
+        }],
+        [false, true],
+      ),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+
+    expect(r.exercices).toEqual([{ ...EXERCICE, correction: "Correction réparée." }]);
+    expect(r.erreur).toBeNull();
   });
 
   it("distingue un fournisseur qui a refusé les outils d'un tuteur qui n'a rien proposé", async () => {

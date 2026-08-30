@@ -11394,14 +11394,18 @@ La relecture humaine restait le seul filtre, alors même que la proposition
    cohérents, et distingue les faits établis des hypothèses.
 2. Après chaque `proposer_exercice`, le serveur lance un contrôle dédié qui lit
    uniquement le titre, l'énoncé et la correction. Il doit rendre une sortie
-   structurée ; il refuse en cas de doute et fournit des motifs courts.
+   structurée ; il refuse en cas de doute et fournit des motifs internes.
 3. La proposition n'est diffusée à l'interface qu'après ce contrôle. Une panne
    du contrôle est distincte d'une incohérence éditoriale et n'est jamais
    transformée en validation implicite.
-4. Une réponse texte qui contourne les outils peut rester lisible, mais ne
+4. Après un refus éditorial, le serveur demande une seule réécriture de la
+   correction, sans toucher à l'énoncé, puis relance le même contrôle. La
+   correction réparée n'est diffusée que si ce second contrôle réussit. Cette
+   réparation et ses motifs restent invisibles dans le flux utilisateur.
+5. Une réponse texte qui contourne les outils peut rester lisible, mais ne
    produit plus de carte d'exercice actionnable. Elle ne peut donc pas contourner
    le contrôle sémantique.
-5. Le contrôle n'écrit rien et ne produit aucune mesure. La personne relit
+6. Le contrôle n'écrit rien et ne produit aucune mesure. La personne relit
    toujours la proposition avant `creerExercice`.
 
 Le contrôle est placé dans le chemin commun de génération directe et dans la

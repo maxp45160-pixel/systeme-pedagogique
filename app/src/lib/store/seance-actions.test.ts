@@ -30,6 +30,7 @@ import {
   creerSeanceFocusExercice,
   planifierExerciceRecommande,
   terminerIntervention,
+  terminerSeance,
 } from "./seance-actions";
 
 const EXERCICE: Exercise = {
@@ -145,6 +146,26 @@ describe("annulation d'une séance planifiée", () => {
       {},
     );
     expect(mocks.ajouter).not.toHaveBeenCalled();
+  });
+});
+
+describe("clôture d'une séance", () => {
+  it("revient sur le jour avec la séance repliée", async () => {
+    vi.clearAllMocks();
+    mocks.dorsaleCompte.mockResolvedValue({});
+    mocks.lire.mockImplementation(async (collection: string) =>
+      collection === "sessions" ? [SEANCE_EXISTANTE] : [],
+    );
+    mocks.modifier.mockResolvedValue({ ...SEANCE_EXISTANTE, statut: "terminee" });
+
+    await expect(terminerSeance(SEANCE_EXISTANTE.id))
+      .resolves.toBe("/seances?jour=2026-08-20");
+    expect(mocks.modifier).toHaveBeenCalledWith(
+      "sessions",
+      SEANCE_EXISTANTE.id,
+      expect.objectContaining({ statut: "terminee" }),
+      {},
+    );
   });
 });
 

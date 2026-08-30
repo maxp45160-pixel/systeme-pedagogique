@@ -480,10 +480,12 @@ statut de construction n'est promu avant un scénario réel de bout en bout.
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 🔬 **Une proposition d'exercice est contrôlée avant d'être présentée comme
 enregistrable** (ADR-140). La complétude de la sortie structurée ne suffit pas :
-un contrôle dédié compare l'énoncé et la correction, refuse les causes ou
-paramètres ajoutés sans preuve et rend le motif lisible. Une sortie texte non
-structurée peut rester lisible, mais ne produit aucune carte d'exercice
-actionnable. La relecture humaine demeure nécessaire avant l'enregistrement.
+un contrôle dédié compare l'énoncé et la correction. Si la correction ajoute une
+cause ou un paramètre sans preuve, le serveur la répare une fois puis la
+recontrôle avant de la rendre ; les détails de ce contrôle restent invisibles.
+Une sortie texte non structurée peut rester lisible, mais ne produit aucune carte
+d'exercice actionnable. La relecture humaine demeure nécessaire avant
+l'enregistrement.
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
 gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
 🔬 **Le tuteur fonctionne sans que l'utilisateur fournisse de clé** (24/08/2026,

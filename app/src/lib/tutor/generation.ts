@@ -312,9 +312,6 @@ export async function genererExercices(
 
     const message = messageRefusCoherenceExercice(controle);
     erreurControle = erreurControle ?? message;
-    const donnees = { message };
-    evenements.push({ evenement: "proposition-rejetee", donnees });
-    diffuser?.("proposition-rejetee", donnees);
   }
 
   /*

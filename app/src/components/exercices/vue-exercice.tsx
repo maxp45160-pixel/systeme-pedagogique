@@ -618,6 +618,15 @@ export async function VueExercice(props: {
           />
         )}
 
+        {props.lectureSeule && !enCours && derniereCloturee?.reponse.trim() && (
+          <Carte>
+            <EnTeteCarte titre="Votre réponse" />
+            <div className="prose-exo px-4 py-3.5 text-sm">
+              <Markdown contenu={derniereCloturee.reponse} />
+            </div>
+          </Carte>
+        )}
+
         {enCours && (
           <div className="space-y-4 lg:col-start-2 lg:row-start-1">
             {aidesMasquees && (

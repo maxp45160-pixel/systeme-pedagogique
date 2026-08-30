@@ -94,6 +94,13 @@ export const OUTIL_REFERENTIEL = "proposer_referentiel";
 export const OUTIL_COHERENCE_EXERCICE = "verifier_coherence_exercice";
 
 /**
+ * Outil interne de réparation, armé uniquement après un premier contrôle
+ * négatif. Il ne modifie pas l'énoncé : il réécrit la correction à partir de
+ * celui-ci, puis la correction réparée repasse par le contrôle de cohérence.
+ */
+export const OUTIL_REPARATION_CORRECTION_EXERCICE = "reparer_correction_exercice";
+
+/**
  * ⚠️ `proposer_correction` n'entre PAS dans `outilsTuteur`, et c'est le premier
  * des six verrous qui bornent l'exception à ADR-036.
  *
@@ -483,6 +490,7 @@ function schemaExercice(domaines: string[]): SchemaJson {
 
 const MOTIFS_COHERENCE_MAX = 6;
 const MOTIF_COHERENCE_MAX = 500;
+const CORRECTION_REPAREE_MAX = 12_000;
 
 function schemaCoherenceExercice(): SchemaJson {
   return {
@@ -502,6 +510,22 @@ function schemaCoherenceExercice(): SchemaJson {
       },
     },
     required: ["coherent", "motifs"],
+    additionalProperties: false,
+  };
+}
+
+function schemaReparationCorrectionExercice(): SchemaJson {
+  return {
+    type: "object",
+    properties: {
+      correction: {
+        type: "string",
+        maxLength: CORRECTION_REPAREE_MAX,
+        description:
+          "Correction complète réécrite uniquement à partir de l'énoncé. Ne modifie pas l'énoncé et ne transforme pas une hypothèse en fait établi.",
+      },
+    },
+    required: ["correction"],
     additionalProperties: false,
   };
 }
@@ -1726,6 +1750,7 @@ export interface PropositionEvaluationExplication {
 export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "coherence-exercice"; coherence: PropositionCoherenceExercice }
+  | { genre: "reparation-correction-exercice"; correction: PropositionReparationCorrectionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
   | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
@@ -1742,8 +1767,12 @@ export type PropositionRecue =
 export interface PropositionCoherenceExercice {
   /** Faux dès qu'une affirmation de la correction n'est pas étayée. */
   coherent: boolean;
-  /** Motifs courts, lisibles par l'interface quand le contrôle échoue. */
+  /** Motifs courts, réservés au diagnostic interne quand le contrôle échoue. */
   motifs: string[];
+}
+
+export interface PropositionReparationCorrectionExercice {
+  correction: string;
 }
 
 /**
@@ -1759,6 +1788,16 @@ export function outilCoherenceExercice(): OutilTuteur {
     description:
       "Contrôle si la correction reste démontrable à partir de l'énoncé. Ne complète pas les faits manquants : en cas de doute, signale une incohérence.",
     schema: schemaCoherenceExercice(),
+  };
+}
+
+/** Outil interne : son résultat n'est jamais présenté comme un message. */
+export function outilReparationCorrectionExercice(): OutilTuteur {
+  return {
+    nom: OUTIL_REPARATION_CORRECTION_EXERCICE,
+    description:
+      "Réécrit uniquement la correction d'un exercice pour la rendre démontrable à partir de son énoncé. Ne modifie pas l'énoncé et ne complète pas les faits manquants.",
+    schema: schemaReparationCorrectionExercice(),
   };
 }
 
@@ -2225,6 +2264,15 @@ function validerCoherenceExercice(
   // pas une incohérence à inventer : c'est une sortie de contrôle invalide.
   if (!entree.coherent && motifs.length === 0) return null;
   return { genre: "coherence-exercice", coherence: { coherent: entree.coherent, motifs } };
+}
+
+function validerReparationCorrectionExercice(
+  entree: Record<string, unknown>,
+): PropositionRecue | null {
+  const correction = texteBorne(entree.correction, CORRECTION_REPAREE_MAX);
+  return correction === null
+    ? null
+    : { genre: "reparation-correction-exercice", correction: { correction } };
 }
 
 /**
@@ -2940,6 +2988,8 @@ export function validerAppelOutil(
       return validerExercice(donnees);
     case OUTIL_COHERENCE_EXERCICE:
       return validerCoherenceExercice(donnees);
+    case OUTIL_REPARATION_CORRECTION_EXERCICE:
+      return validerReparationCorrectionExercice(donnees);
     case OUTIL_REFERENTIEL:
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:

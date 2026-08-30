@@ -53,6 +53,7 @@ import type {
 import { parseInterventionsSeance } from "@/lib/domain/intervention-seance";
 import { lireInterventionsSeance } from "@/lib/domain/legacy-session-intervention-adapter";
 import { renduPourIntervention } from "@/lib/domain/intervention-rendus";
+import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
 import {
   interventionsTerminees,
   interventionsAReprendre,
@@ -431,8 +432,10 @@ export async function demarrerSeance(seanceId: string): Promise<string> {
  * `demarrerSeance`).
  */
 export async function terminerSeance(seanceId: string): Promise<string> {
+  const dorsale = await dorsaleCompte();
+  const seance = await seanceDuCompte(seanceId, dorsale);
   await ecrireClotureSeance(seanceId);
-  return `/seances?session=${encodeURIComponent(seanceId)}`;
+  return `/seances?jour=${encodeURIComponent(jourDeLaSeance(seance))}`;
 }
 
 /**
