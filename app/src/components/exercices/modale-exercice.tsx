@@ -47,7 +47,7 @@ import type { PropositionExercice } from "@/lib/tutor/proposition";
 import { DIFFICULTES, LIBELLES_DIMENSIONS, type Dimension } from "@/lib/domain/types";
 import { EXERCICES_PAR_LOT_MAX } from "@/lib/domain/exercice";
 import { creerSeanceFocusExercice } from "@/lib/store/seance-actions";
-import { urlPremierTest } from "@/lib/domain/navigation-exercice";
+import { urlComposerAutonome, urlPremierTest } from "@/lib/domain/navigation-exercice";
 import type {
   CalibrageModale,
   CompetenceModale,
@@ -67,6 +67,7 @@ export function ModaleExercice({
   competencesCibles,
   dureeCibleMin,
   ouvrirDansCahierApresAcceptation = false,
+  ouvrirEnFocusApresAcceptation = false,
   demarrerApresAcceptation = false,
   varianteAmorce = false,
   presentation = "modale",
@@ -114,6 +115,8 @@ export function ModaleExercice({
   dureeCibleMin?: number;
   /** Depuis la prochaine action, accepter enchaîne directement sur le workspace focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
+  /** Depuis une proposition sans exercice, accepter ouvre directement le travail. */
+  ouvrirEnFocusApresAcceptation?: boolean;
   /** Compte neuf : accepter crée la séance unitaire et ouvre directement le test. */
   demarrerApresAcceptation?: boolean;
   /** Remplace le vocabulaire de génération par celui du premier test. */
@@ -435,6 +438,23 @@ export function ModaleExercice({
         setEnregistrees(nouvellesEnregistrees);
         surEnregistre?.(id);
 
+        if (ouvrirEnFocusApresAcceptation) {
+          try {
+            const seanceId = await creerSeanceFocusExercice(id);
+            onFermer();
+            router.push(`/seances?session=${encodeURIComponent(seanceId)}&focus=1`);
+          } catch {
+            /*
+             * L'exercice est déjà écrit : on ne le génère surtout pas une
+             * seconde fois. Le compositeur reste le chemin de reprise honnête
+             * si la création de la séance échoue.
+             */
+            onFermer();
+            router.push(urlComposerAutonome(p.competences[0], undefined));
+          }
+          return;
+        }
+
         if (demarrerApresAcceptation) {
           try {
             // `premierParcours` : la provenance minimale du premier test
@@ -484,6 +504,7 @@ export function ModaleExercice({
       enregistrerUneProposition,
       surEnregistre,
       ouvrirDansCahierApresAcceptation,
+      ouvrirEnFocusApresAcceptation,
       demarrerApresAcceptation,
       onFermer,
       router,

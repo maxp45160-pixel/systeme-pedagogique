@@ -1,6 +1,6 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.8 — 30/08/2026.** La vision d'orchestration pédagogique reste
+**Version 4.10 — 30/08/2026.** La vision d'orchestration pédagogique reste
 validée comme direction (ADR-139), mais sa composition d'interface expérimentale
 a été retirée le 30/08 après retour arrière. Le tableau de bord visible est
 revenu à sa composition précédente ; les fondations de planification,
@@ -24,6 +24,13 @@ La recommandation globale ne repropose plus un exercice déjà tenté sans
 réussite ultérieure (`partiel` ou `echec`), même lorsqu'il s'agit du seul
 exercice disponible. Quand aucun candidat honnête ne reste, elle laisse le
 repli de génération ou de préparation répondre sans inventer de contenu.
+
+Quand la file ne contient plus d'exercice recommandable pour une compétence,
+« Générer puis commencer » ouvre désormais la génération ciblée dans le
+tableau de bord. La proposition reste relue et acceptée explicitement ; après
+acceptation, une `LearningSession` unitaire est créée et le travail s'ouvre
+directement. Un échec de création de séance revient au compositeur sans
+réémettre la génération.
 
 Le tableau de bord visible garde une seule surface de référence pour les
 échéances : « À venir ». Le raccourci de contexte et le résumé prioritaire qui
@@ -56,6 +63,9 @@ ni observation ; la réponse attendue devient alors consultable. Une correction
 recevable est aussi affichée dans le bilan, à côté du feedback, avant son
 acceptation ; elle reste cachée pendant la recherche. Une observation ne peut
 donc naître qu'après une correction recevable puis l'acceptation du bilan.
+Pendant une séance ouverte, le menu des exercices permet aussi de relire une
+activité déjà menée en lecture seule : aucune nouvelle tentative ni observation
+n'est créée, et le retour au déroulé reste explicite.
 L'exercice diagnostic qui vient d'être mené est aussi exclu de
 l'enchaînement immédiat du même parcours, sans modifier la calibration.
 
@@ -468,6 +478,12 @@ d'absence de plan dérivé et d'absence d'observation passe désormais. Aucun
 statut de construction n'est promu avant un scénario réel de bout en bout.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
+🔬 **Une proposition d'exercice est contrôlée avant d'être présentée comme
+enregistrable** (ADR-140). La complétude de la sortie structurée ne suffit pas :
+un contrôle dédié compare l'énoncé et la correction, refuse les causes ou
+paramètres ajoutés sans preuve et rend le motif lisible. Une sortie texte non
+structurée peut rester lisible, mais ne produit aucune carte d'exercice
+actionnable. La relecture humaine demeure nécessaire avant l'enregistrement.
 ✅ **Le moteur du tuteur est configurable par environnement** ; aucun fournisseur
 gratuit canonique n'est imposé. Le choix se valide par la mesure (ADR-007).
 🔬 **Le tuteur fonctionne sans que l'utilisateur fournisse de clé** (24/08/2026,

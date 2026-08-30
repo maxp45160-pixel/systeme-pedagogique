@@ -41,4 +41,16 @@ describe("composition du tableau de bord", () => {
     expect(carte).toContain("<ActionPlanifierRecommandation key={exercice.id} exerciceId={exercice.id} />");
     expect(carte).toContain("Commencer l’exercice");
   });
+
+  it("génère directement un exercice ciblé quand la file n'a plus de candidate", () => {
+    const carte = readFileSync(
+      new URL("../../../components/dashboard/prochaine-action.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(carte).toContain("<BoutonGenerer");
+    expect(carte).toContain('libelle="Générer puis commencer"');
+    expect(carte).toContain("ouvrirEnFocusApresAcceptation");
+    expect(page).toContain("competencesGeneration={competencesGeneration}");
+    expect(page).toContain("calibragesGeneration={calibragesGeneration}");
+  });
 });

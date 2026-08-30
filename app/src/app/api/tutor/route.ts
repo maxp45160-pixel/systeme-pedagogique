@@ -3,6 +3,11 @@ import { construireContexte } from "@/lib/tutor/contexte";
 import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { fenetrerHistorique, MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
+import {
+  controlerPropositionsExercices,
+  messageRefusCoherenceExercice,
+} from "@/lib/tutor/coherence-exercice";
+import type { PropositionExercice } from "@/lib/tutor/proposition";
 
 /**
  * Route du tuteur — réponse diffusée en flux.
@@ -69,14 +74,53 @@ export async function POST(request: Request) {
         });
       }
 
+      const candidats: PropositionExercice[] = [];
+      let fin: unknown = null;
+
       await moteur.repondre({
         systemeStable: pedagogique.systemeStable,
         systemeProfil: pedagogique.systemeProfil,
         messages,
         outils: pedagogique.outils,
         signal,
-        envoyer,
+        envoyer: (evenement, donnees) => {
+          // Le contenu proposé reste en attente : l'interface ne doit pas
+          // pouvoir ouvrir un exercice avant la vérification énoncé/correction.
+          if (evenement === "proposition") {
+            const proposition = donnees as {
+              genre?: string;
+              exercice?: PropositionExercice;
+            };
+            if (proposition.genre === "exercice" && proposition.exercice) {
+              candidats.push(proposition.exercice);
+              return;
+            }
+          }
+
+          // Le signal de fin est envoyé après le contrôle, afin que l'UI ne
+          // considère pas le tour terminé pendant que la barrière travaille.
+          if (evenement === "fin") {
+            fin = donnees;
+            return;
+          }
+          envoyer(evenement, donnees);
+        },
       });
+
+      if (candidats.length > 0) {
+        envoyer("proposition-en-cours", { outil: "verifier_coherence_exercice" });
+      }
+      const controles = await controlerPropositionsExercices(moteur, candidats, signal);
+      for (const { exercice: candidat, controle } of controles) {
+        if (controle.ok) {
+          envoyer("proposition", { genre: "exercice", exercice: candidat });
+          continue;
+        }
+
+        envoyer("proposition-rejetee", { message: messageRefusCoherenceExercice(controle) });
+      }
+
+      if (fin !== null) envoyer("fin", fin);
     },
     (e) =>
       e instanceof Error

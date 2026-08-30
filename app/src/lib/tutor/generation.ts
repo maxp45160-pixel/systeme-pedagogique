@@ -31,6 +31,10 @@ import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs
 import { outilsTuteur } from "./outils";
 import { REGLE_VOUVOIEMENT, type PromptTuteur } from "./prompt";
 import type { PropositionExercice } from "./proposition";
+import {
+  controlerPropositionsExercices,
+  messageRefusCoherenceExercice,
+} from "./coherence-exercice";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -122,7 +126,8 @@ export function construirePromptGeneration(
     "PROTOCOLE DE RÉDACTION D'UN EXERCICE",
     "- L'énoncé doit être précis, autonome et tenir en un écran.",
     "- Les indices vont du plus léger au plus explicite : ils mesurent l'autonomie.",
-    "- La correction est complète : elle permet à l'utilisateur de s'évaluer.",
+    "- La correction est complète et cohérente avec l'énoncé : elle permet à l'utilisateur de s'évaluer sans ajouter de faits, de causes ou de paramètres absents.",
+    "- Distingue toujours ce qui est établi par l'énoncé de ce qui n'est qu'une hypothèse à vérifier ; une corrélation ne prouve pas une cause.",
     "- Chaque critère porte sur une dimension du référentiel (compréhension, application, transfert, intégration, justification) et doit être cochable par l'utilisateur.",
     "- La durée estimée doit être réaliste : c'est elle qui permet de juger si la tentative a eu lieu.",
     "",
@@ -240,22 +245,29 @@ export async function genererExercices(
 ): Promise<ResultatGeneration> {
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const exercices: PropositionExercice[] = [];
+  const candidats: PropositionExercice[] = [];
   let outilsActifs = true;
   /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
   let panne: string | null = null;
+  let erreurControle: string | null = null;
 
   const envoyer = (evenement: string, donnees: unknown) => {
+    if (evenement === "proposition") {
+      const proposition = donnees as { genre: string; exercice?: PropositionExercice };
+      if (proposition.genre === "exercice" && proposition.exercice) {
+        // Une proposition ne sort qu'après le contrôle sémantique ci-dessous.
+        // La forme JSON est nécessaire, mais elle ne prouve pas que la
+        // correction est étayée par l'énoncé.
+        candidats.push(proposition.exercice);
+        return;
+      }
+    }
+
     evenements.push({ evenement, donnees });
     diffuser?.(evenement, donnees);
     const actifs = lireOutilsActifs(evenement, donnees);
     if (actifs !== null) outilsActifs = actifs;
     panne = panne ?? lireErreurMoteur(evenement, donnees);
-    if (evenement === "proposition") {
-      const proposition = donnees as { genre: string; exercice?: PropositionExercice };
-      if (proposition.genre === "exercice" && proposition.exercice) {
-        exercices.push(proposition.exercice);
-      }
-    }
   };
 
   const prompt = construirePromptGeneration(referentiel, demandes);
@@ -284,6 +296,28 @@ export async function genererExercices(
   });
 
   /*
+   * La proposition reste invisible tant que la seconde lecture n'est pas
+   * terminée. Sinon l'interface pourrait afficher puis enregistrer une
+   * correction incohérente pendant que le contrôle travaille encore.
+   */
+  const controles = await controlerPropositionsExercices(moteur, candidats, signal);
+  for (const { exercice: candidat, controle } of controles) {
+    if (controle.ok) {
+      exercices.push(candidat);
+      const donnees = { genre: "exercice", exercice: candidat };
+      evenements.push({ evenement: "proposition", donnees });
+      diffuser?.("proposition", donnees);
+      continue;
+    }
+
+    const message = messageRefusCoherenceExercice(controle);
+    erreurControle = erreurControle ?? message;
+    const donnees = { message };
+    evenements.push({ evenement: "proposition-rejetee", donnees });
+    diffuser?.("proposition-rejetee", donnees);
+  }
+
+  /*
    * Une proposition incomplète est rejetée par `validerAppelOutil` — elle
    * n'entre jamais dans `exercices`. On le redit ici pour l'interface : la
    * génération a pu aboutir sans produire d'exercice exploitable.
@@ -298,9 +332,10 @@ export async function genererExercices(
     exercices.length > 0
       ? null
       : (panne ??
-        (outilsActifs
-          ? "Aucun exercice exploitable n'a été produit."
-          : messageSansOutils("la génération d'exercices")));
+        (erreurControle ??
+          (outilsActifs
+            ? "Aucun exercice exploitable n'a été produit."
+            : messageSansOutils("la génération d'exercices"))));
 
   return { exercices, evenements, outilsActifs, erreur };
 }

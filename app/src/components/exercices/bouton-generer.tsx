@@ -18,6 +18,7 @@ export function BoutonGenerer({
   surEnregistre,
   competencesCibles,
   ouvrirDansCahierApresAcceptation = false,
+  ouvrirEnFocusApresAcceptation = false,
 }: {
   competences: CompetenceModale[];
   competenceInitiale: string;
@@ -35,6 +36,8 @@ export function BoutonGenerer({
   competencesCibles?: string[];
   /** Réservé à la prochaine action : accepter ouvre une séance focus. */
   ouvrirDansCahierApresAcceptation?: boolean;
+  /** Après acceptation, crée la séance et ouvre directement le travail. */
+  ouvrirEnFocusApresAcceptation?: boolean;
 }) {
   const [ouvert, setOuvert] = useState(false);
 
@@ -62,6 +65,7 @@ export function BoutonGenerer({
           }}
           competencesCibles={competencesCibles}
           ouvrirDansCahierApresAcceptation={ouvrirDansCahierApresAcceptation}
+          ouvrirEnFocusApresAcceptation={ouvrirEnFocusApresAcceptation}
         />
       )}
     </>

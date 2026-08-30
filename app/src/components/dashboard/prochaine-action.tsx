@@ -21,12 +21,13 @@ import {
 import { Depliant } from "@/components/ui/explication";
 import { IconeFleche } from "@/components/ui/icones";
 import { formatDuree } from "@/lib/engine/dates";
-import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exercice";
 import { BoutonRefusRecommandation } from "@/components/dashboard/refus-recommandation";
 import { FeedbackRecommandation } from "@/components/dashboard/feedback-recommandation";
 import { ActionPlanifierRecommandation } from "@/components/dashboard/action-planifier-recommandation";
+import { BoutonGenerer } from "@/components/exercices/bouton-generer";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
 import type { ReactNode } from "react";
+import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import {
   LIBELLES_FAMILLE,
   type ContexteInstant,
@@ -115,6 +116,8 @@ export function CarteProchaineAction({
   activite,
   facteursInstant = [],
   reservesInstant = [],
+  competencesGeneration,
+  calibragesGeneration,
 }: {
   recommandations: readonly Recommandation[];
   referentiel: Referentiel;
@@ -134,6 +137,9 @@ export function CarteProchaineAction({
   activite?: RecommendedLearningAction;
   facteursInstant?: readonly RecommendationFactor[];
   reservesInstant?: readonly string[];
+  /** Données serveur nécessaires à la génération ciblée du repli. */
+  competencesGeneration: CompetenceModale[];
+  calibragesGeneration: Record<string, CalibrageModale>;
 }) {
   const principale = recommandations[0];
 
@@ -263,14 +269,15 @@ export function CarteProchaineAction({
                  * manquants avant de commencer. Le dire au lieu de laisser
                  * croire qu'un exercice attend déjà (honnêteté du parcours).
                  */
-                <Link
-                  href={`/seances?composer=1&code=${encodeURIComponent(etat.skill.code)}&temps=${encodeURIComponent(String(instant?.tempsMin ?? dureeEstimeeMin))}`}
-                  className={classesLienBouton("principal")}
-                  title={INFOBULLE_GENERER_PUIS_COMMENCER}
-                >
-                  Générer puis commencer
-                  <IconeFleche className="size-4" />
-                </Link>
+                <BoutonGenerer
+                  competences={competencesGeneration}
+                  competenceInitiale={etat.skill.code}
+                  calibrages={calibragesGeneration}
+                  compteId={compteId}
+                  libelle="Générer puis commencer"
+                  ouvrirEnFocusApresAcceptation
+                  variante="principal"
+                />
               ))}
               <Link
                 href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}

@@ -13,4 +13,11 @@ describe("composition de la suite après une séance", () => {
       expect(appel).toContain("exercicesExclus: exercicesDejaTraverses");
     }
   });
+
+  it("permet de relire une activité traversée sans ouvrir une nouvelle tentative", () => {
+    expect(source).toContain("const explicite = demandeDansSeance;");
+    expect(source).toContain("const relecture = Boolean(\n    explicite &&\n    !close &&\n    exercicesDejaTraverses.has(explicite),\n  );");
+    expect(source).toContain("lectureSeule={relecture}");
+    expect(source).toContain("Revenir au déroulé de la séance");
+  });
 });

@@ -558,6 +558,13 @@ s'agit de la seule candidate ; le moteur retourne alors `exercice: null` et
 l'interface utilise son repli explicite, sans fabriquer un exercice ni une
 mesure.
 
+Dans ce repli, le tableau de bord ouvre directement la modale de génération
+préremplie sur la compétence concernée. La proposition est relue puis
+acceptée avant l'écriture ; l'acceptation crée une séance unitaire via
+`creerSeanceFocusExercice` et ouvre le workspace focus. Une erreur de création
+de séance ne rejoue pas le tuteur : l'exercice déjà enregistré reste accessible
+par le compositeur existant.
+
 ## 9. Contrat F — Intervention et tuteur
 
 La politique ne produit pas directement une mesure. Elle produit une demande

@@ -18,6 +18,7 @@ import {
   genererExercices,
 } from "./generation";
 import { promptComplet } from "./prompt";
+import { OUTIL_COHERENCE_EXERCICE } from "./outils";
 
 /*
  * Les constructeurs de prompt rendent désormais deux blocs — le préfixe stable
@@ -111,6 +112,14 @@ describe("construirePromptGeneration — la difficulté conseillée", () => {
     ]);
     expect(prompt).toContain("aucune tentative exploitable");
     expect(prompt).not.toMatch(/difficulté [1-5]/);
+  });
+
+  it("impose que la correction reste étayée par l'énoncé", () => {
+    const prompt = construirePromptGeneration(REFERENTIEL, [
+      { competence: LOG_10, calibration: calibration() },
+    ]);
+    expect(prompt).toContain("sans ajouter de faits, de causes ou de paramètres absents");
+    expect(prompt).toContain("une corrélation ne prouve pas une cause");
   });
 });
 
@@ -252,9 +261,26 @@ describe("construirePromptGeneration — ancrage au cours réel (ADR-132)", () =
  */
 function moteurQuiEmet(
   evenements: { evenement: string; donnees: unknown }[],
+  coherence = true,
 ): MoteurTuteur {
   return {
-    async repondre({ envoyer }: { envoyer: (e: string, d: unknown) => void }) {
+    async repondre({
+      envoyer,
+      outils,
+    }: {
+      envoyer: (e: string, d: unknown) => void;
+      outils?: { nom: string }[];
+    }) {
+      if (outils?.some((outil) => outil.nom === OUTIL_COHERENCE_EXERCICE)) {
+        envoyer("proposition", {
+          genre: "coherence-exercice",
+          coherence: {
+            coherent: coherence,
+            motifs: coherence ? [] : ["La correction affirme un fait absent de l'énoncé."],
+          },
+        });
+        return;
+      }
       for (const e of evenements) envoyer(e.evenement, e.donnees);
     },
   } as unknown as MoteurTuteur;
@@ -303,6 +329,23 @@ describe("genererExercices — rien n'est fabriqué", () => {
     );
     expect(r.exercices).toEqual([EXERCICE]);
     expect(r.erreur).toBeNull();
+  });
+
+  it("écarte une proposition dont la correction n'est pas étayée", async () => {
+    const r = await genererExercices(
+      moteurQuiEmet(
+        [{
+          evenement: "proposition",
+          donnees: { genre: "exercice", exercice: EXERCICE },
+        }],
+        false,
+      ),
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+
+    expect(r.exercices).toEqual([]);
+    expect(r.erreur).toContain("correction n'est pas suffisamment étayée");
   });
 
   it("distingue un fournisseur qui a refusé les outils d'un tuteur qui n'a rien proposé", async () => {

@@ -162,12 +162,19 @@ export async function VueSeanceDetail({
     ...avancement.abandonnes,
   ]);
   const demandeDansSeance = exerciceDemande && ids.includes(exerciceDemande) ? exerciceDemande : undefined;
-  const explicite = close
-    ? demandeDansSeance
-    : demandeDansSeance &&
-        (avancement.enCours.includes(demandeDansSeance) || avancement.restants.includes(demandeDansSeance))
-      ? demandeDansSeance
-      : undefined;
+  /*
+   * Le menu « Exercices » permet aussi de relire une activité déjà traversée
+   * pendant une séance encore ouverte. Cette relecture est strictement
+   * passive : `VueExercice` reçoit `lectureSeule` et ne peut donc ni ouvrir une
+   * nouvelle tentative ni produire une observation. L'ancienne garde ignorait
+   * silencieusement ces liens et renvoyait sur l'exercice actif.
+   */
+  const explicite = demandeDansSeance;
+  const relecture = Boolean(
+    explicite &&
+    !close &&
+    exercicesDejaTraverses.has(explicite),
+  );
   const exerciceActif =
     explicite ?? avancement.enCours.find((ref) => ids.includes(ref)) ??
     avancement.restants.find((ref) => ids.includes(ref));
@@ -289,7 +296,7 @@ export async function VueSeanceDetail({
   );
   const ecart = ecartBesoinRealise(seance, ctx.donnees.attempts, competencesParExercice);
 
-  const etatTuteur = statut === "en-cours" && exerciceActif
+  const etatTuteur = statut === "en-cours" && exerciceActif && !relecture
     ? await construireEtatInitialTuteur(ctx, exerciceActif)
     : null;
   // Lue seulement quand la barre d'outils existe : relire une séance close n'a
@@ -577,15 +584,28 @@ export async function VueSeanceDetail({
         {statut === "en-cours" && (
           <div className="space-y-5">
             {exerciceActif ? (
-              <VueExercice
-                params={Promise.resolve({ id: exerciceActif })}
-                searchParams={Promise.resolve(recherche ?? {})}
-                navigation={{ seanceId: seance.id, plein }}
-                integree
-                etatInitialTuteurFourni={etatTuteur ?? undefined}
-                activiteSuivanteId={suivant}
-                seancePeutTerminer={peutTerminer}
-              />
+              <>
+                <VueExercice
+                  params={Promise.resolve({ id: exerciceActif })}
+                  searchParams={Promise.resolve(recherche ?? {})}
+                  navigation={{ seanceId: seance.id, plein }}
+                  integree
+                  lectureSeule={relecture}
+                  etatInitialTuteurFourni={etatTuteur ?? undefined}
+                  activiteSuivanteId={suivant}
+                  seancePeutTerminer={peutTerminer}
+                />
+                {relecture && (
+                  <div className="flex justify-center">
+                    <Link
+                      href={suivant ? urlExercice(suivant, { seanceId: seance.id, plein }) : urlSeance}
+                      className={classesLienBouton("secondaire", "petite")}
+                    >
+                      Revenir au déroulé de la séance
+                    </Link>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="mx-auto max-w-2xl">
                 <FocusActe cle={`seance-prete-a-conclure-${seance.id}-${traites}`} cible="titre-seance-a-conclure" />

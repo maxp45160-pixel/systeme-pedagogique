@@ -28,6 +28,7 @@ import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
 import { repartirDomainesParUsage, estModuleActif } from "@/lib/domain/usage-domaine";
 import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
+import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
@@ -134,6 +135,8 @@ async function ContenuTableauDeBord({
 
   const recommandationsFile = action?.kind === "exercice" ? action.recommandations : ctx.recommandations;
   const premiereRecommandation = recommandationsFile[0];
+  const competencesGeneration = competencesPourModale(ctx.referentiel.actifs);
+  const calibragesGeneration = calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations);
 
   /*
    * La pastille annonce des EXERCICES, elle doit donc en compter — pas les
@@ -317,6 +320,8 @@ async function ContenuTableauDeBord({
               }
               facteursInstant={action?.facteurs ?? []}
               reservesInstant={action?.reserves ?? []}
+              competencesGeneration={competencesGeneration}
+              calibragesGeneration={calibragesGeneration}
             />
           </div>
 

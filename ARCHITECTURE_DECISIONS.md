@@ -132,6 +132,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [137](#adr-137) | Le module de cours est un domaine du référentiel ; l'échéance s'y lie comme fait déclaré | 🔄 Remplacée par [ADR-138](#adr-138) (26/08) — son principe « module = domaine » est conservé |
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
 | [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, planificateur/acceptation/revue locale préparés ; migration lot 5 en attente — aucune montée en ✅ |
+| [140](#adr-140) | Une correction générée doit rester étayée par son énoncé | 🔬 Construite (30/08/2026), à réfuter en usage |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -10856,7 +10857,10 @@ fortement la friction du geste qui produit une observation.
    comparer la réponse et le feedback. Une fois l'exercice terminé ET sans
    tentative en cours, le même panneau replié permet de la relire. **Cela amende l'énoncé d'interface hérité d'
    [ADR-036](#adr-036)** : la correction restait invisible pour TOUJOURS ;
-   désormais seule la fenêtre de travail l'est. Le tuteur, lui, ne la voit
+   désormais seule la fenêtre de travail l'est. Une activité déjà menée peut
+   aussi être rouverte depuis le menu d'une séance encore ouverte, mais en
+   lecture seule : aucune nouvelle tentative ni observation n'est créée. Le
+   tuteur, lui, ne la voit
    toujours que par son unique chemin ([ADR-041](#adr-041)) — rien ne bouge de
    ce côté-là.
 7. **Le champ de marge n'a pas de mémoire navigateur** (`autoComplete="off"`
@@ -11140,6 +11144,17 @@ recommandation, plan global ou nouvelle entité n'est persisté. Cette tranche
 ne change pas le statut ❓ de l'ADR-139 et ne réactive ni revue, ni déplacement,
 ni la vue expérimentale `/seances`.
 
+**Itération 3 — génération ciblée depuis le repli (30/08/2026).** Quand le
+moteur retourne une compétence avec `exercice: null` parce que ses exercices
+terminés sont non concluants, le tableau de bord ouvre directement la modale
+de génération sur cette compétence. La personne relit et accepte la
+proposition ; la création du contenu reste le chemin existant
+`creerExercice`, puis `creerSeanceFocusExercice` ouvre une séance unitaire pour
+le travail. Cette tranche n'ajoute ni entité, ni migration, ni génération
+automatique silencieuse ; si la séance ne peut pas être créée après
+l'enregistrement, le compositeur existant sert de repli sans nouvel appel au
+tuteur.
+
 Le dépôt conserve le branchement expérimental qui fournit au planificateur les
 disponibilités déclarées, les recommandations historiques, les besoins
 déclarés, les échéances ouvertes et les séances déjà acceptées, puis pourrait
@@ -11355,6 +11370,54 @@ proposition de plan, une relecture groupée, la création exclusive de séances
 acceptées, puis un recalcul après indisponibilité ou séance manquée. Le test
 doit prouver que le retard n'a créé aucune observation de compétence et que la
 raison du nouveau plan reste lisible.
+
+---
+
+<a name="adr-140"></a>
+## ADR-140 — Une correction générée doit rester étayée par son énoncé 🔬
+
+**Date.** 30/08/2026. **Statut :** mécanisme construit, hypothèse non
+réfutée. Cette analyse ne fait pas monter la décision en ✅.
+
+### Le défaut
+
+La sortie structurée et `exerciceComplet` vérifiaient seulement la forme de la
+proposition. Ils pouvaient donc laisser passer une correction complète mais
+fondée sur des faits absents de l'énoncé : la corrélation « uniquement la nuit »
+devenait par exemple une cause certaine (« fatigue », « réglage de température »).
+La relecture humaine restait le seul filtre, alors même que la proposition
+était déjà présentée comme exploitable.
+
+### Décision de construction
+
+1. Le prompt de génération impose que l'énoncé et la correction restent
+   cohérents, et distingue les faits établis des hypothèses.
+2. Après chaque `proposer_exercice`, le serveur lance un contrôle dédié qui lit
+   uniquement le titre, l'énoncé et la correction. Il doit rendre une sortie
+   structurée ; il refuse en cas de doute et fournit des motifs courts.
+3. La proposition n'est diffusée à l'interface qu'après ce contrôle. Une panne
+   du contrôle est distincte d'une incohérence éditoriale et n'est jamais
+   transformée en validation implicite.
+4. Une réponse texte qui contourne les outils peut rester lisible, mais ne
+   produit plus de carte d'exercice actionnable. Elle ne peut donc pas contourner
+   le contrôle sémantique.
+5. Le contrôle n'écrit rien et ne produit aucune mesure. La personne relit
+   toujours la proposition avant `creerExercice`.
+
+Le contrôle est placé dans le chemin commun de génération directe et dans la
+route conversationnelle. Les exercices déjà enregistrés ne sont pas réécrits
+automatiquement : leur correction est un fait du corpus existant et doit être
+révisée explicitement.
+
+### Limites et test de réfutation
+
+Le contrôle est lui-même assuré par un modèle : il réduit le risque, mais ne
+constitue pas une preuve formelle. Il faut vérifier sur des exercices réels,
+dans plusieurs disciplines, qu'il rejette les corrections qui ajoutent un fait
+ou transforment une corrélation en cause, tout en conservant les conséquences
+nécessaires de la résolution et les hypothèses explicitement signalées.
+Une hausse des faux rejets, ou un nouvel exemple incohérent accepté, impose de
+réviser le protocole et son emplacement avant de promouvoir cette brique.
 
 ---
 

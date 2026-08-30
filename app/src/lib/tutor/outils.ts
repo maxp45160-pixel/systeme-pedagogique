@@ -85,6 +85,15 @@ export const OUTIL_EXERCICE = "proposer_exercice";
 export const OUTIL_REFERENTIEL = "proposer_referentiel";
 
 /**
+ * Outil confiné au contrôle qualité d'un exercice déjà proposé.
+ *
+ * Il n'entre jamais dans `outilsTuteur` : le tuteur conversationnel ne doit
+ * pas recevoir un exercice du corpus pour le relire. Le serveur l'arme
+ * uniquement après une proposition, avec l'énoncé et la correction du tour.
+ */
+export const OUTIL_COHERENCE_EXERCICE = "verifier_coherence_exercice";
+
+/**
  * ⚠️ `proposer_correction` n'entre PAS dans `outilsTuteur`, et c'est le premier
  * des six verrous qui bornent l'exception à ADR-036.
  *
@@ -468,6 +477,31 @@ function schemaExercice(domaines: string[]): SchemaJson {
       "correction",
       "criteres",
     ],
+    additionalProperties: false,
+  };
+}
+
+const MOTIFS_COHERENCE_MAX = 6;
+const MOTIF_COHERENCE_MAX = 500;
+
+function schemaCoherenceExercice(): SchemaJson {
+  return {
+    type: "object",
+    properties: {
+      coherent: {
+        type: "boolean",
+        description:
+          "Vrai uniquement si la correction est démontrable à partir de l'énoncé ; au moindre doute, faux.",
+      },
+      motifs: {
+        type: "array",
+        maxItems: MOTIFS_COHERENCE_MAX,
+        description:
+          "Motifs courts et précis. Obligatoires si coherent est faux ; tableau vide si tout est étayé.",
+        items: { type: "string", maxLength: MOTIF_COHERENCE_MAX },
+      },
+    },
+    required: ["coherent", "motifs"],
     additionalProperties: false,
   };
 }
@@ -1691,6 +1725,7 @@ export interface PropositionEvaluationExplication {
 
 export type PropositionRecue =
   | { genre: "exercice"; exercice: PropositionExercice }
+  | { genre: "coherence-exercice"; coherence: PropositionCoherenceExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
   | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
@@ -1703,6 +1738,29 @@ export type PropositionRecue =
   | { genre: "referentiel-complet"; resume: string; branches: PropositionReferentiel[]; ecartees: number }
   | { genre: "intention"; traduction: TraductionIntention }
   | { genre: "protocole-cours"; protocole: ProtocoleCours };
+
+export interface PropositionCoherenceExercice {
+  /** Faux dès qu'une affirmation de la correction n'est pas étayée. */
+  coherent: boolean;
+  /** Motifs courts, lisibles par l'interface quand le contrôle échoue. */
+  motifs: string[];
+}
+
+/**
+ * Outil one-shot de contrôle d'un exercice proposé.
+ *
+ * L'exercice n'est ni enregistré ni réécrit par ce contrôle. Il sert
+ * uniquement de seconde lecture avant que la proposition ne soit affichée ou
+ * acceptée.
+ */
+export function outilCoherenceExercice(): OutilTuteur {
+  return {
+    nom: OUTIL_COHERENCE_EXERCICE,
+    description:
+      "Contrôle si la correction reste démontrable à partir de l'énoncé. Ne complète pas les faits manquants : en cas de doute, signale une incohérence.",
+    schema: schemaCoherenceExercice(),
+  };
+}
 
 export interface PropositionRevision {
   resume: string;
@@ -2149,6 +2207,24 @@ function validerExercice(entree: Record<string, unknown>): PropositionRecue | nu
   if (!exercice.type || !exercice.domaine) return null;
 
   return { genre: "exercice", exercice };
+}
+
+function validerCoherenceExercice(
+  entree: Record<string, unknown>,
+): PropositionRecue | null {
+  if (typeof entree.coherent !== "boolean" || !Array.isArray(entree.motifs)) return null;
+
+  const motifs: string[] = [];
+  for (const brut of entree.motifs) {
+    const motif = texteBorne(brut, MOTIF_COHERENCE_MAX);
+    if (motif === null) return null;
+    motifs.push(motif);
+  }
+
+  // Un refus sans motif ne permettrait pas de réparer la génération. Ce n'est
+  // pas une incohérence à inventer : c'est une sortie de contrôle invalide.
+  if (!entree.coherent && motifs.length === 0) return null;
+  return { genre: "coherence-exercice", coherence: { coherent: entree.coherent, motifs } };
 }
 
 /**
@@ -2862,6 +2938,8 @@ export function validerAppelOutil(
   switch (nom) {
     case OUTIL_EXERCICE:
       return validerExercice(donnees);
+    case OUTIL_COHERENCE_EXERCICE:
+      return validerCoherenceExercice(donnees);
     case OUTIL_REFERENTIEL:
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:

@@ -95,9 +95,10 @@ export const MessageBulle = memo(function MessageBulle({
    * Exercices proposés (audit §2.3).
    * Deux sources :
    * 1. L'appel d'outil structuré `proposer_exercice` (voie nominale).
-   * 2. Le filet de sécurité `extrairePropositionExerciceDuTexte` : si le modèle
-   *    a rédigé l'exercice en texte libre, l'exercice est extrait pour afficher
-   *    la carte d'action et les indices/corrections sont masqués du chat.
+   * 2. `extrairePropositionExerciceDuTexte` reconnaît encore un ancien message
+   *    pour en masquer les indices et la correction, mais il ne rend plus de
+   *    carte actionnable : une sortie texte n'a pas passé le contrôle de
+   *    cohérence serveur.
    */
   const extractionExercice = useMemo(() => {
     if (recues !== undefined || message.role !== "assistant" || message.content === "" || enFluxDirect) {
@@ -108,9 +109,7 @@ export const MessageBulle = memo(function MessageBulle({
 
   const exercices = recues
     ? recues.flatMap((r) => (r.genre === "exercice" ? [r.exercice] : []))
-    : extractionExercice.exercice
-      ? [extractionExercice.exercice]
-      : [];
+    : [];
 
   const contenuAffiche = extractionExercice.exercice
     ? extractionExercice.texteNettoye

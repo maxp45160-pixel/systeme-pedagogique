@@ -21,6 +21,7 @@ import {
   type ConfigTuteurClient,
 } from "@/lib/tutor/cle-client";
 import {
+  OUTIL_COHERENCE_EXERCICE,
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
   type PropositionRecue,
@@ -46,6 +47,7 @@ import type { EtatContexteTuteur } from "@/lib/tutor/etat-contexte";
  */
 const LIBELLE_OUTIL: Record<string, string> = {
   [OUTIL_EXERCICE]: "On vous écrit un exercice — énoncé, consigne, ce qui est attendu…",
+  [OUTIL_COHERENCE_EXERCICE]: "On vérifie que la correction correspond bien à l'énoncé…",
   [OUTIL_REFERENTIEL]: "On découpe votre sujet en étapes…",
 };
 
