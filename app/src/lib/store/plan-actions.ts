@@ -19,9 +19,13 @@ import {
   type ContexteAcceptationPlan,
 } from "@/lib/domain/acceptation-plan";
 import type { PlanPropose } from "@/lib/engine/planification-temporelle";
-import { dorsaleCompte, lire } from "./db";
+import type { PlanDiff } from "@/lib/engine/revision-plan";
+import { dorsaleCompte, lire, type Collections, type DorsaleCompte } from "./db";
 import { lireReferentiel } from "./referentiel";
 import { verifier } from "./supabase-backend";
+import type { DisponibiliteDeclaree } from "@/lib/domain/types";
+
+type SessionCompte = Collections["sessions"][number];
 
 export interface ResultatAcceptationPlan {
   acceptedSessionIds: string[];
@@ -83,11 +87,201 @@ function payloadCommande(command: CommandeAcceptationPlan): Record<string, unkno
       skillCodes: session.skillCodes,
       activites: session.activites,
       interventions: session.interventions,
+      ...(session.blueprint ? { blueprint: session.blueprint } : {}),
       origineProposition: session.origineProposition,
     })),
     ignoredCandidateIds: command.ignoredCandidateIds,
     adjustments: command.adjustments,
   };
+}
+
+function dureeSession(session: SessionCompte): number | null {
+  if (Number.isInteger(session.dureePlanifieeMin) && (session.dureePlanifieeMin ?? 0) > 0) {
+    return session.dureePlanifieeMin ?? null;
+  }
+  if (Number.isInteger(session.dureeMin) && (session.dureeMin ?? 0) > 0) {
+    return session.dureeMin ?? null;
+  }
+  const dureeBlueprint = session.blueprint?.dureeCibleMin;
+  if (Number.isInteger(dureeBlueprint) && (dureeBlueprint ?? 0) > 0) {
+    return dureeBlueprint ?? null;
+  }
+  const durees: Array<number | undefined> = (session.interventions ?? []).map((intervention) => intervention.estimatedDurationMinutes);
+  if (durees.length === 0 || durees.some((duree) => !Number.isInteger(duree) || (duree ?? 0) < 0)) return null;
+  const total = durees.reduce<number>((somme, duree) => somme + (duree ?? 0), 0);
+  return total > 0 ? total : null;
+}
+
+function debutSession(session: SessionCompte): string | null {
+  const valeur = session.planifieePour ?? session.date;
+  return Number.isFinite(Date.parse(valeur)) ? new Date(valeur).toISOString() : null;
+}
+
+function chaineNonVide(valeur: unknown, nom: string): string {
+  if (typeof valeur !== "string" || valeur.trim() === "") throw new Error(`${nom} invalide.`);
+  return valeur;
+}
+
+function verifierEtatAvant(
+  session: SessionCompte,
+  before: { plannedFor?: string; durationMinutes?: number } | undefined,
+): void {
+  if (!before?.plannedFor) throw new Error("La revue ne contient pas l'état initial de la séance.");
+  const avant = Date.parse(before.plannedFor);
+  if (!Number.isFinite(avant)) throw new Error("La revue ne contient pas un état initial lisible.");
+  const actuel = debutSession(session);
+  if (actuel === null || actuel !== new Date(avant).toISOString()) {
+    throw new Error("La séance a changé depuis l'ouverture de la revue. Actualisez la page puis réessayez.");
+  }
+  if (before.durationMinutes !== undefined && dureeSession(session) !== before.durationMinutes) {
+    throw new Error("La durée de la séance a changé depuis l'ouverture de la revue. Actualisez la page puis réessayez.");
+  }
+}
+
+function ajustementsDepuisDiff(
+  diff: PlanDiff,
+  sessions: Collections["sessions"],
+): CommandeAcceptationPlan["adjustments"] {
+  if (!diff || !Array.isArray(diff.changes) || !Array.isArray(diff.conflicts)) {
+    throw new Error("La revue du plan est illisible. Actualisez la page puis réessayez.");
+  }
+  if (diff.conflicts.length > 0 || diff.changes.some((change) => change.kind === "conflit-impossible")) {
+    throw new Error("La revue contient un conflit qui doit être résolu avant son application.");
+  }
+  const parId = new Map(sessions.map((session) => [session.id, session]));
+  return diff.changes
+    .filter((change) => change.kind === "deplacer" || change.kind === "raccourcir" || change.kind === "annuler")
+    .map((change) => {
+      const sessionId = chaineNonVide(change.sessionId, "Identité de séance");
+      const session = parId.get(sessionId);
+      if (!session) throw new Error("Une séance de la revue n'est plus disponible. Actualisez la page puis réessayez.");
+      verifierEtatAvant(session, change.before);
+      if (change.kind === "annuler") return { sessionId, action: "cancel" as const };
+      const plannedFor = change.after?.plannedFor;
+      if (!plannedFor || !Number.isFinite(Date.parse(plannedFor))) {
+        throw new Error("Le nouveau créneau est invalide. Actualisez la page puis réessayez.");
+      }
+      if (change.kind === "raccourcir") {
+        const durationMinutes = change.after?.durationMinutes;
+        if (!Number.isInteger(durationMinutes) || (durationMinutes ?? 0) <= 0) {
+          throw new Error("La nouvelle durée est invalide. Actualisez la page puis réessayez.");
+        }
+        return { sessionId, action: "shorten" as const, plannedFor, durationMinutes };
+      }
+      return { sessionId, action: "move" as const, plannedFor };
+    });
+}
+
+async function appliquerAjustements(
+  dorsale: DorsaleCompte,
+  sessions: Collections["sessions"],
+  disponibilites: DisponibiliteDeclaree[],
+  requestId: string,
+  propositionRef: string,
+  adjustments: CommandeAcceptationPlan["adjustments"],
+): Promise<ResultatAcceptationPlan> {
+  const planSansCandidates: PlanPropose = {
+    slots: [],
+    availability: disponibilites,
+    readiness: [],
+    constraints: [],
+    reservations: [],
+  };
+  const commande = preparerCommandeAcceptationPlan(
+    planSansCandidates,
+    {
+      requestId,
+      propositionRef,
+      acceptedCandidateIds: [],
+      ignoredCandidateIds: [],
+      adjustments,
+    },
+    {
+      competences: new Map(),
+      domaines: new Map(),
+      sessionsExistantes: sessions,
+    },
+  );
+  const { data, error } = await dorsale.supabase.rpc("accepter_plan", {
+    p_request_id: commande.requestId,
+    p_payload: payloadCommande(commande),
+  });
+  verifier("application atomique des ajustements", error);
+  const resultat = resultatDepuisRPC(data);
+  revalidatePath("/", "layout");
+  revalidatePath("/seances", "page");
+  return resultat;
+}
+
+/**
+ * Applique une revue déjà affichée dans une seule commande RPC.
+ *
+ * Le diff reste une donnée dérivée et n'est jamais envoyé à Supabase. Le
+ * serveur relit les séances et les disponibilités, vérifie l'état observé à
+ * l'ouverture de la revue, puis ne transmet que les ajustements explicites.
+ */
+export async function appliquerDiffPlan(
+  diff: PlanDiff,
+  requestId: string,
+): Promise<ResultatAcceptationPlan> {
+  const idempotence = chaineNonVide(requestId, "requestId");
+  if (idempotence.length > 200) throw new Error("requestId limité à 200 caractères.");
+  try {
+    const dorsale = await dorsaleCompte();
+    const [user, sessions] = await Promise.all([lire("user", dorsale), lire("sessions", dorsale)]);
+    const adjustments = ajustementsDepuisDiff(diff, sessions);
+    return appliquerAjustements(
+      dorsale,
+      sessions,
+      user.disponibilitesDeclarees ?? [],
+      idempotence,
+      `revision:${idempotence}`,
+      adjustments,
+    );
+  } catch (cause) {
+    console.error("[plan] application de la revue :", cause);
+    throw cause;
+  }
+}
+
+/**
+ * Déplace une séance planifiée en conservant son identité, sa provenance et
+ * toutes ses interventions. La RPC existante ne reçoit qu'un ajustement de
+ * date : aucune compétence, observation ou nouvelle séance n'est créée.
+ */
+export async function deplacerSeance(
+  sessionId: string,
+  ancienneDate: string,
+  nouvelleDate: string,
+  requestId?: string,
+): Promise<ResultatAcceptationPlan> {
+  const id = chaineNonVide(sessionId, "sessionId");
+  const avant = chaineNonVide(ancienneDate, "ancienneDate");
+  const apres = chaineNonVide(nouvelleDate, "nouvelleDate");
+  if (!Number.isFinite(Date.parse(avant)) || !Number.isFinite(Date.parse(apres))) {
+    throw new Error("Le créneau de déplacement est invalide.");
+  }
+  const cle = requestId?.trim() || `move:${id}:${new Date(apres).toISOString()}`;
+  if (cle.length > 200) throw new Error("requestId limité à 200 caractères.");
+
+  try {
+    const dorsale = await dorsaleCompte();
+    const [user, sessions] = await Promise.all([lire("user", dorsale), lire("sessions", dorsale)]);
+    const session = sessions.find((candidate) => candidate.id === id);
+    if (!session) throw new Error("Cette séance n'est plus disponible. Actualisez la page puis réessayez.");
+    verifierEtatAvant(session, { plannedFor: avant });
+    return appliquerAjustements(
+      dorsale,
+      sessions,
+      user.disponibilitesDeclarees ?? [],
+      cle,
+      `deplacement:${id}`,
+      [{ sessionId: id, action: "move", plannedFor: new Date(apres).toISOString() }],
+    );
+  } catch (cause) {
+    console.error("[plan] déplacement de séance :", cause);
+    throw cause;
+  }
 }
 
 /**

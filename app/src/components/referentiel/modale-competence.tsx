@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionReferentiel } from "@/lib/tutor/proposition";
@@ -552,6 +552,9 @@ export function ModaleCompetence({
                 }
                 className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2.5 py-2 text-sm placeholder:text-texte-discret focus:border-primaire focus:outline-none"
               />
+              <div className="mt-2">
+                <ApercuFormulesTexte valeur={intention} />
+              </div>
             </label>
 
             <Bouton

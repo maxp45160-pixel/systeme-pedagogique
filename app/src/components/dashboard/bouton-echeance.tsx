@@ -26,7 +26,7 @@ export function BoutonEcheance({
   /** Pré-remplissage (chemin assisté ou déclaration depuis un module). */
   initial?: InitialisationEngagement;
   libelle?: string;
-  /** Variante action pour les cartes ; la pastille reste le défaut historique. */
+  /** Variante utilisée par le chantier d'orchestration ; la pastille reste le défaut historique. */
   mode?: "pastille" | "action";
 }) {
   const [ouverte, setOuverte] = useState(false);

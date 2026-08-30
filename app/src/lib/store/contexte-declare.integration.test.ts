@@ -75,14 +75,17 @@ describe("retrait de la configuration abstraite de période", () => {
     expect(migrationRefusPlan).not.toMatch(/CREATE TABLE/i);
   });
 
-  it("garde la carte non technique et la provenance sans horloge aléatoire", () => {
+  it("garde les composants de fond sans remplacer le tableau de bord historique", () => {
     expect(cartePlan).toContain("Tout sélectionner");
     expect(cartePlan).toContain("Tout désélectionner");
     expect(cartePlan).toContain("Ignorer cette proposition");
     expect(cartePlan).toContain("Aucune séance à confirmer pour le moment");
     expect(cartePlan).toContain("traduireErreurProposition");
     expect(cartePlan).toContain("commandeLancee.current");
-    expect(pageTableauBord).toContain("referenceStableProposition");
+    expect(pageTableauBord).toContain("CarteProchaineAction");
+    expect(pageTableauBord).toContain("CarteEcheances");
+    expect(pageTableauBord).not.toContain("TableauBordOrchestration");
+    expect(pageTableauBord).not.toContain("referenceStableProposition");
     expect(pageTableauBord).not.toContain("crypto.randomUUID");
     expect(actionsPlan).toContain("refuserPropositionPlan");
     expect(actionsPlan).toContain("plan-refus:");

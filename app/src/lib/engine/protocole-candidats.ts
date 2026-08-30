@@ -34,7 +34,7 @@ function interventionDepuisDimension(
   return "resolve";
 }
 
-function identifiantStable(
+export function identifiantCandidateProtocole(
   courseDocumentId: string,
   sourceAttachmentId: string,
   index: number,
@@ -83,7 +83,7 @@ export function actionsCandidatesDepuisProtocole(
     .sort();
 
   const candidates = input.protocol.seances.map((session, index) => ({
-    candidateId: identifiantStable(
+    candidateId: identifiantCandidateProtocole(
       input.courseDocumentId,
       input.sourceAttachmentId,
       index,

@@ -1,6 +1,6 @@
-import katex from "katex";
 import { echapperHtml } from "@/lib/documents/echappement-html";
-import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import { segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import { rendreFormule } from "@/lib/ui/rendu-formule";
 
 /**
  * Les formules dans l'éditeur WYSIWYG : composées, et réouvrables.
@@ -58,19 +58,13 @@ export const ATTRIBUT_SOURCE = "data-formule-source";
  * sur du vide — même contrat que `FormuleMath`.
  */
 export function htmlNoeudFormule(latex: string, bloc: boolean): string {
-  let corps: string;
-  try {
-    corps = katex.renderToString(latex, {
-      throwOnError: true,
-      displayMode: bloc,
-      output: "html",
-      strict: false,
-    });
-  } catch {
-    corps = `<span class="formule">${echapperHtml(latexVersTexte(latex))}</span>`;
-  }
+  const { html, texteAccessible } = rendreFormule(latex, bloc);
+  const texte = echapperHtml(texteAccessible);
+  const corps = html === null
+    ? `<span class="formule">${texte}</span>`
+    : `<span aria-hidden="true">${html}</span>`;
   return (
-    `<span class="${CLASSE_NOEUD_FORMULE}" contenteditable="false"` +
+    `<span class="${CLASSE_NOEUD_FORMULE}" role="math" aria-label="${texte}" contenteditable="false"` +
     ` ${ATTRIBUT_LATEX}="${echapperHtml(latex)}" ${ATTRIBUT_BLOC}="${bloc ? "1" : "0"}">` +
     `${corps}</span>`
   );

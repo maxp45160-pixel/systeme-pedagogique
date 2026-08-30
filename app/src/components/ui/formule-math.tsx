@@ -1,6 +1,5 @@
-import katex from "katex";
 import "katex/dist/katex.min.css";
-import { latexVersTexte } from "@/lib/ui/formule";
+import { rendreFormule } from "@/lib/ui/rendu-formule";
 
 /**
  * Rendu d'une formule LaTeX par KaTeX.
@@ -22,25 +21,23 @@ export function FormuleMath({
   /** Mode hors-ligne (`$$…$$`, `\[…\]`) : centré sur son propre bloc. */
   display?: boolean;
 }) {
-  let html: string | null = null;
-  try {
-    html = katex.renderToString(latex, {
-      throwOnError: true,
-      displayMode: display,
-      output: "html",
-      strict: false,
-    });
-  } catch {
-    html = null;
-  }
+  const { html, texteAccessible } = rendreFormule(latex, display);
 
   if (html === null) {
     return (
-      <span className="formule">
-        {latexVersTexte(latex)}
+      <span className="formule" role="math" aria-label={texteAccessible}>
+        {texteAccessible}
       </span>
     );
   }
 
-  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <span
+      className={display ? "formule-rendu formule-rendu-bloc" : "formule-rendu"}
+      role="math"
+      aria-label={texteAccessible}
+    >
+      <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
+    </span>
+  );
 }

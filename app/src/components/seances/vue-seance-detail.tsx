@@ -22,7 +22,7 @@ import {
 import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
 import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
-import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, Bouton, CorpsCarte, classesLienBouton } from "@/components/ui/primitives";
+import { Carte, CodeCompetence, EnTeteCarte, Etiquette, EtatVide, Bouton, classesLienBouton } from "@/components/ui/primitives";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { ActionPreparerSeance } from "@/components/seances/action-preparer-seance";
 import { Pomodoro } from "@/components/seances/pomodoro";
@@ -46,21 +46,11 @@ import {
 } from "@/lib/engine/impact";
 import { SasSeance } from "@/components/seances/sas-seance";
 import { IconeExercices, IconeFleche, IconeMinuteur, IconeNote } from "@/components/ui/icones";
-import {
-  interventionCourante,
-  interventionsAReprendre,
-  interventionsTerminees,
-  lireExecutionInterventions,
-  nombreInterventionsTraitees,
-  prochainExerciceIntervention,
-} from "@/lib/domain/intervention-execution";
-import { RenduIntervention } from "@/components/seances/rendu-intervention";
 
 export type EtapeRecherche = {
   evaluer?: string;
   bilan?: string;
   abandon?: string;
-  intervention?: string;
 };
 
 /*
@@ -105,14 +95,12 @@ const LIBELLES_STATUT = {
 export async function VueSeanceDetail({
   id,
   exerciceDemande,
-  interventionDemande,
   recherche,
   sas = false,
   plein = true,
 }: {
   id: string;
   exerciceDemande?: string;
-  interventionDemande?: string;
   recherche?: EtapeRecherche;
   /**
    * L'URL porte `sas=1` : on vient d'entrer en travail (ADR-103).
@@ -157,26 +145,7 @@ export async function VueSeanceDetail({
    */
   const close = statut === "terminee" || statut === "abandonnee";
   const avancement = avancementSeance(seance, ctx.donnees.attempts);
-  const executionLecture = lireExecutionInterventions(seance, ctx.donnees.attempts);
-  const multiInterventions = seance.interventions !== undefined && executionLecture.executions.length > 0;
-  const executionExplicitementRelue = multiInterventions
-    ? executionLecture.executions.find(
-        (execution) =>
-          (interventionDemande && execution.intervention.id === interventionDemande) ||
-          (exerciceDemande && execution.exerciceId === exerciceDemande),
-      )
-    : undefined;
-  const etapeRelue = Boolean(recherche?.evaluer || recherche?.bilan || recherche?.abandon);
-  const executionCourante = multiInterventions
-    ? interventionDemande && executionExplicitementRelue
-      ? executionExplicitementRelue
-      : etapeRelue && executionExplicitementRelue
-      ? executionExplicitementRelue
-      : interventionCourante(executionLecture.executions, interventionDemande)
-    : undefined;
-  const reprenable = multiInterventions
-    ? statut === "abandonnee" && !seance.renonceeLe && interventionsAReprendre(executionLecture.executions)
-    : peutReprendreSeance(seance, avancement);
+  const reprenable = peutReprendreSeance(seance, avancement);
   const parId = new Map(ctx.donnees.exercises.map((item) => [item.id, item]));
   const activites = seance.activites.filter(
     (activite) => activite.type === "exercice" && parId.has(activite.ref),
@@ -234,7 +203,6 @@ export async function VueSeanceDetail({
         exercices: ctx.donnees.exercises,
         tentatives: ctx.donnees.attempts,
         now: ctx.now,
-        exercicesExclus: new Set(ids),
       })
       : null;
   }
@@ -297,33 +265,20 @@ export async function VueSeanceDetail({
       exercices: ctx.donnees.exercises,
       tentatives: ctx.donnees.attempts,
       now: ctx.now,
-      exercicesExclus: new Set(ids),
     })
     : null;
   const suivant = [...avancement.enCours, ...avancement.restants]
     .find((ref) => ref !== exerciceActif && ids.includes(ref));
-  const traites = multiInterventions
-    ? nombreInterventionsTraitees(executionLecture.executions)
-    : avancement.menes.length + avancement.abandonnes.length;
-  const totalActivites = multiInterventions ? executionLecture.executions.length : avancement.total;
-  const peutTerminerExercices = avancement.enCours.length === 0 && avancement.restants.length === 0;
-  const peutTerminer = multiInterventions
-    ? interventionsTerminees(executionLecture.executions)
-    : peutTerminerExercices;
-  const prochainExerciceInterventionId = multiInterventions
-    ? prochainExerciceIntervention(executionLecture.executions, executionCourante?.intervention.id)
-    : undefined;
+  const traites = avancement.menes.length + avancement.abandonnes.length;
+  const peutTerminer = avancement.enCours.length === 0 && avancement.restants.length === 0;
 
   const competencesParExercice = new Map(
     ctx.donnees.exercises.map((item) => [item.id, item.competences]),
   );
   const ecart = ecartBesoinRealise(seance, ctx.donnees.attempts, competencesParExercice);
 
-  const exerciceExecutionActif = executionCourante?.exerciceId && parId.has(executionCourante.exerciceId)
-    ? executionCourante.exerciceId
-    : undefined;
-  const etatTuteur = statut === "en-cours" && (exerciceExecutionActif ?? exerciceActif)
-    ? await construireEtatInitialTuteur(ctx, exerciceExecutionActif ?? exerciceActif!)
+  const etatTuteur = statut === "en-cours" && exerciceActif
+    ? await construireEtatInitialTuteur(ctx, exerciceActif)
     : null;
   // Lue seulement quand la barre d'outils existe : relire une séance close n'a
   // pas besoin de la marge.
@@ -339,7 +294,7 @@ export async function VueSeanceDetail({
    * ligne et le champ de réponse devenait une fente. L'écran s'ouvre donc au
    * moment où l'on se met à écrire, et se referme quand on relit.
    */
-  const travailOuvert = avancement.enCours.length > 0 || executionCourante?.statut === "en-cours";
+  const travailOuvert = avancement.enCours.length > 0;
   const colonnePlein = travailOuvert ? "max-w-6xl" : "max-w-[var(--colonne)]";
 
   const jourDeLaPage = jourDeLaSeance(seance);
@@ -391,7 +346,7 @@ export async function VueSeanceDetail({
           urlApres={urlSansSas}
           intention={seance.besoinDeclare?.intention}
           codes={seance.skillCodes}
-          nombreExercices={multiInterventions ? executionLecture.executions.length : activites.length}
+          nombreExercices={activites.length}
           dureeCibleMin={seance.blueprint?.dureeCibleMin}
         />
       )}
@@ -439,7 +394,7 @@ export async function VueSeanceDetail({
           */}
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             <span className="chiffres mr-1 text-xs text-texte-discret">
-              {traites} / {totalActivites}
+              {traites} / {avancement.total}
             </span>
             {epreuve && statut === "en-cours" && (
               <ChronoEpreuve
@@ -503,10 +458,10 @@ export async function VueSeanceDetail({
                 >
                   <MargeCahier lignes={marge} compacte />
                 </OutilSeance>
-                {etatTuteur && (exerciceExecutionActif ?? exerciceActif) && (
+                {etatTuteur && exerciceActif && (
                   <TiroirTuteur
                     etatInitial={etatTuteur}
-                    exerciceCible={exerciceExecutionActif ?? exerciceActif}
+                    exerciceCible={exerciceActif}
                     codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
                     compteId={ctx.donnees.user.id}
                     domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
@@ -549,14 +504,14 @@ export async function VueSeanceDetail({
         <div
           className="h-0.5 w-full bg-surface-3"
           role="progressbar"
-          aria-valuenow={totalActivites > 0 ? Math.round((traites / totalActivites) * 100) : 0}
+          aria-valuenow={avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`${traites} activités traitées sur ${totalActivites}`}
+          aria-label={`${traites} activités traitées sur ${avancement.total}`}
         >
           <div
             className="h-full bg-primaire transition-[width] duration-500"
-            style={{ width: `${totalActivites > 0 ? Math.round((traites / totalActivites) * 100) : 0}%` }}
+            style={{ width: `${avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}%` }}
           />
         </div>
       </header>
@@ -609,37 +564,7 @@ export async function VueSeanceDetail({
 
         {statut === "en-cours" && (
           <div className="space-y-5">
-            {multiInterventions ? (
-              <>
-                <InterventionsNavigation
-                  seanceId={seance.id}
-                  plein={plein}
-                  executions={executionLecture.executions}
-                  activeId={executionCourante?.intervention.id}
-                />
-                {executionCourante ? (
-                  <RenduIntervention
-                    execution={executionCourante}
-                    seanceId={seance.id}
-                    plein={plein}
-                    recherche={recherche}
-                    exercice={executionCourante.exerciceId ? parId.get(executionCourante.exerciceId) : undefined}
-                    activiteSuivanteId={prochainExerciceInterventionId}
-                    seancePeutTerminer={peutTerminer}
-                    compteId={ctx.donnees.user.id}
-                    codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
-                    domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
-                    competencesModale={competencesPourModale(ctx.referentiel.actifs)}
-                    calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
-                    etatInitialTuteur={etatTuteur ?? undefined}
-                  />
-                ) : (
-                  <Carte accent>
-                    <CorpsInterventionVide seanceId={seance.id} />
-                  </Carte>
-                )}
-              </>
-            ) : exerciceActif ? (
+            {exerciceActif ? (
               <VueExercice
                 params={Promise.resolve({ id: exerciceActif })}
                 searchParams={Promise.resolve(recherche ?? {})}
@@ -846,56 +771,4 @@ function ListeActivites({
     </ul>
   );
   return compacte ? contenu : <Carte><EnTeteCarte titre="Exercices" />{contenu}</Carte>;
-}
-
-function InterventionsNavigation({
-  seanceId,
-  plein,
-  executions,
-  activeId,
-}: {
-  seanceId: string;
-  plein: boolean;
-  executions: ReturnType<typeof lireExecutionInterventions>["executions"];
-  activeId?: string;
-}) {
-  return (
-    <nav aria-label="Interventions de la séance">
-      <ul className="flex flex-wrap gap-2">
-        {executions.map((execution) => {
-          const active = execution.intervention.id === activeId;
-          const params = new URLSearchParams({
-            session: seanceId,
-            intervention: execution.intervention.id,
-          });
-          if (plein) params.set("focus", "1");
-          return (
-            <li key={execution.intervention.id}>
-              <Link
-                href={`/seances?${params.toString()}`}
-                aria-current={active ? "step" : undefined}
-                className={classesLienBouton(active ? "principal" : "secondaire", "petite")}
-              >
-                {execution.rendu.label} · {execution.intervention.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
-
-function CorpsInterventionVide({ seanceId }: { seanceId: string }) {
-  return (
-    <>
-      <EnTeteCarte titre="Toutes les interventions sont traitées" id={`titre-interventions-terminees-${seanceId}`} />
-      <CorpsCarte>
-        <p className="text-sm text-texte-attenue">La séance reste ouverte tant que vous ne l&apos;avez pas clôturée.</p>
-        <div className="mt-4">
-          <ActionSeance action={terminerSeance} seanceId={seanceId} libelle="Terminer la séance" />
-        </div>
-      </CorpsCarte>
-    </>
-  );
 }

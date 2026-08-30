@@ -5,7 +5,6 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { VueSeanceDetail, type EtapeRecherche } from "@/components/seances/vue-seance-detail";
 import { CahierInteractif } from "@/components/seances/cahier-interactif";
-import { vueInitialeDepuisParametres } from "@/lib/domain/vue-seances";
 import { lireMarge } from "@/lib/store/marge";
 import {
   extraireDocumentsOperationnels,
@@ -39,17 +38,16 @@ async function chargerProjetsDuCahier(): Promise<DocumentOperationnelDate[]> {
 /**
  * Pôle Bureau (ADR-061, étendu par ADR-062, refondu par ADR-079 et ADR-103).
  *
- * La route propose trois lectures locales : **À venir** — la chronologie des
- * séances acceptées —, le **Bureau** historique d'un jour explicite, et le
- * **Cahier** (`?vue=cahier`) — l'archive, où l'on relit. Le rendu initial serveur
+ * Une page est un jour, et le pôle a deux lectures de la même route :
+ * le **Bureau** — aujourd'hui, où l'on travaille — et le **Cahier**
+ * (`?vue=cahier`) — l'archive, où l'on relit. Le rendu initial serveur
  * rassemble toutes les données temporelles une fois ; la navigation entre les
- * jours comme entre les lectures s'effectue ensuite côté client (0 ms).
+ * jours comme entre les deux modes s'effectue ensuite côté client (0 ms).
  */
 export default async function PageSeances(props: {
   searchParams: Promise<{
     session?: string;
     exercice?: string;
-    intervention?: string;
     evaluer?: string;
     bilan?: string;
     abandon?: string;
@@ -81,7 +79,6 @@ export default async function PageSeances(props: {
         <VueSeanceDetail
           id={session}
           exerciceDemande={exercice}
-          interventionDemande={recherche.intervention}
           recherche={recherche}
           sas={recherche.sas === "1"}
         />
@@ -109,7 +106,6 @@ export default async function PageSeances(props: {
         rechercheTexte={recherche.q}
         session={session}
         exercice={exercice}
-        intervention={recherche.intervention}
         recherche={recherche}
         sasDemande={recherche.sas === "1"}
         {...(recherche.composer === "1"
@@ -226,7 +222,7 @@ async function CompositeurDepuisLien({
 }
 
 /**
- * Le pôle, ouvert sur l'une de ses trois lectures.
+ * Le pôle, ouvert sur l'un de ses deux modes.
  *
  * Toutes les données sont assemblées ici une seule fois, puis confiées
  * au conteneur interactif pour une navigation instantanée côté client.
@@ -242,20 +238,18 @@ async function ContenuBureau({
   rechercheTexte,
   session,
   exercice,
-  intervention,
   recherche,
   sasDemande = false,
   composition,
 }: {
   jourDemande?: string;
   moisDemande?: string;
-  /** `cahier` ouvre l'archive ; `bureau` conserve les liens jour historiques. */
+  /** `cahier` ouvre l'archive ; toute autre valeur ouvre le Bureau. */
   vueDemandee?: string;
   /** Terme de recherche : implique le mode Cahier. */
   rechercheTexte?: string;
   session?: string;
   exercice?: string;
-  intervention?: string;
   recherche?: EtapeRecherche;
   /** L'URL porte `sas=1` : la séance dépliée ouvre sur son sas (ADR-103). */
   sasDemande?: boolean;
@@ -289,15 +283,14 @@ async function ContenuBureau({
    * se contredisaient. La page du jour garde la séance — sa carte, son
    * avancement, ses activités — et « Continuer » entre dans le travail.
    *
-   * Une séance close reste dépliable sur place depuis le Bureau historique :
-   * relire ne demande aucun geste, donc rien ne justifie de quitter la page.
+   * Une séance close, elle, reste dépliable sur place : relire ne demande
+   * aucun geste, donc rien ne justifie de quitter la page.
    */
   if (seanceOuverte) {
     const statutOuvert = statutSeance(seanceOuverte);
     if (statutOuvert === "en-cours" || statutOuvert === "planifiee") {
       const suite = new URLSearchParams({ session: seanceOuverte.id, focus: "1" });
       if (exercice) suite.set("exercice", exercice);
-      if (intervention) suite.set("intervention", intervention);
       if (sasDemande) suite.set("sas", "1");
       redirect(`/seances?${suite.toString()}`);
     }
@@ -307,9 +300,11 @@ async function ContenuBureau({
     (seanceOuverte ? jourDeLaSeance(seanceOuverte) : null) ??
     cleJour(ctx.now);
   /*
-   * Un jour venu de l'URL (`?jour=`, `?session=`) est un choix explicite et
-   * ouvre le Bureau historique. Sans jour explicite, le jour reste disponible
-   * pour les liens de l'archive, mais la vue nominale est À venir.
+   * Un jour venu de l'URL (`?jour=`, `?session=`) est un choix explicite : le
+   * navigateur n'a rien à redire. Le jour par défaut, lui, a été coupé dans
+   * le fuseau du serveur (UTC en production) — `CahierInteractif` le recoupe
+   * dans le fuseau local au montage, sinon autour de minuit européen
+   * `/seances` ouvrait la veille.
    */
   const jourExplicite = Boolean(jourValide(jourDemande)) || Boolean(seanceOuverte);
 
@@ -320,12 +315,7 @@ async function ContenuBureau({
       jourInitial={jour}
       jourExplicite={jourExplicite}
       moisInitial={moisDemande}
-      vueInitiale={vueInitialeDepuisParametres({
-        vueDemandee,
-        recherche: terme,
-        jourExplicite: Boolean(jourValide(jourDemande)),
-        seanceOuverte: Boolean(seanceOuverte),
-      })}
+      vueInitiale={vueDemandee === "cahier" || terme ? "cahier" : "bureau"}
       {...(terme ? { recherche: terme } : {})}
       jours={jours}
       /*
@@ -354,7 +344,6 @@ async function ContenuBureau({
                 <VueSeanceDetail
                   id={seanceOuverte.id}
                   exerciceDemande={exercice}
-                  interventionDemande={intervention}
                   recherche={recherche}
                   sas={sasDemande}
                   plein={false}

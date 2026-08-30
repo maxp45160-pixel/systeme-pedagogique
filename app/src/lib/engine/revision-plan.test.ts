@@ -81,6 +81,25 @@ describe("diff pur du plan recalculé", () => {
     expect(diff.changes).toContainEqual(expect.objectContaining({ kind: "deplacer", sessionId: "s1" }));
   });
 
+  it("recalcule une séance absente des slots sans remplacer son geste", () => {
+    const recalcul = plan({ id: "c-new", at: "2026-08-28T11:00:00.000Z" });
+    recalcul.availability = [{
+      startsAt: "2026-08-28T11:00:00.000Z",
+      endsAt: "2026-08-28T18:00:00.000Z",
+      sourceRef: "agenda:nouveau-creneau",
+    }];
+    const diff = calculerDiffPlan({
+      acceptedSessions: [session("s1", "c1", "2026-08-28T09:00:00.000Z")],
+      recalculatedPlan: recalcul,
+    });
+    expect(diff.changes).toContainEqual(expect.objectContaining({
+      kind: "deplacer",
+      sessionId: "s1",
+      before: expect.objectContaining({ plannedFor: "2026-08-28T09:00:00.000Z" }),
+      after: expect.objectContaining({ plannedFor: "2026-08-28T11:00:00.000Z", label: "c1" }),
+    }));
+  });
+
   it("signale un raccourcissement sans produire une observation", () => {
     const diff = calculerDiffPlan({ acceptedSessions: [session("s1", "c1", "2026-08-28T09:00:00.000Z", 30)], recalculatedPlan: plan({ id: "c1", at: "2026-08-28T09:00:00.000Z", duration: 15 }) });
     expect(diff.changes).toContainEqual(expect.objectContaining({ kind: "raccourcir", before: expect.objectContaining({ durationMinutes: 30 }), after: expect.objectContaining({ durationMinutes: 15 }) }));
@@ -97,6 +116,16 @@ describe("diff pur du plan recalculé", () => {
     expect(diff.changes).toContainEqual(expect.objectContaining({ kind: "ajouter", candidateId: "c1" }));
     expect(diff.changes.find((change) => change.candidateId === "c2")).toBeUndefined();
     expect(diff.silentCandidateIds).toEqual(["c2"]);
+  });
+
+  it("décrit une proposition apparue sans la traiter comme une séance acceptée", () => {
+    const diff = calculerDiffPlan({
+      acceptedSessions: [session("s1", "c1", "2026-08-28T09:00:00.000Z")],
+      recalculatedPlan: plan({ id: "c1", at: "2026-08-28T09:00:00.000Z" }, { id: "c2", at: "2026-08-28T10:00:00.000Z" }),
+    });
+    expect(diff.appears).toHaveLength(1);
+    expect(diff.appears?.[0]).toMatchObject({ candidateId: "c2", kind: "ajouter" });
+    expect(diff.changes.find((change) => change.candidateId === "c2")).toBeUndefined();
   });
 
   it("protège une séance en cours et signale un conflit impossible", () => {

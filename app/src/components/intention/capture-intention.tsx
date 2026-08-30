@@ -22,7 +22,7 @@ import { ModaleCompetence } from "@/components/referentiel/modale-competence";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import { IconeCalendrier } from "@/components/ui/icones";
 import { ModaleEngagement } from "@/components/dashboard/modale-engagement";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { extraireEcheanceBesoin } from "@/lib/domain/echeance-besoin";
 import {
   BESOIN_MAX,
@@ -685,6 +685,9 @@ export function CaptureIntention({
               autoFocus
               className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
             />
+            <div className="mt-2">
+              <ApercuFormulesTexte valeur={besoin} />
+            </div>
             <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
               <span>
                 {estContexteDomaine

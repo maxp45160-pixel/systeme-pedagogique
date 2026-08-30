@@ -30,7 +30,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import type { PropositionRevision } from "@/lib/tutor/outils";
@@ -266,6 +266,9 @@ export function ModaleRevision({
                 placeholder="Ce parcours ne m'aide plus : recentre-le sur ce que je veux savoir faire et mets de côté ce qui ne me sert plus."
                 className="mt-1 w-full rounded-md border border-bordure-controle bg-surface px-2 py-1.5 text-sm placeholder:text-texte-discret"
               />
+              <div className="mt-2">
+                <ApercuFormulesTexte valeur={demande} />
+              </div>
             </label>
             <p className="text-[0.6875rem] text-texte-discret">
               {competences.length} repère{competences.length > 1 ? "s" : ""} déjà présent

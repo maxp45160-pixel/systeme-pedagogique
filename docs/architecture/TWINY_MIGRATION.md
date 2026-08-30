@@ -88,7 +88,7 @@ l'application d'une migration de son seul fichier local.
 ### État Supabase vérifié le 29/08/2026
 
 La liste des migrations distante s'arrête désormais à
-`20260829145745_corriger_idempotence_acceptation_plan`. Une vérification en
+`20260829174131_plan_acceptation_origine_cours`. Une vérification en
 lecture seule de la
 base réelle montre les objets des trois premiers fichiers locaux ci-dessous ;
 seule la migration du lot 9 et la correction de type possèdent une entrée
@@ -105,14 +105,46 @@ distante explicitement créée et vérifiée dans ce chantier :
 | `20260829072035_corriger_somme_intervalle_acceptation_plan.sql` | cast explicite du résultat de `sum(integer)` avant `make_interval` | présente sous `20260829075048` | appliquée et vérifiée le 29/08/2026 |
 | `20260829101500_corriger_idempotence_acceptation_plan.sql` | lecture idempotente du reçu sans verrou UPDATE incompatible avec sa RLS append-only | présente sous `20260829145745` | appliquée et vérifiée le 29/08/2026 |
 | `20260829163836_memoriser_refus_proposition_plan.sql` | `public.refus_recommandations.proposition_ref` et sa contrainte de forme | absente | préparée localement, non appliquée ; autorisation requise avant exécution |
+| `20260829190000_plan_acceptation_origine_cours.sql` | extension additive de `public.accepter_plan(text,jsonb)` pour conserver le blueprint d'un candidat de cours accepté | présente sous `20260829174131` | appliquée et vérifiée le 29/08/2026 dans la définition distante de la RPC |
 
 La présence d'objets des lots 1, 3 et 5 ne constitue ni une nouvelle validation
 produit ni une raison de rejouer une DDL : leur provenance reste inconnue. Le
-lot 9 et la correction de type sont visibles à distance et possèdent chacune
-une entrée d'historique vérifiable dans ce chantier. Toute correction de
+lot 9, les corrections d'acceptation et la conservation du blueprint de cours
+sont visibles à distance et possèdent chacune une entrée d'historique vérifiable
+dans ce chantier. Toute correction de
 l'historique doit être additive, tracée et autorisée séparément. La preuve
 distante de sélection, de tout-ou-rien et de rejeu idempotent est passée ; la
 correction reste additive et ne réécrit aucune migration historique.
+
+### Passage de relais — composition multi-source du plan — 29/08/2026
+
+Le compositeur pur `lib/engine/plan-candidates.ts` réunit les recommandations
+historiques, les besoins déclarés portés par les séances closes, les échéances
+ouvertes via leurs codes, et les candidates de protocole lorsqu'un parcours de
+cours les fournit. Les appelants injectent le référentiel actif ; le moteur ne
+lit ni Supabase ni le référentiel. Une candidate reçoit une identité stable,
+les codes inactifs sont mis en réserve, les séances planifiées ou en cours sont
+exclues, et un diagnostic déjà terminé est exclu lorsqu'il est relié à la
+séance ou à la tentative du parcours courant. Les équivalences sont fusionnées
+sur `{codes, intervention, durée}` ; l'ordre de provenance est cours, besoin
+déclaré, activité durable, exercice historique. Les engagements servent à
+relier les échéances sans être recopiés dans le plan.
+
+Le tableau de bord utilise cette composition avant `planifierTemps`. La route
+de protocole utilise le même adaptateur avant d'émettre ses candidates ; son
+protocole reste transitoire. La validation du plan ne génère aucun exercice :
+une séance de cours acceptée transporte sa commande documentaire et les
+exercices manquants restent à générer au démarrage. La migration
+`20260829190000_plan_acceptation_origine_cours.sql` complète cette conservation
+dans la RPC distante ; elle est appliquée sous `20260829174131` et sa définition
+est vérifiée dans Supabase.
+
+Le recalcul de révision reste pur. Il est branché sur les changements de
+contexte relus par le tableau de bord et distingue les séances conservées,
+déplacées, retirées de la proposition et les nouvelles propositions. Le bouton
+« Déplacer » relit la séance et les disponibilités, puis réutilise la commande
+atomique `accepter_plan` : l'identité, l'origine et les interventions sont
+conservées, tandis qu'un conflit ou une donnée obsolète bloque toute écriture.
 
 ### Lecture des séances (lot 6)
 
@@ -1543,13 +1575,14 @@ authentifiée disponible ; aucune donnée ni authentifiant n'a été saisi. Le
 contrôle visuel authentifié reste donc à effectuer dans un environnement de
 test connecté.
 
-**Limite connue et prochain lot.** Le bouton « Déplacer » ouvre une explication
-accessible : le dépôt ne possède pas encore de commande de déplacement directe
-ni de sélecteur de disponibilités dans cette vue. Il ne modifie donc jamais une
-séance acceptée ; la conséquence doit passer par un recalcul de plan et un
-choix explicite, conformément à ADR-139. La prochaine étape sûre est de valider
-humainement ce parcours et de brancher, si nécessaire, cette frontière au
-workflow de révision du lot 5 sans nouvelle entité ni écriture implicite.
+**Limite connue à cette date — supersédée par la révision du 29/08/2026.**
+À la date de cette note, le bouton « Déplacer » ouvrait seulement une
+explication accessible : le dépôt ne possédait pas encore de commande directe
+ni de sélecteur de disponibilités dans cette vue. Cette limite ne décrit plus
+l’état courant. Le parcours actuel propose un créneau déclaré, relit la séance
+et les disponibilités au serveur, puis réutilise l’ajustement atomique de
+`accepter_plan` en conservant l’identité et l’origine. Il ne modifie ni
+compétence ni observation et reste soumis aux conflits et à l’obsolescence.
 
 ### Passage de relais — lot 7 — 28/08/2026
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Carte,
@@ -23,12 +23,15 @@ import {
   CartePropositionPlan,
   type PropositionPlanDashboard,
 } from "@/components/dashboard/carte-proposition-plan";
-import { ModaleRevuePlan, type RevuePlanProps } from "@/components/dashboard/modale-revue-plan";
+import { ModaleRevuePlan } from "@/components/dashboard/modale-revue-plan";
+import { appliquerDiffPlan } from "@/lib/store/plan-actions";
+import type { PlanDiff } from "@/lib/engine/revision-plan";
 import type {
   DashboardDayEntry,
   DashboardDeadline,
   DashboardOrchestrationView,
 } from "@/lib/engine/dashboard-orchestration";
+import type { Recommandation } from "@/lib/engine/recommend";
 
 const TYPE_LABELS: Record<DashboardDayEntry["type"], string> = {
   resolve: "Résoudre",
@@ -84,10 +87,70 @@ function texteDate(jour: string): string {
   return jour.charAt(0).toUpperCase() + jour.slice(1);
 }
 
+function hrefComposition(recommendation?: Recommandation): string {
+  const code = recommendation?.etat.skill.code;
+  const duree = recommendation?.dureeEstimeeMin ?? 25;
+  return code
+    ? `/seances?composer=1&code=${encodeURIComponent(code)}&temps=${encodeURIComponent(String(duree))}`
+    : "/seances?composer=1&sans-theme=1";
+}
+
+function FocusDuJour({
+  recommendation,
+  proposition,
+}: {
+  recommendation?: Recommandation;
+  proposition?: PropositionPlanDashboard;
+}) {
+  const competence = recommendation?.etat.skill.intitule;
+  const exercice = recommendation?.exercice;
+  const sansExercice = Boolean(recommendation && !exercice);
+  const manqueDisponibilite = Boolean(
+    proposition
+    && proposition.plan.slots.length === 0
+    && proposition.plan.availability?.length === 0,
+  );
+
+  return (
+    <Carte accent data-testid="focus-creation-seance">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <Etiquette ton="primaire">Prochaine action</Etiquette>
+          <h2 className="mt-3 font-serif text-[1.55rem] font-medium leading-tight tracking-tight text-texte">
+            {exercice?.titre ?? (competence ? `Créer un exercice sur ${competence}` : "Préparer une séance")}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-texte-attenue">
+            {sansExercice
+              ? "Aucun exercice n'est encore disponible sur cette compétence. Vous le générerez et le relirez avant de démarrer."
+              : recommendation
+                ? recommendation.raison
+                : "Choisissez un sujet et un temps ; la séance sera composée avant son enregistrement."}
+          </p>
+          {manqueDisponibilite && (
+            <p className="mt-2 text-xs text-texte-discret">
+              Aucun créneau déclaré : vous pouvez commencer maintenant ou en ajouter un dans « Organiser ma semaine ».
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <Link href={hrefComposition(recommendation)} className={classesLienBouton("principal")}>
+            {sansExercice ? "Générer puis commencer" : "Préparer une séance"}
+            <IconeFleche className="size-4" />
+          </Link>
+          <Link href="/seances?composer=1&sans-theme=1" className={classesLienBouton("secondaire", "petite")}>
+            Préparer autre chose
+          </Link>
+        </div>
+      </div>
+    </Carte>
+  );
+}
+
 function Journee({ view }: { view: DashboardOrchestrationView }) {
   const [ordre, setOrdre] = useState(view.entries);
   const [modeOrdre, setModeOrdre] = useState(false);
   const entries = useMemo(() => ordre, [ordre]);
+  const peutReordonner = entries.filter((entry) => entry.sessionId).length > 1;
 
   return (
     <Carte className="overflow-hidden" id="journee">
@@ -95,21 +158,23 @@ function Journee({ view }: { view: DashboardOrchestrationView }) {
         <h2 className="font-serif text-[1.7rem] font-medium tracking-tight text-texte">Votre journée</h2>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Link href="/seances" className={classesLienBouton("secondaire", "petite")}>Voir les séances</Link>
-          <Bouton
-            variante="discret"
-            taille="normale"
-            type="button"
-            aria-pressed={modeOrdre}
-            aria-label={modeOrdre ? "Terminer le changement d'ordre" : "Changer l'ordre des interventions"}
-            onClick={() => setModeOrdre((ouvert) => !ouvert)}
-            className="min-h-11 shrink-0 gap-2 text-xs sm:text-sm"
-          >
-            <span aria-hidden className="flex items-center gap-px">
-              <IconeChevronGauche className="size-3.5 -rotate-90" />
-              <IconeChevronDroit className="size-3.5 rotate-90" />
-            </span>
-            {modeOrdre ? "Terminer" : "Changer l'ordre"}
-          </Bouton>
+          {peutReordonner && (
+            <Bouton
+              variante="discret"
+              taille="normale"
+              type="button"
+              aria-pressed={modeOrdre}
+              aria-label={modeOrdre ? "Terminer le changement d'ordre" : "Changer l'ordre des interventions"}
+              onClick={() => setModeOrdre((ouvert) => !ouvert)}
+              className="min-h-11 shrink-0 gap-2 text-xs sm:text-sm"
+            >
+              <span aria-hidden className="flex items-center gap-px">
+                <IconeChevronGauche className="size-3.5 -rotate-90" />
+                <IconeChevronDroit className="size-3.5 rotate-90" />
+              </span>
+              {modeOrdre ? "Terminer" : "Changer l'ordre"}
+            </Bouton>
+          )}
         </div>
       </div>
 
@@ -126,20 +191,24 @@ function Journee({ view }: { view: DashboardOrchestrationView }) {
             {entries.map((entry, index) => {
               const rendu = {
                 ...entry,
-                state: index === 0 ? ("current" as const) : ("next" as const),
+                state: entry.sessionId
+                  ? index === 0 ? ("current" as const) : ("next" as const)
+                  : entry.state,
               };
 
               return (
               <li key={rendu.id} className={cx("relative grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 py-4 sm:grid-cols-[5.25rem_minmax(0,1fr)] sm:gap-4 sm:py-6", index > 0 && "border-t border-bordure/60")}>
                 <div className="relative pl-5 pt-0.5 text-sm font-medium text-texte-attenue sm:pl-6">
                   <span className={cx("absolute left-[0.36rem] top-1.5 z-10 size-[0.65rem] rounded-full border-2 border-surface", rendu.state === "current" ? "bg-primaire" : "bg-surface") } aria-hidden />
-                  <span className={rendu.state === "current" ? "text-primaire" : undefined}>{rendu.timeLabel ?? "Maintenant"}</span>
+                  <span className={rendu.state === "current" ? "text-primaire" : undefined}>{rendu.timeLabel ?? (rendu.state === "available" ? "Aujourd'hui" : "À venir")}</span>
                 </div>
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Etiquette ton={rendu.state === "current" ? "primaire" : "neutre"}>{TYPE_LABELS[rendu.type]}</Etiquette>
-                    <span className="text-xs text-texte-attenue">{EFFECT_LABELS[rendu.effect]}</span>
+                    <Etiquette ton={rendu.state === "current" ? "primaire" : rendu.state === "available" ? "info" : "neutre"}>
+                      {rendu.state === "available" ? "À préparer" : TYPE_LABELS[rendu.type]}
+                    </Etiquette>
+                    {rendu.state !== "available" && <span className="text-xs text-texte-attenue">{EFFECT_LABELS[rendu.effect]}</span>}
                   </div>
                   <h3 className="mt-2 font-serif text-[1.3rem] font-medium leading-snug tracking-tight text-texte sm:text-[1.4rem]">
                     {rendu.label}
@@ -147,14 +216,20 @@ function Journee({ view }: { view: DashboardOrchestrationView }) {
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-texte-attenue">
                     {rendu.durationMinutes !== undefined && <span>{formatDuree(rendu.durationMinutes)}</span>}
                     {rendu.durationMinutes !== undefined && <span aria-hidden>·</span>}
-                    <span>{rendu.effect === "measurement" ? "Mesure" : EFFECT_LABELS[rendu.effect]}</span>
+                    <span>{rendu.state === "available" ? "Session à préparer" : rendu.effect === "measurement" ? "Mesure" : EFFECT_LABELS[rendu.effect]}</span>
                   </div>
                   <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-texte-attenue">{rendu.reason}</p>
                   {rendu.reservation && <p className="mt-1 text-xs text-texte-discret">Réserve : {rendu.reservation}</p>}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {rendu.state === "current" && (
+                    {rendu.state === "current" && rendu.sessionId && (
                       <Link href={rendu.href} className={classesLienBouton("principal")}>
                         Commencer
+                        <IconeFleche className="size-4" />
+                      </Link>
+                    )}
+                    {rendu.state === "available" && (
+                      <Link href={rendu.href} className={classesLienBouton("principal")}>
+                        Préparer une séance
                         <IconeFleche className="size-4" />
                       </Link>
                     )}
@@ -191,7 +266,7 @@ function Journee({ view }: { view: DashboardOrchestrationView }) {
 
           <div className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 border-t border-dashed border-bordure-forte py-4 text-sm sm:grid-cols-[5.25rem_minmax(0,1fr)] sm:gap-4 sm:py-6">
             <span className="text-texte-attenue">Après</span>
-            <span className="text-texte-attenue">{entries.length > 0 ? "Temps libre pour un ajustement" : "Une séance acceptée apparaîtra ici."}</span>
+            <span className="text-texte-attenue">{entries.some((entry) => entry.sessionId) ? "Temps libre pour un ajustement" : "Une séance acceptée apparaîtra ici."}</span>
           </div>
         </div>
       </div>
@@ -242,8 +317,10 @@ function PreuveRecente({ proof }: { proof: DashboardDeadline["proofs"][number] }
 }
 
 function EcheanceDetaillee({ deadline }: { deadline: DashboardDeadline }) {
+  const aDesPreuves = deadline.proofs.length > 0;
+  const aDesNotionsAEclaircir = deadline.unknowns.length > 0;
   return (
-    <Carte className="h-full" data-testid="echeance-detaillee">
+    <Carte data-testid="echeance-detaillee">
       <div className="p-5 sm:p-6">
         <div className="flex items-start gap-4">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent" aria-hidden>
@@ -268,27 +345,29 @@ function EcheanceDetaillee({ deadline }: { deadline: DashboardDeadline }) {
           </p>
         </div>
 
-        <div className="mt-7 border-t border-bordure/60 pt-5">
-          <h3 className="font-serif text-base font-medium text-texte">Vos preuves récentes</h3>
-          {deadline.proofs.length > 0 ? (
+        {aDesPreuves && (
+          <div className="mt-7 border-t border-bordure/60 pt-5">
+            <h3 className="font-serif text-base font-medium text-texte">Vos preuves récentes</h3>
             <ul className="mt-2 divide-y divide-bordure/60">
               {deadline.proofs.map((proof) => <PreuveRecente key={proof.id} proof={proof} />)}
             </ul>
-          ) : (
-            <p className="mt-2 text-sm text-texte-attenue">Aucune preuve récente : préparation non estimable.</p>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="mt-5 border-t border-bordure/60 pt-5">
-          <h3 className="font-serif text-base font-medium text-texte">À éclaircir</h3>
-          {deadline.unknowns.length > 0 ? (
+        {aDesNotionsAEclaircir && (
+          <div className="mt-5 border-t border-bordure/60 pt-5">
+            <h3 className="font-serif text-base font-medium text-texte">À éclaircir</h3>
             <ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-texte marker:text-accent">
               {deadline.unknowns.map((unknown) => <li key={unknown}>{unknown}</li>)}
             </ul>
-          ) : (
-            <p className="mt-2 text-sm text-texte-attenue">Aucune notion à éclaircir dans les preuves disponibles.</p>
-          )}
-        </div>
+          </div>
+        )}
+
+        {!aDesPreuves && !aDesNotionsAEclaircir && (
+          <p className="mt-6 border-t border-bordure/60 pt-5 text-sm text-texte-attenue">
+            Les preuves disponibles ne permettent pas encore d&apos;affiner cette échéance.
+          </p>
+        )}
       </div>
     </Carte>
   );
@@ -324,6 +403,7 @@ export function TableauBordOrchestration({
   competences = [],
   modules = [],
   proposition,
+  recommendation,
   revision,
 }: {
   view: DashboardOrchestrationView;
@@ -331,51 +411,54 @@ export function TableauBordOrchestration({
   modules?: { id: string; nom: string }[];
   /** Proposition éphémère ; seules les séances choisies franchissent la frontière d'écriture. */
   proposition?: PropositionPlanDashboard;
+  /** Priorité dérivée utilisée pour guider la création ; elle ne devient pas une séance. */
+  recommendation?: Recommandation;
   /** Optionnel : le parent applicatif fournit le diff et la frontière d'écriture. */
-  revision?: Pick<RevuePlanProps, "diff" | "onAppliquer" | "onModifier" | "onGarder">;
+  revision?: {
+    diff: PlanDiff;
+    /** Compatibilité de rendu pour les appelants historiques ; l'action réelle est locale au composant. */
+    onAppliquer?: () => void | Promise<void>;
+    onModifier?: () => void;
+    onGarder?: () => void;
+  };
 }) {
   const [revisionOuverte, setRevisionOuverte] = useState(false);
+  const requestId = useRef<string | null>(null);
 
   const fermerRevision = () => setRevisionOuverte(false);
   const garderRevision = () => {
-    revision?.onGarder();
     fermerRevision();
   };
   const modifierRevision = () => {
-    revision?.onModifier();
     fermerRevision();
   };
   const appliquerRevision = async () => {
     if (!revision) return;
-    await revision.onAppliquer();
+    if (revision.onAppliquer) {
+      await revision.onAppliquer();
+      fermerRevision();
+      return;
+    }
+    requestId.current ??= crypto.randomUUID();
+    await appliquerDiffPlan(revision.diff, requestId.current);
+    requestId.current = null;
     fermerRevision();
   };
 
   return (
     <div className="space-y-5 sm:space-y-6" data-testid="tableau-bord-orchestration">
-      {proposition && <CartePropositionPlan key={proposition.propositionRef} proposition={proposition} />}
-      {revision && (
-        <div className="flex justify-end">
-          <Bouton
-            variante="secondaire"
-            taille="normale"
-            onClick={() => setRevisionOuverte(true)}
-            aria-haspopup="dialog"
-            aria-expanded={revisionOuverte}
-          >
-            Revoir les changements
-          </Bouton>
-        </div>
+      {!view.entries.some((entry) => entry.sessionId) && (!proposition || proposition.plan.slots.length === 0) && (
+        <FocusDuJour recommendation={recommendation} proposition={proposition} />
       )}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-7 xl:grid-cols-12 xl:gap-6">
         <div className="space-y-5 xl:col-span-7">
           <Journee view={view} />
-          <SuiteSemaine view={view} />
+          {view.weekEntries.length > 0 && <SuiteSemaine view={view} />}
         </div>
         <div className="xl:col-span-5">
           {view.deadline ? <EcheanceDetaillee deadline={view.deadline} /> : (
-            <Carte className="h-full" data-testid="echeance-absente">
-              <div className="flex h-full flex-col justify-center p-5 sm:p-6">
+            <Carte data-testid="echeance-absente">
+              <div className="p-5 sm:p-6">
                 <h2 className="font-serif text-xl font-medium text-texte">Aucune échéance déclarée</h2>
                 <p className="mt-2 text-sm leading-relaxed text-texte-attenue">Déclarez une échéance pour voir ici les preuves récentes et les notions à éclaircir.</p>
                 <div className="mt-5 self-start">
@@ -391,10 +474,26 @@ export function TableauBordOrchestration({
           )}
         </div>
       </div>
-      <BandeauJours view={view} />
+      {proposition && proposition.plan.slots.length > 0 && (
+        <CartePropositionPlan key={proposition.propositionRef} proposition={proposition} />
+      )}
+      {revision && (
+        <div className="flex justify-end">
+          <Bouton
+            variante="secondaire"
+            taille="normale"
+            onClick={() => setRevisionOuverte(true)}
+            aria-haspopup="dialog"
+            aria-expanded={revisionOuverte}
+          >
+            Revoir les changements
+          </Bouton>
+        </div>
+      )}
+      {view.acceptedWeekCount > 0 && <BandeauJours view={view} />}
       {revision && (
         <ModaleRevuePlan
-          {...revision}
+          diff={revision.diff}
           ouverte={revisionOuverte}
           onFermer={fermerRevision}
           onAppliquer={appliquerRevision}

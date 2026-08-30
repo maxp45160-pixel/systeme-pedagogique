@@ -42,9 +42,13 @@ import {
 } from "@/lib/documents/reperes-corpus";
 import { extraireTexteSupportAction } from "@/lib/store/extraction-pdf";
 import { sauvegarderDocumentAction } from "@/lib/store/document-actions";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
-import { ProtocoleCoursPanel, ModaleProtocole } from "@/components/atelier/protocole-cours";
+import {
+  ProtocoleCoursPanel,
+  ModaleProtocole,
+  type ContexteCours,
+} from "@/components/atelier/protocole-cours";
 import type { TraceProtocole } from "@/lib/store/protocole-actions";
 
 export interface WorkspaceDocumentProps {
@@ -73,6 +77,8 @@ export interface WorkspaceDocumentProps {
    * dérivées côté serveur. Absente hors fiche de cours.
    */
   traceProtocole?: TraceProtocole;
+  /** Contexte dérivé du cours : documents liés, échéances et séances acceptées. */
+  contexteCours?: ContexteCours;
 }
 
 const LIBELLE_VISEE: Record<string, string> = {
@@ -258,6 +264,7 @@ export function WorkspaceDocument({
   compteId,
   lectureAutomatique = false,
   traceProtocole,
+  contexteCours,
 }: WorkspaceDocumentProps) {
   const [contenu, setContenu] = useState(contenuInitial);
   const [updatedAt, setUpdatedAt] = useState(updatedAtInitial);
@@ -315,7 +322,7 @@ export function WorkspaceDocument({
   const jalonsCoches = ficheProjet?.jalons.filter((_, index) => faitsProjet.has(index + 1)).length ?? 0;
 
   // --- Données spécifiques Note Opérationnelle & Séance ---
-  const domaineDeclare = analyse.frontMatter.domaine;
+  const domaineDeclare = analyse.frontMatter.domaine ?? analyse.frontMatter.domain;
   const domaineInitial =
     typeof domaineDeclare === "string" && domaineDeclare !== "transversal"
       ? domaineDeclare
@@ -666,6 +673,8 @@ export function WorkspaceDocument({
                 compteId={compteId}
                 trace={traceProtocole}
                 sourceAttachmentId={sourceAttachmentId}
+                titreCours={titre}
+                contexteCours={contexteCours}
               />
             )}
 
@@ -710,6 +719,9 @@ export function WorkspaceDocument({
                       className="mt-2 min-h-[28rem] w-full resize-y rounded-lg border border-bordure-controle bg-surface px-4 py-3 text-sm leading-relaxed outline-none focus:border-primaire"
                       placeholder="Écrivez ici ce que vous comprenez, les points importants et votre cas d’application…"
                     />
+                    <div className="mt-2">
+                      <ApercuFormulesTexte valeur={valeurs[sections[0]] ?? ""} />
+                    </div>
                   </label>
                 </section>
               )}

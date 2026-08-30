@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Bouton,
@@ -18,8 +19,10 @@ import {
 import { ActionPreparerSeance } from "@/components/seances/action-preparer-seance";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { annulerSeance, demarrerSeance } from "@/lib/store/seance-actions";
+import { deplacerSeance } from "@/lib/store/plan-actions";
 import { attendPreparationSeance, preparationInstantaneeSeance } from "@/lib/domain/seance";
 import { formatDuree } from "@/lib/engine/dates";
+import type { DisponibiliteDeclaree } from "@/lib/domain/types";
 import type { EntreesCahier } from "@/components/seances/bureau";
 import {
   construireVueSeancesAVenir,
@@ -55,8 +58,80 @@ function Effet({ row }: { row: SeanceAVenir }) {
   return row.effetAttendu ? EFFECT_LABELS[row.effetAttendu] : "Effet à préciser";
 }
 
-function ActionDeplacement({ row }: { row: SeanceAVenir }) {
+function libelleCreneau(debut: string, fin: string): string {
+  const debutDate = new Date(debut);
+  const finDate = new Date(fin);
+  if (!Number.isFinite(debutDate.getTime()) || !Number.isFinite(finDate.getTime())) return "Créneau à préciser";
+  return `${debutDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}, ${debutDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} à ${finDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function traduireErreurDeplacement(cause: unknown): string {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  if (/conflit|40001/i.test(message)) return "Ce créneau est déjà occupé. Choisissez-en un autre.";
+  if (/disponibil|hors des|créneau/i.test(message)) return "Ce créneau ne correspond plus à vos disponibilités déclarées.";
+  if (/plus planifiée|a changé|obsolète/i.test(message)) return "La séance a changé depuis son affichage. Actualisez la page puis réessayez.";
+  return "Le déplacement n'a pas pu être enregistré. Votre séance n'a pas été modifiée ; réessayez.";
+}
+
+function ActionDeplacement({
+  row,
+  disponibilites,
+}: {
+  row: SeanceAVenir;
+  disponibilites: readonly DisponibiliteDeclaree[];
+}) {
+  const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
+  const [enCours, demarrer] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const requestId = useRef<string | null>(null);
+  const commandeLancee = useRef(false);
+  const options = useMemo(() => {
+    if (row.dureeMinutes === undefined) return [];
+    const duree = row.dureeMinutes * 60_000;
+    return disponibilites
+      .filter((creneau) => {
+        const debut = Date.parse(creneau.startsAt);
+        const fin = Date.parse(creneau.endsAt);
+        return Number.isFinite(debut) && Number.isFinite(fin) && fin - debut >= duree;
+      })
+      .map((creneau) => ({
+        value: new Date(creneau.startsAt).toISOString(),
+        label: libelleCreneau(creneau.startsAt, creneau.endsAt),
+      }));
+  }, [disponibilites, row.dureeMinutes]);
+  const [selection, setSelection] = useState("");
+
+  const selectionEffective = options.some((option) => option.value === selection)
+    ? selection
+    : options[0]?.value ?? "";
+
+  if (row.statut !== "planifiee") return null;
+
+  function deplacer() {
+    if (commandeLancee.current || enCours || !row.plannedFor || !selectionEffective) return;
+    if (selectionEffective === row.plannedFor) {
+      setErreur("Choisissez un créneau différent de celui qui est déjà prévu.");
+      return;
+    }
+    setErreur(null);
+    setConfirmation(null);
+    requestId.current ??= crypto.randomUUID();
+    commandeLancee.current = true;
+    demarrer(async () => {
+      try {
+        await deplacerSeance(row.sessionId, row.plannedFor!, selectionEffective, requestId.current!);
+        setConfirmation(`Séance déplacée au ${libelleCreneau(selectionEffective, new Date(Date.parse(selectionEffective) + (row.dureeMinutes ?? 0) * 60_000).toISOString())}.`);
+        requestId.current = null;
+        router.refresh();
+      } catch (cause) {
+        setErreur(traduireErreurDeplacement(cause));
+      } finally {
+        commandeLancee.current = false;
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col items-start gap-1">
@@ -72,24 +147,56 @@ function ActionDeplacement({ row }: { row: SeanceAVenir }) {
         Déplacer
       </Bouton>
       {ouvert && (
-        <p
+        <div
           id={`deplacement-${row.sessionId}`}
-          role="status"
-          className="max-w-xs text-[0.6875rem] leading-relaxed text-texte-discret"
+          className="w-full max-w-sm rounded-md border border-bordure bg-surface-2/50 p-3"
         >
-          Le moteur proposera les conséquences d’un nouveau créneau. Aucune
-          séance acceptée n’est modifiée sans cette proposition et votre choix.
-        </p>
+          <label htmlFor={`nouveau-creneau-${row.sessionId}`} className="text-xs font-medium text-texte">
+            Nouveau créneau
+          </label>
+          {options.length > 0 ? (
+            <select
+              id={`nouveau-creneau-${row.sessionId}`}
+              value={selectionEffective}
+              onChange={(event) => setSelection(event.target.value)}
+              disabled={enCours}
+              className="mt-2 min-h-11 w-full rounded-md border border-bordure-forte bg-surface px-3 text-sm text-texte focus-visible:outline-none"
+            >
+              {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          ) : (
+            <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+              Aucun créneau déclaré ne peut contenir cette séance. Ajoutez ou modifiez une disponibilité depuis le tableau de bord.
+            </p>
+          )}
+          <p className="mt-2 text-xs leading-relaxed text-texte-discret">
+            La séance garde son contenu et son origine. Seule sa date est modifiée, sans observation ni pénalité.
+          </p>
+          <Bouton
+            variante="secondaire"
+            taille="petite"
+            type="button"
+            className="mt-2 min-h-11"
+            disabled={!selectionEffective || enCours}
+            enChargement={enCours}
+            onClick={deplacer}
+          >
+            Confirmer le déplacement
+          </Bouton>
+          {confirmation && <p role="status" className="mt-2 text-xs text-primaire">{confirmation}</p>}
+          {erreur && <p role="alert" className="mt-2 text-xs text-alerte">{erreur}</p>}
+        </div>
       )}
     </div>
   );
 }
 
-function LigneSeance({ row, session, compteId, nomsDomaines }: {
+function LigneSeance({ row, session, compteId, nomsDomaines, disponibilites }: {
   row: SeanceAVenir;
   session: EntreesCahier["seances"][number];
   compteId: string;
   nomsDomaines: ReadonlyMap<string, string>;
+  disponibilites: readonly DisponibiliteDeclaree[];
 }) {
   const duree = row.dureeMinutes === undefined ? null : formatDuree(row.dureeMinutes);
   const principale = row.intervention ? TYPE_LABELS[row.intervention] : "Intervention à préciser";
@@ -174,7 +281,7 @@ function LigneSeance({ row, session, compteId, nomsDomaines }: {
               className="min-h-11"
             />
           )}
-          <ActionDeplacement row={row} />
+          <ActionDeplacement row={row} disponibilites={disponibilites} />
           <Link
             href={row.href}
             className="inline-flex min-h-11 items-center gap-1 px-2 text-xs text-texte-discret transition-colors hover:text-texte"
@@ -258,6 +365,7 @@ export function SeancesAVenir({
                       session={session}
                       compteId={compteId}
                       nomsDomaines={nomsDomaines}
+                      disponibilites={entrees.disponibilitesDeclarees ?? []}
                     />
                   ) : null;
                 })}

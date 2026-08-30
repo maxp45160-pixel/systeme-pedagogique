@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTERVENTION_TYPES } from "./intervention-seance";
+import { INTERVENTION_TYPES, interventionPeutProduireObservation } from "./intervention-seance";
 import {
   REGISTRE_RENDUS_INTERVENTIONS,
   consigneDeterministeIntervention,
@@ -33,6 +33,29 @@ describe("registre des rendus d'interventions", () => {
       source: { kind: "declared-need", ref: "need-1" },
       expectedEffect: "support",
     })).toMatch(/aucune nouvelle mesure/);
+  });
+
+  it("ne rend une intervention probante que si un contrat explicite est présent", () => {
+    const production = {
+      id: "i-produce",
+      type: "produce" as const,
+      label: "Produire une solution",
+      source: { kind: "document" as const, ref: "doc-1" },
+      expectedEffect: "measurement" as const,
+    };
+    expect(interventionPeutProduireObservation(production, "completed")).toBe(false);
+    expect(messageFinIntervention(production)).toContain("contrat de preuve");
+
+    const contrattee = {
+      ...production,
+      proofContract: {
+        skillCodes: ["DEV-01"],
+        protocolRef: "protocole-1",
+        requiredArtifact: "production-relue",
+      },
+    };
+    expect(interventionPeutProduireObservation(contrattee, "completed")).toBe(true);
+    expect(messageFinIntervention(contrattee)).toContain("validation du contrat");
   });
 
   it("réutilise les consignes Feynman et rappel déterministes quand les faits sont complets", () => {

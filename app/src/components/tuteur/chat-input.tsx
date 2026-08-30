@@ -21,8 +21,10 @@
  */
 
 import { memo, useEffect, useRef, useState } from "react";
+import { EditeurDirect } from "@/components/atelier/editeur-document";
 import { Bouton } from "@/components/ui/primitives";
-import { PaletteFormulesTexte, ApercuFormulesTexte } from "@/components/ui/palette-formules";
+import { PaletteFormules } from "@/components/ui/palette-formules";
+import { insererFormuleDansEditeur } from "@/lib/documents/insertion-formule-editeur";
 
 export const ChatInput = memo(function ChatInput({
   onEnvoyer,
@@ -47,7 +49,7 @@ export const ChatInput = memo(function ChatInput({
 }) {
   const [saisie, setSaisie] = useState(saisieInitiale);
   const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
-  const champRef = useRef<HTMLTextAreaElement>(null);
+  const champRef = useRef<HTMLDivElement>(null);
 
   if (saisieInitiale !== saisieInitialePrecedente) {
     setSaisieInitialePrecedente(saisieInitiale);
@@ -67,10 +69,8 @@ export const ChatInput = memo(function ChatInput({
         là, sinon il faut taper le LaTeX de mémoire.
       */}
       <div className="mb-2 flex justify-end">
-        <PaletteFormulesTexte
-          champ={champRef}
-          valeur={saisie}
-          onChange={setSaisie}
+        <PaletteFormules
+          onInserer={(latex, recul) => insererFormuleDansEditeur(champRef.current, latex, recul)}
           desactivee={enCours}
         />
       </div>
@@ -81,12 +81,14 @@ export const ChatInput = memo(function ChatInput({
         `Modale` focalise le premier élément focalisable du panneau : ici la
         palette. L'attribut désigne le champ ; hors modale il est inerte.
       */}
-      <textarea
+      <EditeurDirect
         ref={champRef}
-        data-focus-initial
-        value={saisie}
-        onChange={(e) => setSaisie(e.target.value)}
-        onKeyDown={(e) => {
+        documentId="tuteur-chat"
+        contenuInitialMd={saisie}
+        contenuCharge
+        lectureSeule={enCours}
+        onSynchroniser={setSaisie}
+        onRaccourci={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
             /*
@@ -109,15 +111,13 @@ export const ChatInput = memo(function ChatInput({
             }
           }
         }}
-        rows={3}
+        ariaLabel="Message à envoyer au tuteur"
         placeholder="Posez votre question, collez votre raisonnement, demandez un exercice…"
-        className="w-full resize-y rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
+        focusInitial
+        hauteurPleine={false}
+        recomposerFormulesSurSaisie
+        className="min-h-24 max-h-60 resize-y overflow-y-auto rounded-md border border-bordure-controle bg-surface px-3 py-2 text-sm placeholder:text-texte-discret"
       />
-
-      {/* Aperçu immédiat des formules tapées (25/08/2026) — absent sans formule. */}
-      <div className="mt-2">
-        <ApercuFormulesTexte valeur={saisie} />
-      </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[0.625rem] text-texte-discret">

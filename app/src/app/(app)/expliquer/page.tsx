@@ -6,11 +6,13 @@ import { chargerContexte } from "@/lib/store/context";
 import { SqueletteContenu } from "@/components/layout/squelette";
 import { PageExplication } from "@/components/explication/page-explication";
 import { Carte, EtatVide, classesLienBouton } from "@/components/ui/primitives";
+import { lireInterventionsSeance } from "@/lib/domain/legacy-session-intervention-adapter";
+import { statutSeance } from "@/lib/domain/seance";
 
 export const metadata: Metadata = { title: "Explication guidée" };
 
 export default async function PageExpliquer(props: {
-  searchParams: Promise<{ code?: string }>;
+  searchParams: Promise<{ code?: string; session?: string; intervention?: string; retour?: string }>;
 }) {
   const params = await props.searchParams;
   const code = (params.code ?? "").trim();
@@ -21,12 +23,34 @@ export default async function PageExpliquer(props: {
 
   return (
     <Suspense fallback={<SqueletteContenu />}>
-      <ContenuExpliquer code={code} />
+      <ContenuExpliquer
+        code={code}
+        sessionId={params.session?.trim() || undefined}
+        interventionId={params.intervention?.trim() || undefined}
+        retour={params.retour}
+      />
     </Suspense>
   );
 }
 
-async function ContenuExpliquer({ code }: { code: string }) {
+function retourInterventionValide(retour: string | undefined, sessionId: string): string {
+  if (typeof retour === "string" && retour.startsWith("/seances?") && !retour.startsWith("//")) {
+    return retour;
+  }
+  return `/seances?session=${encodeURIComponent(sessionId)}`;
+}
+
+async function ContenuExpliquer({
+  code,
+  sessionId,
+  interventionId,
+  retour,
+}: {
+  code: string;
+  sessionId?: string;
+  interventionId?: string;
+  retour?: string;
+}) {
   const ctx = await chargerContexte();
   const skill = ctx.referentiel.parCode.get(code);
 
@@ -52,6 +76,43 @@ async function ContenuExpliquer({ code }: { code: string }) {
   }
 
   const domaine = ctx.referentiel.domainesParId.get(skill.domaine);
+  const modeSeanceDemande = Boolean(sessionId || interventionId);
+  if (modeSeanceDemande) {
+    const seance = sessionId ? ctx.donnees.sessions.find((candidate) => candidate.id === sessionId) : undefined;
+    const intervention = seance && interventionId
+      ? lireInterventionsSeance(seance).interventions.find((candidate) => candidate.id === interventionId)
+      : undefined;
+    if (!seance || statutSeance(seance) !== "en-cours" || !intervention || intervention.type !== "explain") {
+      return (
+        <Carte>
+          <EtatVide
+            titre="Cette intervention n'est plus disponible"
+            message="La séance ou son intervention a changé. Rien n'a été enregistré ; retournez à la séance pour reprendre le parcours courant."
+            action={
+              <Link
+                href={retourInterventionValide(retour, sessionId ?? "")}
+                className={classesLienBouton("principal")}
+              >
+                Retour à la séance
+              </Link>
+            }
+          />
+        </Carte>
+      );
+    }
+    return (
+      <PageExplication
+        skill={skill}
+        domaine={domaine}
+        compteId={ctx.donnees.user.id}
+        modeIntervention={{
+          sessionId: seance.id,
+          interventionId: intervention.id,
+          retourHref: retourInterventionValide(retour, seance.id),
+        }}
+      />
+    );
+  }
 
   return (
     <PageExplication

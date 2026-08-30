@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
+import { RappelIntervention } from "@/components/seances/rappel-intervention";
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import {
   Carte,
@@ -48,6 +49,9 @@ export interface RenduInterventionProps {
   competencesModale: Parameters<typeof TiroirTuteur>[0]["competencesModale"];
   calibragesModale: Parameters<typeof TiroirTuteur>[0]["calibragesModale"];
   etatInitialTuteur?: EtatContexteTuteur;
+  /** Source ouvrable après un geste explicite, avec retour à cette séance. */
+  sourceHref?: string;
+  sourceLabel?: string;
 }
 
 function MetaIntervention({ execution }: { execution: ExecutionIntervention }) {
@@ -74,13 +78,21 @@ function CarteGestuelle({
   domainesExistants,
   competencesModale,
   calibragesModale,
-}: Pick<RenduInterventionProps, "execution" | "seanceId" | "compteId" | "codesCompetences" | "domainesExistants" | "competencesModale" | "calibragesModale">) {
+  sourceHref,
+  sourceLabel,
+}: Pick<RenduInterventionProps, "execution" | "seanceId" | "compteId" | "codesCompetences" | "domainesExistants" | "competencesModale" | "calibragesModale" | "sourceHref" | "sourceLabel">) {
   const { intervention } = execution;
   const code = intervention.targetSkillCodes?.[0];
-  const documentHref = intervention.source.kind === "document"
-    ? `/atelier?document=${encodeURIComponent(intervention.source.ref)}`
-    : undefined;
   const terminer = execution.statut === "a-faire" || execution.statut === "en-cours";
+  const retour = `/seances?session=${encodeURIComponent(seanceId)}&intervention=${encodeURIComponent(intervention.id)}`;
+  const feynmanHref = code
+    ? `/expliquer?${new URLSearchParams({
+      code,
+      session: seanceId,
+      intervention: intervention.id,
+      retour,
+    }).toString()}`
+    : undefined;
 
   return (
     <Carte accent>
@@ -98,8 +110,8 @@ function CarteGestuelle({
               Le prompt Feynman reste déterministe et aucun document n&apos;est envoyé automatiquement.
             </p>
             <div className="flex flex-wrap gap-2">
-              {code && (
-                <Link href={`/expliquer?code=${encodeURIComponent(code)}`} className={classesLienBouton("secondaire", "petite")}>
+              {feynmanHref && (
+                <Link href={feynmanHref} className={classesLienBouton("secondaire", "petite")}>
                   Ouvrir l&apos;espace Feynman
                 </Link>
               )}
@@ -113,20 +125,15 @@ function CarteGestuelle({
                 {consigneDeterministeIntervention(intervention)}
               </p>
             )}
-            <p>La restitution se fait d&apos;abord de mémoire, puis se vérifie contre la source réelle désignée par la séance.</p>
-            {documentHref && (
-              <Link href={documentHref} className={classesLienBouton("secondaire", "petite")}>
-                Ouvrir la source du rappel
-              </Link>
-            )}
+            <RappelIntervention sourceHref={sourceHref} sourceLabel={sourceLabel ?? "la source du rappel"} />
           </div>
         )}
         {execution.rendu.kind === "document" && (
           <div className="space-y-3 text-sm">
             <p>Ouvrez le document explicitement ; il n&apos;atteint le tuteur qu&apos;après ce geste et une relecture avant envoi.</p>
-            {documentHref && (
-              <Link href={documentHref} className={classesLienBouton("secondaire", "petite")}>
-                Ouvrir le document
+            {sourceHref && (
+              <Link href={sourceHref} className={classesLienBouton("secondaire", "petite")}>
+                Ouvrir {sourceLabel ?? "le document source"}
               </Link>
             )}
           </div>
@@ -134,9 +141,9 @@ function CarteGestuelle({
         {execution.rendu.kind === "writing" && (
           <div className="space-y-3 text-sm">
             <p>Rédigez dans l&apos;espace documentaire existant, puis revenez ici pour déclarer le geste terminé.</p>
-            {documentHref && (
-              <Link href={documentHref} className={classesLienBouton("secondaire", "petite")}>
-                Ouvrir l&apos;espace d&apos;écriture
+            {sourceHref && (
+              <Link href={sourceHref} className={classesLienBouton("secondaire", "petite")}>
+                Ouvrir {sourceLabel ?? "l&apos;espace d&apos;écriture"}
               </Link>
             )}
           </div>
@@ -151,6 +158,7 @@ function CarteGestuelle({
               competencesModale={competencesModale}
               calibragesModale={calibragesModale}
               competenceCiblee={code}
+              amorce={`J'ai besoin d'aide pour : ${intervention.label}.`}
               libelle="Ouvrir le tuteur"
             />
           </div>

@@ -17,7 +17,7 @@ import { televerserFichier } from "@/lib/documents/televersement-fichier";
 import { titreDepuisNomFichier } from "@/lib/documents/titre-depuis-fichier";
 import type { IntentionCours } from "@/lib/domain/protocole-cours";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
@@ -489,6 +489,9 @@ function ModaleDepotCours({
             placeholder="Ex. : j'ai un examen dans deux semaines et je dois surtout retenir les définitions"
             className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
           />
+          <div className="mt-2">
+            <ApercuFormulesTexte valeur={intentionLibre} />
+          </div>
           <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
             <span>Une intention libre, ou choisissez une orientation ci-dessous</span>
             <span>Entrée pour déposer · Maj+Entrée nouvelle ligne</span>
@@ -655,6 +658,9 @@ function ModaleCreationDocument({
             className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
             placeholder="Pourquoi voulez-vous garder cette fiche ?"
           />
+          <div className="mt-2">
+            <ApercuFormulesTexte valeur={contexte} />
+          </div>
         </label>
 
         {sectionsDocument.map((section) => (
@@ -789,6 +795,9 @@ function SectionCreation({
         className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
         placeholder={`Contenu de la section « ${section} » (facultatif ici)`}
       />
+      <div className="mt-2">
+        <ApercuFormulesTexte valeur={valeur} />
+      </div>
     </label>
   );
 }

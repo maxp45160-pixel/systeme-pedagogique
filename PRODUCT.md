@@ -1,14 +1,20 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.2 — 29/08/2026.** La vision d'orchestration pédagogique est
+**Version 4.4 — 29/08/2026.** La vision d'orchestration pédagogique est
 validée (ADR-139) et sa première tranche d'interface est branchée : le tableau
-de bord calcule une proposition éphémère depuis le contexte déclaré et les
-recommandations, puis prépare une commande qui ne porte que sur les séances
-acceptées. La matérialisation distante reste à vérifier. La boucle
+de bord calcule une proposition éphémère depuis les recommandations, échéances,
+besoins déclarés, disponibilités et séances déjà connues, puis prépare une
+commande qui ne porte que sur les séances acceptées. Les candidats de protocole
+de cours sont composés par le même adaptateur lorsqu'un protocole relu est
+disponible ; ils ne sont pas stockés. La boucle
 complète `contexte réel → plan → travail → observations → estimation →
-replanification` reste à valider en conditions réelles. Le plan est une
-hypothèse dérivée ; seules les séances acceptées deviennent des
-`LearningSession`. Cette version remplace les refus
+replanification` reste à valider en conditions réelles. L'acceptation distante
+est prouvée pour les séances ordinaires ; la conservation de l'origine d'un
+candidat de cours dans cette même RPC est désormais déployée et vérifiée dans
+la définition distante via la migration additive
+`20260829190000_plan_acceptation_origine_cours.sql` (version Supabase
+`20260829174131`). Le plan est une hypothèse
+dérivée ; seules les séances acceptées deviennent des `LearningSession`. Cette version remplace les refus
 de calendrier et de plan jour-par-jour d'ADR-096 et ADR-109 sans réintroduire
 d'objectif structuré ni d'état dérivé persistant.
 
@@ -536,11 +542,12 @@ qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
 interventions d'ADR-139, au diff de revue groupée et à la chronologie À venir est
-outillée côté domaine, engine, acceptation et `/seances` ; les objets Supabase additifs sont présents, mais les
-versions de migration ne figurent pas dans l'historique distant et doivent être
-réconciliées sans rejeu. La colonne de durée planifiée et la RPC de
-raccourcissement sont visibles dans l'état réel, mais leur entrée de migration
-`20260828150000` n'est pas enregistrée. Plusieurs activités durables et séances
+outillée côté domaine, engine, acceptation et `/seances` ; les objets Supabase
+additifs sont présents, tandis que les migrations historiques des lots 1, 3 et
+5 restent absentes de l'historique distant et ne sont pas rejouées. La colonne
+de durée planifiée, la RPC de raccourcissement et la conservation du blueprint
+de cours sont visibles dans l'état réel ; la dernière est enregistrée sous
+`20260829174131`. Plusieurs activités durables et séances
 peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séance
 en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
@@ -645,6 +652,20 @@ usage déclaré, sans recopier compétences, échéances, séances ou scores.
 Une fiche de domaine permet aussi de préciser ou corriger ce cadre après
 création ; les domaines historiques restent « à préciser » tant que personne
 ne pose ce geste.
+
+Dans « À classer », Mes cours peut proposer le domaine qui a créé une
+compétence comme point de départ stable. Cette proposition reste une lecture
+du référentiel : elle n'écrit aucun tag à l'ouverture. La personne peut
+sélectionner plusieurs compétences, confirmer les destinations ensemble, puis
+annuler immédiatement cette confirmation ; un domaine archivé ou introuvable
+ne produit aucune proposition automatique. Ce geste ne passe ni par le tuteur
+ni par une nouvelle entité.
+
+Une fiche de cours rassemble également les documents support du même domaine
+ou portant une compétence commune, les échéances dérivées de son module et les
+séances déjà acceptées qui en portent l'origine. Depuis ce même panneau, le
+besoin déclaré et l'échéance réutilisent leurs entrées existantes ; consulter
+ces repères ne modifie pas les données et ne déclenche pas le tuteur.
 
 ### Ouvert
 
@@ -847,7 +868,13 @@ ni échéance recopiée, ni plan, ni préparation. Sans preuve, la préparation 
 mesure.
 
 La proposition du tableau de bord reste dérivée et porte une référence opaque
-et stable pour les mêmes entrées matérielles. La personne peut sélectionner
+et stable pour les mêmes entrées matérielles. Elle réunit les recommandations
+historiques, les besoins déclarés, les échéances ouvertes et, lorsqu'il est
+fourni par le parcours de cours, les candidates du protocole. Les codes passent
+par le référentiel actif à la frontière d'adaptation. Une séance active ou un
+diagnostic déjà terminé dans le parcours est écarté ; les candidates
+équivalentes sont fusionnées par codes, intervention et durée, en conservant
+la provenance de priorité et les raisons réunies. La personne peut sélectionner
 une partie, tout sélectionner, tout désélectionner ou ignorer toute la
 proposition. Ignorer écrit seulement ce fait dans `refus_recommandations` ;
 aucune `LearningSession`, observation, dette ou pénalité n'en découle. Une
@@ -856,13 +883,39 @@ disponibles ou séances acceptées n'ont pas changé. Les états sans séance
 expliquent la cause en langage courant ; les identifiants et détails techniques
 restent dans les journaux.
 
-Le raccordement reste partiel : la première intégration fournit les
-disponibilités déclarées au planificateur et accepte les candidates historiques
-du tableau de bord, mais ne branche pas encore les candidats de cours ni la
-revue d'un recalcul qui toucherait des séances déjà acceptées. La
-matérialisation directe historique du protocole reste donc en place jusqu'à
-cette parité ; elle ne doit être retirée que dans le même changement que sa
-relève globale testée. Le statut d'ADR-139 reste ❓.
+L'arbitrage est déterministe et ne modifie aucun seuil de calibration : les
+séances actives sont exclues, les codes inactifs sont mis en réserve, puis une
+seule candidate est conservée par besoin équivalent. À égalité, la provenance
+de cours précède le besoin déclaré, les activités durables, puis l'exercice
+historique ; l'échéance et l'ordre temporel restent ensuite ceux du
+planificateur existant. Seules les séances acceptées sont matérialisées. Pour
+une candidate de cours acceptée par le plan global, la commande locale porte
+également le blueprint documentaire ; la migration
+`20260829190000_plan_acceptation_origine_cours.sql` est appliquée à distance
+sous `20260829174131` et sa définition est vérifiée. Le chemin direct historique du protocole reste donc
+en place jusqu'à la preuve de parité globale ; il ne doit pas être retiré avant.
+Le statut d'ADR-139 reste ❓.
+
+La revue d'un plan accepte maintenant les déclencheurs déjà portés par les
+faits relus : modification d'une échéance ou d'une disponibilité, séance
+annulée, déplacée, manquée ou abandonnée, et nouvelle observation recevable.
+`calculerDiffPlan` reste pur : il distingue ce qui reste, se déplace, ne figure
+plus ou apparaît, sans persister le nouveau plan. L'action « Déplacer » relit
+le créneau et la séance au moment du clic, conserve l'identité et l'origine de
+la `LearningSession`, puis transmet un ajustement atomique à la RPC existante.
+Un conflit ou une donnée devenue obsolète bloque l'écriture entière ; aucun de
+ces gestes ne crée de compétence, d'observation, de dette ou de pénalité.
+
+Les huit interventions (`resoudre`, `expliquer`, `rappeler`, `lire`,
+`synthetiser`, `produire`, `diagnostiquer`, `demander-aide`) restent des gestes
+de la même `LearningSession`. Leurs entrées, interfaces, sorties, provenances
+et contrats de preuve sont décrits dans la
+[matrice des interventions](docs/architecture/INTERVENTIONS_LEARNING_SESSION.md).
+Les parcours exercice réutilisent `VueExercice` ; Feynman revient à la séance
+au lieu d'en créer une seconde ; rappel, lecture, synthèse et production
+restent respectivement dans leur carte, l'Atelier ou le tuteur existant. Une
+intervention de préparation ou de soutien terminée sans contrat reste une
+séance terminée sans observation.
 
 ### Lot 9 — créneaux et échéances concrètes
 
@@ -882,6 +935,20 @@ décision ; la migration de retrait `20260829155409_retirer_periode_declaree_inu
 est préparée localement mais reste à appliquer. La base distante contient
 encore cette colonne et une valeur sur un profil jusqu'à autorisation de ce
 retrait. `profiles.disponibilites_declarees` reste la seule donnée de créneaux.
+
+### Contenus scientifiques et figures
+
+🔬 Les formules sont lisibles à la consultation comme à la saisie : KaTeX est
+composé par une primitive commune, le texte Unicode reste le repli accessible,
+et les champs pédagogiques qui proposent la palette affichent un rendu
+immédiat avec le même chemin que la lecture. Dans le chat, la formule est
+composée directement dans la zone d’édition ; sa source reste conservée pour
+un geste explicite d’édition, sans devenir une mesure ni une donnée dérivée.
+
+❓ Le modèle `Exercise` ne porte pas encore de figure structurée. Le contrat
+minimal et la migration candidate sont décrits dans
+[`docs/architecture/MATHEMATIQUES_FIGURES.md`](docs/architecture/MATHEMATIQUES_FIGURES.md),
+mais aucune colonne ni association n'est considérée comme validée ou déployée.
 
 ---
 

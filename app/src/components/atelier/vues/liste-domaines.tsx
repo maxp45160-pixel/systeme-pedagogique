@@ -16,9 +16,9 @@
  * frontière n'est jamais déduite de l'activité, du nom ou de ses documents.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cx } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx } from "@/components/ui/primitives";
 import type { VueAClasserAtelier, VueDomaineAtelier } from "@/lib/documents/vue-atelier";
 import { usageDuDomaine, repartirDomainesParUsage } from "@/lib/domain/usage-domaine";
 import { useIntention } from "@/components/intention/contexte-intention";
@@ -33,6 +33,7 @@ import { archiverDomaine, restaurerDomaine } from "@/lib/store/referentiel-actio
 import { formatDateRelative } from "@/lib/engine/dates";
 import { filtrerEtTrierDomaines, type TriDomaine } from "@/lib/documents/tri-domaines";
 import { CarteCreationPointillee, type VueAtelier } from "../vues-synthese-atelier";
+import { taguerCompetences } from "@/lib/store/referentiel-actions";
 
 /**
  * Une carte de domaine.
@@ -201,6 +202,13 @@ export function VueTousLesDomaines({
   const [domaineAArchiver, setDomaineAArchiver] = useState<VueDomaineAtelier | null>(null);
   const [domaineARestaurer, setDomaineARestaurer] = useState<VueDomaineAtelier | null>(null);
   const [domaineASupprimer, setDomaineASupprimer] = useState<VueDomaineAtelier | null>(null);
+  const [selectionClassement, setSelectionClassement] = useState<Record<string, boolean>>({});
+  const [classesLocalement, setClassesLocalement] = useState<Set<string>>(() => new Set());
+  const [dernierClassement, setDernierClassement] = useState<
+    { domaineId: string; domaineNom: string; codes: string[] }[]
+  >([]);
+  const [classementEnCours, demarrerClassement] = useTransition();
+  const [erreurClassement, setErreurClassement] = useState<string | null>(null);
 
   const estArchives = selection === "domaines-archives";
 
@@ -240,6 +248,118 @@ export function VueTousLesDomaines({
       return { anneeAcademique, periode, domaines: valeurs };
     });
   }, [domainesParUsage.modulesActifs]);
+
+  const competencesRestantes = useMemo(
+    () => aClasser.filter((competence) => !classesLocalement.has(competence.code)),
+    [aClasser, classesLocalement],
+  );
+
+  const propositionsClassement = useMemo(
+    () => competencesRestantes.filter((competence) => competence.proposition),
+    [competencesRestantes],
+  );
+
+  const groupesClassement = useMemo(() => {
+    const groupes = new Map<
+      string,
+      { domaineId: string; domaineNom: string; justification: string; competences: VueAClasserAtelier[] }
+    >();
+    for (const competence of propositionsClassement) {
+      const proposition = competence.proposition;
+      if (!proposition) continue;
+      const groupe = groupes.get(proposition.domaineId) ?? {
+        domaineId: proposition.domaineId,
+        domaineNom: proposition.domaineNom,
+        justification: proposition.justification,
+        competences: [],
+      };
+      groupe.competences.push(competence);
+      groupes.set(proposition.domaineId, groupe);
+    }
+    return [...groupes.values()].sort((a, b) => a.domaineNom.localeCompare(b.domaineNom, "fr"));
+  }, [propositionsClassement]);
+
+  const classementsSelectionnes = groupesClassement.flatMap((groupe) =>
+    groupe.competences
+      .filter((competence) => selectionClassement[competence.code] ?? true)
+      .map((competence) => competence.code),
+  );
+
+  function erreurLisible(cause: unknown): string {
+    const message = cause instanceof Error ? cause.message : "";
+    if (/version|concurr|modifi/i.test(message)) {
+      return "Le référentiel a changé entre-temps. Rechargez la page pour relire les propositions.";
+    }
+    if (/inconnu|introuvable|autor|permission|session/i.test(message)) {
+      return "Ce classement n’est plus disponible. Rechargez la page pour relire votre référentiel.";
+    }
+    return "Les classements n’ont pas pu être confirmés. Vous pouvez réessayer sans perdre votre sélection.";
+  }
+
+  function confirmerClassements() {
+    if (classementsSelectionnes.length === 0) {
+      setErreurClassement("Sélectionnez au moins une compétence à classer.");
+      return;
+    }
+    setErreurClassement(null);
+    demarrerClassement(async () => {
+      const parDomaine = new Map<string, string[]>();
+      for (const competence of groupesClassement.flatMap((groupe) => groupe.competences)) {
+        if (!(selectionClassement[competence.code] ?? true) || !competence.proposition) continue;
+        const codes = parDomaine.get(competence.proposition.domaineId) ?? [];
+        codes.push(competence.code);
+        parDomaine.set(competence.proposition.domaineId, codes);
+      }
+
+      const reussis: { domaineId: string; domaineNom: string; codes: string[] }[] = [];
+      try {
+        for (const groupe of groupesClassement) {
+          const codes = parDomaine.get(groupe.domaineId) ?? [];
+          if (codes.length === 0) continue;
+          await taguerCompetences(groupe.domaineId, codes, true);
+          reussis.push({ domaineId: groupe.domaineId, domaineNom: groupe.domaineNom, codes });
+        }
+        setClassesLocalement((precedents) => new Set([...precedents, ...reussis.flatMap(({ codes }) => codes)]));
+        setDernierClassement(reussis);
+      } catch (cause) {
+        setClassesLocalement((precedents) => new Set([...precedents, ...reussis.flatMap(({ codes }) => codes)]));
+        setDernierClassement(reussis);
+        setErreurClassement(
+          reussis.length > 0
+            ? `${reussis.flatMap(({ codes }) => codes).length} classement${reussis.flatMap(({ codes }) => codes).length > 1 ? "s" : ""} confirmé${reussis.flatMap(({ codes }) => codes).length > 1 ? "s" : ""}. ${erreurLisible(cause)}`
+            : erreurLisible(cause),
+        );
+      }
+    });
+  }
+
+  function annulerDerniersClassements() {
+    if (dernierClassement.length === 0) return;
+    setErreurClassement(null);
+    demarrerClassement(async () => {
+      const restants: typeof dernierClassement = [];
+      try {
+        for (const groupe of dernierClassement) {
+          try {
+            await taguerCompetences(groupe.domaineId, groupe.codes, false);
+          } catch (cause) {
+            restants.push(groupe);
+            throw cause;
+          }
+        }
+        setDernierClassement([]);
+        setClassesLocalement(new Set());
+        router.refresh();
+      } catch (cause) {
+        setDernierClassement(restants);
+        setClassesLocalement((precedents) => {
+          const aGarder = new Set(restants.flatMap(({ codes }) => codes));
+          return new Set([...precedents].filter((code) => aGarder.has(code)));
+        });
+        setErreurClassement(`L’annulation n’a été que partielle. ${erreurLisible(cause)}`);
+      }
+    });
+  }
 
   /** Voisins déclarés de chaque domaine, nommés une fois pour toutes. */
   const voisinsParDomaine = useMemo(() => {
@@ -392,41 +512,157 @@ export function VueTousLesDomaines({
               </section>
             )}
 
-            {aClasser.length > 0 && (
+            {(competencesRestantes.length > 0 || dernierClassement.length > 0 || erreurClassement) && (
               <section>
-                <div className="mb-3 flex flex-wrap items-baseline gap-2">
-                  <h3 className="font-serif text-base font-semibold text-texte">À classer</h3>
-                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
-                    {aClasser.length}
-                  </span>
-                  <p className="text-xs text-texte-discret">
-                    Au référentiel, mais dans aucun domaine. Ouvrez-en une pour dire où elle sert.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {aClasser.map((competence) => (
-                    <button
-                      key={competence.code}
-                      type="button"
-                      onClick={() => ouvrirElement(competence.code)}
-                      className="flex h-full w-full flex-col justify-between rounded-xl border border-dashed border-bordure bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primaire/40 cursor-pointer"
-                    >
+                {competencesRestantes.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                    <h3 className="font-serif text-base font-semibold text-texte">À classer</h3>
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.625rem] font-semibold text-texte-discret">
+                      {competencesRestantes.length}
+                    </span>
+                    <p className="text-xs text-texte-discret">
+                      Des compétences encore absentes de vos domaines. Une proposition peut vous aider à les regrouper.
+                    </p>
+                  </div>
+                )}
+
+                {groupesClassement.length > 0 && (
+                  <div className="rounded-xl border border-bordure bg-surface p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <span className="chiffres rounded-md bg-surface-2 px-2 py-0.5 text-[0.625rem] text-texte-discret">
-                          {competence.code}
-                        </span>
-                        <p className="mt-2 text-sm font-semibold leading-snug text-texte">
-                          {competence.titre}
+                        <p className="text-sm font-semibold text-texte">Proposition de classement</p>
+                        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-texte-attenue">
+                          Le domaine de création sert uniquement de point de départ. Vérifiez les choix : aucune donnée ne change avant confirmation.
                         </p>
                       </div>
-                      <p className="mt-3 text-[0.6875rem] text-texte-discret">
-                        Code créé dans {competence.domaineCreationNom} ·{" "}
-                        {competence.nombreObservations} trace
-                        {competence.nombreObservations > 1 ? "s" : ""} de travail
+                      <div className="flex flex-wrap gap-2">
+                        <Bouton
+                          variante="discret"
+                          taille="petite"
+                          onClick={() =>
+                            setSelectionClassement((precedente) => ({
+                              ...precedente,
+                              ...Object.fromEntries(
+                                propositionsClassement.map((competence) => [competence.code, true]),
+                              ),
+                            }))
+                          }
+                        >
+                          Tout sélectionner
+                        </Bouton>
+                        <Bouton
+                          variante="discret"
+                          taille="petite"
+                          onClick={() =>
+                            setSelectionClassement((precedente) => ({
+                              ...precedente,
+                              ...Object.fromEntries(
+                                propositionsClassement.map((competence) => [competence.code, false]),
+                              ),
+                            }))
+                          }
+                        >
+                          Tout désélectionner
+                        </Bouton>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      {groupesClassement.map((groupe) => (
+                        <fieldset key={groupe.domaineId} className="rounded-lg border border-bordure/80 bg-surface-2/40 p-3">
+                          <legend className="px-1 text-xs font-semibold text-texte">{groupe.domaineNom}</legend>
+                          <p className="mt-1 text-[0.6875rem] leading-relaxed text-texte-discret">
+                            {groupe.justification}
+                          </p>
+                          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                            {groupe.competences.map((competence) => {
+                              const cochee = selectionClassement[competence.code] ?? true;
+                              return (
+                                <label
+                                  key={competence.code}
+                                  className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm text-texte hover:bg-surface"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={cochee}
+                                    onChange={() =>
+                                      setSelectionClassement((precedente) => ({
+                                        ...precedente,
+                                        [competence.code]: !cochee,
+                                      }))
+                                    }
+                                    className="mt-0.5 size-4 rounded border-bordure accent-primaire"
+                                  />
+                                  <span>{competence.titre}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-bordure pt-3">
+                      <p className="text-xs text-texte-discret">
+                        {classementsSelectionnes.length} sélectionnée{classementsSelectionnes.length > 1 ? "s" : ""}
                       </p>
-                    </button>
-                  ))}
-                </div>
+                      <Bouton
+                        variante="principal"
+                        taille="petite"
+                        enChargement={classementEnCours}
+                        onClick={confirmerClassements}
+                      >
+                        Confirmer les classements sélectionnés
+                      </Bouton>
+                    </div>
+                  </div>
+                )}
+
+                {dernierClassement.length > 0 && (
+                  <BandeauInfo ton="succes" taille="compacte" className="mt-3 justify-between">
+                    <span>
+                      {dernierClassement.flatMap(({ codes }) => codes).length} classement{dernierClassement.flatMap(({ codes }) => codes).length > 1 ? "s" : ""} confirmé{dernierClassement.flatMap(({ codes }) => codes).length > 1 ? "s" : ""}.
+                    </span>
+                    <Bouton
+                      variante="discret"
+                      taille="petite"
+                      enChargement={classementEnCours}
+                      onClick={annulerDerniersClassements}
+                    >
+                      Annuler ces classements
+                    </Bouton>
+                  </BandeauInfo>
+                )}
+
+                {erreurClassement && (
+                  <BandeauInfo ton="danger" taille="compacte" className="mt-3">
+                    {erreurClassement}
+                  </BandeauInfo>
+                )}
+
+                {competencesRestantes.some((competence) => !competence.proposition) && (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {competencesRestantes
+                      .filter((competence) => !competence.proposition)
+                      .map((competence) => (
+                        <button
+                          key={competence.code}
+                          type="button"
+                          onClick={() => ouvrirElement(competence.code)}
+                          className="flex h-full w-full flex-col justify-between rounded-xl border border-dashed border-bordure bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primaire/40 cursor-pointer"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold leading-snug text-texte">
+                              {competence.titre}
+                            </p>
+                          </div>
+                          <p className="mt-3 text-[0.6875rem] text-texte-discret">
+                            Aucun domaine actif ne peut être proposé automatiquement. Ouvrez cette compétence pour choisir.
+                          </p>
+                        </button>
+                      ))}
+                  </div>
+                )}
               </section>
             )}
           </div>

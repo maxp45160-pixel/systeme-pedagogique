@@ -8265,6 +8265,25 @@ d'une compétence : une compétence multi-taguée conserve une seule identité.
 Les codes existants restent stables ; le choix d'un nouveau système de
 nommage indépendant des domaines fera l'objet d'une décision séparée.
 
+### Mise en œuvre — 29/08/2026 : proposition groupée dans Mes cours
+
+La zone « À classer » conserve sa sémantique : elle expose uniquement les
+compétences actives sans tag. Pour réduire le parcours fiche par fiche sans
+réintroduire le classement lexical écarté ci-dessus, l'interface peut utiliser
+le domaine de création déjà porté par la compétence comme **proposition de
+départ**. Cette proposition est pure, déterministe pour les mêmes faits et
+silencieuse sur les domaines archivés ou inconnus ; elle ne demande pas au
+tuteur de classer et ne modifie rien au rendu.
+
+La personne peut sélectionner plusieurs compétences regroupées par destination,
+confirmer le lot via la commande existante `taguer_competences_domaine`, puis
+annuler immédiatement le dernier lot. L'annulation retire uniquement les tags
+posés par ce geste ; puisqu'il s'agit de compétences sans tag dans cette zone,
+elle ne peut pas effacer un rattachement antérieur. Les erreurs de version et
+les écritures partielles sont signalées sans détail technique dans l'interface,
+et le serveur reste l'autorité relue par chaque commande. Aucun schéma, route ou
+entité de travail n'est ajouté.
+
 ### Ce que cette proposition écarte
 
 - les sous-domaines déduits des seuls intitulés (ADR-106) ;
@@ -9063,6 +9082,10 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
 - dépendance `katex` (+ `@types/katex`) dans le workspace `app` ;
 - `components/ui/formule-math.tsx` — `FormuleMath` : `renderToString` avec
   `throwOnError: true` et repli Unicode ; CSS `katex.min.css` importé avec lui ;
+- `lib/ui/rendu-formule.ts` — composition bas niveau partagée par `FormuleMath`
+  et les nœuds WYSIWYG : KaTeX visuel, texte Unicode accessible et même repli
+  en cas de syntaxe refusée. Le rendu expose un rôle `math` et un libellé sans
+  laisser le HTML KaTeX au lecteur d'écran ;
 - `components/ui/markdown.tsx` — segments en ligne portant leur LaTeX brut
   (`SegmentTexte.latex`, `segmenterFormulesEnLigne`) et blocs de formule rendus
   par `FormuleMath` ;
@@ -9070,7 +9093,9 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
   (`components/ui/palette-formules.tsx`) : six familles — opérations,
   relations, structures, grec, ensembles et logique, flèches — plus les deux
   enveloppes `\(…\)` et `\[…\]`. Chaque touche insère du LaTeX au curseur et
-  **replace le curseur** dans le premier trou de la structure (`\frac{|}{}`).
+  **replace le curseur** dans le premier trou de la structure (`\frac{|}{}`)
+  quand elle est branchée sur une zone source ; dans un éditeur composé, elle
+  crée directement le nœud visuel et la source reste hors de la zone visible.
 
   ⚠️ Cette palette remplace les six insertions initiales (`\( \)`, `\frac{}{}`,
   `\sqrt{}`, `\sum_{}^{}`, `\int_{}^{}`, `^{}`), **retirées le 23/08/2026** :
@@ -9122,6 +9147,13 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
   attribut) ; un clic la rouvre en source, et sortir le curseur la recompose.
   Le délimiteur d'origine est conservé — `SegmentTexte.bloc` — pour qu'un
   passage dans l'éditeur ne réécrive pas silencieusement `\[…\]` en `\(…\)`.
+
+  Le champ de question du tuteur réutilise maintenant ce même éditeur : la
+  formule choisie dans la palette est composée immédiatement dans la zone,
+  et une formule complète tapée à la main est composée dès sa fermeture. La
+  valeur envoyée reste la sérialisation Markdown du DOM ; la source LaTeX
+  n'est conservée dans l'interface que pendant un geste explicite d'édition
+  d'une formule.
 
 - **L'emphase Markdown ne s'applique plus à l'intérieur du LaTeX.**
   `*` est un opérateur en mathématiques et un délimiteur d'italique en
@@ -10812,8 +10844,9 @@ fortement la friction du geste qui produit une observation.
    ce côté-là.
 7. **Le champ de marge n'a pas de mémoire navigateur** (`autoComplete="off"`
    sur les deux formulaires et les deux champs), et **les zones de texte brut
-   gagnent un aperçu immédiat** (`ApercuFormulesTexte`, opt-in : réponse, chat,
-   fiche de saisie, marge en bloc) rendu par le MÊME `Markdown` que la lecture —
+   gagnent un aperçu immédiat** (`ApercuFormulesTexte`, activé sur toutes les
+   saisies pédagogiques qui portent la palette, y compris les champs `Champ
+   formules`) rendu par le MÊME `Markdown` que la lecture —
    le contrat d'[ADR-115](#adr-115) ne change pas : KaTeX compose, l'Unicode
    reste le filet. La détection (`contientFormuleLatex`) réutilise
    `segmenterFormulesEnLigne`, une seule implémentation. L'éditeur WYSIWYG
@@ -11074,11 +11107,14 @@ pas, à lui seul, de promouvoir le statut.
 
 Le tableau de bord branche désormais une première tranche de ce contrat : il
 fournit au planificateur les disponibilités déclarées, les recommandations
-historiques et les séances déjà acceptées, puis propose un lot éphémère dont
-la personne peut accepter tout ou partie. L'acceptation passe par la frontière
-atomique existante ; aucun plan complet n'est persisté. Cette intégration ne
-couvre pas encore les candidats de cours ni la replanification d'un ensemble
-qui toucherait des séances déjà acceptées.
+historiques, les besoins déclarés, les échéances ouvertes et les séances déjà
+acceptées, puis propose un lot éphémère dont la personne peut accepter tout ou
+partie. Un protocole relu est adapté par le même compositeur lorsqu'il est
+fourni par son parcours. L'acceptation passe par la frontière atomique
+existante ; aucun plan complet n'est persisté. La conservation distante du
+blueprint documentaire d'une candidate de cours est couverte par la migration
+additive `20260829190000_plan_acceptation_origine_cours.sql`, enregistrée sous
+la version Supabase `20260829174131` et vérifiée dans la définition de la RPC.
 
 Le lot 9 ajoute au profil les créneaux déclarés nécessaires au contexte
 temporel concret : `disponibilites_declarees`. La migration additive
@@ -11168,6 +11204,30 @@ faire de l'emploi du temps une mesure sur la personne.
     avec cette référence ; elle est idempotente et le moteur l'exclut jusqu'à
     une modification matérielle. La carte traduit les réserves et erreurs en
     langage courant ; les identifiants internes restent dans les journaux.
+12. **Les producteurs sont composés à la frontière, pas dans le moteur.**
+    L'accueil et le parcours de protocole adaptent séparément recommandations,
+    échéances, besoins déclarés, contexte de cours et historique d'exercices
+    vers `ActionCandidate`, puis fournissent au planificateur les faits déjà
+    validés. Le référentiel actif reste fourni par l'appelant ; Supabase ne
+    franchit jamais `lib/engine`. Les séances actives et le diagnostic terminé
+    du parcours courant sont exclus. Les candidates équivalentes sont
+    dédoublonnées par codes de compétence, intervention et durée ; à égalité,
+    l'ordre de provenance est cours, besoin déclaré, activité durable, puis
+    exercice historique. Les identifiants et origines restent stables ; aucun
+    seuil de calibration n'est modifié.
+
+13. **La révision est une projection et le déplacement est un ajustement
+    atomique.** Les changements provoqués par une échéance, une disponibilité,
+    une séance annulée, déplacée, manquée ou abandonnée, ou une nouvelle
+    observation recevable sont recalculés à partir des faits relus. Le diff
+    distingue les séances conservées, déplacées, retirées de la proposition et
+    les nouvelles propositions ; il n'est jamais persisté. Une séance déplacée
+    conserve son identifiant, son origine, ses compétences et ses interventions.
+    Après relecture de l'état courant et des disponibilités, une seule commande
+    `accepter_plan` porte l'ajustement `move`, `shorten` ou `cancel`. Un conflit,
+    un double envoi ou une donnée obsolète laisse la transaction entière sans
+    écriture ; aucun de ces gestes ne crée d'observation, de dette ou de
+    pénalité.
 
 ### Conséquences sur l'existant
 
@@ -11176,7 +11236,8 @@ revalidée contre le compte, le référentiel, les échéances et les séances
 existantes, puis une seule commande transactionnelle matérialise les séances
 acceptées ou les ajustements explicitement relus. Un diff pur regroupe les
 conservations, déplacements, raccourcissements, annulations et ajouts ; les
-candidates non acceptées restent silencieuses. Un reçu par compte rend le
+candidates non acceptées restent hors de la matérialisation et les nouvelles
+propositions peuvent être montrées séparément. Un reçu par compte rend le
 double envoi idempotent ; il ne conserve que l'empreinte et le résultat minimal,
 jamais le plan complet. Une candidate ignorée n'écrit aucune séance, une séance
 `en-cours` ou terminée est protégée, et une annulation ou un raccourcissement
@@ -11197,9 +11258,31 @@ projection sont des choix d'intégration réversibles tant que la vérification
 réelle du premier parcours multi-interventions n'a pas eu lieu : le statut de
 cette ADR reste donc ❓.
 
-- `recommander` et la politique d'action existante restent le seul classement
-  pédagogique ; le planificateur les compose dans le temps, il ne les duplique
-  pas.
+La matrice opérationnelle des huit gestes, de leurs entrées, interfaces,
+provenances, contrats de preuve et fins de parcours est maintenue dans
+[`docs/architecture/INTERVENTIONS_LEARNING_SESSION.md`](docs/architecture/INTERVENTIONS_LEARNING_SESSION.md).
+Elle distingue le Feynman autonome — qui reste un parcours explicitement
+validé — de l'intervention `expliquer` portée par une séance existante : celle-ci
+reçoit un retour formatif et se termine sans Observation tant qu'aucun contrat
+de preuve n'est engagé. Le rappel offre une restitution locale, la lecture et
+les productions reviennent par l'Atelier, et la demande d'aide passe par le
+tiroir du tuteur ; aucun de ces gestes ne crée une seconde `LearningSession`.
+
+La fiche de cours est aussi une lecture continue du contexte déjà déclaré :
+elle retrouve les supports du même domaine ou d'une compétence explicitement
+commune, dérive les échéances du module et relit les `LearningSession` dont
+`blueprint.origine.ficheId` désigne le cours. Son action « Déclarer un besoin »
+réutilise l'entrée d'intention existante, et son action d'échéance réutilise la
+modale humaine existante. Aucun de ces repères n'est copié dans le document,
+aucun protocole n'est persisté et la validation d'un plan ne déclenche pas le
+tuteur. La proposition de classement des compétences sans tag est décrite dans
+l'amendement d'ADR-107 : elle est groupée, explicitement confirmée et
+immédiatement annulable.
+
+- `recommander` et la politique d'action existante restent le classement
+  pédagogique de leur source ; le planificateur compose désormais leurs
+  sorties avec les adaptateurs de besoins déclarés et de protocoles de cours,
+  sans les dupliquer.
 - Le protocole par PDF d'ADR-130 devient un fournisseur de candidats. Son
   analyse, ses exercices ancrés et ses gestes Feynman/rappel sont conservés ;
   sa matérialisation directe de plusieurs séances est retirée lorsque le plan
@@ -11208,12 +11291,15 @@ cette ADR reste donc ❓.
   nouvelles origines historiques conservent cet attachement pour la génération
   différée. Les vues « Cette semaine » et « Échéances » d'un module se dérivent
   des séances acceptées, engagements et preuves. L'ancien écrivain reste en
-  place : les disponibilités déclarées sont maintenant fournies au
-  planificateur par le tableau de bord, mais la RPC d'acceptation ne transporte
-  pas encore le blueprint documentaire et les candidats de cours ne sont pas
-  encore composés avec les recommandations historiques. Le retirer avant cette
-  parité violerait ADR-131/132 ; cette étape ne change donc pas le statut ❓ de
-  la présente ADR.
+  place. Les disponibilités déclarées, les besoins et les recommandations
+  historiques sont maintenant composés au tableau de bord ; le parcours de
+  protocole passe lui aussi par ce compositeur avant d'émettre ses candidates.
+  L'acceptation globale porte localement le blueprint documentaire, et la
+  fonction distante vérifiée le 29/08/2026 l'enregistre désormais :
+  `20260829190000_plan_acceptation_origine_cours.sql` est appliquée sous la
+  version Supabase `20260829174131`. L'ancien écrivain reste en place jusqu'à la preuve de parité
+  globale ; le retirer avant cette preuve violerait ADR-131/132 et la règle de
+  retrait documenté.
 - Le compositeur manuel reste un échappatoire secondaire pour un besoin hors
   plan ; il cesse d'être le parcours nominal.
 - `/seances` expose par défaut une chronologie dérivée des `LearningSession`

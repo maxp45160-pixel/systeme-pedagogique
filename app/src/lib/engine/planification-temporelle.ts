@@ -63,6 +63,8 @@ export interface PlanificateurTemporelInput {
   candidates: readonly ActionCandidate[];
   refusObserved: readonly RefusObserve[];
   acceptedSessions: readonly LearningSession[];
+  /** Réserves produites par les adaptateurs avant l'entrée dans le moteur. */
+  candidateReservations?: readonly string[];
   /** Référence stable de la proposition courante, hors refus de cette proposition. */
   propositionRef?: string;
 }
@@ -70,6 +72,7 @@ export interface PlanificateurTemporelInput {
 type EntreesReferenceProposition = Pick<
   PlanificateurTemporelInput,
   "engagements" | "availability" | "skillStates" | "candidates" | "acceptedSessions"
+  | "candidateReservations"
 >;
 
 function serialiserStable(valeur: unknown): string {
@@ -464,7 +467,7 @@ export function planifierTemps(
   input: PlanificateurTemporelInput,
 ): PlanPropose {
   const constraints: string[] = [];
-  const reservations: string[] = [];
+  const reservations: string[] = [...(input.candidateReservations ?? [])];
   const now = instant(input.now);
   if (now === null) {
     constraints.push("instant de référence invalide : aucune candidate ne peut être placée");

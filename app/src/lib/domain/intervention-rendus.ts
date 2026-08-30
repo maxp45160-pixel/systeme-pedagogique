@@ -97,14 +97,14 @@ export function libelleEffetIntervention(effect: InterventionEffect): string {
 
 export function libelleSourceIntervention(source: InterventionSource): string {
   const kind = {
-    exercise: "Exercice",
-    course: "Cours",
-    document: "Document",
-    engagement: "Échéance",
+    exercise: "Exercice source",
+    course: "Cours source",
+    document: "Document source",
+    engagement: "Échéance source",
     "declared-need": "Besoin déclaré",
-    session: "Séance",
+    session: "Séance source",
   }[source.kind];
-  return `${kind} · ${source.ref}`;
+  return kind;
 }
 
 export function messageFinIntervention(intervention: InterventionSeance): string {

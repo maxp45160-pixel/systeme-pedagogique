@@ -56,7 +56,7 @@ import {
   type DocumentOperationnelDate,
   type ResumeJour,
 } from "@/lib/domain/pages-cahier";
-import type { ExerciseAttempt, LearningSession } from "@/lib/domain/types";
+import type { DisponibiliteDeclaree, ExerciseAttempt, LearningSession } from "@/lib/domain/types";
 import type { LigneMarge } from "@/lib/documents/marge";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { CarteSeance } from "@/components/seances/file-seances";
@@ -79,6 +79,8 @@ export interface EntreesCahier {
   seances: LearningSession[];
   tentatives: ExerciseAttempt[];
   donnees: DonneesSeance;
+  /** Disponibilités déclarées relues pour proposer un déplacement valide. */
+  disponibilitesDeclarees?: readonly DisponibiliteDeclaree[];
   notes: LigneMarge[];
   projets?: DocumentOperationnelDate[];
 }

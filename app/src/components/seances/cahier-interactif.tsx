@@ -5,24 +5,24 @@ import { moisDuJour, moisValide } from "@/lib/domain/pages-cahier";
 import { moisAffiche } from "@/components/seances/calendrier-cahier";
 import { Bureau, type EntreesCahier } from "@/components/seances/bureau";
 import { CahierArchive } from "@/components/seances/cahier-archive";
-import { SeancesAVenir } from "@/components/seances/seances-a-venir";
 import { cleJour } from "@/lib/engine/dates";
-import type { VueSeances } from "@/lib/domain/vue-seances";
 
-/** API historique conservée pour les tests et appelants de la composition. */
+/** Les deux lectures de la même route (ADR-103). */
+type Vue = "bureau" | "cahier";
+
+/** Compatibilité pour les tests et le chantier de vue différée. */
 export { vueInitialeDepuisParametres } from "@/lib/domain/vue-seances";
-export type { VueSeances } from "@/lib/domain/vue-seances";
 
 /**
- * Le conteneur des lectures du pôle.
+ * Le conteneur des deux modes du pôle.
  *
  * Toutes les données sont reçues une fois du serveur, puis la navigation —
- * entre les jours comme entre les lectures — est locale et instantanée.
+ * entre les jours comme entre les deux modes — est locale et instantanée.
  */
 export function CahierInteractif({
   jourInitial,
   moisInitial,
-  vueInitiale = "avenir",
+  vueInitiale = "bureau",
   jours,
   entrees,
   aujourdHuiIso,
@@ -35,8 +35,8 @@ export function CahierInteractif({
   /** Le jour ouvert : la page du jour, sauf lien explicite (`?jour=`, `?session=`). */
   jourInitial: string;
   moisInitial?: string;
-  /** `avenir` par défaut ; `cahier` pour l'archive, `bureau` pour un jour explicite. */
-  vueInitiale?: VueSeances;
+  /** `cahier` quand l'URL porte `?vue=cahier` ou une recherche. */
+  vueInitiale?: Vue;
   jours: string[];
   entrees: EntreesCahier;
   aujourdHuiIso: string;
@@ -58,7 +58,7 @@ export function CahierInteractif({
   const [mois, setMois] = useState<string>(() =>
     moisAffiche(moisValide(moisInitial), jourInitial),
   );
-  const [vue, setVue] = useState<VueSeances>(vueInitiale);
+  const [vue, setVue] = useState<Vue>(vueInitiale);
   const aujourdHui = useMemo(() => new Date(aujourdHuiIso), [aujourdHuiIso]);
 
   /*
@@ -99,7 +99,7 @@ export function CahierInteractif({
   }, []);
 
   const ouvrirCahier = useCallback(() => setVue("cahier"), []);
-  const fermerCahier = useCallback(() => setVue("avenir"), []);
+  const fermerCahier = useCallback(() => setVue("bureau"), []);
 
   if (vue === "cahier") {
     return (
@@ -118,26 +118,19 @@ export function CahierInteractif({
   return (
     <>
       {compositeur}
-      {vue === "bureau" ? (
-        <Bureau
-          jour={jour}
-          jours={jours}
-          mois={mois}
-          entrees={entrees}
-          aujourdHui={aujourdHui}
-          compteId={compteId}
-          onChangerJour={allerALaPage}
-          onChangerMois={setMois}
-          onOuvrirCahier={ouvrirCahier}
-          seanceDeployee={seanceDeployee}
-        />
-      ) : (
-        <SeancesAVenir
-          entrees={entrees}
-          compteId={compteId}
-          onOuvrirHistorique={ouvrirCahier}
-        />
-      )}
+
+      <Bureau
+        jour={jour}
+        jours={jours}
+        mois={mois}
+        entrees={entrees}
+        aujourdHui={aujourdHui}
+        compteId={compteId}
+        onChangerJour={allerALaPage}
+        onChangerMois={setMois}
+        onOuvrirCahier={ouvrirCahier}
+        seanceDeployee={seanceDeployee}
+      />
     </>
   );
 }

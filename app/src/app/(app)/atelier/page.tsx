@@ -25,6 +25,11 @@ import {
 import { paletteDomaines } from "@/lib/ui/couleurs-domaines";
 import { chargerDonneesSeance } from "@/components/seances/donnees-seance";
 import { lireTraceProtocole } from "@/lib/store/protocole-actions";
+import { documentsAssociesAuCours } from "@/lib/documents/contexte-cours";
+import type { ApercuDocument } from "@/lib/documents/types-documents";
+import { construireLectureOrchestrationModule } from "@/lib/engine/module-orchestration";
+import { usageDuDomaine } from "@/lib/domain/usage-domaine";
+import type { ContexteCours } from "@/components/atelier/protocole-cours";
 import { RelectureAuChargement } from "@/components/referentiel/relecture-au-chargement";
 import { chargerLotPropositions } from "@/lib/store/relecture-referentiel";
 
@@ -55,13 +60,68 @@ export default async function PageAtelier(props: {
      * dans `sessions`, journal dans la fiche. Elle ne charge que pour une fiche
      * cours — les autres supports n'ont pas de protocole.
      */
-    const [pieces, donneesSeance, traceProtocole] = await Promise.all([
+    const [pieces, donneesSeance, traceProtocole, aperçusCours, contexteCoursBrut] = await Promise.all([
       estSupport ? lirePiecesJointes(fiche.id).catch(() => []) : Promise.resolve([]),
       estSeance ? chargerDonneesSeance() : Promise.resolve(undefined),
       estSupport && estCours
         ? lireTraceProtocole(fiche.id).catch(() => undefined)
         : Promise.resolve(undefined),
+      estCours ? lireApercusDocuments() : Promise.resolve([] as ApercuDocument[]),
+      estCours ? chargerContexte() : Promise.resolve(null),
     ]);
+    const resumeCours: ApercuDocument = {
+      id: fiche.id,
+      titre: analyse.titre,
+      type: analyse.type ?? "document",
+      tags: Array.isArray(analyse.frontMatter.tags)
+        ? analyse.frontMatter.tags.filter((tag): tag is string => typeof tag === "string")
+        : [],
+      schema: analyse.schema,
+      schemaCompatible: analyse.schemaCompatible,
+      frontMatter: analyse.frontMatter,
+      liens: analyse.liens,
+      createdAt: fiche.createdAt,
+      updatedAt: fiche.updatedAt,
+    };
+    const domaineDeclare = analyse.frontMatter.domaine ?? analyse.frontMatter.domain;
+    const domaineId =
+      typeof domaineDeclare === "string" && domaineDeclare !== "transversal"
+        ? domaineDeclare.trim()
+        : undefined;
+    const domaineCours = domaineId ? contexteCoursBrut?.referentiel.domainesParId.get(domaineId) : undefined;
+    const usageCours = domaineCours ? usageDuDomaine(domaineCours) : undefined;
+    const moduleCours =
+      domaineCours && usageCours?.type === "module" && contexteCoursBrut
+        ? construireLectureOrchestrationModule({
+            domainId: domaineCours.id,
+            sessions: contexteCoursBrut.donnees.sessions,
+            engagements: contexteCoursBrut.donnees.engagements,
+            skillStates: contexteCoursBrut.etats,
+            now: contexteCoursBrut.now,
+          })
+        : undefined;
+    const contexteCours: ContexteCours | undefined = contexteCoursBrut
+      ? {
+          domaineId: domaineCours && !domaineCours.archive ? domaineCours.id : undefined,
+          domaineNom: domaineCours && !domaineCours.archive ? domaineCours.nom : undefined,
+          moduleDomaineId:
+            domaineCours && !domaineCours.archive && usageCours?.type === "module"
+              ? domaineCours.id
+              : undefined,
+          documents: documentsAssociesAuCours(resumeCours, aperçusCours),
+          deadlines: moduleCours?.deadlines ?? [],
+          modules: contexteCoursBrut.referentiel.domaines
+            .filter((domaine) => {
+              const usage = usageDuDomaine(domaine);
+              return !domaine.archive && usage.type === "module" && usage.module.closLe === undefined;
+            })
+            .map(({ id, nom }) => ({ id, nom })),
+          competences: contexteCoursBrut.referentiel.actifs.map(({ code, intitule }) => ({
+            code,
+            intitule,
+          })),
+        }
+      : undefined;
     // Les repères locaux et la clé du tuteur sont isolés par compte (garde-fou
     // post-ADR-029) : l'espace de travail a besoin de savoir qui est connecté.
     const { userId } = await dorsaleCompte();
@@ -76,6 +136,7 @@ export default async function PageAtelier(props: {
         retour={retour}
         compteId={userId}
         traceProtocole={traceProtocole}
+        contexteCours={contexteCours}
         /*
          * Dépôt de cours (ADR-129) : `?lecture=1` n'est posé que par le flux
          * « Déposer mon cours », qui vient d'attacher le PDF. Toute autre

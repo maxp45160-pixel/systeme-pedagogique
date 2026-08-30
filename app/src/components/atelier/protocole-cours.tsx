@@ -24,10 +24,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BandeauInfo, Bouton } from "@/components/ui/primitives";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import Link from "next/link";
+import { BandeauInfo, Bouton, Etiquette } from "@/components/ui/primitives";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { Modale } from "@/components/ui/modale";
 import { ChargementGeneration } from "@/components/ui/chargement-generation";
+import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import { useIntention } from "@/components/intention/contexte-intention";
 import {
   IconeAmpoule,
   IconeExercices,
@@ -43,6 +46,12 @@ import {
   type IntentionCours,
   type ProtocoleCours,
 } from "@/lib/domain/protocole-cours";
+import type { ActionCandidate } from "@/lib/engine/action-candidate";
+import { identifiantCandidateProtocole } from "@/lib/engine/protocole-candidats";
+import { formatDateCourte } from "@/lib/engine/dates";
+import { libelleCompte } from "@/lib/domain/engagement";
+import type { LectureOrchestrationModule } from "@/lib/engine/module-orchestration";
+import type { DocumentAssocieCours } from "@/lib/documents/contexte-cours";
 import {
   enregistrerProtocoleAction,
   planifierSeanceProtocoleAction,
@@ -76,17 +85,35 @@ const SUGGESTIONS_INTENTION_COURS: readonly {
 /* Le panneau — vue dérivée                                             */
 /* ------------------------------------------------------------------ */
 
-export function ProtocoleCoursPanel({  ficheId,
+export interface ContexteCours {
+  /** Domaine déclaré par le cours, lu sans modifier sa fiche. */
+  domaineId?: string;
+  domaineNom?: string;
+  /** Présent uniquement si le domaine porte l'usage module. */
+  moduleDomaineId?: string;
+  documents: DocumentAssocieCours[];
+  deadlines: LectureOrchestrationModule["deadlines"];
+  modules: { id: string; nom: string }[];
+  competences: { code: string; intitule: string }[];
+}
+
+export function ProtocoleCoursPanel({
+  ficheId,
   compteId,
   trace = { seances: [], journal: [] },
   sourceAttachmentId,
+  titreCours,
+  contexteCours,
 }: {
   ficheId: string;
   compteId: string;
   trace?: TraceProtocole;
   sourceAttachmentId?: string;
+  titreCours: string;
+  contexteCours?: ContexteCours;
 }) {
   const router = useRouter();
+  const { ouvrir } = useIntention();
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const planDejaCompose = trace.seances.length > 0 || trace.journal.length > 0;
 
@@ -128,32 +155,138 @@ export function ProtocoleCoursPanel({  ficheId,
         </p>
       )}
 
-      {trace.seances.length > 0 && (
-        <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-            Séances de ce cours
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {trace.seances.map((seance) => (
-              <li key={seance.seanceId}>
-                <a
-                  href={`/seances?session=${encodeURIComponent(seance.seanceId)}`}
-                  className="flex flex-wrap items-baseline gap-2 rounded-md bg-surface px-2.5 py-1.5 transition-colors hover:bg-primaire-faible/30"
-                >
-                  <span className="rounded border border-bordure px-1.5 py-0.5 text-[0.625rem] uppercase tracking-wide text-texte-discret">
-                    {LIBELLES_DIMENSION_SEANCE[seance.dimension]}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-texte">{seance.titre}</span>
-                  <span className="text-[0.6875rem] text-texte-discret">
-                    {STATUTS_LIBELLES[seance.statut] ?? seance.statut} ·{" "}
-                    <span className="chiffres">{seance.date.slice(0, 10)}</span>
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {contexteCours && (
+        <section className="mt-6 border-t border-bordure pt-5" aria-labelledby="contexte-cours">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+                Repères du cours
+              </p>
+              <h3 id="contexte-cours" className="mt-1 font-serif text-lg font-medium">
+                Votre contexte de travail
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-texte-attenue">
+                Ces éléments relisent vos données existantes ; rien n’est ajouté tant que vous ne le demandez pas.
+              </p>
+            </div>
+            <Bouton
+              variante="secondaire"
+              taille="petite"
+              onClick={() => ouvrir({ besoinInitial: `Pour le cours « ${titreCours} » : ` })}
+            >
+              Déclarer un besoin pour ce cours
+            </Bouton>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-bordure bg-surface px-3.5 py-3">
+              <p className="text-xs font-semibold text-texte">Cours et documents liés</p>
+              <p className="mt-1 text-xs text-texte-attenue">
+                {contexteCours.domaineNom
+                  ? `Domaine déclaré : ${contexteCours.domaineNom}`
+                  : "Aucun domaine n’est déclaré pour ce cours."}
+              </p>
+              {contexteCours.documents.length > 0 ? (
+                <ul className="mt-3 space-y-1.5">
+                  {contexteCours.documents.map((document) => (
+                    <li key={document.id}>
+                      <Link
+                        href={`/atelier?note=${encodeURIComponent(document.id)}&retour=${encodeURIComponent(`/atelier?note=${ficheId}`)}`}
+                        className="flex items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-primaire-faible/30"
+                      >
+                        <span className="min-w-0 truncate font-medium text-primaire">{document.titre}</span>
+                        <span className="shrink-0 text-[0.6875rem] text-texte-discret">{document.raison}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-texte-discret">
+                  Aucun autre document lié pour le moment.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-bordure bg-surface px-3.5 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-texte">Échéances</p>
+                  <p className="mt-1 text-xs text-texte-attenue">
+                    {contexteCours.moduleDomaineId
+                      ? "Elles sont relues depuis le module, pas copiées dans le cours."
+                      : "Aucun module académique n’est déclaré pour ce cours."}
+                  </p>
+                </div>
+                {contexteCours.moduleDomaineId && (
+                  <BoutonEcheance
+                    competences={contexteCours.competences}
+                    modules={contexteCours.modules}
+                    initial={{ moduleDomaineId: contexteCours.moduleDomaineId }}
+                    libelle="Déclarer une échéance"
+                    mode="action"
+                  />
+                )}
+              </div>
+              {contexteCours.deadlines.length > 0 ? (
+                <ul className="mt-3 divide-y divide-bordure/60">
+                  {contexteCours.deadlines.map((deadline) => (
+                    <li key={deadline.id} className="py-2 first:pt-0 last:pb-0">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="text-sm font-medium text-texte">{deadline.label}</span>
+                        <Etiquette ton={deadline.daysRemaining < 0 ? "alerte" : "neutre"}>
+                          {libelleCompte(deadline.daysRemaining)}
+                        </Etiquette>
+                      </div>
+                      <p className="mt-1 text-xs text-texte-discret">
+                        {formatDateCourte(deadline.dueAt)} · {deadline.preparation === "non-estimable"
+                          ? "Préparation non estimable à partir des preuves disponibles."
+                          : "Préparation relue depuis les observations disponibles."}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-texte-discret">
+                  {contexteCours.moduleDomaineId
+                    ? "Aucune échéance liée à ce module pour le moment."
+                    : "Déclarez le cours dans un module pour relire ses échéances ici."}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
       )}
+
+      <div className="mt-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+            Séances acceptées depuis ce cours
+          </p>
+          {trace.seances.length > 0 ? (
+            <ul className="mt-2 space-y-1.5">
+              {trace.seances.map((seance) => (
+                <li key={seance.seanceId}>
+                  <Link
+                    href={`/seances?session=${encodeURIComponent(seance.seanceId)}`}
+                    className="flex flex-wrap items-baseline gap-2 rounded-md bg-surface px-2.5 py-1.5 transition-colors hover:bg-primaire-faible/30"
+                  >
+                    <span className="rounded border border-bordure px-1.5 py-0.5 text-[0.625rem] uppercase tracking-wide text-texte-discret">
+                      {LIBELLES_DIMENSION_SEANCE[seance.dimension]}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-texte">{seance.titre}</span>
+                    <span className="text-[0.6875rem] text-texte-discret">
+                      {STATUTS_LIBELLES[seance.statut] ?? seance.statut} ·{" "}
+                      <span className="chiffres">{seance.date.slice(0, 10)}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-xs text-texte-discret">
+              Aucune séance de ce cours n’a encore été acceptée.
+            </p>
+          )}
+        </div>
 
       {trace.journal.length > 0 && (
         <div className="mt-5 border-t border-bordure pt-4">
@@ -192,7 +325,12 @@ export function ProtocoleCoursPanel({  ficheId,
 type EtatModale =
   | { phase: "intention"; message: string | null }
   | { phase: "generation"; progression: string | null }
-  | { phase: "relecture"; protocole: ProtocoleCours }
+  | {
+      phase: "relecture";
+      protocole: ProtocoleCours;
+      candidats: ActionCandidate[];
+      reservations: string[];
+    }
   | {
       phase: "ecriture";
       progression: string | null;
@@ -294,12 +432,25 @@ export function ModaleProtocole({
       }
 
       let recue = false;
+      let candidatsRecus: ActionCandidate[] = [];
+      let reservationsRecues: string[] = [];
       await consommerFluxSse(reponse, (type, donnees) => {
         if (type === "protocole") {
           const recu = JSON.parse(donnees) as ProtocoleCours;
           recue = true;
           setGarde(Object.fromEntries(recu.seances.map((_, index) => [index, true])));
-          setEtat({ phase: "relecture", protocole: recu });
+          setEtat({
+            phase: "relecture",
+            protocole: recu,
+            candidats: candidatsRecus,
+            reservations: reservationsRecues,
+          });
+        } else if (type === "candidats-plan") {
+          const recu = JSON.parse(donnees) as { candidates?: ActionCandidate[] };
+          candidatsRecus = Array.isArray(recu.candidates) ? recu.candidates : [];
+        } else if (type === "reserve-candidats") {
+          const recu = JSON.parse(donnees) as { reservations?: string[] };
+          reservationsRecues = Array.isArray(recu.reservations) ? recu.reservations : [];
         } else if (type === "erreur") {
           recue = true;
           setEtat({
@@ -335,8 +486,12 @@ export function ModaleProtocole({
    * plus question d'attendre des dizaines de secondes par séance : les
    * manquants seront générés au démarrage de chacune.
    */
-  async function creer(protocole: ProtocoleCours) {
-    const retenues = protocole.seances.filter((_, index) => garde[index]);
+  async function creer(protocole: ProtocoleCours, candidats: readonly ActionCandidate[]) {
+    const candidatesRecues = new Set(candidats.map((candidat) => candidat.candidateId));
+    const retenues = protocole.seances.filter((_, index) =>
+      garde[index]
+      && candidatesRecues.has(identifiantCandidateProtocole(ficheId, sourceAttachmentId, index)),
+    );
     if (retenues.length === 0) return;
     setErreur(null);
     const crees: { seanceId: string; titre: string }[] = [];
@@ -396,8 +551,15 @@ export function ModaleProtocole({
     surTermine();
   }
 
+  const seancesRecevables = etat.phase === "relecture"
+    ? etat.protocole.seances.filter((_, index) =>
+      etat.candidats.some((candidat) =>
+        candidat.candidateId === identifiantCandidateProtocole(ficheId, sourceAttachmentId, index),
+      ),
+    )
+    : [];
   const retenues = etat.phase === "relecture"
-    ? etat.protocole.seances.filter((_, index) => garde[index]).length
+    ? seancesRecevables.filter((seance) => garde[etat.protocole.seances.indexOf(seance)]).length
     : 0;
 
   return (
@@ -460,6 +622,9 @@ export function ModaleProtocole({
               placeholder="Ex. : examen dans deux semaines, je dois surtout retenir les définitions"
               className="w-full resize-none rounded-xl border border-bordure-controle bg-surface px-3.5 py-3 text-sm outline-none transition-all placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
             />
+            <div className="mt-2">
+              <ApercuFormulesTexte valeur={intentionLibre} />
+            </div>
             <div className="mt-1 flex items-center justify-between text-[0.6875rem] text-texte-discret">
               <span>Une intention libre — l’intention sélectionnée oriente le plan</span>
               <span>Entrée pour concevoir · Maj+Entrée nouvelle ligne</span>
@@ -513,8 +678,16 @@ export function ModaleProtocole({
             </BandeauInfo>
           )}
 
-          {etat.protocole.seances.map((seance, index) => (
-            <section key={index} className="rounded-md border border-bordure px-3 py-2.5">
+          {seancesRecevables.length === 0 ? (
+            <BandeauInfo ton="info" taille="compacte">
+              Aucune séance de ce cours ne peut être proposée maintenant. Les séances
+              déjà planifiées ou les compétences non disponibles ne sont pas recréées.
+            </BandeauInfo>
+          ) : etat.protocole.seances.map((seance, index) => {
+            const candidateId = identifiantCandidateProtocole(ficheId, sourceAttachmentId, index);
+            if (!etat.candidats.some((candidat) => candidat.candidateId === candidateId)) return null;
+            return (
+            <section key={candidateId} className="rounded-md border border-bordure px-3 py-2.5">
               <label className="flex items-start gap-2">
                 <input
                   type="checkbox"
@@ -544,12 +717,13 @@ export function ModaleProtocole({
                 </span>
               </label>
             </section>
-          ))}
+            );
+          })}
 
           <div className="flex flex-wrap items-center gap-2">
             <Bouton
               variante="principal"
-              onClick={() => void creer(etat.protocole)}
+              onClick={() => void creer(etat.protocole, etat.candidats)}
               disabled={retenues === 0}
             >
               Planifier {retenues} séance{retenues > 1 ? "s" : ""}

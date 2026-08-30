@@ -85,8 +85,13 @@ export function VueRessources({
 
     const actives = ressources.filter((element) => !element.frontMatter.archive);
     return {
-      aTrier: actives.filter((element) => estATrier(element.rangement)),
-      rattachees: actives.filter((element) => !estATrier(element.rangement)),
+      /*
+       * Un cours qui déclare déjà un domaine est lisible dans ce groupe,
+       * même s'il ne cite pas encore de compétence. Le domaine déclaré est
+       * un fait de la fiche ; le présenter ici ne pose aucun rattachement.
+       */
+      aTrier: actives.filter((element) => estATrier(element.rangement) && !element.domaineId),
+      rattachees: actives.filter((element) => !estATrier(element.rangement) || Boolean(element.domaineId)),
       archivees: [],
     };
   }, [elements, estArchives]);

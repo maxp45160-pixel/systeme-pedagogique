@@ -145,24 +145,25 @@ function entriesForSession(session: LearningSession): DashboardDayEntry[] {
   }];
 }
 
-function recommendationEntry(recommendations: readonly Recommandation[]): DashboardDayEntry | null {
+function invitationSeance(recommendations: readonly Recommandation[]): DashboardDayEntry {
   const recommendation = recommendations[0];
-  if (!recommendation) return null;
-  const code = recommendation.etat.skill.code;
-  const exercise = recommendation.exercice;
-  const type: InterventionType = recommendation.etat.observations.length === 0 ? "diagnose" : "resolve";
-  const label = exercise?.titre ?? recommendation.etat.skill.intitule;
+  const code = recommendation?.etat.skill.code;
+  const durationMinutes = recommendation?.dureeEstimeeMin ?? MINUTES_PAR_DEFAUT;
   return {
-    id: `recommendation:${exercise?.id ?? code}`,
+    id: "available:today",
     plannedFor: null,
     timeLabel: null,
-    label,
-    type,
-    durationMinutes: recommendation.dureeEstimeeMin,
+    label: "Préparer une séance",
+    type: "diagnose",
+    durationMinutes,
     effect: "measurement",
-    reason: recommendation.raison,
-    href: `/seances?composer=1&code=${encodeURIComponent(code)}&temps=${encodeURIComponent(String(recommendation.dureeEstimeeMin))}`,
-    state: "current",
+    reason: recommendation
+      ? "Aucune séance acceptée aujourd'hui : une priorité est disponible à préparer."
+      : "Aucune séance acceptée aujourd'hui : choisissez un sujet pour commencer.",
+    href: code
+      ? `/seances?composer=1&code=${encodeURIComponent(code)}&temps=${encodeURIComponent(String(durationMinutes))}`
+      : "/seances?composer=1&sans-theme=1",
+    state: "available",
   };
 }
 
@@ -238,6 +239,7 @@ function echeanceDetaillee(
 
 export function construireVueTableauBordOrchestration(input: DashboardInput): DashboardOrchestrationView {
   const today = cleJour(input.now);
+  const days = joursDeLaSemaine(input.now);
   const accepted = input.sessions
     .filter((session) => {
       const statut = statutSeance(session);
@@ -251,28 +253,29 @@ export function construireVueTableauBordOrchestration(input: DashboardInput): Da
     });
   const allEntries = accepted.flatMap(entriesForSession);
   const todays = allEntries.filter((entry) => entry.plannedFor && cleJour(entry.plannedFor) === today);
-  const fallback = recommendationEntry(input.recommendations);
-  const entries = (todays.length > 0 ? todays : fallback ? [fallback] : []).map((entry, index) => ({
+  const entries = (todays.length > 0 ? todays : [invitationSeance(input.recommendations)]).map((entry, index) => ({
     ...entry,
-    state: index === 0 ? ("current" as const) : ("next" as const),
+    state: entry.sessionId
+      ? index === 0 ? ("current" as const) : ("next" as const)
+      : entry.state,
   }));
-  const weekEntries = allEntries.filter((entry) => entry.plannedFor && cleJour(entry.plannedFor) !== today).slice(0, 5);
-  const days = joursDeLaSemaine(input.now);
+  const debutSemaine = days[0].key;
+  const finSemaine = days[days.length - 1].key;
+  const sessionsCetteSemaine = accepted.filter((session) => {
+    const jour = cleJour(session.planifieePour ?? session.date);
+    return jour >= debutSemaine && jour <= finSemaine;
+  });
+  const weekEntries = allEntries
+    .filter((entry) => {
+      if (!entry.plannedFor) return false;
+      const jour = cleJour(entry.plannedFor);
+      return jour >= debutSemaine && jour <= finSemaine && jour !== today;
+    })
+    .slice(0, 5);
   return {
     today,
-    entries: entries.length > 0 ? entries : [{
-      id: "available:today",
-      plannedFor: null,
-      timeLabel: null,
-      label: "Temps disponible pour une séance",
-      type: "diagnose",
-      durationMinutes: MINUTES_PAR_DEFAUT,
-      effect: "measurement",
-      reason: "Aucune séance acceptée aujourd'hui : une courte invitation reste disponible.",
-      href: "/seances",
-      state: "current",
-    }],
-    acceptedWeekCount: accepted.length,
+    entries,
+    acceptedWeekCount: sessionsCetteSemaine.length,
     weekEntries,
     days,
     previousWeekHref: `/seances?jour=${encodeURIComponent(decalerJour(days[0].key, -7))}`,

@@ -30,7 +30,6 @@ import {
 } from "@/lib/domain/composition-projet";
 import { Modale } from "@/components/ui/modale";
 import { Champ, ChampSelect } from "@/components/ui/champ";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { BandeauInfo, Bouton, Etiquette, cx } from "@/components/ui/primitives";
 
 const LIBELLE_VISEE: Record<ViseeProjet, string> = {

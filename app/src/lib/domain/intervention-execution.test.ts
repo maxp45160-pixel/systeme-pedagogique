@@ -73,4 +73,52 @@ describe("projection d'exécution multi-interventions", () => {
       intervention: { type: "resolve" },
     });
   });
+
+  it("compose deux interventions distinctes dans la même semaine sans créer un nouvel épisode", () => {
+    const seances = [
+      base({
+        id: "session-explain",
+        date: "2026-08-24T09:00:00.000Z",
+        statut: "planifiee",
+        planifieePour: "2026-08-24T09:00:00.000Z",
+        interventions: [intervention("explain", {
+          source: { kind: "course", ref: "cours-1" },
+        })] as never,
+      }),
+      base({
+        id: "session-read",
+        date: "2026-08-27T17:00:00.000Z",
+        statut: "planifiee",
+        planifieePour: "2026-08-27T17:00:00.000Z",
+        interventions: [intervention("read", {
+          source: { kind: "document", ref: "document-1" },
+        })] as never,
+      }),
+    ];
+
+    const parcours = seances.flatMap((seance) =>
+      lireExecutionInterventions(seance, []).executions.map((execution) => ({
+        sessionId: seance.id,
+        type: execution.intervention.type,
+        source: execution.intervention.source,
+        statut: execution.statut,
+      })),
+    );
+
+    expect(parcours).toEqual([
+      {
+        sessionId: "session-explain",
+        type: "explain",
+        source: { kind: "course", ref: "cours-1" },
+        statut: "a-faire",
+      },
+      {
+        sessionId: "session-read",
+        type: "read",
+        source: { kind: "document", ref: "document-1" },
+        statut: "a-faire",
+      },
+    ]);
+    expect(new Set(parcours.map((item) => item.sessionId))).toHaveLength(2);
+  });
 });

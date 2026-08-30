@@ -10,6 +10,7 @@ import {
   motifRefusIntentionLibre,
 } from "@/lib/domain/protocole-cours";
 import { actionsCandidatesDepuisProtocole } from "@/lib/engine/protocole-candidats";
+import { composerCandidatsPlan } from "@/lib/engine/plan-candidates";
 
 /**
  * Route de génération du plan de révision d'un cours (ADR-130).
@@ -223,11 +224,23 @@ export async function POST(request: Request) {
           engagements: ctx.donnees.engagements,
           protocol: resultat.protocole,
         });
-        if (adaptation.reservations.length > 0) {
-          envoyer("reserve-candidats", { reservations: adaptation.reservations });
-        } else {
-          envoyer("candidats-plan", { candidates: adaptation.candidates });
+        const composition = composerCandidatsPlan({
+          recommandations: [],
+          sessions: ctx.donnees.sessions,
+          tentatives: ctx.donnees.attempts,
+          engagements: ctx.donnees.engagements,
+          etats: ctx.etats,
+          candidatsProtocole: adaptation.candidates,
+          codesCompetenceActifs: ctx.referentiel.codesActifs,
+        });
+        const reservations = [...new Set([
+          ...adaptation.reservations,
+          ...composition.reservations,
+        ])];
+        if (reservations.length > 0) {
+          envoyer("reserve-candidats", { reservations });
         }
+        envoyer("candidats-plan", { candidates: composition.candidates });
 
         envoyer("protocole", {
           resume: resultat.protocole.resume,

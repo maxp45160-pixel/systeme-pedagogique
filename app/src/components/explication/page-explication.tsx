@@ -12,8 +12,9 @@ import {
 } from "@/lib/domain/explication";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { enregistrerExplicationAction } from "@/lib/store/explication-actions";
+import { terminerInterventionPourSeance } from "@/lib/store/seance-actions";
 import { cleParCompte, effacerSession, ecrireSession, lireSession } from "@/lib/ui/stockage-session";
-import { PaletteFormulesTexte } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palette-formules";
 import { CoquilleWorkspace, sortieWorkspace } from "@/components/atelier/coquille-workspace";
 import {
   Carte,
@@ -33,14 +34,26 @@ export function PageExplication({
   skill,
   domaine,
   compteId,
+  modeIntervention,
 }: {
   skill: Skill;
   domaine?: Domaine;
   compteId: string;
+  /** Contexte d'une intervention explain déjà portée par une LearningSession. */
+  modeIntervention?: {
+    sessionId: string;
+    interventionId: string;
+    retourHref: string;
+  };
 }) {
   const router = useRouter();
   const [texte, setTexte] = useState("");
-  const cleBrouillon = cleParCompte(`explication:${skill.code}`, compteId);
+  const cleBrouillon = cleParCompte(
+    modeIntervention
+      ? `explication:seance:${modeIntervention.sessionId}:${modeIntervention.interventionId}`
+      : `explication:${skill.code}`,
+    compteId,
+  );
   // Rédiger une explication, c'est écrire du texte pédagogique : la palette
   // sert la saisie (friction 1, 25/08/2026).
   const texteRef = useRef<HTMLTextAreaElement>(null);
@@ -143,20 +156,50 @@ export function PageExplication({
     setErreur(null);
 
     try {
-      await enregistrerExplicationAction({
-        skillCode: skill.code,
-        texteExplication: texte,
-        evaluation,
-        dureeMin: 10,
-      });
+      if (modeIntervention) {
+        /*
+         * Dans une séance existante, l'évaluation reste un retour pédagogique
+         * local. Sans contrat de preuve porté par l'intervention, le geste se
+         * clôture sans créer d'exercice, de séance ni d'observation parallèle.
+         */
+        await terminerInterventionPourSeance(
+          modeIntervention.interventionId,
+          modeIntervention.sessionId,
+        );
+      } else {
+        await enregistrerExplicationAction({
+          skillCode: skill.code,
+          texteExplication: texte,
+          evaluation,
+          dureeMin: 10,
+        });
+      }
       effacerSession(cleBrouillon);
       setTermine(true);
       // La validation a déjà revalidé le serveur. Une navigation explicite
-      // rend le fait visible sur le tableau de bord et évite de laisser la
-      // personne sur un formulaire qui ressemble encore à un brouillon.
-      router.replace("/?explication=enregistree");
+      // rend le fait visible sur la séance ou le tableau de bord.
+      router.replace(modeIntervention?.retourHref ?? "/?explication=enregistree");
     } catch (cause) {
       setErreur(cause instanceof Error ? cause.message : "Échec de l'enregistrement.");
+    } finally {
+      setEnEnregistrement(false);
+    }
+  }
+
+  async function terminerSansMesure() {
+    if (!modeIntervention || enEnregistrement || enCoursEvaluation) return;
+    setEnEnregistrement(true);
+    setErreur(null);
+    try {
+      await terminerInterventionPourSeance(
+        modeIntervention.interventionId,
+        modeIntervention.sessionId,
+      );
+      effacerSession(cleBrouillon);
+      setTermine(true);
+      router.replace(modeIntervention.retourHref);
+    } catch (cause) {
+      setErreur(cause instanceof Error ? cause.message : "Échec de la clôture de l'intervention.");
     } finally {
       setEnEnregistrement(false);
     }
@@ -165,10 +208,10 @@ export function PageExplication({
   if (termine) {
     return (
       <CoquilleWorkspace
-        surtitre="Méthode Feynman"
+        surtitre={modeIntervention ? "Intervention de séance · Feynman" : "Méthode Feynman"}
         titre={skill.intitule}
         compteId={compteId}
-        sortie={sortieWorkspace("/app")}
+        sortie={sortieWorkspace(modeIntervention?.retourHref ?? "/app")}
       >
         <div className="mx-auto max-w-2xl px-4 py-10">
         <Carte className="p-6 sm:p-8 text-center space-y-5">
@@ -177,26 +220,48 @@ export function PageExplication({
           </div>
           <div>
             <h1 className="font-serif text-2xl font-medium text-texte">
-              Compréhension enregistrée
+              {modeIntervention ? "Intervention terminée" : "Compréhension enregistrée"}
             </h1>
             <p className="mt-2 text-sm text-texte-attenue max-w-md mx-auto leading-relaxed">
-              Votre auto-explication de la compétence{" "}
-              <strong className="font-medium text-texte">{skill.intitule}</strong> a été validée.
-              La compétence atteint le <strong>Niveau 1</strong> (compréhension démontrée).
+              {modeIntervention ? (
+                <>
+                  {evaluation ? (
+                    <>Votre restitution de <strong className="font-medium text-texte">{skill.intitule}</strong> a reçu un retour pédagogique. </>
+                  ) : (
+                    <>Le geste demandé sur <strong className="font-medium text-texte">{skill.intitule}</strong> a été clôturé. </>
+                  )}
+                  Cette intervention se termine sans observation : aucun contrat de preuve n&apos;a été engagé par cette séance.
+                </>
+              ) : (
+                <>
+                  Votre auto-explication de la compétence{" "}
+                  <strong className="font-medium text-texte">{skill.intitule}</strong> a été validée.
+                  La compétence atteint le <strong>Niveau 1</strong> (compréhension démontrée).
+                </>
+              )}
             </p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-3 pt-4 border-t border-bordure/60">
-            <Link
-              href={`/seances?composer=1&code=${encodeURIComponent(skill.code)}`}
-              className={classesLienBouton("principal")}
-            >
-              Passer à un exercice guidé (Niveau 2)
-              <IconeFleche className="size-4" />
-            </Link>
-            <Link href="/app" className={classesLienBouton("secondaire")}>
-              Retour au tableau de bord
-            </Link>
+            {modeIntervention ? (
+              <Link href={modeIntervention.retourHref} className={classesLienBouton("principal")}>
+                Retour à la séance
+                <IconeFleche className="size-4" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={`/seances?composer=1&code=${encodeURIComponent(skill.code)}`}
+                  className={classesLienBouton("principal")}
+                >
+                  Passer à un exercice guidé (Niveau 2)
+                  <IconeFleche className="size-4" />
+                </Link>
+                <Link href="/app" className={classesLienBouton("secondaire")}>
+                  Retour au tableau de bord
+                </Link>
+              </>
+            )}
           </div>
         </Carte>
         </div>
@@ -206,17 +271,17 @@ export function PageExplication({
 
   return (
     <CoquilleWorkspace
-      surtitre="Méthode Feynman · Focus"
+      surtitre={modeIntervention ? "Intervention de séance · Feynman" : "Méthode Feynman · Focus"}
       titre={skill.intitule}
       compteId={compteId}
-      sortie={sortieWorkspace("/app")}
+      sortie={sortieWorkspace(modeIntervention?.retourHref ?? "/app")}
     >
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
       {/* Fil d'ariane & En-tête */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-xs text-texte-discret">
           <Link href="/app" className="hover:text-texte transition-colors">
-            Tableau de bord
+            {modeIntervention ? "Séance" : "Tableau de bord"}
           </Link>
           <span>/</span>
           {domaine && (
@@ -225,7 +290,7 @@ export function PageExplication({
               <span>/</span>
             </>
           )}
-          <span className="text-texte">{skill.code}</span>
+          <span className="text-texte">{modeIntervention ? "Intervention en cours" : skill.code}</span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -319,10 +384,15 @@ export function PageExplication({
           disabled={enCoursEvaluation || enEnregistrement}
           className="w-full rounded-xl border border-bordure bg-surface p-4 text-sm text-texte placeholder:text-texte-discret focus:border-primaire focus:outline-none focus:ring-1 focus:ring-primaire leading-relaxed resize-y"
         />
+        <div className="mt-2">
+          <ApercuFormulesTexte valeur={texte} />
+        </div>
 
         <p className="text-xs text-texte-discret" role="status">
           {brouillonCharge
-            ? "Le brouillon est conservé dans cet onglet jusqu’à son enregistrement."
+            ? modeIntervention
+              ? "Le brouillon reste dans cet onglet jusqu’à la fin de l’intervention. Il ne sera pas envoyé automatiquement."
+              : "Le brouillon est conservé dans cet onglet jusqu’à son enregistrement."
             : "Chargement du brouillon…"}
         </p>
 
@@ -330,18 +400,32 @@ export function PageExplication({
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-xs text-texte-discret">
-            Le tuteur IA évaluera la précision de votre compréhension sans stocker de note automatique.
+            {modeIntervention
+              ? "Le retour est formatif : terminer cette intervention ne crée aucune observation."
+              : "Le tuteur IA évaluera la précision de votre compréhension sans stocker de note automatique."}
           </p>
 
-          <Bouton
-            type="button"
-            variante="principal"
-            disabled={!peutEvaluer || enCoursEvaluation || enEnregistrement}
-            onClick={evaluer}
-          >
-            {enCoursEvaluation ? "Évaluation en cours..." : "Évaluer ma compréhension"}
-            <IconeFleche className="size-4" />
-          </Bouton>
+          <div className="flex flex-wrap justify-end gap-2">
+            {modeIntervention && (
+              <Bouton
+                type="button"
+                variante="discret"
+                disabled={enCoursEvaluation || enEnregistrement}
+                onClick={terminerSansMesure}
+              >
+                Terminer sans mesure
+              </Bouton>
+            )}
+            <Bouton
+              type="button"
+              variante="principal"
+              disabled={!peutEvaluer || enCoursEvaluation || enEnregistrement}
+              onClick={evaluer}
+            >
+              {enCoursEvaluation ? "Évaluation en cours..." : "Évaluer ma compréhension"}
+              <IconeFleche className="size-4" />
+            </Bouton>
+          </div>
         </div>
       </Carte>
 
@@ -370,20 +454,24 @@ export function PageExplication({
               </Etiquette>
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
-              <div>
-                <span className="text-texte-discret">Compréhension : </span>
-                <strong className="text-texte font-medium">
-                  {Math.round(evaluation.scoreComprehension * 100)}%
-                </strong>
+            {modeIntervention ? (
+              <span className="text-xs text-texte-discret">Retour formatif, non enregistré comme observation</span>
+            ) : (
+              <div className="flex items-center gap-4 text-xs">
+                <div>
+                  <span className="text-texte-discret">Compréhension : </span>
+                  <strong className="text-texte font-medium">
+                    {Math.round(evaluation.scoreComprehension * 100)}%
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-texte-discret">Justification : </span>
+                  <strong className="text-texte font-medium">
+                    {Math.round(evaluation.scoreJustification * 100)}%
+                  </strong>
+                </div>
               </div>
-              <div>
-                <span className="text-texte-discret">Justification : </span>
-                <strong className="text-texte font-medium">
-                  {Math.round(evaluation.scoreJustification * 100)}%
-                </strong>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Points clés & Manques */}
@@ -455,7 +543,9 @@ export function PageExplication({
             >
               {enEnregistrement
                 ? "Enregistrement..."
-                : "Valider"}
+                : modeIntervention
+                  ? "Terminer l'intervention sans mesure"
+                  : "Valider"}
               <IconeValide className="size-4" />
             </Bouton>
           </div>

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Engagement } from "@/lib/domain/engagement";
 import type { LearningSession, SkillObservation, SkillState } from "@/lib/domain/types";
+import type { Recommandation } from "./recommend";
 import { TableauBordOrchestration } from "@/components/dashboard/tableau-bord-orchestration";
 import {
   construireVueTableauBordOrchestration,
@@ -90,6 +91,20 @@ function observation(): SkillObservation {
   };
 }
 
+function recommendation(overrides: Partial<Recommandation> = {}): Recommandation {
+  return {
+    etat: state(),
+    valeur: 1,
+    facteurs: [],
+    raison: "Cette compétence constitue la prochaine priorité.",
+    exercice: null,
+    difficulteCible: 1,
+    dureeEstimeeMin: 25,
+    calibration: null,
+    ...overrides,
+  };
+}
+
 function view(overrides: Partial<Parameters<typeof construireVueTableauBordOrchestration>[0]> = {}) {
   return construireVueTableauBordOrchestration({
     now: NOW,
@@ -105,8 +120,16 @@ describe("tableau de bord orchestration — rendu et interaction", () => {
   it("garde une invitation courte sans séance acceptée", () => {
     const result = view();
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].label).toContain("Temps disponible");
+    expect(result.entries[0]).toMatchObject({ label: "Préparer une séance", state: "available" });
     expect(result.entries[0].label).not.toContain("%");
+  });
+
+  it("ne transforme pas une recommandation en séance déjà planifiée", () => {
+    const exerciceDejaFait = { id: "exercise-1", titre: "Exercice déjà fait" } as NonNullable<Recommandation["exercice"]>;
+    const result = view({ recommendations: [recommendation({ exercice: exerciceDejaFait })] });
+    expect(result.entries[0]).toMatchObject({ label: "Préparer une séance", state: "available" });
+    expect(result.entries[0].label).not.toContain("Exercice déjà fait");
+    expect(result.entries[0].sessionId).toBeUndefined();
   });
 
   it("rend une séance acceptée aujourd'hui et la suite séparément", () => {
@@ -150,12 +173,33 @@ describe("tableau de bord orchestration — rendu et interaction", () => {
   });
 
   it("rend la hiérarchie journée / échéance / semaine et des commandes accessibles", () => {
-    const markup = renderToStaticMarkup(createElement(TableauBordOrchestration, { view: view({ engagements: [engagement()] }) }));
+    const markup = renderToStaticMarkup(createElement(TableauBordOrchestration, {
+      view: view({
+        engagements: [engagement()],
+        sessions: [
+          session("today", "2026-08-28T14:30:00.000Z"),
+          session("today-2", "2026-08-28T16:30:00.000Z"),
+          session("later", "2026-08-29T18:00:00.000Z"),
+        ],
+      }),
+    }));
     expect(markup).toContain("Votre journée");
     expect(markup).toContain("Examen de thermodynamique");
     expect(markup).toContain("Voir la suite de la semaine");
     expect(markup).toContain("Changer l");
     expect(markup).toContain("Jours de la semaine");
+  });
+
+  it("guide la création sans afficher de commande de séance inexistante", () => {
+    const markup = renderToStaticMarkup(createElement(TableauBordOrchestration, {
+      view: view(),
+      recommendation: recommendation(),
+    }));
+    expect(markup).toContain("Créer un exercice sur Entropie et irréversibilités");
+    expect(markup).toContain("Générer puis commencer");
+    expect(markup).not.toContain("Changer l'ordre");
+    expect(markup).not.toContain("Voir la suite de la semaine");
+    expect(markup).not.toContain("Commencer");
   });
 
   it("garde une déclaration d'échéance accessible quand aucune n'est présente", () => {

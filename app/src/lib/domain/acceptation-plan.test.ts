@@ -136,6 +136,38 @@ describe("préparation pure de l'acceptation d'un plan", () => {
     )).toThrow(/protégée/);
   });
 
+  it("conserve la commande du protocole de cours pour la préparation au démarrage", () => {
+    const cours = candidate("course-protocol:cours-1:pdf-1:1", {
+      source: "course-protocol",
+      target: { skillCodes: ["DEV-01"] },
+      title: "Appliquer le cours",
+      courseProtocolOrigin: {
+        courseDocumentId: "cours-1",
+        sourceAttachmentId: "pdf-1",
+        domainId: "developpement",
+        dimension: "application",
+        instruction: "Appliquer la notion au cas relu.",
+      },
+    });
+    const commande = preparerCommandeAcceptationPlan(
+      plan([cours]),
+      choix({ acceptedCandidateIds: [cours.candidateId], ignoredCandidateIds: [] }),
+      contexte,
+    );
+    expect(commande.accepted[0]?.blueprint).toMatchObject({
+      dureeCibleMin: 30,
+      nombreExercices: 1,
+      origine: {
+        genre: "protocole-cours",
+        ficheId: "cours-1",
+        pieceId: "pdf-1",
+        codes: ["DEV-01"],
+        consigne: "Appliquer la notion au cas relu.",
+      },
+    });
+    expect(commande.accepted[0]?.activites).toEqual([]);
+  });
+
   it("refuse de déplacer une séance planifiée hors de la disponibilité déclarée", () => {
     const session = {
       id: "ses-planifiee",

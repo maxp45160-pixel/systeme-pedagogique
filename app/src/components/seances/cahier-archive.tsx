@@ -14,7 +14,7 @@
  * Les séparer en deux ROUTES aurait posé deux destinations dans le rail pour
  * un même pôle, et `estActif` en aurait allumé deux à la fois. Un mode dans
  * l'URL (`?vue=cahier`) sépare les besoins sans dupliquer la destination :
- * mêmes données, même route, lecture historique distincte de la chronologie.
+ * mêmes données, même route, deux lectures.
  *
  * ## Ce que le Cahier montre que le Bureau ne montre pas
  *
@@ -82,7 +82,7 @@ export function CahierArchive({
           className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-texte-discret transition-colors hover:bg-surface-2 hover:text-texte"
         >
           <IconeChevronGauche className="size-4" />
-          Revenir à la vue À venir
+          Revenir au Bureau
         </button>
       </div>
 

@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { decouperEnBlocs } from "@/lib/ui/markdown-blocs";
-import { latexVersTexte, segmenterFormulesEnLigne } from "@/lib/ui/formule";
+import { segmenterFormulesEnLigne } from "@/lib/ui/formule";
 import { FormuleMath } from "@/components/ui/formule-math";
 import { parserFrontMatter, REGEX_INLINE_MARKDOWN } from "@/lib/documents/markdown";
 
@@ -150,12 +150,6 @@ export const Markdown = memo(function Markdown({
         return (
           <div key={cle} className="formule-affichee">
             <FormuleMath latex={bloc.latex} display />
-            {/*
-              Le texte Unicode reste sous la composition KaTeX : copiable,
-              cherchable, et lisible si KaTeX refuse une commande exotique —
-              `FormuleMath` retombe alors dessus de lui-même.
-            */}
-            <p className="sr-only">{latexVersTexte(bloc.latex)}</p>
           </div>
         );
 

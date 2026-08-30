@@ -74,7 +74,7 @@ export function PaletteBureau({
     const creations: CommandePalette[] = [
       {
         id: "composer",
-        libelle: "Préparer autre chose",
+        libelle: "Composer une séance",
         indice: "Créer",
         motsCles: "créer nouvelle exercice travail séance",
         executer: () => router.push("/seances?composer=1"),

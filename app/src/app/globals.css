@@ -349,13 +349,16 @@
    * débordement horizontal confié au conteneur — une matrice large défile au
    * lieu de sortir de la colonne.
    */
-  .prose-exo .formule-affichee {
+    .prose-exo .formule-affichee {
     margin: 1.25rem 0;
     padding: 0.25rem 0;
     text-align: center;
     overflow-x: auto;
-    overflow-y: hidden;
-  }
+      overflow-y: hidden;
+    }
+    .prose-exo .formule-rendu-bloc {
+      display: block;
+    }
   /*
    * KaTeX pose lui-même `margin: 1em 0` sur `.katex-display` : cumulé à celle
    * du conteneur, l'espacement doublait autour de chaque formule.
@@ -369,6 +372,11 @@
   /* Une formule en ligne ne se coupe pas au milieu d'un exposant. */
   .prose-exo :not(.katex-display) > .katex {
     white-space: nowrap;
+  }
+
+  .figure-exercice {
+    max-width: 100%;
+    break-inside: avoid;
   }
 
   /*
@@ -407,6 +415,15 @@
     border-radius: var(--coin-net);
     padding: 0.05em 0.3em;
     white-space: pre-wrap;
+  }
+
+  /* Le placeholder reste dans la zone ContentEditable, sans être une valeur
+     source que l'on pourrait confondre avec le contenu à envoyer. */
+  .editeur-formules[data-placeholder]:has(> p:only-child > br:only-child)::before,
+  .editeur-formules[data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--texte-discret);
+    pointer-events: none;
   }
 
   /* Conteneur du graphe interactif des compétences (style Obsidian). */

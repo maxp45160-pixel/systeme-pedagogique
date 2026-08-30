@@ -7,7 +7,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import { cx } from "@/components/ui/primitives";
-import { PaletteFormules } from "@/components/ui/palette-formules";
+import { ApercuFormulesTexte, PaletteFormules } from "@/components/ui/palette-formules";
 import { insererFormuleDansTexte } from "@/lib/ui/insertion-formule";
 
 type TailleChamp = "normale" | "compacte";
@@ -207,6 +207,13 @@ export function Champ(props: ProprietesChampInput | ProprietesChampTextarea) {
           className={classes}
           {...(resteChamp as InputHTMLAttributes<HTMLInputElement>)}
         />
+      )}
+      {multiligne && formules && (
+        <div className="mt-2">
+          <ApercuFormulesTexte
+            valeur={String((resteChamp as TextareaHTMLAttributes<HTMLTextAreaElement>).value ?? "")}
+          />
+        </div>
       )}
       <Pied aideId={aideId} erreurId={erreurId} aide={aide} erreur={erreur} />
     </div>

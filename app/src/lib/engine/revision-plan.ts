@@ -46,6 +46,8 @@ export interface PlanDiffConflict {
 
 export interface PlanDiff {
   changes: PlanChange[];
+  /** Nouvelles propositions visibles, sans écriture tant qu'elles ne sont pas acceptées. */
+  appears?: PlanChange[];
   /** Candidates du recalcul non acceptées : elles restent hors de la revue. */
   silentCandidateIds: string[];
   conflicts: PlanDiffConflict[];
@@ -129,6 +131,64 @@ function chevauche(a: PlanSnapshot, b: PlanSnapshot): boolean {
     && debutA < finB && debutB < finA;
 }
 
+function creneauDansDisponibilite(
+  snapshot: PlanSnapshot,
+  availability: PlanPropose["availability"],
+): boolean {
+  const debut = instant(snapshot.plannedFor);
+  const fin = instant(snapshot.endsAt);
+  if (debut === null || fin === null || !availability || availability.length === 0) return false;
+  return availability.some((window) => {
+    const debutFenetre = instant(window.startsAt);
+    const finFenetre = instant(window.endsAt);
+    return debutFenetre !== null
+      && finFenetre !== null
+      && debutFenetre <= debut
+      && fin <= finFenetre;
+  });
+}
+
+/**
+ * Recalcule uniquement la position d'une séance déjà acceptée.
+ *
+ * `planifierTemps` retire volontairement les séances acceptées de ses slots :
+ * elles occupent le temps, mais ne sont pas de nouvelles candidates. La
+ * revue doit néanmoins pouvoir constater qu'une disponibilité a invalidé
+ * leur position. Cette petite projection reste pure et ne recompose pas le
+ * contenu de la séance.
+ */
+function replanifierSession(
+  before: PlanSnapshot,
+  availability: PlanPropose["availability"],
+  occupations: readonly PlanSnapshot[],
+): PlanSnapshot | null {
+  if (!availability || availability.length === 0) return null;
+  const duree = before.durationMinutes * 60_000;
+  const fenetres = availability
+    .map((window) => ({ debut: instant(window.startsAt), fin: instant(window.endsAt) }))
+    .filter((window): window is { debut: number; fin: number } =>
+      window.debut !== null && window.fin !== null && window.fin > window.debut,
+    )
+    .sort((a, b) => a.debut - b.debut || a.fin - b.fin);
+
+  if (creneauDansDisponibilite(before, availability) && !occupations.some((occupation) => chevauche(before, occupation))) {
+    return before;
+  }
+
+  for (const fenetre of fenetres) {
+    const fin = fenetre.debut + duree;
+    const candidat: PlanSnapshot = {
+      ...before,
+      plannedFor: new Date(fenetre.debut).toISOString(),
+      endsAt: new Date(fin).toISOString(),
+    };
+    if (fin <= fenetre.fin && !occupations.some((occupation) => chevauche(candidat, occupation))) {
+      return candidat;
+    }
+  }
+  return null;
+}
+
 /**
  * Compare les séances déjà acceptées au recalcul courant.
  *
@@ -204,7 +264,16 @@ export function calculerDiffPlan({
     }
     sessionsByCandidate.set(candidateId, session);
     const slot = slotsByCandidate.get(candidateId);
-    if (!slot) {
+    const occupations = acceptedSessions
+      .filter((candidate) => candidate.id !== session.id && (candidate.statut ?? "terminee") === "planifiee")
+      .map(snapshotSession)
+      .filter((snapshot): snapshot is PlanSnapshot => snapshot !== null);
+    const after = slot
+      ? snapshotCreneau(slot)
+      : recalculatedPlan.slots.length > 0
+        ? replanifierSession(before, recalculatedPlan.availability, occupations)
+        : null;
+    if (!after) {
       changes.push({
         kind: "annuler",
         sessionId: session.id,
@@ -216,7 +285,6 @@ export function calculerDiffPlan({
       continue;
     }
 
-    const after = snapshotCreneau(slot);
     const dateAvant = instant(before.plannedFor);
     const dateApres = instant(after.plannedFor);
     const dateChange = dateAvant !== dateApres;
@@ -229,15 +297,15 @@ export function calculerDiffPlan({
       conflicts.push({ candidateId, sessionId: session.id, reason: conflict, reservations: ["La v0 ne remplace pas silencieusement une intervention acceptée."] });
       changes.push({ kind: "conflit-impossible", sessionId: session.id, candidateId, before, after, reason: conflict, reservations: ["Relire la séance dans son contexte avant toute modification."] });
     } else if (!dateChange && !durationChange) {
-      changes.push({ kind: "conserver", sessionId: session.id, candidateId, before, after, reason: raison(slot, "Le créneau accepté reste compatible avec le recalcul."), reservations: [...slot.reservations] });
+      changes.push({ kind: "conserver", sessionId: session.id, candidateId, before, after, reason: raison(slot, "Le créneau accepté reste compatible avec le recalcul."), reservations: slot ? [...slot.reservations] : ["La séance acceptée reste inchangée."] });
     } else if (after.durationMinutes < before.durationMinutes) {
-      changes.push({ kind: "raccourcir", sessionId: session.id, candidateId, before, after, reason: raison(slot, "La capacité déclarée conduit à un créneau plus court."), reservations: [...slot.reservations] });
+      changes.push({ kind: "raccourcir", sessionId: session.id, candidateId, before, after, reason: raison(slot, "La capacité déclarée conduit à un créneau plus court."), reservations: slot ? [...slot.reservations] : [] });
     } else if (after.durationMinutes > before.durationMinutes) {
       const conflict = "Le recalcul demande une durée plus longue, variation non supportée en v0.";
       conflicts.push({ candidateId, sessionId: session.id, reason: conflict, reservations: ["Choisir une durée explicitement dans la séance." ] });
       changes.push({ kind: "conflit-impossible", sessionId: session.id, candidateId, before, after, reason: conflict, reservations: ["Aucune extension implicite d'une séance acceptée." ] });
     } else {
-      changes.push({ kind: "deplacer", sessionId: session.id, candidateId, before, after, reason: raison(slot, "Une disponibilité déclarée favorise un autre créneau."), reservations: [...slot.reservations] });
+      changes.push({ kind: "deplacer", sessionId: session.id, candidateId, before, after, reason: raison(slot, "Le créneau actuel ne correspond plus à vos disponibilités déclarées."), reservations: slot ? [...slot.reservations] : ["Le déplacement conserve le geste et l'origine de la séance."] });
     }
   }
 
@@ -267,8 +335,19 @@ export function calculerDiffPlan({
     }
   }
 
+  const appears = recalculatedPlan.slots
+    .filter((slot) => !acceptedIds.has(slot.candidate.candidateId) && !acceptedOriginIds.has(slot.candidate.candidateId))
+    .map((slot) => ({
+      kind: "ajouter" as const,
+      candidateId: slot.candidate.candidateId,
+      after: snapshotCreneau(slot),
+      reason: "Une nouvelle proposition est disponible à partir de vos informations actuelles.",
+      reservations: [...slot.reservations],
+    }));
+
   return {
     changes: changes.sort((a, b) => (a.after?.plannedFor ?? a.before?.plannedFor ?? "").localeCompare(b.after?.plannedFor ?? b.before?.plannedFor ?? "")),
+    appears,
     silentCandidateIds: [...new Set(silentCandidateIds)].sort(),
     conflicts,
     constraints: [...new Set(recalculatedPlan.constraints)],

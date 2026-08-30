@@ -53,6 +53,10 @@ import {
   construireLectureOrchestrationModule,
   type LectureOrchestrationModule,
 } from "@/lib/engine/module-orchestration";
+import {
+  proposerClassementDepuisDomaineCreation,
+  type PropositionClassementAtelier,
+} from "./classement-atelier";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -292,6 +296,8 @@ export interface VueAClasserAtelier {
   code: string;
   titre: string;
   palier: string;
+  /** Destination proposée à partir d'un fait existant, jamais écrite ici. */
+  proposition: PropositionClassementAtelier | null;
   /** Le domaine qui a produit son code — un namespace, pas un rangement. */
   domaineCreationNom: string;
   nombreObservations: number;
@@ -691,19 +697,24 @@ export function construireVuesAtelier(
    * « À classer » (ADR-107) : les compétences du périmètre de travail qu'aucun
    * tag ne rend visible. Elles n'apparaissent dans aucun domaine — c'est la
    * décision, pas un défaut d'affichage — et l'écran les nomme pour qu'une
-   * personne puisse les ranger. Aucun classement n'est proposé ici : ce serait
-   * exactement le rattachement lexical automatique qu'ADR-107 écarte.
+   * personne puisse les ranger. Le domaine de création peut fournir une
+   * proposition stable, mais elle reste une projection : aucune écriture ne
+   * part du calcul de la vue.
    */
   const aClasser: VueAClasserAtelier[] = referentiel.actifs
     .filter((skill) => (skill.tagsDomaine ?? []).length === 0)
-    .map((skill) => ({
-      code: skill.code,
-      titre: skill.intitule,
-      palier: skill.palier,
-      domaineCreationNom: referentiel.domainesParId.get(skill.domaine)?.nom ?? skill.domaine,
-      nombreObservations:
-        competences.find((competence) => competence.code === skill.code)?.nombreObservations ?? 0,
-    }));
+    .map((skill) => {
+      const domaineCreation = referentiel.domainesParId.get(skill.domaine);
+      return {
+        code: skill.code,
+        titre: skill.intitule,
+        palier: skill.palier,
+        proposition: proposerClassementDepuisDomaineCreation(skill, referentiel.domaines),
+        domaineCreationNom: domaineCreation?.nom ?? skill.domaine,
+        nombreObservations:
+          competences.find((competence) => competence.code === skill.code)?.nombreObservations ?? 0,
+      };
+    });
 
   return { domaines, competences, exercices: vuesExercices, aClasser };
 }

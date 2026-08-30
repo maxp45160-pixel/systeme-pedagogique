@@ -905,6 +905,21 @@ export function EspaceDocumentaire({
       return;
     }
 
+    /*
+     * Un cours a une surface serveur enrichie (protocole, documents liés,
+     * échéances et séances acceptées). Depuis la liste des ressources, ouvrir
+     * un cours doit donc rejoindre cette même fiche complète, plutôt que le
+     * lecteur générique qui ne connaît que son corps Markdown. La route reste
+     * `/atelier`; `retour` conserve simplement le point d'entrée courant.
+     */
+    if (element.type === "cours" && element.source === "document") {
+      const retour = `${window.location.pathname}${window.location.search}`;
+      router.push(
+        `/atelier?note=${encodeURIComponent(element.id)}&retour=${encodeURIComponent(retour)}`,
+      );
+      return;
+    }
+
     setSelection(element.id);
     setCibleLien("");
     setSnapshotApercu(null);

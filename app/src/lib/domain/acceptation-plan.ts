@@ -14,6 +14,7 @@ import {
   type InterventionSource,
 } from "./intervention-seance";
 import type { LearningSession, OrigineProposition } from "./types";
+import { EXERCICES_PAR_SEANCE_MAX } from "./seance";
 import {
   motifRefusActionCandidate,
   type ActionCandidate,
@@ -71,6 +72,8 @@ export interface SessionPlanifieeDepuisProposition {
   skillCodes: string[];
   activites: LearningSession["activites"];
   interventions: InterventionSeance[];
+  /** Commande de préparation conservée pour une séance issue d'un cours. */
+  blueprint?: LearningSession["blueprint"];
   origineProposition: OrigineProposition;
 }
 
@@ -148,6 +151,36 @@ function activitesDepuisCandidate(candidate: ActionCandidate): LearningSession["
   const ref = candidate.candidateId.slice("legacy-exercise:".length);
   if (!texteNonVide(ref)) refuser(`candidate ${candidate.candidateId} sans exercice source`);
   return [{ type: "exercice", ref, libelle: candidate.title }];
+}
+
+function blueprintDepuisCandidate(
+  candidate: ActionCandidate,
+  domaines: readonly string[],
+): LearningSession["blueprint"] | undefined {
+  const origine = candidate.courseProtocolOrigin;
+  if (candidate.source !== "course-protocol" || !origine) return undefined;
+  const codes = [...new Set(candidate.target.skillCodes)];
+  const nombreExercices = Math.max(
+    1,
+    Math.min(codes.length, EXERCICES_PAR_SEANCE_MAX),
+  );
+  return {
+    dureeCibleMin: candidate.durationMinutes,
+    nombreExercices,
+    portee: domaines.length === 1
+      ? { type: "mono", domaine: domaines[0] }
+      : { type: "transverse", domaines: [...domaines] },
+    cibles: [],
+    origine: {
+      genre: "protocole-cours",
+      ficheId: origine.courseDocumentId,
+      pieceId: origine.sourceAttachmentId,
+      titre: candidate.title,
+      dimension: origine.dimension,
+      codes,
+      consigne: origine.instruction,
+    },
+  };
 }
 
 function validerCreneau(
@@ -362,6 +395,7 @@ export function preparerCommandeAcceptationPlan(
       skillCodes: [...new Set(slot.candidate.target.skillCodes)],
       activites: activitesDepuisCandidate(slot.candidate),
       interventions: [interventionDepuisCandidate(slot.candidate)],
+      blueprint: blueprintDepuisCandidate(slot.candidate, domaines),
       origineProposition: {
         propositionRef: choix.propositionRef,
         candidateId: slot.candidate.candidateId,

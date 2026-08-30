@@ -3643,6 +3643,34 @@ BEGIN
     jsonb_set(p_payload, '{adjustments}', v_normalized)
   );
 
+  -- La fonction héritée matérialise les séances, mais ne connaissait pas la
+  -- commande de préparation différée des cours. Elle est rattachée ici, dans
+  -- la même transaction et sous le même verrou d'idempotence.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(coalesce(p_payload->'accepted', '[]'::JSONB))
+  LOOP
+    IF v_item->>'source' = 'course-protocol' THEN
+      IF jsonb_typeof(v_item->'blueprint') IS DISTINCT FROM 'object'
+         OR jsonb_typeof(v_item->'blueprint'->'origine') IS DISTINCT FROM 'object'
+         OR v_item->'blueprint'->'origine'->>'genre' IS DISTINCT FROM 'protocole-cours'
+         OR btrim(coalesce(v_item->'blueprint'->'origine'->>'ficheId', '')) = ''
+         OR btrim(coalesce(v_item->'blueprint'->'origine'->>'pieceId', '')) = ''
+         OR btrim(coalesce(v_item->'blueprint'->'origine'->>'titre', '')) = ''
+         OR v_item->'blueprint'->'origine'->>'dimension' NOT IN ('comprehension', 'application', 'contextualisation', 'memorisation')
+         OR jsonb_typeof(v_item->'blueprint'->'origine'->'codes') IS DISTINCT FROM 'array'
+         OR jsonb_array_length(v_item->'blueprint'->'origine'->'codes') = 0
+         OR btrim(coalesce(v_item->'blueprint'->'origine'->>'consigne', '')) = ''
+         OR coalesce(v_item->'blueprint'->>'dureeCibleMin', '') !~ '^[1-9][0-9]*$'
+         OR coalesce(v_item->'blueprint'->>'nombreExercices', '') !~ '^[1-9][0-9]*$'
+         OR jsonb_typeof(v_item->'blueprint'->'cibles') IS DISTINCT FROM 'array'
+      THEN
+        RAISE EXCEPTION 'Commande de préparation du cours invalide.' USING ERRCODE = '22023';
+      END IF;
+      UPDATE public.sessions
+         SET blueprint = v_item->'blueprint'
+       WHERE user_id = v_uid AND id = btrim(coalesce(v_item->>'sessionId', ''));
+    END IF;
+  END LOOP;
+
   IF v_replayed THEN
     RETURN v_result;
   END IF;

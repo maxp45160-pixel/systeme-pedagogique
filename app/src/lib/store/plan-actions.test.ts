@@ -17,7 +17,9 @@ vi.mock("./db", () => ({ dorsaleCompte: mocks.dorsaleCompte, lire: mocks.lire })
 vi.mock("./referentiel", () => ({ lireReferentiel: mocks.lireReferentiel }));
 vi.mock("./supabase-backend", () => ({ verifier: mocks.verifier }));
 
-import { accepterPlan, refuserPropositionPlan } from "./plan-actions";
+import { accepterPlan, appliquerDiffPlan, deplacerSeance, refuserPropositionPlan } from "./plan-actions";
+import type { PlanDiff } from "@/lib/engine/revision-plan";
+import type { LearningSession } from "@/lib/domain/types";
 
 const candidate: ActionCandidate = {
   candidateId: "c-1",
@@ -78,6 +80,91 @@ describe("frontière serveur d'acceptation de plan", () => {
     mocks.from.mockReturnValue({
       insert: vi.fn().mockResolvedValue({ error: null }),
     });
+  });
+
+  const sessionPlanifiee: LearningSession = {
+    id: "ses-deplacement",
+    date: "2026-08-28T09:00:00.000Z",
+    planifieePour: "2026-08-28T09:00:00.000Z",
+    dureePlanifieeMin: 30,
+    domaines: ["developpement"],
+    skillCodes: ["DEV-01"],
+    activites: [],
+    interventions: [{
+      id: "int-deplacement",
+      type: "resolve",
+      label: "Résoudre",
+      source: { kind: "session", ref: "ses-deplacement" },
+      expectedEffect: "measurement",
+      estimatedDurationMinutes: 30,
+    }],
+    genereAutomatiquement: false,
+    statut: "planifiee",
+    origineProposition: { propositionRef: "p0", candidateId: "c1", source: "declared-need" },
+  };
+
+  it("déplace une LearningSession par une seule commande, sans observation ni nouvelle séance", async () => {
+    mocks.lire.mockImplementation(async (collection: string) => collection === "user"
+      ? { disponibilitesDeclarees: [{ startsAt: "2026-08-28T10:00:00.000Z", endsAt: "2026-08-28T12:00:00.000Z", sourceRef: "declaree:profil" }] }
+      : [sessionPlanifiee]);
+
+    await deplacerSeance(
+      sessionPlanifiee.id,
+      sessionPlanifiee.planifieePour!,
+      "2026-08-28T10:00:00.000Z",
+      "move-request",
+    );
+
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    const payload = mocks.rpc.mock.calls[0][1].p_payload;
+    expect(payload.accepted).toEqual([]);
+    expect(payload.adjustments).toEqual([{
+      sessionId: sessionPlanifiee.id,
+      action: "move",
+      plannedFor: "2026-08-28T10:00:00.000Z",
+    }]);
+    expect(payload).not.toHaveProperty("observations");
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith("/seances", "page");
+  });
+
+  it("refuse une revue devenue obsolète avant d'atteindre Supabase", async () => {
+    mocks.lire.mockImplementation(async (collection: string) => collection === "user"
+      ? { disponibilitesDeclarees: [{ startsAt: "2026-08-28T10:00:00.000Z", endsAt: "2026-08-28T12:00:00.000Z", sourceRef: "declaree:profil" }] }
+      : [{ ...sessionPlanifiee, planifieePour: "2026-08-28T09:30:00.000Z", date: "2026-08-28T09:30:00.000Z" }]);
+
+    const diff: PlanDiff = {
+      changes: [{
+        kind: "deplacer",
+        sessionId: sessionPlanifiee.id,
+        candidateId: "c1",
+        before: {
+          plannedFor: sessionPlanifiee.planifieePour!,
+          endsAt: "2026-08-28T09:30:00.000Z",
+          durationMinutes: 30,
+          label: "Résoudre",
+          intervention: "resolve",
+          expectedEffect: "measurement",
+        },
+        after: {
+          plannedFor: "2026-08-28T10:00:00.000Z",
+          endsAt: "2026-08-28T10:30:00.000Z",
+          durationMinutes: 30,
+          label: "Résoudre",
+          intervention: "resolve",
+          expectedEffect: "measurement",
+        },
+        reason: "Le créneau actuel ne correspond plus à vos disponibilités déclarées.",
+        reservations: [],
+      }],
+      silentCandidateIds: [],
+      conflicts: [],
+      constraints: [],
+      reservations: [],
+    };
+
+    await expect(appliquerDiffPlan(diff, "stale-request")).rejects.toThrow(/a changé depuis l'ouverture/);
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   it("revalide le référentiel du compte puis appelle une seule RPC sans stocker le plan", async () => {

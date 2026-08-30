@@ -4,6 +4,7 @@ import "katex/dist/katex.min.css";
 import { useCallback, useEffect, useRef } from "react";
 import { cx } from "@/components/ui/primitives";
 import { separerFrontMatterEtCorps, markdownVersHtml, domVersMarkdown } from "@/lib/documents/wysiwyg-markdown";
+import { contientFormuleLatex } from "@/lib/ui/formule";
 import {
   ATTRIBUT_BLOC,
   ATTRIBUT_LATEX,
@@ -23,6 +24,14 @@ export interface EditeurDirectProps {
   onRaccourci: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onSelectionChange?: () => void;
   onOuvrirWikilien?: (cible: string) => void;
+  className?: string;
+  ariaLabel?: string;
+  placeholder?: string;
+  focusInitial?: boolean;
+  /** Conserve la hauteur de la fiche ; désactivé pour les champs compacts. */
+  hauteurPleine?: boolean;
+  /** Compose une formule tapée à la main dès qu'elle devient complète. */
+  recomposerFormulesSurSaisie?: boolean;
   ref?: React.Ref<HTMLDivElement | null>;
 }
 
@@ -92,6 +101,12 @@ export function EditeurDirect({
   onRaccourci,
   onSelectionChange,
   onOuvrirWikilien,
+  className,
+  ariaLabel = "Éditeur de contenu",
+  placeholder,
+  focusInitial = false,
+  hauteurPleine = true,
+  recomposerFormulesSurSaisie = false,
   ref,
 }: EditeurDirectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -117,11 +132,25 @@ export function EditeurDirect({
   }, [documentId, contenuCharge, contenuInitialMd]);
 
   const handleInput = useCallback(() => {
-    if (!containerRef.current) return;
-    const mdCorps = domVersMarkdown(containerRef.current);
+    const racine = containerRef.current;
+    if (!racine) return;
+    const mdCorps = domVersMarkdown(racine);
     onSynchroniser(mdCorps);
     onSelectionChange?.();
-  }, [onSynchroniser, onSelectionChange]);
+
+    /* La palette insère déjà un nœud composé. Pour une formule tapée à la
+       main, on compose dès que les délimiteurs sont présents ; on ignore une
+       source déjà ouverte, qui correspond à un geste d'édition explicite. */
+    const sourceOuverte = racine.querySelector("[data-formule-source]") !== null;
+    if (
+      recomposerFormulesSurSaisie &&
+      !sourceOuverte &&
+      contientFormuleLatex(racine.textContent ?? "")
+    ) {
+      racine.innerHTML = markdownVersHtml(mdCorps);
+      curseurEnFinDe(racine);
+    }
+  }, [onSynchroniser, onSelectionChange, recomposerFormulesSurSaisie]);
 
   /**
    * Recompose une source éditée.
@@ -264,7 +293,19 @@ export function EditeurDirect({
       onClick={handleClick}
       onFocus={onSelectionChange}
       onKeyDown={handleKeyDown}
-      className={cx("prose-exo min-h-full w-full px-5 pb-5 pt-7 sm:px-6 sm:pb-6 sm:pt-8 outline-none", !lectureSeule && "cursor-text")}
+      data-placeholder={placeholder || undefined}
+      data-focus-initial={focusInitial || undefined}
+      role="textbox"
+      aria-multiline="true"
+      aria-label={ariaLabel}
+      aria-disabled={lectureSeule || undefined}
+      className={cx(
+        "prose-exo w-full px-5 pb-5 pt-7 sm:px-6 sm:pb-6 sm:pt-8 outline-none",
+        hauteurPleine && "min-h-full",
+        placeholder && "editeur-formules",
+        !lectureSeule && "cursor-text",
+        className,
+      )}
     />
   );
 }
