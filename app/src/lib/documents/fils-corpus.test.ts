@@ -80,7 +80,7 @@ describe("filRessourcesDomaine — rattachement déclaré, ordre dérivé", () =
       domaineId: "developpement",
       codesCompetences: codes,
       documents: [
-        document("fiche-dev", [], { domaineConnu: "developpement", role: undefined }),
+        document("fiche-dev", [], { domaineConnu: "developpement", role: "support" }),
         document("fiche-stat", [], { domaineConnu: "statistiques" }),
         document("support-dev", ["DEV-01"], { role: "support" }),
       ],

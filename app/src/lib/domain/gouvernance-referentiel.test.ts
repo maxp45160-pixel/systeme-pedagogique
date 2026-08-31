@@ -132,6 +132,57 @@ describe("gouvernance du référentiel", () => {
     }, assemblerReferentiel([], []))).toThrow("au moins une compétence");
   });
 
+  it("crée un domaine continu depuis des compétences existantes sans nouveau code", () => {
+    const domaineModule = domaine("macroeconomie-l2", "Macroéconomie L2", "MAC");
+    const existante = skill("MAC-01", "Analyser un équilibre macroéconomique", domaineModule.id);
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Analyse économique",
+      prefixe: "AEC",
+      description: "Compétences économiques travaillées dans la durée.",
+      origine: "utilisateur",
+      competences: [],
+      rattachementsExistants: [existante.code, existante.code],
+      usage: { type: "continu" },
+    }, assemblerReferentiel([domaineModule], [existante], [{ code: existante.code, domaine: domaineModule.id }]));
+
+    expect(commande).toMatchObject({
+      type: "creer_domaine",
+      domaine: { id: "analyse-economique" },
+      competences: [],
+      rattachementsExistants: ["MAC-01"],
+      usage: { type: "continu" },
+    });
+    expect(dejaAuReferentiel).toEqual([]);
+  });
+
+  it("refuse un rattachement inconnu avant de préparer la création", () => {
+    expect(() => preparerCreationDomaine({
+      domaine: "Analyse économique",
+      prefixe: "AEC",
+      description: "Compétences économiques travaillées dans la durée.",
+      origine: "utilisateur",
+      competences: [],
+      rattachementsExistants: ["MAC-99"],
+      usage: { type: "continu" },
+    }, assemblerReferentiel([], []))).toThrow("Compétence inconnue ou archivée : MAC-99");
+  });
+
+  it("refuse d'utiliser les rattachements groupés hors domaine continu", () => {
+    const domaineModule = domaine("macroeconomie-l2", "Macroéconomie L2", "MAC");
+    const existante = skill("MAC-01", "Analyser un équilibre macroéconomique", domaineModule.id);
+    expect(() => preparerCreationDomaine({
+      domaine: "Second module",
+      prefixe: "MOD",
+      description: "",
+      origine: "utilisateur",
+      competences: [],
+      rattachementsExistants: [existante.code],
+      usage: { type: "module", module: { anneeAcademique: "2026-2027" } },
+    }, assemblerReferentiel([domaineModule], [existante], [{ code: existante.code, domaine: domaineModule.id }]))).toThrow(
+      "réservés à un nouveau domaine continu",
+    );
+  });
+
   /*
    * Le geste attendu : la personne demande ce savoir-faire dans ce domaine.
    * Il existe ailleurs, donc rien n'est écrit — et il n'y a rien non plus à

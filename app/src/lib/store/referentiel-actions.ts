@@ -80,6 +80,8 @@ export interface SoumissionBranche {
   prefixe: string;
   description: string;
   competences: Array<{ intitule: string; palier: string; importance: string; prerequis?: string[] }>;
+  /** Codes existants à rattacher atomiquement lors de la création d'un domaine continu. */
+  rattachementsExistants?: string[];
   origine?: OrigineReferentiel;
   /** Les compétences réellement créées doivent-elles rouvrir le rangement ? */
   signalerCroissanceReferentiel: boolean;

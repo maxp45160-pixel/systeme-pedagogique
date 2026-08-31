@@ -8,7 +8,7 @@ import type {
   SkillObservation,
   SkillState,
 } from "@/lib/domain/types";
-import type { IndexDocumentaire } from "./index";
+import { reconstruireIndexDocumentaire, type IndexDocumentaire } from "./index";
 import { construireVuesAtelier } from "./vue-atelier";
 import { construireEtatCompetence } from "@/lib/engine/vues-twiny";
 
@@ -631,12 +631,25 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       domainesParId: new Map([[moduleVide.id, moduleVide]]),
     };
 
+    const indexModule = reconstruireIndexDocumentaire(
+      [
+        ["cours", "Cours magistral", "support"],
+        ["note", "Notes du chapitre", "support"],
+        ["definition", "Définition clé", "support"],
+        ["exercice-donne", "Exercice de TD", "operationnel"],
+        ["devoir", "Devoir maison", "operationnel"],
+      ].map(([type, titre, role], position) => ({
+        id: `document-${position}`,
+        contenuMd: `---\nschema: pedagogie/v1\ntype: ${type}\nid: document-${position}\nrole: ${role}\ndomaine: ${moduleVide.id}\ncreated_at: 2026-08-31\n---\n\n# ${titre}`,
+      })),
+    );
+
     const vues = construireVuesAtelier(
       referentielVide,
       [],
       [],
       [],
-      index,
+      indexModule,
       [],
       [],
       new Set(),
@@ -647,7 +660,13 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
     expect(vues.domaines[0]).toMatchObject({
       id: "macroeconomie-l2",
       competences: [],
-      ressources: [],
     });
+    expect(vues.domaines[0].ressources.map(({ type }) => type)).toEqual([
+      "cours",
+      "note",
+      "definition",
+      "exercice-donne",
+      "devoir",
+    ]);
   });
 });

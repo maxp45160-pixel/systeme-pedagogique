@@ -53,6 +53,10 @@ import {
   type PropositionClassementAtelier,
 } from "./classement-atelier";
 import { usageDuDomaine } from "@/lib/domain/usage-domaine";
+import {
+  organisationDurableDuModule,
+  type OrganisationDurableModule,
+} from "@/lib/domain/organisation-module";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -342,6 +346,8 @@ export interface VueDomaineAtelier {
   ressources: FilRessource[];
   /** Historique dérivé des observations, regroupé par travail source. */
   travailRealise: TravailRealiseDomaine[];
+  /** Tags continus alimentés par ce module, dérivés sans copie de compétence. */
+  organisationDurable: OrganisationDurableModule;
 }
 
 /**
@@ -709,6 +715,11 @@ export function construireVuesAtelier(
           codesDomaine,
           referentiel,
           index,
+        ),
+        organisationDurable: organisationDurableDuModule(
+          domaine.id,
+          referentiel.skills,
+          referentiel.domaines,
         ),
         orchestrationModule: construireLectureOrchestrationModule({
           domainId: domaine.id,

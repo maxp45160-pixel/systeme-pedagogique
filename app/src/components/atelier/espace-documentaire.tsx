@@ -1519,7 +1519,6 @@ export function EspaceDocumentaire({
               donneesSeance={donneesSeance}
               onRestaurerDomaine={onRestaurerDomaine}
               domainesExistants={domainesExistants}
-              aClasser={aClasser}
             />
           ) : selectionnee ? (
             <>

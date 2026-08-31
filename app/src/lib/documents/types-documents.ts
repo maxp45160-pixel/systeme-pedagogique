@@ -176,10 +176,37 @@ export const TYPES_DOCUMENTS: Readonly<Record<string, DefinitionTypeDocument>> =
     ["competence"],
     ["Journal"],
   ),
+  definition: definition(
+    "definition",
+    "Définition",
+    "connaissance",
+    "livre",
+    "Connaissances/Définitions",
+    ["Définition", "Exemple", "Pièges fréquents"],
+    ["competence"],
+  ),
   livre: definition("livre", "Livre", "connaissance", "livre", "Références/Livres", ["Résumé", "Chapitres utiles"], ["reference"]),
   formule: definition("formule", "Formule", "connaissance", "formule", "Connaissances/Formules", ["Définition", "Variables", "Exemple"]),
   reflexion: definition("reflexion", "Réflexion", "connaissance", "reflexion", "Connaissances/Réflexions", ["Question", "Analyse", "Conclusion"]),
   exercice: definition("exercice", "Exercice", "action", "exercice", "Exercices", ["Énoncé", "Travail", "Retour"], ["competence"]),
+  "exercice-donne": definition(
+    "exercice-donne",
+    "Exercice donné",
+    "action",
+    "exercice",
+    "Exercices donnés",
+    ["Énoncé", "Données", "Consignes", "Correction disponible"],
+    ["competence"],
+  ),
+  devoir: definition(
+    "devoir",
+    "Devoir",
+    "action",
+    "redaction",
+    "Devoirs",
+    ["Consigne", "Ressources", "Travail", "À rendre"],
+    ["competence", "reference"],
+  ),
   /*
    * Une séance n'est pas un exercice.
    *

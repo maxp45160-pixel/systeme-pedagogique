@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
  */
 const FUNCTION = "public.appliquer_commande_referentiel";
 const INSERT_TAG = "INSERT INTO public.competence_domaines";
-const MIGRATION = "20260830202830_creer_module_vide_atomique.sql";
+const MIGRATION = "20260831105740_creer_domaine_continu_depuis_competences_existantes.sql";
 
 function corpsFonction(contenu: string): string {
   const debut = contenu.indexOf(`FUNCTION ${FUNCTION}(`);

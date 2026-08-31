@@ -42,6 +42,12 @@ function creerDomaineFactice(partiel: Partial<VueDomaineAtelier> & { id: string;
     classificationCarte: partiel.classificationCarte ?? null,
     ressources: partiel.ressources ?? [],
     travailRealise: partiel.travailRealise ?? [],
+    organisationDurable: partiel.organisationDurable ?? {
+      competences: [],
+      domainesAlimentes: [],
+      competencesAOrganiser: [],
+      domainesDisponibles: [],
+    },
     orchestrationModule: partiel.orchestrationModule ?? { thisWeek: [], deadlines: [] },
   };
 }

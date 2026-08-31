@@ -6,7 +6,9 @@ import { Modale } from "@/components/ui/modale";
 import { cx } from "@/components/ui/primitives";
 import { IconeAmpoule, IconeCours, IconeDocuments, IconeExercices, IconeFleche, IconeFormule, IconeNote, IconePlus, IconeProjet } from "@/components/ui/icones";
 import { creerNoteAction } from "@/lib/store/document-actions";
+import { creerEngagement } from "@/lib/store/engagement-actions";
 import { definitionTypeDocument } from "@/lib/documents/types-documents";
+import type { RoleNote } from "@/lib/documents/roles-note";
 import {
   erreurFichierPiece,
   estMimePieceJointe,
@@ -65,6 +67,11 @@ export type CreationAtelier =
   | "competence"
   | "ressource"
   | "cours"
+  | "cours-ecrit"
+  | "note"
+  | "definition"
+  | "exercice-donne"
+  | "devoir"
   | "formule"
   | "projet"
   | "feynman";
@@ -74,6 +81,11 @@ const CREATIONS_ATELIER: readonly CreationAtelier[] = [
   "competence",
   "ressource",
   "cours",
+  "cours-ecrit",
+  "note",
+  "definition",
+  "exercice-donne",
+  "devoir",
   "formule",
   "projet",
   "feynman",
@@ -84,28 +96,110 @@ const LIBELLES_CREATION: Record<CreationAtelier, string> = {
   competence: "Ajouter une compétence",
   ressource: "Ajouter une ressource",
   cours: "Déposer un cours (PDF)",
+  "cours-ecrit": "Écrire un cours",
+  note: "Écrire une note",
+  definition: "Ajouter une définition",
+  "exercice-donne": "Ajouter un exercice donné",
+  devoir: "Ajouter un devoir",
   formule: "Enregistrer une formule",
   projet: "Lancer un projet",
   feynman: "Faire une explication Feynman",
 };
 
-const TYPES_DOCUMENT: Record<"ressource" | "formule", {
+type CreationDocument = "ressource" | "formule" | "cours-ecrit" | "note" | "definition" | "exercice-donne" | "devoir";
+
+const TYPES_DOCUMENT: Record<CreationDocument, {
   titre: string;
   type: string;
+  role: RoleNote;
   titreInitial: string;
+  libelleTitre: string;
   placeholder: string;
+  contexteLibelle: string;
+  contextePlaceholder: string;
+  /** Champ central du geste ; les autres sections passent en précisions. */
+  sectionPrincipale?: string;
+  aidePrincipale?: string;
 }> = {
   ressource: {
     titre: "Ajouter une ressource",
     type: "reference",
+    role: "support",
     titreInitial: "Nouvelle ressource",
+    libelleTitre: "Titre",
     placeholder: "Ex. article, PDF ou ressource à garder",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Pourquoi voulez-vous garder cette fiche ?",
   },
   formule: {
     titre: "Enregistrer une formule",
     type: "formule",
+    role: "support",
     titreInitial: "Nouvelle formule",
+    libelleTitre: "Nom de la formule",
     placeholder: "Ex. formule de Bayes et conditions d’application",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Dans quel cours ou problème utilisez-vous cette formule ?",
+  },
+  "cours-ecrit": {
+    titre: "Écrire un cours",
+    type: "cours",
+    role: "support",
+    titreInitial: "",
+    libelleTitre: "Titre du cours",
+    placeholder: "Ex. Chapitre 3 — Coûts de production",
+    contexteLibelle: "Contexte du cours",
+    contextePlaceholder: "Ex. séance du 12 septembre, chapitre 3",
+    sectionPrincipale: "Contenu",
+    aidePrincipale: "Saisissez directement le cours. Les objectifs et points à retenir restent disponibles en précisions.",
+  },
+  note: {
+    titre: "Écrire une note",
+    type: "note",
+    role: "support",
+    titreInitial: "",
+    libelleTitre: "Titre de la note",
+    placeholder: "Ex. Questions à revoir après le cours",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Où et pourquoi avez-vous pris cette note ?",
+    sectionPrincipale: "Idées",
+    aidePrincipale: "Écrivez la note telle qu’elle doit rester dans votre cours.",
+  },
+  definition: {
+    titre: "Ajouter une définition",
+    type: "definition",
+    role: "support",
+    titreInitial: "",
+    libelleTitre: "Notion définie",
+    placeholder: "Ex. Élasticité-prix de la demande",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Dans quel cours ou chapitre intervient cette notion ?",
+    sectionPrincipale: "Définition",
+    aidePrincipale: "Donnez une formulation précise ; l’exemple et les pièges sont facultatifs.",
+  },
+  "exercice-donne": {
+    titre: "Ajouter un exercice donné",
+    type: "exercice-donne",
+    role: "operationnel",
+    titreInitial: "",
+    libelleTitre: "Référence de l’exercice",
+    placeholder: "Ex. Feuille 2 — Exercice 4",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Ex. TD du 18 septembre",
+    sectionPrincipale: "Énoncé",
+    aidePrincipale: "Recopiez l’énoncé reçu. Données, consignes et correction peuvent être ajoutées ensuite.",
+  },
+  devoir: {
+    titre: "Ajouter un devoir",
+    type: "devoir",
+    role: "operationnel",
+    titreInitial: "",
+    libelleTitre: "Titre du devoir",
+    placeholder: "Ex. Dissertation — Sujet 1",
+    contexteLibelle: "Contexte",
+    contextePlaceholder: "Ex. devoir de macroéconomie du semestre 1",
+    sectionPrincipale: "Consigne",
+    aidePrincipale: "Saisissez ce qui est demandé. La date de rendu reste indépendante du contenu.",
   },
 };
 
@@ -114,6 +208,11 @@ const ICONES_CREATION: Record<CreationAtelier, typeof IconePlus> = {
   competence: IconeAmpoule,
   ressource: IconeDocuments,
   cours: IconeCours,
+  "cours-ecrit": IconeCours,
+  note: IconeNote,
+  definition: IconeAmpoule,
+  "exercice-donne": IconeExercices,
+  devoir: IconeProjet,
   formule: IconeFormule,
   projet: IconeProjet,
   feynman: IconeAmpoule,
@@ -271,11 +370,11 @@ export function ActionsCreationAtelier({
           onFermer={fermerCreation}
         />
       )}
-      {(creation === "ressource" || creation === "formule") && (
+      {creation && creation in TYPES_DOCUMENT && (
         <ModaleCreationDocument
           domainesExistants={domainesExistants}
           domaineInitial={domaineInitial}
-          type={creation}
+          type={creation as CreationDocument}
           onFermer={fermerCreation}
         />
       )}
@@ -553,34 +652,88 @@ function ModaleCreationDocument({
 }: {
   domainesExistants: { id: string; nom: string; prefixe: string }[];
   domaineInitial?: string;
-  type: "ressource" | "formule";
+  type: CreationDocument;
   onFermer: () => void;
 }) {
   const router = useRouter();
   const [titre, setTitre] = useState(TYPES_DOCUMENT[type].titreInitial);
   const [contexte, setContexte] = useState("");
   const [domaine, setDomaine] = useState(domaineInitial ?? "transversal");
+  const [dateRendu, setDateRendu] = useState("");
+  const [documentCree, setDocumentCree] = useState<{ id: string; titre: string } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useState(false);
   const definition = TYPES_DOCUMENT[type];
+  const domaineImpose = domaineInitial
+    ? domainesExistants.find((candidat) => candidat.id === domaineInitial)
+    : undefined;
   /*
    * La saisie reflète le rendu : une zone par section déclarée du type
    * (Résumé, Passages utiles…), pas seulement un contexte unique. Rester vide
    * est valide — les sections restent dans la fiche, à compléter plus tard.
    */
   const sectionsDocument = useMemo(
-    () => definitionTypeDocument(definition.type)?.sections ?? ["Contenu"],
+    () => {
+      const typeDocument = definitionTypeDocument(definition.type);
+      return (typeDocument?.sections ?? ["Contenu"]).filter(
+        (section) => !typeDocument?.sectionsJournal.includes(section),
+      );
+    },
     [definition.type],
   );
+  const sectionPrincipale = definition.sectionPrincipale;
+  const sectionsSecondaires = sectionPrincipale
+    ? sectionsDocument.filter((section) => section !== sectionPrincipale)
+    : sectionsDocument;
   const [valeursSections, setValeursSections] = useState<Record<string, string>>({});
   // Le contexte est du texte pédagogique libre : palette de formules (friction 1).
   const contexteRef = useRef<HTMLTextAreaElement>(null);
 
+  function ouvrirDocument(fiche: { id: string }) {
+    const retour = domaine !== "transversal"
+      ? `/atelier?document=${encodeURIComponent(`domaine:${domaine}`)}`
+      : "/atelier?vue=ressources";
+    onFermer();
+    router.push(`/atelier?note=${encodeURIComponent(fiche.id)}&retour=${encodeURIComponent(retour)}`);
+    router.refresh();
+  }
+
+  async function creerEcheanceDevoir(fiche: { id: string; titre: string }) {
+    await creerEngagement({
+      type: "rendu",
+      libelle: fiche.titre,
+      echeanceLe: dateRendu,
+      moduleDomaineId: domaine !== "transversal" ? domaine : undefined,
+    });
+    ouvrirDocument(fiche);
+  }
+
   async function creer() {
+    if (documentCree) {
+      demarrer(true);
+      setErreur(null);
+      try {
+        await creerEcheanceDevoir(documentCree);
+      } catch (cause) {
+        setErreur(cause instanceof Error ? cause.message : "La date de rendu n’a pas pu être ajoutée.");
+        demarrer(false);
+      }
+      return;
+    }
+
     const titreNettoye = titre.trim();
-    const contexteNettoye = contexte.trim();
-    if (!titreNettoye || !contexteNettoye) {
-      setErreur("Renseignez un titre et le contexte de cette fiche.");
+    const contexteNettoye = contexte.trim()
+      || `${definition.titre} saisi dans ${domaineImpose?.nom ?? "Mes cours"}.`;
+    if (!titreNettoye) {
+      setErreur(`Renseignez le champ « ${definition.libelleTitre} ».`);
+      return;
+    }
+    if (!sectionPrincipale && !contexte.trim()) {
+      setErreur("Renseignez le contexte de cette fiche.");
+      return;
+    }
+    if (sectionPrincipale && !(valeursSections[sectionPrincipale] ?? "").trim()) {
+      setErreur(`Renseignez le champ « ${sectionPrincipale} ».`);
       return;
     }
 
@@ -588,15 +741,28 @@ function ModaleCreationDocument({
     setErreur(null);
     try {
       const fiche = await creerNoteAction(
-        "support",
+        definition.role,
         definition.type,
         titreNettoye,
         { contexte: contexteNettoye, domaine },
         valeursSections,
       );
-      onFermer();
-      router.push(`/atelier?note=${encodeURIComponent(fiche.id)}`);
-      router.refresh();
+      if (type === "devoir" && dateRendu) {
+        const devoirCree = { id: fiche.id, titre: titreNettoye };
+        setDocumentCree(devoirCree);
+        try {
+          await creerEcheanceDevoir(devoirCree);
+        } catch (cause) {
+          setErreur(
+            `Le devoir est bien enregistré, mais sa date de rendu ne l’est pas encore. ${
+              cause instanceof Error ? cause.message : "Réessayez l’ajout de l’échéance."
+            }`,
+          );
+          demarrer(false);
+        }
+        return;
+      }
+      ouvrirDocument(fiche);
     } catch (cause) {
       setErreur(cause instanceof Error ? cause.message : "Création impossible.");
       demarrer(false);
@@ -606,7 +772,9 @@ function ModaleCreationDocument({
   return (
     <Modale
       titre={definition.titre}
-      sousTitre="La fiche s’ouvrira dans vos cours. Vous pourrez ensuite y joindre un PDF."
+      sousTitre={domaineImpose
+        ? "La fiche sera rattachée à ce module et restera modifiable dans Mes cours."
+        : "La fiche restera modifiable dans Mes cours."}
       largeur="xl"
       onFermer={onFermer}
       pied={
@@ -618,20 +786,37 @@ function ModaleCreationDocument({
           >
             Annuler
           </button>
+          {documentCree && (
+            <button
+              type="button"
+              onClick={() => ouvrirDocument(documentCree)}
+              className="cursor-pointer rounded-lg border border-bordure-controle px-3 py-1.5 text-xs font-medium text-texte-attenue transition-colors hover:bg-surface-2"
+            >
+              Ouvrir sans date
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void creer()}
             disabled={enCours}
             className="cursor-pointer rounded-lg bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse transition-colors hover:bg-primaire-survol disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {enCours ? "Création…" : "Créer la fiche"}
+            {enCours ? "Enregistrement…" : documentCree ? "Réessayer la date" : "Créer la fiche"}
           </button>
         </>
       }
     >
       <div className="space-y-4">
+        {documentCree ? (
+          <div className="rounded-lg border border-alerte/30 bg-alerte-faible px-4 py-3 text-sm text-texte-attenue">
+            <p className="font-medium text-texte">Le devoir est enregistré.</p>
+            <p className="mt-1">Sa date de rendu reste à ajouter. Vous pouvez réessayer sans recréer le devoir.</p>
+            {erreur && <p className="mt-2 text-xs text-danger">{erreur}</p>}
+          </div>
+        ) : (
+        <>
         <label className="block">
-          <span className="text-xs font-medium text-texte">Titre</span>
+          <span className="text-xs font-medium text-texte">{definition.libelleTitre}</span>
           <input
             value={titre}
             onChange={(event) => setTitre(event.target.value)}
@@ -641,8 +826,9 @@ function ModaleCreationDocument({
           />
         </label>
 
+        {!sectionPrincipale && (
         <label className="block">
-          <span className="text-xs font-medium text-texte">Contexte</span>
+          <span className="text-xs font-medium text-texte">{definition.contexteLibelle}</span>
           <div className="mt-1.5 flex justify-end">
             <PaletteFormulesTexte
               champ={contexteRef}
@@ -656,14 +842,31 @@ function ModaleCreationDocument({
             onChange={(event) => setContexte(event.target.value)}
             rows={4}
             className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
-            placeholder="Pourquoi voulez-vous garder cette fiche ?"
+            placeholder={definition.contextePlaceholder}
           />
           <div className="mt-2">
             <ApercuFormulesTexte valeur={contexte} />
           </div>
         </label>
+        )}
 
-        {sectionsDocument.map((section) => (
+        {sectionPrincipale && (
+          <SectionCreation
+            section={sectionPrincipale}
+            valeur={valeursSections[sectionPrincipale] ?? ""}
+            onChange={(texte) =>
+              setValeursSections((anciennes) => ({
+                ...anciennes,
+                [sectionPrincipale]: texte,
+              }))
+            }
+            obligatoire
+            rows={sectionPrincipale === "Contenu" ? 10 : 6}
+            placeholder={definition.aidePrincipale}
+          />
+        )}
+
+        {!sectionPrincipale && sectionsSecondaires.map((section) => (
           <SectionCreation
             key={section}
             section={section}
@@ -677,23 +880,75 @@ function ModaleCreationDocument({
           />
         ))}
 
-        <label className="block">
-          <span className="text-xs font-medium text-texte">Domaine</span>
-          <select
-            value={domaine}
-            onChange={(event) => setDomaine(event.target.value)}
-            className="mt-1.5 w-full cursor-pointer rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none focus:border-primaire focus:ring-1 focus:ring-primaire/20"
-          >
-            <option value="transversal">Transversal</option>
-            {domainesExistants.map((domaineExistant) => (
-              <option key={domaineExistant.id} value={domaineExistant.id}>
-                {domaineExistant.nom}
-              </option>
-            ))}
-          </select>
-        </label>
+        {type === "devoir" && (
+          <label className="block">
+            <span className="text-xs font-medium text-texte">
+              Date de rendu <span className="font-normal text-texte-discret">(facultative)</span>
+            </span>
+            <input
+              type="date"
+              value={dateRendu}
+              onChange={(event) => setDateRendu(event.target.value)}
+              className="mt-1.5 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            />
+            <span className="mt-1 block text-[0.6875rem] text-texte-discret">
+              Si elle est renseignée, elle apparaîtra aussi dans les échéances du module.
+            </span>
+          </label>
+        )}
+
+        {sectionPrincipale && sectionsSecondaires.length > 0 && (
+          <details className="group rounded-lg border border-bordure bg-surface-2/30">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 text-xs font-semibold text-texte-attenue">
+              Ajouter des précisions
+              <IconeFleche className="size-3.5 transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="space-y-4 border-t border-bordure p-3">
+              {sectionsSecondaires.map((section) => (
+                <SectionCreation
+                  key={section}
+                  section={section}
+                  valeur={valeursSections[section] ?? ""}
+                  onChange={(texte) =>
+                    setValeursSections((anciennes) => ({
+                      ...anciennes,
+                      [section]: texte,
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          </details>
+        )}
+
+        {domaineImpose ? (
+          <div>
+            <span className="text-xs font-medium text-texte">Module</span>
+            <p className="mt-1.5 rounded-lg border border-bordure bg-surface-2/50 px-3 py-2 text-sm text-texte">
+              {domaineImpose.nom}
+            </p>
+          </div>
+        ) : (
+          <label className="block">
+            <span className="text-xs font-medium text-texte">Domaine</span>
+            <select
+              value={domaine}
+              onChange={(event) => setDomaine(event.target.value)}
+              className="mt-1.5 w-full cursor-pointer rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none focus:border-primaire focus:ring-1 focus:ring-primaire/20"
+            >
+              <option value="transversal">Transversal</option>
+              {domainesExistants.map((domaineExistant) => (
+                <option key={domaineExistant.id} value={domaineExistant.id}>
+                  {domaineExistant.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {erreur && <p className="rounded-lg bg-danger-faible px-3 py-2 text-xs text-danger">{erreur}</p>}
+        </>
+        )}
       </div>
     </Modale>
   );
@@ -775,25 +1030,33 @@ function SectionCreation({
   section,
   valeur,
   onChange,
+  obligatoire = false,
+  rows = 3,
+  placeholder,
 }: {
   section: string;
   valeur: string;
   onChange: (texte: string) => void;
+  obligatoire?: boolean;
+  rows?: number;
+  placeholder?: string;
 }) {
   const champ = useRef<HTMLTextAreaElement>(null);
   return (
     <label className="block">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-texte">{section}</span>
+        <span className="text-xs font-medium text-texte">
+          {section}{!obligatoire && <span className="font-normal text-texte-discret"> (facultatif)</span>}
+        </span>
         <PaletteFormulesTexte champ={champ} valeur={valeur} onChange={onChange} />
       </div>
       <textarea
         ref={champ}
         value={valeur}
         onChange={(event) => onChange(event.target.value)}
-        rows={3}
+        rows={rows}
         className="mt-1.5 w-full resize-none rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-texte-discret focus:border-primaire focus:ring-1 focus:ring-primaire/20"
-        placeholder={`Contenu de la section « ${section} » (facultatif ici)`}
+        placeholder={placeholder ?? `Contenu de la section « ${section} »`}
       />
       <div className="mt-2">
         <ApercuFormulesTexte valeur={valeur} />

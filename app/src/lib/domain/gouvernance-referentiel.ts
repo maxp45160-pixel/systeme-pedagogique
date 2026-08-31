@@ -73,6 +73,8 @@ export type CommandeReferentiel =
       type: "creer_domaine";
       domaine: { id: string; nom: string; prefixe: string; description: string; ordre: number; origine: OrigineReferentiel };
       competences: AjoutCompetenceCommande[];
+      /** Codes existants à taguer atomiquement sur ce nouveau domaine continu. */
+      rattachementsExistants?: string[];
       /** Usage déclaré à la naissance ; absent = « à préciser ». */
       usage?: Exclude<UsageDomaine, { type: "indetermine" }>;
     }
@@ -226,6 +228,8 @@ export function preparerCreationDomaine(
     prefixe: string;
     description: string;
     competences: CompetenceBrute[];
+    /** Compétences existantes qui alimenteront le nouveau domaine continu. */
+    rattachementsExistants?: string[];
     origine: OrigineReferentiel;
     /** Usage déjà validé par la frontière applicative. */
     usage?: Exclude<UsageDomaine, { type: "indetermine" }>;
@@ -233,9 +237,24 @@ export function preparerCreationDomaine(
   referentiel: Referentiel,
 ): PropositionReferentiel {
   const nom = entree.domaine.trim();
+  const rattachementsExistants = [...new Set(
+    (entree.rattachementsExistants ?? []).map((code) => code.trim()).filter(Boolean),
+  )];
+  if (rattachementsExistants.length > 0 && entree.usage?.type !== "continu") {
+    throw new Error("Les rattachements groupés sont réservés à un nouveau domaine continu.");
+  }
+  for (const code of rattachementsExistants) {
+    const competence = referentiel.parCode.get(code);
+    if (!competence || competence.archive || !referentiel.codesActifs.has(code)) {
+      throw new Error(`Compétence inconnue ou archivée : ${code}`);
+    }
+  }
   const existant = referentiel.domaines.find((domaine) => domaine.nom.toLocaleLowerCase("fr-FR") === nom.toLocaleLowerCase("fr-FR"))
     ?? referentiel.domainesParId.get(slugifier(nom));
   if (existant) {
+    if (rattachementsExistants.length > 0) {
+      throw new Error("Les rattachements groupés servent uniquement à créer un nouveau domaine continu.");
+    }
     const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, existant.id, entree.origine);
     return {
       // Rien de neuf à écrire : il ne reste que des rattachements.
@@ -253,7 +272,8 @@ export function preparerCreationDomaine(
     referentiel,
     domaineId,
     entree.origine,
-    entree.usage?.type === "module",
+    entree.usage?.type === "module"
+      || (entree.usage?.type === "continu" && rattachementsExistants.length > 0),
   );
   /*
    * Un domaine ordinaire naît avec au moins une compétence à lui. Le seul cas
@@ -262,7 +282,7 @@ export function preparerCreationDomaine(
    * ferait qu'emprunter des compétences existantes reste refusé ici ; ce geste
    * sera traité par le rangement multi-domaines, pas comme une création vide.
    */
-  if (ajouts.length === 0 && dejaAuReferentiel.length > 0) {
+  if (ajouts.length === 0 && dejaAuReferentiel.length > 0 && rattachementsExistants.length === 0) {
     const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");
     throw new Error(
       `« ${nom} » ne peut pas naître sans compétence à lui : toutes celles proposées existent déjà — ${liste}. Ajoute-lui au moins une compétence propre ; les autres se rattacheront ensuite.`,
@@ -273,6 +293,7 @@ export function preparerCreationDomaine(
       type: "creer_domaine",
       domaine: { id: domaineId, nom, prefixe, description: entree.description.trim(), ordre: referentiel.domaines.length, origine: entree.origine },
       competences: ajouts,
+      ...(rattachementsExistants.length > 0 ? { rattachementsExistants } : {}),
       ...(entree.usage ? { usage: entree.usage } : {}),
     },
     dejaAuReferentiel,

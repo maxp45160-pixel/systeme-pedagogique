@@ -83,6 +83,12 @@ export function filRessourcesDomaine(entrees: EntreesFilRessources): FilRessourc
   const activite = activiteDocumentaire(entrees.observations);
 
   const ressources = entrees.documents.filter((document) => {
+    /*
+     * Le module déclaré dans le front-matter est un rattachement explicite.
+     * Un cours peut précéder ses compétences : il doit donc rester visible
+     * dans son module même quand il ne cite encore aucun code.
+     */
+    if (document.domaineConnu === entrees.domaineId) return true;
     const rangement = rangerDocument({
       estPreuve: false,
       domaineConnu: document.domaineConnu,

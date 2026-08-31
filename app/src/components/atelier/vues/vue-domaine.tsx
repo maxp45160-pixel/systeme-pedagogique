@@ -9,11 +9,16 @@ import {
   IconeChevronDroit,
   IconeCours,
   IconeDocuments,
+  IconeExercices,
+  IconeLivre,
+  IconeNote,
   IconePlus,
   IconePreuve,
+  IconeProjet,
   IconeRecherche,
 } from "@/components/ui/icones";
 import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
+import { ModaleEngagement } from "@/components/dashboard/modale-engagement";
 import { BoutonReviser } from "@/components/referentiel/bouton-reviser";
 import { CompetencesMisesDeCote } from "@/components/referentiel/competences-mises-de-cote";
 import { ModaleCompetence } from "@/components/referentiel/modale-competence";
@@ -26,7 +31,6 @@ import {
 } from "@/lib/domain/intervention-rendus";
 import { usageDuDomaine } from "@/lib/domain/usage-domaine";
 import type {
-  VueAClasserAtelier,
   VueDomaineAtelier,
 } from "@/lib/documents/vue-atelier";
 import type { PreparationState } from "@/lib/engine/planification-temporelle";
@@ -34,6 +38,7 @@ import { restaurerDomaine } from "@/lib/store/referentiel-actions";
 import { ClassementDomaine } from "./classement-domaine";
 import { dateCourte, LIBELLES_REPERES } from "./elements-fiche";
 import { ParenteDomaine } from "./parente-domaine";
+import { OrganisationDurableDuModule } from "./organisation-durable-module";
 
 const LIBELLES_PREPARATION: Record<PreparationState, string> = {
   "non-estimable": "Non estimable",
@@ -47,6 +52,8 @@ function libelleTypeRessource(type: string | null): string {
   if (type === "cours") return "Cours";
   if (type === "note") return "Note";
   if (type === "definition") return "Définition";
+  if (type === "exercice-donne") return "Exercice donné";
+  if (type === "devoir") return "Devoir";
   if (type === "exercice") return "Exercice";
   return "Ressource";
 }
@@ -76,20 +83,19 @@ export function VueDomaine({
   compteId,
   onRestaurerDomaine,
   domainesExistants = [],
-  aClasser = [],
 }: {
   vue: VueDomaineAtelier;
   ouvrirElement: (id: string) => void;
   compteId: string;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
-  aClasser?: VueAClasserAtelier[];
 }) {
   const router = useRouter();
   const [restaurationEnCours, demarrerRestauration] = useTransition();
   const [ajoutCompetenceOuvert, setAjoutCompetenceOuvert] = useState(false);
   const [usageOuvert, setUsageOuvert] = useState(false);
   const [menuAjoutOuvert, setMenuAjoutOuvert] = useState(false);
+  const [controleOuvert, setControleOuvert] = useState(false);
   const [competencesOuvertes, setCompetencesOuvertes] = useState(false);
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [rechercheCompetence, setRechercheCompetence] = useState("");
@@ -105,9 +111,6 @@ export function VueDomaine({
           .includes(termeCompetence),
       ),
     [termeCompetence, vue.competences],
-  );
-  const competencesAClasser = aClasser.filter(
-    (competence) => competence.domaineCreationNom === vue.nom,
   );
   const prochaineSeance =
     vue.orchestrationModule.thisWeek.find((session) => session.status === "en-cours")
@@ -132,10 +135,22 @@ export function VueDomaine({
       modeRetrait: vue.retraits[skill.code]?.mode ?? ("suppression" as const),
       reformulationManuelleRequise: motifsNonAtomique(skill.intitule).length > 0,
     }));
+  const actionsContenuModule = [
+    { type: "cours-ecrit", libelle: "Écrire un cours", Icone: IconeCours },
+    { type: "cours", libelle: "Importer un cours (PDF)", Icone: IconeLivre },
+    { type: "note", libelle: "Écrire une note", Icone: IconeNote },
+    { type: "definition", libelle: "Ajouter une définition", Icone: IconeLivre },
+    { type: "exercice-donne", libelle: "Ajouter un exercice donné", Icone: IconeExercices },
+    { type: "devoir", libelle: "Ajouter un devoir", Icone: IconeProjet },
+  ] as const;
+
+  function ouvrirCreation(type: string) {
+    setMenuAjoutOuvert(false);
+    router.push(`/atelier?creation=${encodeURIComponent(type)}&domaine=${encodeURIComponent(vue.domaine.id)}`);
+  }
 
   function deposerCours() {
-    setMenuAjoutOuvert(false);
-    router.push(`/atelier?creation=cours&domaine=${encodeURIComponent(vue.domaine.id)}`);
+    ouvrirCreation("cours");
   }
 
   return (
@@ -179,16 +194,36 @@ export function VueDomaine({
                     Ajouter
                   </Bouton>
                   {menuAjoutOuvert && (
-                    <div className="absolute right-0 top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-bordure bg-surface p-1.5 shadow-[var(--ombre-levee)]">
+                    <div className="absolute right-0 top-full z-30 mt-2 w-72 overflow-hidden rounded-xl border border-bordure bg-surface p-1.5 shadow-[var(--ombre-levee)]">
                       {estModule && (
-                        <button
-                          type="button"
-                          onClick={deposerCours}
-                          className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-texte hover:bg-surface-2"
-                        >
-                          <IconeCours className="size-4 text-primaire" />
-                          Déposer un cours
-                        </button>
+                        <>
+                          <p className="px-3 pb-1 pt-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-texte-discret">
+                            Contenus du module
+                          </p>
+                          {actionsContenuModule.map(({ type, libelle, Icone }) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => ouvrirCreation(type)}
+                              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-texte hover:bg-surface-2"
+                            >
+                              <Icone className="size-4 text-primaire" />
+                              {libelle}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuAjoutOuvert(false);
+                              setControleOuvert(true);
+                            }}
+                            className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-texte hover:bg-surface-2"
+                          >
+                            <IconeCalendrier className="size-4 text-primaire" />
+                            Ajouter une date de contrôle
+                          </button>
+                          <div className="my-1 border-t border-bordure" />
+                        </>
                       )}
                       <button
                         type="button"
@@ -424,24 +459,16 @@ export function VueDomaine({
                 </ul>
               )}
 
-              {competencesAClasser.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => router.push("/atelier")}
-                  className="mt-5 flex w-full cursor-pointer items-center gap-3 rounded-xl border border-primaire/20 bg-primaire-faible/15 px-3.5 py-3 text-left transition-colors hover:bg-primaire-faible/30"
-                >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primaire text-sm font-semibold text-texte-inverse">
-                    {competencesAClasser.length}
-                  </span>
-                  <span className="min-w-0 flex-1 text-sm font-medium text-texte">
-                    compétence{competencesAClasser.length > 1 ? "s" : ""} à organiser
-                  </span>
-                  <IconeChevronDroit className="size-4 shrink-0 text-primaire" />
-                </button>
-              )}
             </aside>
           )}
         </div>
+
+        {estModule && (
+          <OrganisationDurableDuModule
+            organisation={vue.organisationDurable}
+            ouvrirCompetence={ouvrirElement}
+          />
+        )}
 
         <section className="rounded-xl border border-bordure">
           <button
@@ -547,6 +574,16 @@ export function VueDomaine({
           usageInitial={usage}
           onFermer={() => setUsageOuvert(false)}
           onEnregistre={() => router.refresh()}
+        />
+      )}
+      {controleOuvert && moduleActif && (
+        <ModaleEngagement
+          competences={vue.skills
+            .filter((skill) => !skill.archive)
+            .map(({ code, intitule }) => ({ code, intitule }))}
+          modules={vue.domainesExistants.map(({ id, nom }) => ({ id, nom }))}
+          initial={{ type: "examen", moduleDomaineId: vue.domaine.id }}
+          onFermer={() => setControleOuvert(false)}
         />
       )}
     </div>

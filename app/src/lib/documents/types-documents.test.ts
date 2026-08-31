@@ -39,6 +39,21 @@ describe("registre des types documentaires", () => {
     expect(definitionTypeDocument("type-inexistant")).toBeNull();
   });
 
+  it("déclare les formats de travail académique sans leur attribuer de mesure", () => {
+    expect(definitionTypeDocument("definition")).toMatchObject({
+      categorie: "connaissance",
+      sections: ["Définition", "Exemple", "Pièges fréquents"],
+    });
+    expect(definitionTypeDocument("exercice-donne")).toMatchObject({
+      categorie: "action",
+      sections: ["Énoncé", "Données", "Consignes", "Correction disponible"],
+    });
+    expect(definitionTypeDocument("devoir")).toMatchObject({
+      categorie: "action",
+      sections: ["Consigne", "Ressources", "Travail", "À rendre"],
+    });
+  });
+
   /*
    * Une section de journal reste une section. Déclarer un journal absent de
    * `sections` le rendrait invisible : l'espace de travail parcourt `sections`,

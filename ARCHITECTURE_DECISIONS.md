@@ -10430,6 +10430,16 @@ fabriquer un conteneur avant d'avoir le contenu.
   mais pas comme travail : les sections restent éditables dans le workspace,
   et `ressource`/`formule` gardent leur saisie typée.
 
+### Révision — saisie depuis un module académique (31/08/2026)
+
+Le dépôt PDF reste le geste court « Importer un cours (PDF) ». Le cockpit d'un
+module propose en plus « Écrire un cours » : ce second geste crée directement
+une fiche `cours` rattachée au module, dont les sections sont saisissables sans
+fichier et sans appel au tuteur. Il ne remplace pas le parcours PDF et ne lance
+pas sa lecture automatique. La phrase ci-dessus ne vaut donc plus comme
+interdiction générale de la saisie manuelle ; elle décrit seulement le parcours
+de dépôt PDF décidé le 24/08.
+
 ### Révision d'ADR-126
 
 ADR-126 justifiait les trois documents typés du menu par deux arguments dont
@@ -11120,6 +11130,56 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
 - classement du domaine, parenté et révision restent disponibles dans
   « Organisation du domaine », repliée par défaut afin de ne pas concurrencer
   le travail courant.
+
+### Surface module — lot 2 (31/08/2026)
+
+- le menu « Ajouter » du module mène aux cinq familles de contenus attendues :
+  cours, note, définition, exercice donné et devoir. Elles réutilisent la
+  dorsale documentaire et son front-matter `domaine`; aucune table ni entité
+  académique supplémentaire n'est créée ;
+- une date facultative saisie avec un devoir crée séparément un engagement
+  `rendu`, lié au domaine-module existant. Si cette écriture échoue après celle
+  du document, la fiche demeure enregistrée et le même écran propose de
+  réessayer l'échéance sans recréer le devoir ;
+- « Ajouter une date de contrôle » ouvre le formulaire d'engagement existant,
+  prérempli en `examen` et rattaché au module. Le libellé, la date et les
+  compétences éventuellement ciblées restent déclarés par la personne ;
+- les documents rattachés explicitement au module restent visibles dans son
+  fil même avant la première compétence. La recherche documentaire existante
+  les indexe comme les autres fiches ;
+- créer ou saisir l'un de ces objets ne produit aucune `Observation`. Un
+  exercice donné ou un devoir est un contenu de travail déclaré, pas une
+  preuve de maîtrise ; seule une évaluation recevable emprunte ensuite le
+  contrat de preuve existant.
+
+### Surface module — lot 3 (31/08/2026)
+
+- l'organisation durable est une projection pure des tags existants : pour
+  chaque compétence active du module, elle liste les domaines actifs déclarés
+  `continu`. Le tag du module ne compte pas comme destination durable et aucun
+  statut « organisé » n'est stocké ;
+- la fiche regroupe l'affectation d'une sélection vers un ou plusieurs domaines
+  continus et réutilise la commande `taguer_competences_domaine`. Une même
+  compétence conserve donc son code, son historique d'observations et son état
+  dérivé lorsqu'elle alimente deux domaines ;
+- la création en ligne d'un domaine continu peut désormais porter
+  `rattachementsExistants`. La fonction gouvernée valide les codes actifs du
+  compte avant l'écriture, crée le domaine et ses tags dans la même transaction,
+  sans recréer de compétence. La migration additive
+  `20260831105740_creer_domaine_continu_depuis_competences_existantes.sql` est
+  **appliquée en production le 31/08/2026** sous la version Supabase
+  `20260831131632_creer_domaine_continu_depuis_competences_existantes` ; une
+  preuve transactionnelle avec rollback a confirmé que le nombre de
+  compétences et d'observations reste inchangé ;
+- le compteur rouge des compétences sans destination durable ouvre cette
+  section intégrée au module. L'écran global « À classer » demeure le parcours
+  des compétences sans aucun tag ; les deux lectures reposent sur les mêmes
+  rattachements et n'ajoutent aucun second système de classification ;
+- les saisies rapides ne partagent plus un formulaire académique générique :
+  chaque famille expose d'abord son contenu propre (contenu, idées, définition,
+  énoncé ou consigne), puis laisse ses compléments facultatifs repliés. Le
+  contexte technique requis par le stockage est composé depuis le type et le
+  module, sans demander à la personne de ressaisir une information redondante.
 
 ### Ce que cette décision n'autorise pas
 

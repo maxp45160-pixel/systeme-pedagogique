@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { VueAClasserAtelier, VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
+import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -26,7 +26,6 @@ export function FichePedagogiqueAtelier({
   donneesSeance,
   onRestaurerDomaine,
   domainesExistants,
-  aClasser,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -37,7 +36,6 @@ export function FichePedagogiqueAtelier({
   donneesSeance?: DonneesSeance;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
-  aClasser?: VueAClasserAtelier[];
 }) {
   if (vue.kind === "competence") {
     return (
@@ -62,7 +60,6 @@ export function FichePedagogiqueAtelier({
         compteId={compteId}
         onRestaurerDomaine={onRestaurerDomaine}
         domainesExistants={domainesExistants}
-        aClasser={aClasser}
       />
     );
   }

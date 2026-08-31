@@ -1,6 +1,27 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.13 — 31/08/2026.** Le graphe de Mes cours ne montre plus les
+**Version 4.15 — 31/08/2026.** La fiche d'un module distingue désormais les
+compétences qui alimentent déjà un ou plusieurs domaines continus de celles
+qui restent à organiser. La personne peut rattacher une sélection à plusieurs
+domaines durables, ou créer sur place un domaine continu alimenté par ces
+compétences. Les rattachements réutilisent les codes existants : identité,
+observations et état dérivé ne sont jamais copiés. Le compteur rouge du
+classement est intégré à cette section ; l'écran global « À classer » reste le
+parcours des compétences sans aucun domaine. Les formulaires de saisie rapide
+d'un module sont spécialisés par geste : cours, note, définition, exercice
+donné et devoir ont chacun leur champ principal, tandis que les précisions
+facultatives restent repliées (ADR-138).
+
+**Version précédente : 4.14 — 31/08/2026.** Depuis un module académique, « Ajouter » donne
+accès aux cinq familles de contenus de cours : cours (saisie ou PDF), note,
+définition, exercice donné et devoir. Une date facultative sur un devoir crée
+une échéance de rendu liée au module ; si cette seconde écriture échoue, le
+devoir reste enregistré et l'interface permet de réessayer la date sans le
+dupliquer. Le même cockpit permet de déclarer un contrôle, sous forme
+d'échéance d'examen liée au module. Ces contenus et échéances sont des faits
+déclarés : leur création ne produit aucune observation ni mesure (ADR-138).
+
+**Version précédente : 4.13 — 31/08/2026.** Le graphe de Mes cours ne montre plus les
 documents de preuve : il reste centré sur le référentiel, les exercices et les
 ressources reliées. Les preuves restent accessibles depuis les surfaces
 d'activité. La fiche domaine/module répertorie désormais les travaux observés,

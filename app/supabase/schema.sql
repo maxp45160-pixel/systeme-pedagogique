@@ -882,6 +882,7 @@ DECLARE
   v_item JSONB;
   v_ajouts JSONB := '[]'::JSONB;
   v_codes_ajoutes JSONB := '[]'::JSONB;
+  v_codes_rattaches JSONB := '[]'::JSONB;
   v_modifiees JSONB := '[]'::JSONB;
   v_supprimees JSONB := '[]'::JSONB;
   v_archivees JSONB := '[]'::JSONB;
@@ -925,9 +926,25 @@ BEGIN
       RAISE EXCEPTION 'Année et période sont réservées aux modules académiques.';
     END IF;
     IF jsonb_array_length(coalesce(p_commande -> 'competences', '[]'::JSONB)) = 0
+       AND jsonb_array_length(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB)) = 0
        AND v_usage_type IS DISTINCT FROM 'module' THEN
-      RAISE EXCEPTION 'Seul un module académique peut naître sans compétence.';
+      RAISE EXCEPTION 'Seul un module académique peut naître sans compétence ni rattachement.';
     END IF;
+    IF jsonb_array_length(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB)) > 0
+       AND v_usage_type IS DISTINCT FROM 'continu' THEN
+      RAISE EXCEPTION 'Les rattachements existants sont réservés à un domaine continu.';
+    END IF;
+    FOR v_item IN SELECT to_jsonb(value)
+      FROM jsonb_array_elements_text(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB))
+    LOOP
+      v_code := v_item #>> '{}';
+      IF NOT EXISTS (
+        SELECT 1 FROM public.competences
+        WHERE user_id = v_uid AND code = v_code AND active AND NOT archive
+      ) THEN
+        RAISE EXCEPTION 'Compétence inconnue ou archivée : %', v_code;
+      END IF;
+    END LOOP;
     PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || v_domaine_id, 0));
     INSERT INTO public.domaines (
       user_id, id, nom, prefixe, description, ordre, version, archive, origine,
@@ -1022,6 +1039,20 @@ BEGIN
     ON CONFLICT DO NOTHING;
     v_codes_ajoutes := v_codes_ajoutes || jsonb_build_array(v_code);
   END LOOP;
+
+  IF v_type = 'creer_domaine' THEN
+    FOR v_item IN SELECT to_jsonb(value)
+      FROM jsonb_array_elements_text(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB))
+    LOOP
+      v_code := v_item #>> '{}';
+      INSERT INTO public.competence_domaines (user_id, code, domaine)
+      VALUES (v_uid, v_code, v_domaine_id)
+      ON CONFLICT DO NOTHING;
+      IF FOUND THEN
+        v_codes_rattaches := v_codes_rattaches || jsonb_build_array(v_code);
+      END IF;
+    END LOOP;
+  END IF;
 
   IF v_type = 'remplacer_competence' THEN
     UPDATE public.competences SET remplace_par = v_code, archive = true, active = false
@@ -1129,7 +1160,8 @@ BEGIN
   v_resultat := jsonb_build_object(
     'domaineId', v_domaine_id, 'version', v_version_apres, 'codes', v_codes_ajoutes,
     'ajoutees', v_codes_ajoutes, 'modifiees', v_modifiees, 'supprimees', v_supprimees,
-    'archivees', v_archivees, 'domaineSupprime', v_domaine_supprime
+    'archivees', v_archivees, 'rattachees', v_codes_rattaches,
+    'domaineSupprime', v_domaine_supprime
   );
   IF v_type = 'remplacer_competence' THEN v_resultat := v_resultat || jsonb_build_object('successeur', v_code); END IF;
 
