@@ -1,6 +1,33 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.10 — 30/08/2026.** La vision d'orchestration pédagogique reste
+**Version 4.13 — 31/08/2026.** Le graphe de Mes cours ne montre plus les
+documents de preuve : il reste centré sur le référentiel, les exercices et les
+ressources reliées. Les preuves restent accessibles depuis les surfaces
+d'activité. La fiche domaine/module répertorie désormais les travaux observés,
+regroupés par production pour qu'un même travail mobilisant plusieurs
+compétences n'apparaisse qu'une fois. Cette chronologie est dérivée à la
+lecture des observations et de leurs sources ; elle n'ajoute aucun historique
+persisté ni aucune mesure.
+
+**Version précédente : 4.12 — 31/08/2026.** La fiche module/domaine devient un espace de
+travail unique : « Maintenant », contenus et séances, échéances, puis
+compétences repliables. Les modes « Fiches », « Arbre » et « Progression », les
+indicateurs de maintenance et le volet de contexte droit sont retirés de cette
+fiche. La Progression reste la lecture longitudinale globale et comparative ;
+elle ne se duplique plus dans chaque domaine. Le classement automatique reste
+accessible depuis le module lorsque des compétences n'ont pas encore de
+destination durable (ADR-138).
+
+**Version précédente : 4.11 — 30/08/2026.** Le premier lot de l'espace module académique
+rend le cadre utilisable avant que son référentiel soit connu : un module peut
+désormais être créé sans compétence initiale, reste visible dans « Mes cours »
+par son usage déclaré et ouvre un cockpit qui mène aux gestes existants de
+dépôt de cours et d'ajout de compétence. Aucun domaine durable vide n'est
+autorisé par le parcours applicatif, aucune entité `module` n'est ajoutée et
+aucune donnée pédagogique n'est fabriquée pour rendre le module visible
+(ADR-138).
+
+**Version précédente : 4.10 — 30/08/2026.** La vision d'orchestration pédagogique reste
 validée comme direction (ADR-139), mais sa composition d'interface expérimentale
 a été retirée le 30/08 après retour arrière. Le tableau de bord visible est
 revenu à sa composition précédente ; les fondations de planification,
@@ -318,7 +345,9 @@ académique (année académique obligatoire, période facultative), progression
 continue durable hors cours, ou « à préciser » — défaut de toutes les données
 existantes, jamais déduit du nom ni de l'usage. Une échéance peut se lier à un
 module comme fait déclaré, posé à la création ; la liste des échéances d'un
-module se dérive à la lecture. Aucune entité nouvelle.
+module se dérive à la lecture. Le module peut précéder sa première compétence :
+son usage déclaré suffit à le rendre visible, sans compétence factice ni
+document inventé. Aucune entité nouvelle.
 
 Le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
 référentiel ou des documents — même exigence qu'ADR-128 : atteindre un
@@ -624,13 +653,13 @@ de pouvoir s'en servir. Les routes n'ont pas bougé. La phrase du tour d'accueil
 qui présente ces destinations est désormais **dérivée** de `NAVIGATION` : elle
 annonçait « vos trois espaces » en surlignant un rail qui en montrait quatre,
 dont un retiré un mois plus tôt.
-✅ **La lecture longitudinale par domaine a une seule surface** (23/08/2026).
-Elle vivait en double : `/progression?domaine=` et la vue domaine de Mes cours
-répondaient à la même question (« où j'en suis dans ce domaine »). Le mode
-« Progression » de la vue domaine de Mes cours est désormais la surface unique ;
-`/progression?domaine=` redirige vers elle (`/atelier?document=…&vue=progression`)
-et le calcul correspondant (`construireProgressionsDomaines`) est précalculé
-serveur avec les vues de Mes cours — mêmes fonctions pures, aucun chiffre nouveau.
+✅ **La lecture longitudinale n'encombre plus la fiche de travail** (31/08/2026).
+La tentative de réunir « Fiches », « Arbre » et « Progression » dans chaque
+domaine ajoutait trois lectures concurrentes avant le premier geste utile. La
+fiche module/domaine sert désormais à travailler : reprendre une séance ou un
+cours, consulter les échéances et retrouver les compétences. La Progression
+globale conserve la comparaison entre domaines ; il n'existe plus de mode ni de
+redirection `/progression?domaine=` vers Mes cours.
 Le *concept* d'un catalogue partagé reste décrit dans
 [`TWINY_MODEL.md`](docs/architecture/TWINY_MODEL.md) ; tout retour repartira du
 modèle cible, avec un contenu initial réel et un curateur désigné avant toute
@@ -690,6 +719,11 @@ usage déclaré, sans recopier compétences, échéances, séances ou scores.
 Une fiche de domaine permet aussi de préciser ou corriger ce cadre après
 création ; les domaines historiques restent « à préciser » tant que personne
 ne pose ce geste.
+
+Le module académique peut être créé vide : l'année et la période déclarent le
+cadre, puis le cockpit de « Mes cours » permet de déposer le premier cours ou
+d'ajouter la première compétence. Cette exception ne s'étend pas aux domaines
+continus ; elle ne crée ni compétence sentinelle, ni score, ni contenu implicite.
 
 Dans « À classer », Mes cours peut proposer le domaine qui a créé une
 compétence comme point de départ stable. Cette proposition reste une lecture

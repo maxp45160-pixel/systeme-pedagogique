@@ -109,12 +109,28 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
   const origine = soumission.origine ?? "tuteur";
-  const { commande, dejaAuReferentiel } = preparerCreationDomaine({ ...soumission, origine }, referentiel);
+  const usageValide = soumission.usage ? validerNouvelUsage(soumission.usage) : null;
+  const usageCreation =
+    usageValide?.usageType === "module"
+      ? {
+          type: "module" as const,
+          module: {
+            anneeAcademique: usageValide.anneeAcademique!,
+            ...(usageValide.periode ? { periode: usageValide.periode } : {}),
+          },
+        }
+      : usageValide?.usageType === "continu"
+        ? { type: "continu" as const }
+        : undefined;
+  const { commande, dejaAuReferentiel } = preparerCreationDomaine(
+    { ...soumission, origine, usage: usageCreation },
+    referentiel,
+  );
 
   /*
    * Sans commande, il n'y avait rien de neuf à écrire : toutes les compétences
    * demandées existaient déjà. Le domaine, lui, existe forcément — une création
-   * sans compétence propre a été refusée en amont.
+   * sans compétence propre reste réservé au module déclaré en amont.
    */
   const resultat = commande
     ? await executerCommande(commande, referentiel, origine, "Branche relue et validée")
@@ -127,24 +143,8 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   if (!domaineId) throw new Error(`Domaine introuvable : ${soumission.domaine}`);
 
   const ajouts = (resultat?.codes ?? resultat?.ajoutees ?? []).length;
-  if (soumission.signalerCroissanceReferentiel) {
+  if (soumission.signalerCroissanceReferentiel && ajouts > 0) {
     await inscrireDeclencheurDeclare("structure", "croissance_referentiel", ajouts);
-  }
-
-  /*
-   * L'usage déclaré voyage avec la naissance du domaine (ADR-138). Deux
-   * commandes gouvernées successives plutôt qu'une extension de la RPC
-   * géante : un échec ici laisse le domaine « à préciser » — état honnête,
-   * corrigeable d'un geste — jamais un domaine mal étiqueté.
-   */
-  if (commande?.type === "creer_domaine" && soumission.usage) {
-    const motif =
-      soumission.usage.type === "module"
-        ? `Déclaration du module ${soumission.domaine} (${soumission.usage.anneeAcademique?.trim()})`
-        : soumission.usage.type === "continu"
-          ? `Déclaration de ${soumission.domaine} en progression continue`
-          : `Domaine ${soumission.domaine} laissé à préciser`;
-    await declarerUsageDomaine(domaineId, soumission.usage, motif);
   }
 
   await rattacherAutomatiquement(domaineId, dejaAuReferentiel);

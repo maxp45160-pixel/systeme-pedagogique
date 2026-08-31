@@ -341,23 +341,18 @@ export function EspaceDocumentaire({
   elements: elementsInitials,
   couleursDomaines,
   documentDemande,
-  vueDemandee,
   graphe,
   generation,
   donneesSeance,
   domainesExistants,
   aClasser,
   creationInitiale,
+  domaineCreationInitial,
 }: {
   elements: ElementAtelier[];
   /** Teinte par domaine, partagée avec le graphe pour qu'un domaine ait une seule couleur. */
   couleursDomaines: Record<string, string>;
   documentDemande?: string;
-  /**
-   * Mode de lecture demandé dans l'URL (`vue=progression`) : la vue domaine
-   * s'ouvre alors directement en lecture longitudinale, sans clic.
-   */
-  vueDemandee?: string;
   graphe: { donnees: DonneesGraphe; domaines: GrapheDomaines; compteId: string };
   generation: { competences: CompetenceModale[]; calibrages: Record<string, CalibrageModale> };
   donneesSeance?: DonneesSeance;
@@ -369,6 +364,7 @@ export function EspaceDocumentaire({
    */
   aClasser: VueAClasserAtelier[];
   creationInitiale?: string;
+  domaineCreationInitial?: string;
 }) {
   const router = useRouter();
   const [elements, setElements] = useState(elementsInitials);
@@ -1282,6 +1278,7 @@ export function EspaceDocumentaire({
                   : "domaines") as "domaines" | "ressources" | "graphe"
               }
               creationInitiale={creationInitiale}
+              domaineInitial={domaineCreationInitial}
             />
           )}
           {!selectionnee && vueActuelle === "ressources" && (
@@ -1522,7 +1519,7 @@ export function EspaceDocumentaire({
               donneesSeance={donneesSeance}
               onRestaurerDomaine={onRestaurerDomaine}
               domainesExistants={domainesExistants}
-              modeInitial={vueDemandee === "progression" ? "progression" : undefined}
+              aClasser={aClasser}
             />
           ) : selectionnee ? (
             <>

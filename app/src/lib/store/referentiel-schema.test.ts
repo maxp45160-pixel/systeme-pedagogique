@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Garde de non-dérive entre `schema.sql` (référence) et la migration qui a
- * introduit le tag initial à la création d'une compétence (ADR-107).
+ * Garde de non-dérive entre `schema.sql` (référence) et la dernière migration
+ * qui réécrit la commande de référentiel.
  *
  * Le défaut que cette migration corrige était précisément un défaut de dérive :
  * la lecture du référentiel s'était déplacée vers `competence_domaines`
@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
  */
 const FUNCTION = "public.appliquer_commande_referentiel";
 const INSERT_TAG = "INSERT INTO public.competence_domaines";
-const MIGRATION = "20260825120000_tag_creation_competence.sql";
+const MIGRATION = "20260830202830_creer_module_vide_atomique.sql";
 
 function corpsFonction(contenu: string): string {
   const debut = contenu.indexOf(`FUNCTION ${FUNCTION}(`);
@@ -31,7 +31,7 @@ function corpsFonction(contenu: string): string {
   return contenu.slice(debut, fin);
 }
 
-describe("appliquer_commande_referentiel — le tag initial existe aux deux sources", () => {
+describe("appliquer_commande_referentiel — la dernière migration reste alignée", () => {
   const racine = join(__dirname, "../../../supabase");
 
   it("schema.sql insère le tag initial dans competence_domaines", () => {
@@ -39,7 +39,7 @@ describe("appliquer_commande_referentiel — le tag initial existe aux deux sour
     expect(corpsFonction(schema)).toContain(INSERT_TAG);
   });
 
-  it("la migration qui introduit le tag reste alignée sur schema.sql", () => {
+  it("la dernière migration reste alignée sur schema.sql", () => {
     const schema = corpsFonction(
       readFileSync(join(racine, "schema.sql"), "utf8"),
     );

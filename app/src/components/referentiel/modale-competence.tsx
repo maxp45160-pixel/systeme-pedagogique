@@ -115,7 +115,7 @@ export function ModaleCompetence({
     if (brancheInitiale && brancheInitiale.competences.length > 0) {
       return "ia";
     }
-    return "ia";
+    return usageInitial === "module" ? "manuel" : "ia";
   });
 
   const [intention, setIntention] = useState(
@@ -406,7 +406,11 @@ export function ModaleCompetence({
 
   const retenuesManuelles = manuelLignes.filter((l) => l.intitule.trim().length > 0);
   const domaineManuelFinal = (competenceSeule ? domaineCible : estDomaineExistant ? domaineInitial : manuelDomaine) ?? "";
-  const pretManuel = domaineManuelFinal.trim().length > 2 && retenuesManuelles.length > 0;
+  const autoriseModuleVide =
+    !competenceSeule && !estDomaineExistant && usageChoisi === "module";
+  const pretManuel =
+    domaineManuelFinal.trim().length > 2 &&
+    (retenuesManuelles.length > 0 || autoriseModuleVide);
   const pretUsageManuel = !refusUsageManuel;
 
   function enregistrerManuel() {
@@ -429,7 +433,7 @@ export function ModaleCompetence({
             importance: l.importance,
           })),
           origine: "manuel",
-          signalerCroissanceReferentiel: true,
+          signalerCroissanceReferentiel: retenuesManuelles.length > 0,
           // Posé seulement à la naissance d'un domaine nouveau, et jamais « à
           // préciser » explicitement — c'est déjà le défaut en base.
           usage:
@@ -461,7 +465,7 @@ export function ModaleCompetence({
   const sousTitreModale = estDomaineExistant || competenceSeule
     ? "Ajoutez une compétence observable et mesurable au domaine."
     : usageChoisi === "module"
-      ? "Déclarez le cadre de votre cours et relisez les compétences proposées."
+      ? "Déclarez le cadre de votre cours. Vous pourrez ajouter ses contenus et ses compétences ensuite."
       : usageChoisi === "continu"
         ? "Définissez un sujet durable à travailler hors d’un cours ou d’un semestre."
         : "Définissez une nouvelle branche du référentiel et ses compétences.";
@@ -849,12 +853,16 @@ export function ModaleCompetence({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-                  {manuelLignes.length > 1
+                  {autoriseModuleVide
+                    ? "Premières compétences (facultatives)"
+                    : manuelLignes.length > 1
                     ? `Compétences à ajouter (${manuelLignes.length})`
                     : "Compétence"}
                 </label>
                 <span className="text-[0.6875rem] text-texte-discret">
-                  Le code est attribué automatiquement
+                  {autoriseModuleVide
+                    ? "Vous pouvez commencer avec un module vide"
+                    : "Le code est attribué automatiquement"}
                 </span>
               </div>
 
@@ -977,7 +985,9 @@ export function ModaleCompetence({
                 {enCours
                   ? "Enregistrement…"
                   : !estDomaineExistant && !competenceSeule
-                  ? retenuesManuelles.length > 1
+                  ? retenuesManuelles.length === 0 && autoriseModuleVide
+                    ? "Créer le module"
+                    : retenuesManuelles.length > 1
                     ? `Créer le domaine et ses ${retenuesManuelles.length} compétences`
                     : "Créer le domaine"
                   : retenuesManuelles.length > 1

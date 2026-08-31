@@ -6,7 +6,7 @@
  * en une transaction. Le serveur revalide néanmoins la commande au commit.
  */
 
-import type { OrigineReferentiel, Palier, Referentiel } from "./types";
+import type { OrigineReferentiel, Palier, Referentiel, UsageDomaine } from "./types";
 import {
   normaliserImportance,
   normaliserPalier,
@@ -73,6 +73,8 @@ export type CommandeReferentiel =
       type: "creer_domaine";
       domaine: { id: string; nom: string; prefixe: string; description: string; ordre: number; origine: OrigineReferentiel };
       competences: AjoutCompetenceCommande[];
+      /** Usage déclaré à la naissance ; absent = « à préciser ». */
+      usage?: Exclude<UsageDomaine, { type: "indetermine" }>;
     }
   | { type: "ajouter_competences"; domaineId: string; competences: AjoutCompetenceCommande[] }
   | {
@@ -169,6 +171,7 @@ function preparerAjouts(
   referentiel: Referentiel,
   domaineId: string,
   origine: OrigineReferentiel,
+  autoriserVide = false,
 ): { ajouts: AjoutCompetenceCommande[]; dejaAuReferentiel: CompetenceDejaAuReferentiel[] } {
   const vues = new Set<string>();
   const dejaAuReferentiel: CompetenceDejaAuReferentiel[] = [];
@@ -211,14 +214,22 @@ function preparerAjouts(
     ajouts.push({ ...candidate, prerequis: candidate.prerequis ?? [], ordre: competence.ordre ?? index, origine });
   }
 
-  if (ajouts.length === 0 && dejaAuReferentiel.length === 0) {
+  if (!autoriserVide && ajouts.length === 0 && dejaAuReferentiel.length === 0) {
     throw new Error("Une commande d'ajout doit porter au moins une compétence.");
   }
   return { ajouts, dejaAuReferentiel };
 }
 
 export function preparerCreationDomaine(
-  entree: { domaine: string; prefixe: string; description: string; competences: CompetenceBrute[]; origine: OrigineReferentiel },
+  entree: {
+    domaine: string;
+    prefixe: string;
+    description: string;
+    competences: CompetenceBrute[];
+    origine: OrigineReferentiel;
+    /** Usage déjà validé par la frontière applicative. */
+    usage?: Exclude<UsageDomaine, { type: "indetermine" }>;
+  },
   referentiel: Referentiel,
 ): PropositionReferentiel {
   const nom = entree.domaine.trim();
@@ -237,13 +248,21 @@ export function preparerCreationDomaine(
   const prefixe = normaliserPrefixe(entree.prefixe, nom);
   lever(validerDomaine({ nom, prefixe, description: entree.description }, referentiel));
   const domaineId = slugifier(nom);
-  const { ajouts, dejaAuReferentiel } = preparerAjouts(entree.competences, referentiel, domaineId, entree.origine);
+  const { ajouts, dejaAuReferentiel } = preparerAjouts(
+    entree.competences,
+    referentiel,
+    domaineId,
+    entree.origine,
+    entree.usage?.type === "module",
+  );
   /*
-   * Un domaine naît avec au moins une compétence à lui — la commande
-   * transactionnelle l'exige, et un domaine qui n'emprunterait que des
-   * compétences d'ailleurs n'aurait pas de quoi former son propre code.
+   * Un domaine ordinaire naît avec au moins une compétence à lui. Le seul cas
+   * vide autorisé est le module académique explicitement déclaré : il peut
+   * précéder le premier cours et la première compétence. Un domaine qui ne
+   * ferait qu'emprunter des compétences existantes reste refusé ici ; ce geste
+   * sera traité par le rangement multi-domaines, pas comme une création vide.
    */
-  if (ajouts.length === 0) {
+  if (ajouts.length === 0 && dejaAuReferentiel.length > 0) {
     const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");
     throw new Error(
       `« ${nom} » ne peut pas naître sans compétence à lui : toutes celles proposées existent déjà — ${liste}. Ajoute-lui au moins une compétence propre ; les autres se rattacheront ensuite.`,
@@ -254,6 +273,7 @@ export function preparerCreationDomaine(
       type: "creer_domaine",
       domaine: { id: domaineId, nom, prefixe, description: entree.description.trim(), ordre: referentiel.domaines.length, origine: entree.origine },
       competences: ajouts,
+      ...(entree.usage ? { usage: entree.usage } : {}),
     },
     dejaAuReferentiel,
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
+import type { VueAClasserAtelier, VuePedagogiqueAtelier } from "@/lib/documents/vue-atelier";
 import type { ElementAtelier } from "./types-atelier";
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import { ConcepteurSeance, type DonneesSeance } from "@/components/seances/concepteur-seance";
@@ -26,7 +26,7 @@ export function FichePedagogiqueAtelier({
   donneesSeance,
   onRestaurerDomaine,
   domainesExistants,
-  modeInitial,
+  aClasser,
 }: {
   vue: VuePedagogiqueAtelier;
   titre: string;
@@ -37,8 +37,7 @@ export function FichePedagogiqueAtelier({
   donneesSeance?: DonneesSeance;
   onRestaurerDomaine?: (domaineId: string) => void;
   domainesExistants?: { id: string; nom: string; prefixe: string }[];
-  /** Mode de lecture initial d'une vue domaine, venu de l'URL (`vue=progression`). */
-  modeInitial?: "progression";
+  aClasser?: VueAClasserAtelier[];
 }) {
   if (vue.kind === "competence") {
     return (
@@ -63,7 +62,7 @@ export function FichePedagogiqueAtelier({
         compteId={compteId}
         onRestaurerDomaine={onRestaurerDomaine}
         domainesExistants={domainesExistants}
-        modeInitial={modeInitial}
+        aClasser={aClasser}
       />
     );
   }
@@ -81,7 +80,7 @@ export function FichePedagogiqueAtelier({
  * Le volet de contexte a-t-il quelque chose à dire sur cet objet ?
  */
 export function panneauPedagogiqueUtile(vue: VuePedagogiqueAtelier): boolean {
-  return vue.kind !== "competence";
+  return vue.kind === "exercice";
 }
 
 export function PanneauPedagogiqueAtelier({

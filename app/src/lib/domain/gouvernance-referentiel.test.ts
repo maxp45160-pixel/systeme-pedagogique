@@ -86,6 +86,52 @@ describe("gouvernance du référentiel", () => {
     }, assemblerReferentiel([statistiques], [existante]))).toThrow("STA-01 (Statistiques)");
   });
 
+  it("autorise explicitement un module à précéder sa première compétence", () => {
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
+      domaine: "Macroéconomie L2",
+      prefixe: "MAC",
+      description: "Cours du premier semestre.",
+      origine: "manuel",
+      competences: [],
+      usage: {
+        type: "module",
+        module: { anneeAcademique: "2026-2027", periode: "S1" },
+      },
+    }, assemblerReferentiel([], []));
+
+    expect(commande).toMatchObject({
+      type: "creer_domaine",
+      domaine: { id: "macroeconomie-l2", prefixe: "MAC" },
+      competences: [],
+      usage: {
+        type: "module",
+        module: { anneeAcademique: "2026-2027", periode: "S1" },
+      },
+    });
+    expect(dejaAuReferentiel).toEqual([]);
+  });
+
+  it("refuse toujours un domaine vide hors du parcours module", () => {
+    expect(() => preparerCreationDomaine({
+      domaine: "Macroéconomie L2",
+      prefixe: "MAC",
+      description: "Cours du premier semestre.",
+      origine: "manuel",
+      competences: [],
+    }, assemblerReferentiel([], []))).toThrow("au moins une compétence");
+  });
+
+  it("refuse aussi un domaine continu vide", () => {
+    expect(() => preparerCreationDomaine({
+      domaine: "Culture générale",
+      prefixe: "CUL",
+      description: "Apprentissage sans échéance de fin.",
+      origine: "manuel",
+      competences: [],
+      usage: { type: "continu" },
+    }, assemblerReferentiel([], []))).toThrow("au moins une compétence");
+  });
+
   /*
    * Le geste attendu : la personne demande ce savoir-faire dans ce domaine.
    * Il existe ailleurs, donc rien n'est écrit — et il n'y a rien non plus à

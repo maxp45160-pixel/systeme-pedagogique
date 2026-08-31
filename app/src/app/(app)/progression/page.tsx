@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { chargerContexte } from "@/lib/store/context";
 import { compteCourant } from "@/lib/supabase/server";
 import { resoudreIdentite } from "@/lib/domain/identite";
@@ -8,9 +7,6 @@ import { SqueletteContenu } from "@/components/layout/squelette";
 import { resumeCarriere } from "@/lib/engine/carriere";
 import { resumeCroissance } from "@/lib/engine/croissance";
 import { evolutionScore } from "@/lib/engine/evolution";
-import {
-  resoudreFiltreDomaine,
-} from "@/lib/engine/lecture-domaine";
 import { EntetePage } from "@/components/layout/entete-page";
 import { Carte, CorpsCarte, EnTeteCarte } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
@@ -21,7 +17,6 @@ import { CartePratique } from "@/components/progression/carte-pratique";
 import { ComparaisonDomaines } from "@/components/progression/comparaison-domaines";
 import { TopCompetences } from "@/components/progression/top-competences";
 import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-lie";
-import { FiltreDomaines } from "@/components/progression/filtre-domaines";
 import { ModaleExportBilan } from "@/components/progression/modale-export-bilan";
 import { Glossaire } from "@/components/ui/glossaire";
 import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
@@ -47,46 +42,24 @@ import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
  * le journal, les faits marquants de toute la pratique, et le bilan de ce
  * que le travail récent a changé.
  *
- * ## Lecture par domaine (`?domaine=`)
- *
- * La lecture d'un seul domaine vit dans l'Atelier : la vue domaine y a un mode
- * « Progression », alimenté par le même calcul que celui qui vivait ici. Le
- * paramètre `?domaine=` redirige donc vers `/atelier?document=…&vue=progression`
- * — une seule surface pour la question « où j'en suis dans ce domaine ». Il
- * reste validé contre les domaines réels du compte : un identifiant inconnu
- * est ignoré proprement, la page retombe sur sa vue globale plutôt que de
- * rediriger vers un périmètre qui n'existe pas.
+ * La fiche d'un domaine sert maintenant à travailler, sans lecture parallèle
+ * « Progression ». Cette page conserve la lecture longitudinale globale : elle
+ * compare déjà les domaines sans obliger à ouvrir un second écran par domaine.
  */
-export default async function PageProgression(props: {
-  searchParams: Promise<{ domaine?: string }>;
-}) {
-  const recherche = await props.searchParams;
-
+export default function PageProgression() {
   return (
     <Suspense fallback={<SqueletteContenu />}>
-      <ContenuProgression filtreDemande={recherche.domaine} />
+      <ContenuProgression />
     </Suspense>
   );
 }
 
-async function ContenuProgression({ filtreDemande }: { filtreDemande?: string }) {
+async function ContenuProgression() {
   const [ctx, compte] = await Promise.all([
     chargerContexte(),
     compteCourant(),
   ]);
   const identite = resoudreIdentite(compte, ctx.donnees.user);
-
-  // Validation du paramètre AVANT tout calcul : un identifiant inconnu ne
-  // doit pas rediriger ni coûter une lecture — la page retombe sur sa vue
-  // globale. Un identifiant valide emmène vers la surface unique de la lecture
-  // par domaine : la vue domaine de l'Atelier, mode « Progression ».
-  const filtre = resoudreFiltreDomaine(filtreDemande, ctx.referentiel.domaines);
-  if (filtre !== null) {
-    redirect(`/atelier?document=${encodeURIComponent(filtre)}&vue=progression`);
-  }
-  const domainesDuFiltre = ctx.referentiel.domaines
-    .filter((domaine) => !domaine.archive)
-    .map((domaine) => ({ id: domaine.id, nom: domaine.nom }));
 
   const intitules = Object.fromEntries(
     ctx.referentiel.skills.map((skill) => [skill.code, skill.intitule]),
@@ -135,7 +108,6 @@ async function ContenuProgression({ filtreDemande }: { filtreDemande?: string })
         }
       />
       <div className="space-y-8 [&>*]:min-w-0">
-        <FiltreDomaines domaines={domainesDuFiltre} />
         <VueGlobale
           ctx={ctx}
           identite={identite}

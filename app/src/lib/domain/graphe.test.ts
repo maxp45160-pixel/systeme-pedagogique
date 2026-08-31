@@ -115,7 +115,7 @@ describe("construireGraphe", () => {
     expect(liens.filter((l) => l.type === "exercice")).toHaveLength(2);
   });
 
-  it("ajoute les documents Markdown et leurs liens résolus au graphe existant", () => {
+  it("ajoute les documents de travail et leurs liens résolus au graphe existant", () => {
     const exercice: Exercise = {
       id: "ex-1",
       titre: "Exercice vivant",
@@ -133,8 +133,8 @@ describe("construireGraphe", () => {
     const index = reconstruireIndexDocumentaire(
       [
         {
-          id: "preuve-1",
-          contenuMd: "---\ntype: preuve\nid: preuve-1\ncreated_at: 2026-08-12\n---\n\n# Production\n\n- [[DEV-01]]\n- [[exercice:ex-1]]\n- [[inconnu]]",
+          id: "note-1",
+          contenuMd: "---\ntype: note\nid: note-1\ncreated_at: 2026-08-12\n---\n\n# Notes de cours\n\n- [[DEV-01]]\n- [[exercice:ex-1]]\n- [[inconnu]]",
         },
       ],
       ["DEV-01", "exercice:ex-1"],
@@ -148,20 +148,20 @@ describe("construireGraphe", () => {
     );
 
     expect(graphe.noeuds).toContainEqual(expect.objectContaining({
-      id: "document:preuve-1",
+      id: "document:note-1",
       type: "document",
-      libelle: "Production",
+      libelle: "Notes de cours",
     }));
     expect(graphe.liens).toEqual(expect.arrayContaining([
       {
-        source: "document:preuve-1",
+        source: "document:note-1",
         target: "competence:DEV-01",
         type: "document",
         poids: 0.8,
         oriente: true,
       },
       {
-        source: "document:preuve-1",
+        source: "document:note-1",
         target: "exercice:ex-1",
         type: "document",
         poids: 0.8,
@@ -169,6 +169,27 @@ describe("construireGraphe", () => {
       },
     ]));
     expect(graphe.liens.some((lien) => lien.target === "inconnu")).toBe(false);
+  });
+
+  it("écarte les preuves du graphe, y compris celles reconnues par leur ancien identifiant", () => {
+    const index = reconstruireIndexDocumentaire(
+      [
+        {
+          id: "preuve-1",
+          contenuMd: "---\ntype: preuve\nid: preuve-1\n---\n\n# Production récente\n\n- [[DEV-01]]",
+        },
+        {
+          id: "preuve-historique",
+          contenuMd: "# Production historique\n\n- [[DEV-01]]",
+        },
+      ],
+      ["DEV-01"],
+    );
+
+    const graphe = construireGraphe(REFERENTIEL_TEST, etatsDuReferentiel(), [], index);
+
+    expect(graphe.noeuds.some((noeud) => noeud.id.startsWith("document:preuve-"))).toBe(false);
+    expect(graphe.liens.some((lien) => lien.source.startsWith("document:preuve-"))).toBe(false);
   });
 });
 

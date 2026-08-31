@@ -14,10 +14,6 @@ import {
   type LearningSession,
 } from "@/lib/domain/types";
 import {
-  construireArbreDomaine,
-  type ArbreDomaine,
-} from "@/lib/domain/arbre-competences";
-import {
   rattachementDomaine,
   type RattachementCarte,
 } from "@/lib/domain/carte-savoirs";
@@ -43,7 +39,6 @@ import {
 } from "@/lib/engine/parcours";
 import type { ChangementReferentiel } from "@/lib/domain/gouvernance-referentiel";
 import { type EtatCompetence } from "@/lib/engine/vues-twiny";
-import type { ProgressionDomaineVue } from "./progression-domaine";
 import {
   filRessourcesDomaine,
   type DocumentCorpus,
@@ -57,6 +52,7 @@ import {
   proposerClassementDepuisDomaineCreation,
   type PropositionClassementAtelier,
 } from "./classement-atelier";
+import { usageDuDomaine } from "@/lib/domain/usage-domaine";
 
 export interface ExerciceLieAtelier {
   id: string;
@@ -93,6 +89,17 @@ export interface DocumentLieAtelier {
   id: string;
   titre: string;
   type: string;
+}
+
+/** Une activité réellement observée, regroupée par production quand elle existe. */
+export interface TravailRealiseDomaine {
+  id: string;
+  date: string;
+  titre: string;
+  type: SkillObservation["type"] | "multiple";
+  resultat: ResultatTentative | null;
+  documentId: string | null;
+  competences: Array<{ code: string; titre: string }>;
 }
 
 /*
@@ -135,6 +142,72 @@ function documentPreuveDeLObservation(observation: SkillObservation, index: Inde
   const candidat = explicite ?? (observation.source.kind === "exercice" ? idPreuve(observation.source.ref) : null);
   if (!candidat) return null;
   return index.parId.has(candidat) ? candidat : null;
+}
+
+/**
+ * Regroupe les observations d'une même production pour ne pas répéter une
+ * activité une fois par compétence mobilisée. La liste reste une projection :
+ * rien n'est écrit en plus des observations et de leurs sources.
+ */
+function travailRealiseDuDomaine(
+  observations: readonly SkillObservation[],
+  codesDomaine: ReadonlySet<string>,
+  referentiel: Referentiel,
+  index: IndexDocumentaire,
+): TravailRealiseDomaine[] {
+  const groupes = new Map<string, {
+    id: string;
+    date: string;
+    titre: string;
+    types: Set<SkillObservation["type"]>;
+    resultats: Set<ResultatTentative>;
+    documentId: string | null;
+    competences: Map<string, string>;
+  }>();
+
+  for (const observation of observations) {
+    if (!codesDomaine.has(observation.skillCode)) continue;
+    const documentId = documentPreuveDeLObservation(observation, index);
+    const cle = documentId
+      ? `document:${documentId}`
+      : observation.source.trace
+        ? `tentative:${observation.source.trace.ref}`
+        : `observation:${observation.id}`;
+    const document = documentId ? index.parId.get(documentId) : null;
+    const titre = observation.contexte.trim() || document?.titre || "Travail observé";
+    const competence = referentiel.parCode.get(observation.skillCode);
+    const existant = groupes.get(cle);
+
+    if (!existant) {
+      groupes.set(cle, {
+        id: cle,
+        date: observation.date,
+        titre,
+        types: new Set([observation.type]),
+        resultats: new Set([observation.resultat]),
+        documentId,
+        competences: new Map([[observation.skillCode, competence?.intitule ?? observation.skillCode]]),
+      });
+      continue;
+    }
+
+    if (observation.date > existant.date) existant.date = observation.date;
+    existant.types.add(observation.type);
+    existant.resultats.add(observation.resultat);
+    existant.competences.set(observation.skillCode, competence?.intitule ?? observation.skillCode);
+  }
+
+  return [...groupes.values()]
+    .map<TravailRealiseDomaine>((groupe) => ({
+      id: groupe.id,
+      date: groupe.date,
+      titre: groupe.titre,
+      type: groupe.types.size === 1 ? [...groupe.types][0] : "multiple",
+      resultat: groupe.resultats.size === 1 ? [...groupe.resultats][0] : null,
+      documentId: groupe.documentId,
+      competences: [...groupe.competences].map(([code, titre]) => ({ code, titre })),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export interface VueCompetenceAtelier {
@@ -234,14 +307,6 @@ export interface VueDomaineAtelier {
   nombreObservations: number;
   nombreExercices: number;
   derniereActivite: string | null;
-  /**
-   * L'arbre de progression du domaine — mêmes compétences, même classement
-   * par palier, une autre lecture. Ce n'est pas un second classement (l'erreur
-   * de l'onglet « Transversal » retiré) : c'est `competences` disposé selon
-   * les prérequis déclarés, avec les prérequis manquants rendus visibles au
-   * lieu d'être tus.
-   */
-  arbre: ArbreDomaine;
   /** Position déclarée sur la carte des savoirs, `null` tant que personne n'a tranché. */
   rattachementCarte: RattachementCarte | null;
   /** Séances acceptées et préparation aux échéances, recalculées à la lecture. */
@@ -275,13 +340,8 @@ export interface VueDomaineAtelier {
    * Une ressource jamais mobilisée reste listée, sans date fabriquée.
    */
   ressources: FilRessource[];
-  /**
-   * La lecture longitudinale du domaine (mode « Progression »), précalculée
-   * serveur par `construireProgressionsDomaines` — la surface unique pour « où
-   * j'en suis dans ce domaine », là où `/progression?domaine=` doublonnait.
-   * Absente (imprévu) : le mode affiche un repli sobre, sans planter.
-   */
-  progression?: ProgressionDomaineVue;
+  /** Historique dérivé des observations, regroupé par travail source. */
+  travailRealise: TravailRealiseDomaine[];
 }
 
 /**
@@ -378,14 +438,18 @@ export function construireVuesAtelier(
   aClasser: VueAClasserAtelier[];
 } {
   /*
-   * Les domaines qu'au moins une compétence vivante fait exister — ses tags, et
-   * leurs ancêtres par héritage (ADR-107). Un domaine parent n'a pas besoin
-   * d'être tagué lui-même pour être vivant : il l'est par sa descendance.
+   * Les domaines qu'au moins une compétence vivante fait exister — ses tags,
+   * et leurs ancêtres par héritage (ADR-107).
    */
   const domainesVivants = new Set(
     referentiel.skills
       .filter((skill) => !skill.archive)
       .flatMap((skill) => [...domainesVisibles(referentiel.domaines, skill.tagsDomaine ?? [])]),
+  );
+  const modulesDeclares = new Set(
+    referentiel.domaines
+      .filter((domaine) => !domaine.archive && usageDuDomaine(domaine).type === "module")
+      .map((domaine) => domaine.id),
   );
   const enfantsParDomaine = indexerEnfants(referentiel.domaines);
   /*
@@ -510,7 +574,10 @@ export function construireVuesAtelier(
     });
 
   const domaines: VueDomaineAtelier[] = referentiel.domaines
-    .filter((domaine) => domaine.archive || domainesVivants.has(domaine.id))
+    .filter(
+      (domaine) =>
+        domaine.archive || domainesVivants.has(domaine.id) || modulesDeclares.has(domaine.id),
+    )
     .map((domaine) => {
       /*
        * `skills` reste la liste des compétences dont ce domaine est le
@@ -607,7 +674,6 @@ export function construireVuesAtelier(
         nombreObservations: items.reduce((total, item) => total + item.nombreObservations, 0),
         nombreExercices: exercicesDomaine.length,
         derniereActivite: derniereDate(items.map((item) => item.derniereObservation)),
-        arbre: construireArbreDomaine(domaine.id, referentiel, etats),
         parentId: domaine.parentId ?? null,
         parentNom: domaine.parentId
           ? referentiel.domainesParId.get(domaine.parentId)?.nom ?? domaine.parentId
@@ -638,6 +704,12 @@ export function construireVuesAtelier(
           documents: corpus,
           observations: observationsReferentiel,
         }),
+        travailRealise: travailRealiseDuDomaine(
+          observationsReferentiel,
+          codesDomaine,
+          referentiel,
+          index,
+        ),
         orchestrationModule: construireLectureOrchestrationModule({
           domainId: domaine.id,
           sessions,

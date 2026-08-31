@@ -4423,7 +4423,10 @@ Cette note décrit l’état du code ; elle ne change pas le statut 🔬 de l’
   fiche.
 - l’Atelier distingue désormais les projections pédagogiques du contenu
   Markdown universel : un domaine est la fiche mère de ses compétences, puis
-  les exercices, preuves et documents sont reliés à chaque fiche compétence.
+  les exercices et documents de travail sont reliés à chaque fiche compétence.
+  Les preuves restent des traces d'activité : elles sont consultables depuis
+  les observations et l'historique dérivé du domaine, mais sont exclues du
+  graphe pour ne pas dupliquer visuellement chaque compétence observée.
   Cette hiérarchie d’interface est dérivée du référentiel existant ; elle
   n’ajoute ni entité `Sujet`, ni mesure stockée, ni seconde source de vérité.
 - une fiche peut avoir plusieurs chemins de navigation dérivés : son chemin
@@ -6172,9 +6175,12 @@ que `PRODUCT.md` §1 interdit.
 * **Un thème est une sélection de compétences, jamais un contenant.** Il a sa
   propre entrée et n'accueille aucune fiche.
 * **Une preuve sort du corpus** (`hors-corpus`). Elle reste lisible depuis la
-  frise de la compétence, depuis l'exercice qui l'a produite et depuis la
-  recherche. Elle n'est plus rangée nulle part, et ne porte plus son
-  identifiant technique comme titre.
+  frise de la compétence, depuis l'exercice qui l'a produite, depuis l'activité
+  du domaine et depuis la recherche. Elle n'est plus rangée nulle part, ne
+  devient pas un nœud du graphe et ne porte plus son identifiant technique
+  comme titre. La fiche domaine regroupe les observations d'une même
+  production afin de montrer le travail une seule fois, même s'il mobilise
+  plusieurs compétences.
 * **Une ressource est rattachée à des compétences**, et le domaine s'en déduit.
   Une ressource qui n'en cite aucune est **à trier** : l'Atelier le dit et
   propose de l'ouvrir pour la rattacher, plutôt que de la ranger arbitrairement.
@@ -9644,8 +9650,9 @@ typés devraient être portés autrement.
 
 **Statut :** ✅ retiré le 24/08/2026, sur décision explicite de Maxime après
 l'audit de conception (défaut D5). Retire une surface construite sous
-[ADR-105](#adr-105) ; ne remet en cause ni le classement des domaines, ni
-l'arbre d'un domaine.
+[ADR-105](#adr-105) ; ne remet pas en cause le classement des domaines. La
+révision explicite du 31/08 retire également l'arbre interne d'un domaine,
+devenu une lecture concurrente sans geste utile.
 
 ### Le problème
 
@@ -9683,11 +9690,13 @@ aura la matière que ce commentaire attendait. Une surface qu'on garde
 « au cas où » se maintient à chaque refonte du voisinage et ne se rouvre
 jamais ; une surface qu'on retire se relit d'un `git show`.
 
-**Ce qui reste, et qu'il ne faut pas confondre.**
-`components/atelier/vues/arbre-domaine.tsx` est un **mode de lecture d'un
-domaine** (Fiches / Arbre / Progression), à l'intérieur d'une fiche, pas un
-onglet frère du Graphe. Il montre les prérequis des compétences d'**un** domaine
-et il est employé. Il ne bouge pas.
+**Révision du 31/08/2026.** L'arbre interne d'un domaine, qui restait alors
+distinct de l'arbre global, est retiré à son tour après retour d'usage explicite :
+la fiche module/domaine sert à travailler et cette seconde lecture des mêmes
+compétences la surchargeait. `components/atelier/vues/arbre-domaine.tsx` et le
+calcul pur qui ne servait plus qu'à cette surface repartent dans l'historique.
+Le graphe global, le classement des domaines et les prérequis déclarés ne sont
+pas modifiés.
 
 ### Ce que cette décision n'autorise pas
 
@@ -11014,8 +11023,23 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
    les 8 domaines existants portent `usage_type NULL`, sans aucun backfill. Pas
    de table nouvelle, aucune copie d'échéance, de séance, de compétence ou de
    score. Le tuteur ne propose jamais cet usage : c'est un geste de la
-   personne.
-3. **La commande d'écriture est séparée** (`declarer_usage_domaine`), pour la
+   personne. Le lot « cockpit académique » autorise ensuite la commande
+   `creer_domaine` à porter une liste de compétences vide, sans modifier son
+   journal ni ses contrôles de compte : migration
+   `20260830200308_autoriser_module_vide.sql`, **appliquée en production le
+   30/08/2026**, historique Supabase
+   `20260830202145_autoriser_module_vide`. La migration suivante
+   `20260830202830_creer_module_vide_atomique.sql`, **appliquée en production
+   le 30/08/2026** sous la version Supabase
+   `20260830203001_creer_module_vide_atomique`, resserre le contrat : une
+   création vide n'est recevable que si la même commande porte l'usage
+   `module`, son année académique et sa période facultative. Les domaines
+   continus ou indéterminés vides restent refusés.
+3. **L'usage est atomique à la création, puis possède sa commande dédiée.**
+   `creer_domaine` écrit l'usage déclaré dans la même transaction que le
+   domaine : une panne ne peut donc pas laisser un module vide sous l'usage
+   indéterminé et le rendre invisible. Pour un domaine déjà existant, la
+   commande d'écriture reste séparée (`declarer_usage_domaine`), pour la
    même raison que `taguer_competences_domaine` et `deplacer_domaine`
    (ADR-107) : étendre le bloc de types de `appliquer_commande_referentiel`
    ferait porter à un ajout périphérique le risque de réécrire tout le chemin
@@ -11023,15 +11047,16 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
    idempotence par `request_id`, version optimiste (`40001`), journal
    append-only (`referentiel_changes`, type `declarer_usage`), drapeau de
    commande, `SECURITY INVOKER`. À la création d'une branche, l'usage voyage
-   avec (`SoumissionBranche.usage`) mais ne s'écrit que sur création réelle :
-   ajouter des compétences à un domaine existant ne change jamais la nature
-   déclarée de quelqu'un.
+   avec `SoumissionBranche.usage` et la commande `creer_domaine`. Ajouter des
+   compétences à un domaine existant ne change jamais la nature déclarée de
+   quelqu'un.
 4. **Le module reste un cadre, pas un propriétaire ni une mesure.** Une
    compétence taguée dans un module et dans un domaine continu garde une seule
    identité, un seul historique d'observations, un seul état dérivé — les tags
    restent dans `competence_domaines`, l'union dédupliquée se dérive
-   (ADR-107). Un module peut exister sans PDF ; un PDF déposé n'est jamais
-   assimilé au module ; une échéance liée ne fabrique aucun score de
+   (ADR-107). Un module peut exister sans PDF et sans compétence initiale : son
+   usage déclaré suffit à le rendre visible, sans compétence sentinelle. Un PDF
+   déposé n'est jamais assimilé au module ; une échéance liée ne fabrique aucun score de
    préparation ; l'absence d'observation n'est jamais un niveau zéro (P2).
 5. **La clôture d'un module est un fait daté** (`module_clos_le`), distinct de
    l'archivage (qui retire du référentiel de travail) : elle conserve
@@ -11050,7 +11075,8 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
 
 - la création manuelle d'un domaine (`ModaleCompetence`) propose les trois
   natures explicites, « À préciser » par défaut ; choisir « Module académique »
-  demande l'année (et la période facultative) sur place ;
+  demande l'année (et la période facultative) sur place et permet de créer le
+  cadre avant sa première compétence ;
 - le tableau de bord conserve une seule entrée (« Déclarer un besoin ») : le
   sélecteur de cadre ouvre le même parcours de création pour un module ou une
   progression continue, sans deuxième bouton ni deuxième modèle ;
@@ -11065,13 +11091,43 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
   `Domaine.usage` et refuse toute ligne incohérente sans fabriquer de valeur
   (`validerDomaine`).
 
+### Surface module — lot 1 (30/08/2026)
+
+- un module déclaré reste dans « Mes cours » même quand aucun tag de compétence
+  ne le rend encore vivant ; cette visibilité vient de `Domaine.usage`, jamais
+  d'une compétence ou d'un document fabriqué ;
+- sa fiche ouvre un cockpit académique avant les lectures génériques du
+  référentiel et mène aux deux gestes déjà complets : déposer un cours dans ce
+  module ou ajouter une compétence ;
+- les saisies rapides de notes, définitions et travaux appartiennent aux lots
+  suivants et ne sont pas simulées par des boutons sans effet.
+
+### Relecture de la fiche module/domaine (31/08/2026)
+
+- la fiche ne propose plus trois modes concurrents « Fiches », « Arbre » et
+  « Progression » : elle ouvre directement sur le prochain geste recevable,
+  puis le travail du module et ses échéances ;
+- les compétences restent consultables et filtrables dans une section repliée
+  par défaut. L'arbre de prérequis et la lecture longitudinale par domaine sont
+  retirés de cette surface ; la Progression globale conserve la comparaison
+  entre domaines ;
+- le volet de contexte droit n'est plus proposé pour un domaine : il répétait
+  la fiche sans apporter de geste. Il reste disponible pour les objets dont le
+  contexte est distinct de leur contenu, notamment les exercices ;
+- les compétences créées dans ce module mais encore sans domaine durable
+  apparaissent dans « Repères » et rouvrent le classement existant. Aucun
+  second écran de classement ni aucun état n'est ajouté ;
+- classement du domaine, parenté et révision restent disponibles dans
+  « Organisation du domaine », repliée par défaut afin de ne pas concurrencer
+  le travail courant.
+
 ### Ce que cette décision n'autorise pas
 
 - aucune déduction silencieuse de la nature d'un domaine ;
 - aucune entité, table ou type nouveaux au-delà des colonnes ci-dessus ;
 - aucune mesure venue du cadre : un module n'observe rien, une année
   académique ne pondère rien, une clôture ne note rien ;
-- aucune duplication de la surface canonique de progression de « Mes cours ».
+- aucune duplication de la Progression globale dans « Mes cours ».
 
 ### Test de réfutation
 

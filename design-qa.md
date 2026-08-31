@@ -1,50 +1,47 @@
-# Design QA — tableau de bord orchestration
+# Design QA — graphe et activité de la fiche domaine
 
-Date : 28/08/2026
+- Source evidence: `C:\Users\Maxime\AppData\Local\Temp\codex-clipboard-8841301e-8641-494f-9579-f4c31f09b97f.png` and `C:\Users\Maxime\AppData\Local\Temp\codex-clipboard-3a81cb29-0791-41eb-a491-01f0066d19b6.png`
+- Intended implementation viewport: desktop, matching the supplied domain view
+- Implementation URL: `http://10.213.252.111:4173/atelier`
+- Intended state: domaine « Qualité », utilisateur authentifié, avec ses observations
+- Implementation screenshot: unavailable
 
-## Référence
+## Full-view comparison evidence
 
-- Cible : `docs/design/assets/tableau-de-bord-orchestration-cible.png`
-- Composition : `app/src/components/dashboard/tableau-bord-orchestration.tsx`
-- Route : `/app` (navigation existante conservée)
+Both supplied screenshots were opened and inspected. The local implementation
+could not be captured in the corresponding state: the in-app browser was
+redirected to `/login?suite=%2Fatelier` because its local session was not
+authenticated. The login screen is not valid comparison evidence for the
+domain activity or graph views.
 
-## Captures
+## Focused region comparison evidence
 
-- `dashboard-1440x1024.png` — état représentatif clair, 1440 × 1024
-- `dashboard-mobile.png` — état représentatif clair, viewport mobile
-- `dashboard-dark.png` — état représentatif sombre, 1440 × 1024
-- `dashboard-no-deadline.png` — état clair sans échéance, avec le geste de
-  déclaration fonctionnel
+Unavailable for the same authentication blocker. The density of the new
+activity rows, truncation of long competency labels, the four-item collapsed
+state and the graph after proof filtering therefore remain visually unverified.
 
-Les captures isolées utilisent les vrais tokens CSS chargés par l'application,
-un état avec échéance, preuves et deux séances acceptées, puis un état mobile
-empilé. La chronologie reste lisible, le bandeau des jours défile
-horizontalement, les actions gardent des cibles tactiles d'au moins 44 px et le
-réordonnancement repose sur des boutons clavier.
+## Primary interactions
 
-Le thème sombre a également été rendu et inspecté ; les mêmes tokens portent le
-contraste sans ajouter de couleur locale.
+Not browser-tested because the requested screen could not be reached. Targeted
+automated tests and the production build passed, but those checks do not
+replace interaction or visual verification.
 
-## Comparaison
+## Console
 
-Après inspection de la cible et du rendu :
+No domain or graph-view console check was possible because the browser never
+reached those views.
 
-- hiérarchie : « Votre journée » domine la carte d'échéance ;
-- proportions : composition principale calée sur la largeur relative de la
-  référence, avec la semaine et le bandeau des jours en dessous ;
-- densité : espacements, titres serif, bordures et boutons existants réutilisés ;
-- états honnêtes : invitation courte sans séance acceptée, « Non estimable »
-  sans preuve, aucune valeur en pourcentage.
+## Findings
 
-Les écarts de chargement CSS et de débordement mobile de la première capture
-ont été corrigés avant ces captures finales.
+- [P1] Authenticated implementation state unavailable.
+  Evidence: `/atelier` redirected to `/login?suite=%2Fatelier`.
+  Impact: no valid rendered comparison or core-interaction test can be made.
+  Fix: open the local app with an authenticated browser session, then capture
+  the domain activity and graph views and rerun this comparison.
 
-## Limite d'intégration
+## Comparison history
 
-La capture de la route authentifiée n'a pas pu être réalisée dans cet
-environnement : `/app` redirige vers `/login` sans session Supabase de test.
-La comparaison intégrée reste donc bloquée jusqu'à une session de test
-autorisée.
+- Initial pass: blocked before implementation capture; no visual fixes were
+  made from unverifiable evidence.
 
-**Final result: blocked** — aucune anomalie P0/P1/P2 restante dans la capture
-isolée ; la validation finale sur le rendu authentifié est la prochaine étape.
+## final result: blocked

@@ -46,6 +46,7 @@
 
 import type { Exercise, Referentiel, SkillState } from "./types";
 import type { IndexDocumentaire } from "@/lib/documents/index";
+import { estDocumentPreuve } from "@/lib/documents/nature-document";
 import {
   calculerSimilaritesTextuelles,
   type DocumentTexte,
@@ -204,6 +205,8 @@ export function construireGraphe(
   if (indexDocumentaire) {
     const idsDocuments = new Set<string>();
     for (const document of indexDocumentaire.documents) {
+      /* Une preuve est une trace d'activité, pas une ressource à parcourir. */
+      if (estDocumentPreuve(document)) continue;
       const id = `document:${document.id}`;
       idsDocuments.add(id);
       const domaineBrut = document.frontMatter.domaine ?? document.frontMatter.domain;

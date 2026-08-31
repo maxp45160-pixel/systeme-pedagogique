@@ -871,6 +871,9 @@ DECLARE
   v_uid UUID := auth.uid();
   v_type TEXT := p_commande ->> 'type';
   v_domaine_id TEXT;
+  v_usage_type TEXT;
+  v_annee_academique TEXT;
+  v_periode TEXT;
   v_version_avant INTEGER;
   v_version_apres INTEGER;
   v_prefixe TEXT;
@@ -909,13 +912,32 @@ BEGIN
 
   IF v_type = 'creer_domaine' THEN
     IF p_expected_version IS NOT NULL THEN RAISE EXCEPTION 'Une création ne porte pas de version attendue.'; END IF;
-    IF jsonb_array_length(coalesce(p_commande -> 'competences', '[]'::JSONB)) = 0 THEN RAISE EXCEPTION 'Un domaine doit naître avec au moins une compétence.'; END IF;
+    v_usage_type := nullif(btrim(p_commande #>> '{usage,type}'), '');
+    v_annee_academique := nullif(btrim(p_commande #>> '{usage,module,anneeAcademique}'), '');
+    v_periode := nullif(btrim(p_commande #>> '{usage,module,periode}'), '');
+    IF v_usage_type IS NOT NULL AND v_usage_type NOT IN ('continu', 'module') THEN
+      RAISE EXCEPTION 'Usage de domaine inconnu : %', v_usage_type;
+    END IF;
+    IF v_usage_type = 'module' AND v_annee_academique IS NULL THEN
+      RAISE EXCEPTION 'Un module académique exige son année académique déclarée.';
+    END IF;
+    IF v_usage_type IS DISTINCT FROM 'module' AND (v_annee_academique IS NOT NULL OR v_periode IS NOT NULL) THEN
+      RAISE EXCEPTION 'Année et période sont réservées aux modules académiques.';
+    END IF;
+    IF jsonb_array_length(coalesce(p_commande -> 'competences', '[]'::JSONB)) = 0
+       AND v_usage_type IS DISTINCT FROM 'module' THEN
+      RAISE EXCEPTION 'Seul un module académique peut naître sans compétence.';
+    END IF;
     PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::TEXT || ':' || v_domaine_id, 0));
-    INSERT INTO public.domaines (user_id, id, nom, prefixe, description, ordre, version, archive, origine)
+    INSERT INTO public.domaines (
+      user_id, id, nom, prefixe, description, ordre, version, archive, origine,
+      usage_type, annee_academique, periode
+    )
     VALUES (
       v_uid, v_domaine_id, btrim(p_commande #>> '{domaine,nom}'), upper(btrim(p_commande #>> '{domaine,prefixe}')),
       coalesce(p_commande #>> '{domaine,description}', ''), coalesce((p_commande #>> '{domaine,ordre}')::INTEGER, 0),
-      1, false, coalesce(p_commande #>> '{domaine,origine}', p_origine)
+      1, false, coalesce(p_commande #>> '{domaine,origine}', p_origine),
+      v_usage_type, v_annee_academique, v_periode
     );
     v_version_avant := NULL;
     v_version_apres := 1;

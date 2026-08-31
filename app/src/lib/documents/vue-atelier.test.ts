@@ -167,7 +167,7 @@ describe("construireVuesAtelier", () => {
       [exercice],
       [tentative],
       index,
-      [],
+      [observation],
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
@@ -178,6 +178,15 @@ describe("construireVuesAtelier", () => {
     expect(vues.domaines[0].nombreEvaluees).toBe(1);
     expect(vues.domaines[0].nombreObservations).toBe(1);
     expect(vues.domaines[0].nombreExercices).toBe(1);
+    expect(vues.domaines[0].travailRealise).toEqual([
+      expect.objectContaining({
+        id: "observation:observation-1",
+        titre: "transport",
+        resultat: "reussi",
+        documentId: null,
+        competences: [{ code: "LOG-01", titre: "Analyser un flux logistique" }],
+      }),
+    ]);
 
     expect(vues.competences).toHaveLength(2);
     expect(vues.competences[0].code).toBe("LOG-01");
@@ -430,7 +439,7 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       indexAvecDocuments(),
-      [],
+      [observation],
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
@@ -446,13 +455,42 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
       [exercice],
       [tentative],
       indexAvecDocuments(),
-      [],
+      [observation],
       [],
       new Set(),
       etatsLot5(etat(competence, [observation]), etat(suivante)),
     );
 
     expect(vues.competences[0].observations[0].documentId).toBe("preuve-tentative-1");
+    expect(vues.domaines[0].travailRealise[0]).toEqual(expect.objectContaining({
+      id: "document:preuve-tentative-1",
+      documentId: "preuve-tentative-1",
+    }));
+  });
+
+  it("ne répète pas un même travail pour chaque compétence observée", () => {
+    const observationSuivante: SkillObservation = {
+      ...observation,
+      id: "observation-2",
+      skillCode: suivante.code,
+    };
+    const vues = construireVuesAtelier(
+      referentiel,
+      [etat(competence, [observation]), etat(suivante, [observationSuivante])],
+      [exercice],
+      [tentative],
+      indexAvecDocuments(),
+      [observation, observationSuivante],
+      [],
+      new Set(),
+      etatsLot5(etat(competence, [observation]), etat(suivante, [observationSuivante])),
+    );
+
+    expect(vues.domaines[0].travailRealise).toHaveLength(1);
+    expect(vues.domaines[0].travailRealise[0].competences.map(({ code }) => code)).toEqual([
+      "LOG-01",
+      "LOG-02",
+    ]);
   });
 
   it("ne fabrique pas de cible quand l'Observation n'a produit aucun document", () => {
@@ -567,5 +605,49 @@ describe("vue d'une compétence — ce que l'Atelier a le droit de montrer", () 
     );
 
     expect(vues.domaines[0].orchestrationModule.deadlines).toEqual([]);
+  });
+
+  it("garde visible un module déclaré avant sa première compétence", () => {
+    const moduleVide = {
+      id: "macroeconomie-l2",
+      nom: "Macroéconomie L2",
+      prefixe: "MAC",
+      description: "Cours du premier semestre.",
+      ordre: 2,
+      version: 1,
+      archive: false,
+      origine: "manuel" as const,
+      usage: {
+        type: "module" as const,
+        module: { anneeAcademique: "2026-2027", periode: "S1" },
+      },
+    };
+    const referentielVide: Referentiel = {
+      domaines: [moduleVide],
+      skills: [],
+      actifs: [],
+      parCode: new Map(),
+      codesActifs: new Set(),
+      domainesParId: new Map([[moduleVide.id, moduleVide]]),
+    };
+
+    const vues = construireVuesAtelier(
+      referentielVide,
+      [],
+      [],
+      [],
+      index,
+      [],
+      [],
+      new Set(),
+      [],
+    );
+
+    expect(vues.domaines).toHaveLength(1);
+    expect(vues.domaines[0]).toMatchObject({
+      id: "macroeconomie-l2",
+      competences: [],
+      ressources: [],
+    });
   });
 });
