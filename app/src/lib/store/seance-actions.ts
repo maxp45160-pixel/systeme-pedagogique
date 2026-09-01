@@ -54,6 +54,10 @@ import { parseInterventionsSeance } from "@/lib/domain/intervention-seance";
 import { lireInterventionsSeance } from "@/lib/domain/legacy-session-intervention-adapter";
 import { renduPourIntervention } from "@/lib/domain/intervention-rendus";
 import { jourDeLaSeance } from "@/lib/domain/pages-cahier";
+import { estModuleActif } from "@/lib/domain/usage-domaine";
+import { construireInterventionDepuisContenu } from "@/lib/domain/travail-contenu-module";
+import { lireApercusDocuments, lireDocument } from "./documents";
+import { lireReferentiel } from "./referentiel";
 import {
   interventionsTerminees,
   interventionsAReprendre,
@@ -104,6 +108,79 @@ export interface EntreePlanification {
 
 /** La séance est-elle seulement planifiée ou directement lancée ? */
 export type ModeCreationSeance = "planifiee" | "en-cours";
+
+export interface EntreeSeanceDepuisContenu {
+  documentId: string;
+  moduleId: string;
+  geste: string;
+  planifieePour?: string;
+}
+
+/**
+ * Transforme un contenu existant d'un module en épisode de travail explicite.
+ * Aucun exercice, score ou contrat de preuve n'est fabriqué : la source et
+ * l'effet de préparation suffisent à rendre le geste exécutable et traçable.
+ */
+export async function creerSeanceDepuisContenu(
+  entree: EntreeSeanceDepuisContenu,
+  mode: ModeCreationSeance,
+): Promise<string> {
+  const dorsale = await dorsaleCompte();
+  const [document, apercus, referentiel] = await Promise.all([
+    lireDocument(entree.documentId),
+    lireApercusDocuments(),
+    lireReferentiel(dorsale),
+  ]);
+  const module = referentiel.domainesParId.get(entree.moduleId);
+  if (!module || !estModuleActif(module)) {
+    throw new Error("Ce contenu n’appartient plus à un module académique actif.");
+  }
+  const domaineDeclare = document.frontmatter?.domaine ?? document.frontmatter?.domain;
+  if (domaineDeclare !== entree.moduleId) {
+    throw new Error("Ce contenu n’appartient pas au module indiqué.");
+  }
+  if (mode === "planifiee" && (
+    typeof entree.planifieePour !== "string"
+    || !Number.isFinite(Date.parse(entree.planifieePour))
+  )) {
+    throw new Error("Choisissez une date et une heure valides.");
+  }
+
+  const apercu = apercus.find((candidate) => candidate.id === entree.documentId);
+  if (!apercu) throw new Error("Document introuvable.");
+  const codesDuModule = new Set(
+    referentiel.skills
+      .filter((competence) => !competence.archive && competence.tagsDomaine?.includes(module.id))
+      .map((competence) => competence.code),
+  );
+  const codesCites = apercu.liens
+    .map((lien) => lien.cible.replace(/^competence:/, ""))
+    .filter((code) => codesDuModule.has(code));
+  const intervention = construireInterventionDepuisContenu({
+    documentId: document.id,
+    titre: document.titre ?? document.id,
+    typeDocument: document.type ?? "document",
+    geste: entree.geste,
+    skillCodes: codesCites,
+  });
+  parseInterventionsSeance([intervention]);
+
+  const maintenant = new Date().toISOString();
+  const seance: LearningSession = {
+    id: nouvelId("ses"),
+    date: mode === "en-cours" ? maintenant : new Date(entree.planifieePour!).toISOString(),
+    domaines: [module.id],
+    skillCodes: intervention.targetSkillCodes ?? [],
+    activites: [],
+    interventions: [intervention],
+    genereAutomatiquement: false,
+    statut: mode,
+    ...(mode === "planifiee" ? { planifieePour: new Date(entree.planifieePour!).toISOString() } : {}),
+  };
+  await ajouter("sessions", seance, dorsale);
+  revalidatePath("/", "layout");
+  return seance.id;
+}
 
 /**
  * Écrit une séance — planifiée ou directement en cours — en UNE écriture.

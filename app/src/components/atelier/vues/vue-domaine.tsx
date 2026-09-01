@@ -39,6 +39,7 @@ import { ClassementDomaine } from "./classement-domaine";
 import { dateCourte, LIBELLES_REPERES } from "./elements-fiche";
 import { ParenteDomaine } from "./parente-domaine";
 import { OrganisationDurableDuModule } from "./organisation-durable-module";
+import { ActionsTravailContenu } from "../actions-travail-contenu";
 
 const LIBELLES_PREPARATION: Record<PreparationState, string> = {
   "non-estimable": "Non estimable",
@@ -386,11 +387,8 @@ export function VueDomaine({
                 ))}
                 {vue.ressources.map((ressource) => (
                   <li key={ressource.documentId}>
-                    <button
-                      type="button"
-                      onClick={() => ouvrirElement(ressource.documentId)}
-                      className="group flex w-full cursor-pointer items-center gap-3 py-3.5 text-left"
-                    >
+                    <div className="group flex w-full items-center gap-3 py-3.5">
+                      <button type="button" onClick={() => ouvrirElement(ressource.documentId)} className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left">
                       <span className="grid size-9 shrink-0 place-items-center rounded-full border border-bordure text-texte-attenue">
                         <IconeCours className="size-4" />
                       </span>
@@ -406,7 +404,11 @@ export function VueDomaine({
                         {ressource.derniereActivite ? dateCourte(ressource.derniereActivite) : "Jamais mobilisée"}
                       </span>
                       <IconeChevronDroit className="size-4 shrink-0 text-texte-discret group-hover:text-primaire" />
-                    </button>
+                      </button>
+                      {moduleActif && (
+                        <ActionsTravailContenu documentId={ressource.documentId} moduleId={vue.domaine.id} typeDocument={ressource.type ?? ""} />
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

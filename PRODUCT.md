@@ -1,6 +1,15 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.15 — 31/08/2026.** La fiche d'un module distingue désormais les
+**Version 4.16 — 31/08/2026.** Le rangement vers les domaines long terme est
+désormais présenté comme un geste de fin de semestre, disponible plus tôt
+uniquement pour le préparer. Le compteur reste neutre tant que le module est
+actif et ne devient une alerte qu'après sa clôture. La création
+refuse explicitement le nom du module temporaire et explique qu'un domaine
+plus général est attendu ; si le nom désigne déjà un domaine continu, celui-ci
+est réutilisé au lieu d'être recréé. Aucune compétence n'est présélectionnée :
+le rattachement reste un geste explicite (ADR-138).
+
+**Version précédente : 4.15 — 31/08/2026.** La fiche d'un module distingue désormais les
 compétences qui alimentent déjà un ou plusieurs domaines continus de celles
 qui restent à organiser. La personne peut rattacher une sélection à plusieurs
 domaines durables, ou créer sur place un domaine continu alimenté par ces
@@ -1023,6 +1032,15 @@ au lieu d'en créer une seconde ; rappel, lecture, synthèse et production
 restent respectivement dans leur carte, l'Atelier ou le tuteur existant. Une
 intervention de préparation ou de soutien terminée sans contrat reste une
 séance terminée sans observation.
+
+Dans un module académique actif, un cours, une note, une définition, un
+exercice donné ou un devoir peut désormais devenir explicitement une séance
+immédiate ou planifiée. Le menu propose seulement les gestes cohérents avec le
+contenu ; la `LearningSession` conserve le module et le document source dans
+son intervention. Tous ces chemins annoncent un effet de préparation. En
+particulier, « résoudre » un exercice donné sans corrigé ouvre un travail écrit
+sans contrat de preuve : le terminer ne crée aucune Observation. Cette
+intégration visible ne valide pas le plan global d'ADR-139.
 
 ### Lot 9 — créneaux et échéances concrètes
 

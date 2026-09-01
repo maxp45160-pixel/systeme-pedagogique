@@ -46,11 +46,19 @@ import {
 } from "@/lib/engine/impact";
 import { SasSeance } from "@/components/seances/sas-seance";
 import { IconeExercices, IconeFleche, IconeMinuteur, IconeNote } from "@/components/ui/icones";
+import { RenduIntervention } from "@/components/seances/rendu-intervention";
+import {
+  interventionCourante,
+  interventionsTerminees,
+  lireExecutionInterventions,
+  nombreInterventionsTraitees,
+} from "@/lib/domain/intervention-execution";
 
 export type EtapeRecherche = {
   evaluer?: string;
   bilan?: string;
   abandon?: string;
+  intervention?: string;
 };
 
 /*
@@ -151,6 +159,12 @@ export async function VueSeanceDetail({
     (activite) => activite.type === "exercice" && parId.has(activite.ref),
   );
   const ids = activites.map((activite) => activite.ref);
+  const executionCanonique = seance.interventions !== undefined
+    ? lireExecutionInterventions(seance, ctx.donnees.attempts)
+    : null;
+  const interventionActive = executionCanonique
+    ? interventionCourante(executionCanonique.executions, recherche?.intervention)
+    : undefined;
   /*
    * Une suite affichée après la clôture est un nouveau parcours, pas une
    * invitation à rejouer l'une des activités que cette séance vient déjà de
@@ -293,8 +307,13 @@ export async function VueSeanceDetail({
   const exerciceSuivant = indexExerciceActif >= 0 && indexExerciceActif < ids.length - 1
     ? ids[indexExerciceActif + 1]
     : undefined;
-  const traites = avancement.menes.length + avancement.abandonnes.length;
-  const peutTerminer = avancement.enCours.length === 0 && avancement.restants.length === 0;
+  const traites = executionCanonique
+    ? nombreInterventionsTraitees(executionCanonique.executions)
+    : avancement.menes.length + avancement.abandonnes.length;
+  const totalActivites = executionCanonique?.executions.length ?? avancement.total;
+  const peutTerminer = executionCanonique
+    ? interventionsTerminees(executionCanonique.executions)
+    : avancement.enCours.length === 0 && avancement.restants.length === 0;
 
   const competencesParExercice = new Map(
     ctx.donnees.exercises.map((item) => [item.id, item.competences]),
@@ -318,7 +337,7 @@ export async function VueSeanceDetail({
    * ligne et le champ de réponse devenait une fente. L'écran s'ouvre donc au
    * moment où l'on se met à écrire, et se referme quand on relit.
    */
-  const travailOuvert = avancement.enCours.length > 0;
+  const travailOuvert = avancement.enCours.length > 0 || Boolean(interventionActive);
   const colonnePlein = travailOuvert ? "max-w-6xl" : "max-w-[var(--colonne)]";
 
   const jourDeLaPage = jourDeLaSeance(seance);
@@ -370,7 +389,7 @@ export async function VueSeanceDetail({
           urlApres={urlSansSas}
           intention={seance.besoinDeclare?.intention}
           codes={seance.skillCodes}
-          nombreExercices={activites.length}
+          nombreExercices={totalActivites}
           dureeCibleMin={seance.blueprint?.dureeCibleMin}
         />
       )}
@@ -418,7 +437,7 @@ export async function VueSeanceDetail({
           */}
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             <span className="chiffres mr-1 text-xs text-texte-discret">
-              {traites} / {avancement.total}
+              {traites} / {totalActivites}
             </span>
             {epreuve && statut === "en-cours" && (
               <ChronoEpreuve
@@ -438,14 +457,16 @@ export async function VueSeanceDetail({
                   orpheline. Ce sont des contrôles : ils portent un fond, un
                   contour, une icône et un état actif lisible (ADR-103).
                 */}
-                <OutilSeance
-                  variante="outil"
-                  libelle="Exercices"
-                  icone={<IconeExercices className="size-3.5" />}
-                  contenuClassName={panneauLarge}
-                >
-                  <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
-                </OutilSeance>
+                {activites.length > 0 && (
+                  <OutilSeance
+                    variante="outil"
+                    libelle="Exercices"
+                    icone={<IconeExercices className="size-3.5" />}
+                    contenuClassName={panneauLarge}
+                  >
+                    <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} plein={plein} compacte />
+                  </OutilSeance>
+                )}
                 <OutilSeance
                   variante="outil"
                   libelle="Pomodoro"
@@ -528,14 +549,14 @@ export async function VueSeanceDetail({
         <div
           className="h-0.5 w-full bg-surface-3"
           role="progressbar"
-          aria-valuenow={avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}
+          aria-valuenow={totalActivites > 0 ? Math.round((traites / totalActivites) * 100) : 0}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label={`${traites} activités traitées sur ${avancement.total}`}
+          aria-label={`${traites} activités traitées sur ${totalActivites}`}
         >
           <div
             className="h-full bg-primaire transition-[width] duration-500"
-            style={{ width: `${avancement.total > 0 ? Math.round((traites / avancement.total) * 100) : 0}%` }}
+            style={{ width: `${totalActivites > 0 ? Math.round((traites / totalActivites) * 100) : 0}%` }}
           />
         </div>
       </header>
@@ -556,7 +577,9 @@ export async function VueSeanceDetail({
               <div className="space-y-4 px-5 py-4">
                 {seance.besoinDeclare?.intention && <p className="text-sm italic">« {seance.besoinDeclare.intention} »</p>}
                 <p className="text-sm text-texte-attenue">
-                  {preparationEnAttente ? (
+                  {executionCanonique ? (
+                    <>{executionCanonique.executions[0]?.intervention.label} · préparation sans mesure</>
+                  ) : preparationEnAttente ? (
                     <>
                       {activites.length > 0 && `${activites.length} exercice${activites.length > 1 ? "s" : ""} déjà là, `}
                       {Math.max((seance.blueprint?.nombreExercices ?? 0) - activites.length, 0)} à générer par le tuteur au démarrage
@@ -582,13 +605,29 @@ export async function VueSeanceDetail({
                 </div>
               </div>
             </Carte>
-            <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} liens={false} />
+            {activites.length > 0 && <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} liens={false} />}
           </div>
         )}
 
         {statut === "en-cours" && (
           <div className="space-y-5">
-            {exerciceActif ? (
+            {interventionActive ? (
+              <RenduIntervention
+                execution={interventionActive}
+                seanceId={seance.id}
+                plein={plein}
+                recherche={recherche}
+                exercice={interventionActive.exerciceId ? parId.get(interventionActive.exerciceId) : undefined}
+                seancePeutTerminer={peutTerminer}
+                compteId={ctx.donnees.user.id}
+                codesCompetences={ctx.etats.map((etat) => etat.skill.code)}
+                domainesExistants={ctx.referentiel.domaines.map((domaine) => ({ id: domaine.id, nom: domaine.nom, prefixe: domaine.prefixe }))}
+                competencesModale={competencesPourModale(ctx.referentiel.actifs)}
+                calibragesModale={calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations)}
+                sourceHref={`/atelier?document=${encodeURIComponent(interventionActive.intervention.source.ref)}&retour=${encodeURIComponent(urlSeance)}`}
+                sourceLabel="le contenu du module"
+              />
+            ) : exerciceActif ? (
               <>
                 <VueExercice
                   params={Promise.resolve({ id: exerciceActif })}

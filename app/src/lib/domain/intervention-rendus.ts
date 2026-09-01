@@ -80,8 +80,20 @@ export const REGISTRE_RENDUS_INTERVENTIONS = {
 } satisfies Record<InterventionType, InterventionRenderDefinition>;
 
 export function renduPourIntervention(
-  intervention: Pick<InterventionSeance, "type">,
+  intervention: Pick<InterventionSeance, "type"> & Partial<Pick<InterventionSeance, "source" | "expectedEffect">>,
 ): InterventionRenderDefinition {
+  if (
+    intervention.type === "resolve"
+    && intervention.source?.kind === "document"
+    && intervention.expectedEffect === "preparation"
+  ) {
+    return {
+      type: "resolve",
+      kind: "writing",
+      label: "Résoudre sans mesure",
+      observationPath: "none",
+    };
+  }
   return REGISTRE_RENDUS_INTERVENTIONS[intervention.type];
 }
 

@@ -11181,6 +11181,21 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
   contexte technique requis par le stockage est composé depuis le type et le
   module, sans demander à la personne de ressaisir une information redondante.
 
+### Clarification du rangement après test réel (31/08/2026)
+
+- le rangement final appartient à la fin du semestre. Pendant un module actif,
+  la section permet seulement de le préparer : elle reste disponible, repliée
+  par défaut, sans couleur d'alerte et sans présélection. La clôture est le
+  point de contrôle où les compétences non reliées deviennent effectivement à
+  traiter ;
+- un même nom ne transforme jamais silencieusement le module en domaine
+  continu. Si la saisie désigne le module, l'interface explique qu'un thème
+  durable plus général doit être choisi ; si elle désigne un domaine continu
+  existant, elle réutilise ce domaine et pose les tags demandés ;
+- ces règles ne stockent ni échéance de rangement ni statut supplémentaire :
+  l'état actif ou clôturé vient de `module_clos_le`, et la liste restante se
+  dérive toujours des tags vers les domaines `continu`.
+
 ### Ce que cette décision n'autorise pas
 
 - aucune déduction silencieuse de la nature d'un domaine ;
@@ -11424,6 +11439,17 @@ tentatives restent la source de vérité des rendus exercice, et
 projection sont des choix d'intégration réversibles tant que la vérification
 réelle du premier parcours multi-interventions n'a pas eu lieu : le statut de
 cette ADR reste donc ❓.
+
+Le 31/08/2026, Mes cours raccorde aussi les contenus d'un module actif à cette
+même extension : « Travailler maintenant » et « Planifier » créent une
+`LearningSession` dont l'unique intervention désigne le document source et
+annonce `preparation`. Les gestes disponibles sont fermés par type de contenu.
+Un `exercice-donne` sans correction utilise ainsi `resolve`, mais son rendu est
+un travail écrit sans chemin d'Observation ; aucune entité `Exercise` fictive
+n'est créée. La page Séance exécute désormais ces interventions canoniques au
+lieu de les traiter comme une liste vide. Aucune table, migration ou protocole
+de mesure n'est ajouté, et cette tranche visible ne change pas le statut ❓ de
+l'ADR.
 
 La matrice opérationnelle des huit gestes, de leurs entrées, interfaces,
 provenances, contrats de preuve et fins de parcours est maintenue dans

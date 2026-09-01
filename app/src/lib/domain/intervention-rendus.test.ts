@@ -18,6 +18,14 @@ describe("registre des rendus d'interventions", () => {
     expect(renduPourIntervention({ type })).toMatchObject({ type });
   });
 
+  it("rend un exercice donné sans corrigé comme une préparation écrite", () => {
+    expect(renduPourIntervention({
+      type: "resolve",
+      source: { kind: "document", ref: "td-1" },
+      expectedEffect: "preparation",
+    })).toMatchObject({ kind: "writing", observationPath: "none" });
+  });
+
   it("annonce l'absence de mesure pour préparation et soutien", () => {
     expect(messageFinIntervention({
       id: "i-read",

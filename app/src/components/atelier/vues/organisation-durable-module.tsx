@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 
 import { BandeauInfo, Bouton } from "@/components/ui/primitives";
 import { IconeChevronDroit, IconeDocuments, IconePlus } from "@/components/ui/icones";
-import type { OrganisationDurableModule } from "@/lib/domain/organisation-module";
+import {
+  destinationDomaineLongTerme,
+  type OrganisationDurableModule,
+} from "@/lib/domain/organisation-module";
 import { creerBranche, taguerCompetences } from "@/lib/store/referentiel-actions";
 
 export function OrganisationDurableDuModule({
@@ -18,15 +21,14 @@ export function OrganisationDurableDuModule({
   const router = useRouter();
   const [ouverte, setOuverte] = useState(false);
   const [creationOuverte, setCreationOuverte] = useState(false);
-  const [codesSelectionnes, setCodesSelectionnes] = useState<Set<string>>(
-    () => new Set(organisation.competencesAOrganiser.map(({ code }) => code)),
-  );
+  const [codesSelectionnes, setCodesSelectionnes] = useState<Set<string>>(() => new Set());
   const [domainesSelectionnes, setDomainesSelectionnes] = useState<Set<string>>(() => new Set());
   const [nomDomaine, setNomDomaine] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, demarrer] = useTransition();
 
   const nombreAOrganiser = organisation.competencesAOrganiser.length;
+  const moduleClos = Boolean(organisation.module.closLe);
   const codesValides = useMemo(
     () => [...codesSelectionnes].filter((code) =>
       organisation.competences.some((competence) => competence.code === code),
@@ -95,19 +97,31 @@ export function OrganisationDurableDuModule({
       return;
     }
 
+    const destination = destinationDomaineLongTerme(nom, organisation);
+    if (destination.type === "module-existant") {
+      setErreur(
+        `« ${organisation.module.nom} » est le module temporaire. Donnez au domaine long terme un nom plus général, ou choisissez un domaine existant ci-dessus.`,
+      );
+      return;
+    }
+
     setErreur(null);
     demarrer(async () => {
       try {
-        await creerBranche({
-          domaine: nom,
-          prefixe: "",
-          description: "",
-          competences: [],
-          rattachementsExistants: codesValides,
-          origine: "utilisateur",
-          signalerCroissanceReferentiel: false,
-          usage: { type: "continu" },
-        });
+        if (destination.type === "domaine-existant") {
+          await taguerCompetences(destination.domaine.id, codesValides, true);
+        } else {
+          await creerBranche({
+            domaine: nom,
+            prefixe: "",
+            description: "",
+            competences: [],
+            rattachementsExistants: codesValides,
+            origine: "utilisateur",
+            signalerCroissanceReferentiel: false,
+            usage: { type: "continu" },
+          });
+        }
         setNomDomaine("");
         setCreationOuverte(false);
         router.refresh();
@@ -127,31 +141,38 @@ export function OrganisationDurableDuModule({
       >
         <IconeDocuments className="size-5 shrink-0 text-primaire" />
         <span className="min-w-0 flex-1">
-          <span className="block font-serif text-lg font-medium text-texte">Organisation durable</span>
+          <span className="block font-serif text-lg font-medium text-texte">Domaines long terme</span>
           <span className="mt-0.5 block text-xs text-texte-discret">
             {organisation.domainesAlimentes.length === 0
-              ? "Aucun domaine durable alimenté pour l’instant"
-              : `${organisation.domainesAlimentes.length} domaine${organisation.domainesAlimentes.length > 1 ? "s" : ""} alimenté${organisation.domainesAlimentes.length > 1 ? "s" : ""}`}
+              ? moduleClos
+                ? `${nombreAOrganiser} compétence${nombreAOrganiser > 1 ? "s" : ""} reste${nombreAOrganiser > 1 ? "nt" : ""} à relier`
+                : "À faire en fin de semestre · disponible dès maintenant"
+              : `${organisation.domainesAlimentes.length} domaine${organisation.domainesAlimentes.length > 1 ? "s" : ""} long terme alimenté${organisation.domainesAlimentes.length > 1 ? "s" : ""}`}
           </span>
         </span>
         {nombreAOrganiser > 0 && (
           <span
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-danger text-sm font-semibold text-texte-inverse"
-            aria-label={`${nombreAOrganiser} compétences à organiser`}
+            className={`grid size-8 shrink-0 place-items-center rounded-full border text-sm font-semibold ${moduleClos ? "border-danger bg-danger text-texte-inverse" : "border-bordure bg-surface-2 text-texte-attenue"}`}
+            aria-label={`${nombreAOrganiser} compétences pas encore reliées à un domaine long terme`}
           >
             {nombreAOrganiser}
           </span>
         )}
-        <span className="text-xs font-medium text-texte-attenue">{ouverte ? "Réduire" : "Organiser"}</span>
+        <span className="text-xs font-medium text-texte-attenue">{ouverte ? "Réduire" : moduleClos ? "Finaliser" : "Préparer"}</span>
         <IconeChevronDroit className={`size-4 shrink-0 text-texte-discret transition-transform ${ouverte ? "rotate-90" : ""}`} />
       </button>
 
       {ouverte && (
         <div className="border-t border-bordure px-4 pb-5 sm:px-5">
+          <BandeauInfo ton={moduleClos ? "alerte" : "info"} taille="compacte" className="mt-4">
+            {moduleClos
+              ? "Ce module est clôturé. Reliez uniquement les compétences que vous voulez continuer à travailler ailleurs."
+              : "Rien n’est urgent pendant le semestre. Revenez ici à la fin du module pour choisir les compétences à conserver dans vos domaines long terme. Vous pouvez aussi le préparer dès maintenant."}
+          </BandeauInfo>
           <div className="grid gap-6 pt-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.65fr)]">
             <div>
               <div className="flex items-baseline justify-between gap-3">
-                <h4 className="text-sm font-semibold text-texte">Compétences du module</h4>
+                <h4 className="text-sm font-semibold text-texte">Ce qui doit rester après le module</h4>
                 <button
                   type="button"
                   onClick={() => setCodesSelectionnes(new Set(organisation.competences.map(({ code }) => code)))}
@@ -185,7 +206,9 @@ export function OrganisationDurableDuModule({
                         </span>
                         <span className="mt-1 flex flex-wrap gap-1.5">
                           {competence.domainesDurables.length === 0 ? (
-                            <span className="text-xs text-danger">À organiser</span>
+                            <span className={`text-xs ${moduleClos ? "text-danger" : "text-texte-discret"}`}>
+                              {moduleClos ? "À relier" : "Pas encore reliée"}
+                            </span>
                           ) : (
                             competence.domainesDurables.map((domaine) => (
                               <span key={domaine.id} className="rounded-md bg-primaire-faible px-2 py-0.5 text-[0.6875rem] font-medium text-primaire">
@@ -202,10 +225,10 @@ export function OrganisationDurableDuModule({
             </div>
 
             <div>
-              <h4 className="text-sm font-semibold text-texte">Envoyer la sélection vers</h4>
+              <h4 className="text-sm font-semibold text-texte">Relier la sélection à</h4>
               {organisation.domainesDisponibles.length === 0 ? (
                 <p className="mt-2 text-xs leading-relaxed text-texte-discret">
-                  Vous n’avez pas encore de domaine durable. Créez-en un avec la sélection actuelle.
+                  Vous n’avez pas encore de domaine long terme. Créez-en un avec la sélection actuelle.
                 </p>
               ) : (
                 <div className="mt-2 space-y-1 rounded-lg border border-bordure p-2">
@@ -231,7 +254,7 @@ export function OrganisationDurableDuModule({
                   onClick={appliquerRangement}
                   className="mt-3 w-full justify-center"
                 >
-                  Ajouter aux domaines sélectionnés
+                  Relier aux domaines choisis
                 </Bouton>
               )}
 
@@ -241,13 +264,13 @@ export function OrganisationDurableDuModule({
                 className="mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-primaire hover:underline"
               >
                 <IconePlus className="size-3.5" />
-                Créer un domaine durable
+                Créer un domaine long terme
               </button>
 
               {creationOuverte && (
                 <div className="mt-2 rounded-lg border border-bordure bg-surface-2/50 p-3">
                   <label className="block">
-                    <span className="text-xs font-medium text-texte">Nom du domaine</span>
+                    <span className="text-xs font-medium text-texte">Nom du domaine long terme</span>
                     <input
                       value={nomDomaine}
                       onChange={(event) => setNomDomaine(event.target.value)}
@@ -256,7 +279,7 @@ export function OrganisationDurableDuModule({
                     />
                   </label>
                   <p className="mt-2 text-[0.6875rem] leading-relaxed text-texte-discret">
-                    Les {codesValides.length} compétence{codesValides.length > 1 ? "s" : ""} sélectionnée{codesValides.length > 1 ? "s" : ""} y seront rattachées sans changer de code.
+                    Choisissez un thème plus général que le nom du module. Les {codesValides.length} compétence{codesValides.length > 1 ? "s" : ""} sélectionnée{codesValides.length > 1 ? "s" : ""} y seront reliées sans changer de code.
                   </p>
                   <Bouton
                     variante="principal"

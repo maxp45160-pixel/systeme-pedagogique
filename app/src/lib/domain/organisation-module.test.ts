@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Domaine, Skill } from "./types";
-import { organisationDurableDuModule } from "./organisation-module";
+import { destinationDomaineLongTerme, organisationDurableDuModule } from "./organisation-module";
 
 const domaine = (
   id: string,
@@ -63,17 +63,25 @@ describe("organisation durable d'un module", () => {
       { code: "MAC-02", titre: "Interpréter un multiplicateur" },
     ]);
     expect(vue.competences).toHaveLength(2);
+    expect(vue.module).toEqual({ id: "module-s1", nom: "Macroéconomie S1", closLe: null });
+    expect(destinationDomaineLongTerme("Macroéconomie S1", vue)).toEqual({ type: "module-existant" });
+    expect(destinationDomaineLongTerme("Économie", vue)).toEqual({
+      type: "domaine-existant",
+      domaine: { id: "economie", nom: "Économie" },
+    });
+    expect(destinationDomaineLongTerme("Sciences sociales", vue)).toEqual({ type: "nouveau" });
   });
 
   it("ignore les compétences archivées et les domaines durables archivés", () => {
     const domaineModule = domaine("module-s1", "Macroéconomie S1", {
       type: "module",
-      module: { anneeAcademique: "2026-2027" },
+      module: { anneeAcademique: "2026-2027", closLe: "2027-01-31T18:00:00.000Z" },
     });
     const economie = { ...domaine("economie", "Économie", { type: "continu" }), archive: true };
     const archivee = { ...skill("MAC-01", "Analyser un équilibre", [domaineModule.id]), archive: true };
 
     expect(organisationDurableDuModule(domaineModule.id, [archivee], [domaineModule, economie])).toEqual({
+      module: { id: "module-s1", nom: "Macroéconomie S1", closLe: "2027-01-31T18:00:00.000Z" },
       competences: [],
       domainesAlimentes: [],
       competencesAOrganiser: [],

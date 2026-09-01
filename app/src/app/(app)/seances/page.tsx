@@ -51,6 +51,7 @@ export default async function PageSeances(props: {
     evaluer?: string;
     bilan?: string;
     abandon?: string;
+    intervention?: string;
     sas?: string;
     q?: string;
     vue?: string;
