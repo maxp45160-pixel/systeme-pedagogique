@@ -38,6 +38,7 @@ import type {
   Exercise,
   ExerciseAttempt,
   LearningSession,
+  ObservationRectification,
   RefusRecommandation,
   SkillObservation,
   User,
@@ -46,6 +47,7 @@ import type {
 export interface Collections {
   user: User;
   observations: SkillObservation[];
+  observationRectifications: ObservationRectification[];
   exercises: Exercise[];
   attempts: ExerciseAttempt[];
   sessions: LearningSession[];
@@ -114,6 +116,7 @@ const ORDRE_PAR_DEFAUT: Partial<Record<CleListe, { colonne: "debut" | "date" | "
   attempts: { colonne: "debut", asc: true },
   sessions: { colonne: "date", asc: true },
   observations: { colonne: "date", asc: true },
+  observationRectifications: { colonne: "date", asc: true },
   engagements: { colonne: "echeance_le", asc: true },
 };
 
@@ -234,17 +237,18 @@ export async function modifier<K extends CleListe>(
 
 export async function lireTout(): Promise<Collections> {
   const dorsale = await dorsaleCompte();
-  const [user, observations, exercises, attempts, sessions, refusRecommandations, engagements] =
+  const [user, observations, observationRectifications, exercises, attempts, sessions, refusRecommandations, engagements] =
     await Promise.all([
       lire("user", dorsale),
       lire("observations", dorsale),
+      lire("observationRectifications", dorsale),
       lire("exercises", dorsale),
       lire("attempts", dorsale),
       lire("sessions", dorsale),
       lire("refusRecommandations", dorsale),
       lire("engagements", dorsale),
     ]);
-  return { user, observations, exercises, attempts, sessions, refusRecommandations, engagements };
+  return { user, observations, observationRectifications, exercises, attempts, sessions, refusRecommandations, engagements };
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,7 +258,7 @@ export async function lireTout(): Promise<Collections> {
 /**
  * Résultat brut de la fonction PostgreSQL `charger_tout`.
  *
- * Elle renvoie les huit tables en un seul aller-retour — profil, données
+ * Elle renvoie les collections du compte en un seul aller-retour — profil, données
  * et référentiel — ce qui réduit la latence de ~750 ms (7 round-trips
  * parallèles) à ~100 ms (1 round-trip).
  *

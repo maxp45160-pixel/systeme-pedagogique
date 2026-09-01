@@ -16,6 +16,7 @@ import {
   RETRAVAILLER_ITEMS_MAX,
   RETRAVAILLER_MAX,
   OUTIL_CORRECTION,
+  OUTIL_CORRECTION_CONTESTABLE,
   OUTIL_EXERCICE,
   OUTIL_REFERENTIEL,
   OUTIL_INTENTION,
@@ -328,6 +329,15 @@ const CORRECTION_ENTIERE = {
 };
 
 describe("outilCorrection — le schéma", () => {
+  it("valide le signal borné d'une référence contestable", () => {
+    expect(validerAppelOutil(OUTIL_CORRECTION_CONTESTABLE, {
+      motif: "La référence exclut une alternative valide.",
+    })).toEqual({
+      genre: "correction-contestable",
+      motif: "La référence exclut une alternative valide.",
+    });
+    expect(validerAppelOutil(OUTIL_CORRECTION_CONTESTABLE, { motif: "" })).toBeNull();
+  });
   it("borne le numéro de critère au nombre réel de critères", () => {
     /*
      * Borner par le schéma plutôt que par une phrase du prompt : « numérote de

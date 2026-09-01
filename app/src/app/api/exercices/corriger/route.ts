@@ -3,6 +3,7 @@ import { resoudreMoteur, repondreParFluxSse } from "@/lib/tutor/reponse-flux";
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { corrigerReponse, REPONSE_MAX_CARACTERES } from "@/lib/tutor/correction";
 import { reponseSuffisante } from "@/lib/domain/tentative";
+import { motifListeFactuelleFermeeSansSource } from "@/lib/tutor/coherence-exercice";
 
 /**
  * Route de correction d'une réponse — sans conversation.
@@ -120,6 +121,18 @@ export async function POST(request: Request) {
     return Response.json(
       { erreur: "exercice-introuvable", message: "L'exercice de cette tentative est introuvable." },
       { status: 404 },
+    );
+  }
+
+  const motifReferenceContestable = motifListeFactuelleFermeeSansSource(exercice);
+  if (motifReferenceContestable) {
+    return Response.json(
+      {
+        erreur: "correction-reference-contestable",
+        message:
+          "La correction de référence peut exclure des réponses valides. Aucune mesure ne sera proposée pour cet exercice.",
+      },
+      { status: 422 },
     );
   }
 

@@ -669,6 +669,20 @@ export interface RefusRecommandation {
 }
 
 /**
+ * Événement append-only qui retire ou rétablit une Observation dans les
+ * calculs sans réécrire le fait observé. Le dernier événement daté décide ;
+ * le journal brut reste intégralement auditable.
+ */
+export interface ObservationRectification {
+  id: string;
+  observationId: string;
+  date: string;
+  type: "invalidation" | "restauration";
+  motif: string;
+  origine: "administrateur" | "utilisateur";
+}
+
+/**
  * Où en est une séance. Absent en base = séance historique, donc terminée.
  *
  * `statutSeance` (lib/domain/seance.ts) est le seul endroit qui interprète

@@ -38,7 +38,13 @@ import { APPRECIATIONS, RESULTATS } from "@/lib/domain/bilan";
 import type { MoteurTuteur } from "./moteurs";
 import { REGLE_VOUVOIEMENT, type PromptTuteur } from "./prompt";
 import { lireErreurMoteur, lireOutilsActifs, messageSansOutils } from "./moteurs";
-import { outilCorrection, type PropositionCorrection } from "./outils";
+import {
+  OUTIL_CORRECTION,
+  OUTIL_CORRECTION_CONTESTABLE,
+  outilCorrection,
+  outilCorrectionContestable,
+  type PropositionCorrection,
+} from "./outils";
 
 /* ------------------------------------------------------------------ */
 /* Bornes                                                              */
@@ -141,6 +147,8 @@ export function construirePromptCorrection(
     "- Une méthode juste menant à un résultat faux n'est pas un échec : dis-le critère par critère.",
     "- Chaque justification cite ce que la réponse contient ou omet, en une à deux phrases.",
     "- Tu dois couvrir TOUS les critères. Un critère oublié fait rejeter ta correction entière.",
+    `- Si l'énoncé, la correction de référence ou les critères sont contradictoires, ambigus, non étayés ou excluent une réponse valide, ne note rien : appelle ${OUTIL_CORRECTION_CONTESTABLE}.`,
+    "- La correction de référence guide le barème, mais ne rend pas fausse une alternative exacte. En cas de conflit, signale la contestation au lieu d'improviser un nouveau barème.",
     "",
     /*
      * Le bilan rédigé (ADR-046). Le tuteur savait déjà juger ; il n'avait pas
@@ -156,7 +164,7 @@ export function construirePromptCorrection(
     "- Le bilan ne porte aucune note. N'y remets pas de barème, et n'y recopie pas la correction de référence.",
     "",
     REGLE_VOUVOIEMENT,
-    "Appelle l'outil proposer_correction UNE fois. Ne recopie pas le contenu de l'appel dans ta réponse.",
+    `Appelle exactement UNE fois soit ${OUTIL_CORRECTION}, soit ${OUTIL_CORRECTION_CONTESTABLE}. Ne recopie pas le contenu de l'appel dans ta réponse.`,
   ].join("\n");
 
   /*
@@ -203,6 +211,7 @@ export async function corrigerReponse(
   diffuser?: (evenement: string, donnees: unknown) => void,
 ): Promise<ResultatCorrection> {
   let correction: PropositionCorrection | null = null;
+  let contestation: string | null = null;
   let outilsActifs = true;
   /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
   let panne: string | null = null;
@@ -215,9 +224,12 @@ export async function corrigerReponse(
     panne = panne ?? lireErreurMoteur(evenement, donnees);
 
     if (evenement === "proposition") {
-      const proposition = donnees as { genre: string; correction?: PropositionCorrection };
+      const proposition = donnees as { genre: string; correction?: PropositionCorrection; motif?: string };
       if (proposition.genre === "correction" && proposition.correction) {
         correction = proposition.correction;
+      }
+      if (proposition.genre === "correction-contestable" && proposition.motif) {
+        contestation = proposition.motif;
       }
     }
   };
@@ -234,15 +246,23 @@ export async function corrigerReponse(
   await moteur.repondre({
     systemeStable: prompt.stable,
     systemeProfil: prompt.variable,
-    // Un seul outil, et pas ceux du chat : la correction ne peut pas déraper
-    // en création d'exercice ou en proposition de branche.
-    outils: [outilCorrection(exercice.criteres)],
+    // Deux issues exclusives, et aucun outil du chat : rendre un verdict ou
+    // signaler que la référence ne permet pas une mesure sûre.
+    outils: [outilCorrection(exercice.criteres), outilCorrectionContestable()],
     messages,
     signal,
     envoyer,
   });
 
   const correctionRecue = correction as PropositionCorrection | null;
+
+  if (contestation) {
+    return {
+      correction: null,
+      outilsActifs,
+      erreur: "La correction de référence est contestable. Aucune mesure n'est proposée pour cet exercice.",
+    };
+  }
 
   if (
     correctionRecue?.resultat.trim().toLowerCase() === "reussi" &&

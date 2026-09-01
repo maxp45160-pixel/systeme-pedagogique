@@ -91,6 +91,7 @@ function construireCtxDeTest(
         debutSuivi: now.toISOString(),
       },
       observations: [],
+      observationRectifications: [],
       exercises,
       attempts,
       sessions: [],

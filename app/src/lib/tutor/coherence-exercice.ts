@@ -38,6 +38,33 @@ export interface PropositionExerciceControlee {
   controle: ResultatControleCoherenceExercice;
 }
 
+/**
+ * Détecte une liste factuelle présentée comme fermée alors qu'aucune source
+ * n'est fournie. L'énoncé n'est pas une preuve de sa propre correction.
+ * Le motif est volontairement étroit pour ne pas bloquer les résultats
+ * calculables ni les demandes ouvertes (« citez quatre exemples parmi… »).
+ */
+export function motifListeFactuelleFermeeSansSource(
+  exercice: Pick<PropositionExercice, "enonce">,
+  source?: string,
+): string | null {
+  if (source?.trim()) return null;
+  const enonce = typeof exercice.enonce === "string"
+    ? exercice.enonce.toLocaleLowerCase("fr")
+    : "";
+  if (/\b(parmi|au choix|exemples? de)\b/u.test(enonce)) return null;
+
+  const nombre = "(?:deux|trois|quatre|cinq|six|sept|huit|neuf|dix|[2-9]|10)";
+  const categorie = "(?:principes?|règles?|lois?|causes?|types?|catégories?|caractéristiques?|conditions?|critères?)";
+  const fermeture = new RegExp(
+    `\\b(?:quels? sont|quelles? sont|citez|énumérez|nommez|présentez|identifiez|indiquez|donnez)\\b[^.!?]{0,90}\\b(?:les|ces)\\s+${nombre}\\s+(?:[\\p{L}-]+\\s+){0,2}${categorie}\\b`,
+    "iu",
+  );
+  return fermeture.test(enonce)
+    ? "L'énoncé présente une liste factuelle comme fermée sans fournir de source qui établisse cette exhaustivité."
+    : null;
+}
+
 /** Message commun aux chemins conversationnel et direct. */
 export function messageRefusCoherenceExercice(
   controle: ResultatControleCoherenceExercice,
@@ -59,6 +86,8 @@ export function construirePromptCoherenceExercice(
       "- Refuse toute affirmation de fait, de cause, de paramètre, de résultat ou de contexte qui n'est ni donnée dans l'énoncé ni une conséquence nécessaire de sa résolution.",
       "- Une corrélation observée ne prouve pas une causalité. Une hypothèse annoncée comme telle n'est pas un fait établi.",
       "- Vérifie aussi que la correction répond bien à ce qui est demandé et ne résout pas un autre exercice.",
+      "- L'énoncé est une question, pas une source : refuse une liste factuelle présentée comme exhaustive si aucun texte source n'établit cette fermeture.",
+      "- Une demande ouverte (« citez N exemples parmi… ») reste recevable et sa correction ne doit pas exclure d'autres réponses valides.",
       "- En cas de doute, rends coherent=false. Ne complète jamais les informations manquantes avec tes connaissances générales.",
       REGLE_VOUVOIEMENT,
       "",
@@ -195,9 +224,18 @@ export async function controlerPropositionsExercices(
   moteur: MoteurTuteur,
   exercices: PropositionExercice[],
   signal?: AbortSignal,
+  source?: string,
 ): Promise<PropositionExerciceControlee[]> {
   const resultats: PropositionExerciceControlee[] = [];
   for (const exercice of exercices) {
+    const motifDeterministe = motifListeFactuelleFermeeSansSource(exercice, source);
+    if (motifDeterministe) {
+      resultats.push({
+        exercice,
+        controle: { ok: false, motifs: [motifDeterministe], erreur: null },
+      });
+      continue;
+    }
     const controleInitial = await controlerCoherenceExercice(moteur, exercice, signal);
     if (controleInitial.ok || controleInitial.erreur) {
       resultats.push({ exercice, controle: controleInitial });

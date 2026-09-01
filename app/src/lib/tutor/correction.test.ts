@@ -173,13 +173,16 @@ describe("construirePromptCorrection", () => {
 /* ------------------------------------------------------------------ */
 
 describe("corrigerReponse — ce qui part au moteur", () => {
-  it("n'arme qu'un seul outil, et pas ceux du chat", async () => {
+  it("n'arme que les deux issues de correction, et pas les outils du chat", async () => {
     // Sans cela, une correction pourrait déraper en création d'exercice ou en
     // proposition de branche — des écritures que ce chemin n'a pas à ouvrir.
     const capture: { demande?: Record<string, unknown> } = {};
     await corrigerReponse(moteurQuiCapture(capture), EXERCICE, REPONSE);
     const outils = capture.demande?.outils as { nom: string }[];
-    expect(outils.map((o) => o.nom)).toEqual(["proposer_correction"]);
+    expect(outils.map((o) => o.nom)).toEqual([
+      "proposer_correction",
+      "signaler_correction_contestable",
+    ]);
   });
 
   it("met la réponse dans le message, pas dans le prompt système", async () => {
@@ -205,6 +208,21 @@ describe("corrigerReponse — ce qui part au moteur", () => {
 /* ------------------------------------------------------------------ */
 
 describe("corrigerReponse — rien n'est fabriqué", () => {
+  it("s'abstient quand la correction de référence est signalée comme contestable", async () => {
+    const r = await corrigerReponse(
+      moteurQuiEmet([{
+        evenement: "proposition",
+        donnees: {
+          genre: "correction-contestable",
+          motif: "La liste exclut d'autres principes comptables reconnus.",
+        },
+      }]),
+      EXERCICE,
+      REPONSE,
+    );
+    expect(r.correction).toBeNull();
+    expect(r.erreur).toContain("Aucune mesure");
+  });
   it("ne laisse pas une suite de lettres hors sujet devenir une réussite", async () => {
     const r = await corrigerReponse(
       moteurQuiEmet([

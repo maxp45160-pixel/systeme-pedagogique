@@ -38,6 +38,7 @@ export type CleListe = Exclude<keyof Collections, "user">;
 
 export const TABLES: Record<CleListe, string> = {
   observations: "observations",
+  observationRectifications: "observation_rectifications",
   exercises: "exercises",
   attempts: "attempts",
   sessions: "sessions",
@@ -166,6 +167,7 @@ export interface ResultatRPC {
  */
 export const CLES_RPC = [
   "observations",
+  "observation_rectifications",
   "exercises",
   "attempts",
   "sessions",
@@ -246,6 +248,7 @@ export function convertirResultatRPC(
     collections: {
       user,
       observations: convertirCollection("observations", "observations"),
+      observationRectifications: convertirCollection("observation_rectifications", "observationRectifications"),
       exercises: convertirCollection("exercises", "exercises"),
       attempts: convertirCollection("attempts", "attempts"),
       sessions: convertirCollection("sessions", "sessions"),

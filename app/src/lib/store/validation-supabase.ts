@@ -14,6 +14,7 @@ import {
   type Exercise,
   type ExerciseAttempt,
   type LearningSession,
+  type ObservationRectification,
   type OrigineProposition,
   type RefusRecommandation,
   type Skill,
@@ -311,6 +312,20 @@ function validerBlueprint(valeur: unknown, chemin: string): void {
   }
 }
 
+export function validerRectificationObservation(
+  valeur: unknown,
+  chemin = "observationRectifications",
+): ObservationRectification {
+  const rectification = objet(valeur, chemin);
+  texte(rectification.id, `${chemin}.id`);
+  texte(rectification.observationId, `${chemin}.observationId`);
+  date(rectification.date, `${chemin}.date`);
+  enumeration(rectification.type, ["invalidation", "restauration"] as const, `${chemin}.type`);
+  texte(rectification.motif, `${chemin}.motif`);
+  enumeration(rectification.origine, ["administrateur", "utilisateur"] as const, `${chemin}.origine`);
+  return rectification as unknown as ObservationRectification;
+}
+
 function validerOrigineProposition(
   valeur: unknown,
   chemin: string,
@@ -587,6 +602,7 @@ export function validerUser(valeur: unknown, chemin = "profile"): User {
 
 export type NomCollectionValidee =
   | "observations"
+  | "observationRectifications"
   | "exercises"
   | "attempts"
   | "sessions"
@@ -595,6 +611,7 @@ export type NomCollectionValidee =
 
 type EntiteValidee = {
   observations: SkillObservation;
+  observationRectifications: ObservationRectification;
   exercises: Exercise;
   attempts: ExerciseAttempt;
   sessions: LearningSession;
@@ -610,6 +627,7 @@ export function validerEntiteSupabase<K extends NomCollectionValidee>(
   const chemin = `${nom}${index === undefined ? "" : `[${index}]`}`;
   switch (nom) {
     case "observations": return validerObservation(valeur, chemin) as EntiteValidee[K];
+    case "observationRectifications": return validerRectificationObservation(valeur, chemin) as EntiteValidee[K];
     case "exercises": return validerExercice(valeur, chemin) as EntiteValidee[K];
     case "attempts": return validerTentative(valeur, chemin) as EntiteValidee[K];
     case "sessions": return validerSeance(valeur, chemin) as EntiteValidee[K];

@@ -116,6 +116,8 @@ export const OUTIL_REPARATION_CORRECTION_EXERCICE = "reparer_correction_exercice
  * la garantie du chat.
  */
 export const OUTIL_CORRECTION = "proposer_correction";
+/** Sortie alternative : le barème lui-même ne permet pas une mesure sûre. */
+export const OUTIL_CORRECTION_CONTESTABLE = "signaler_correction_contestable";
 
 /**
  * Plafond de longueur d'une justification de critère.
@@ -1753,6 +1755,7 @@ export type PropositionRecue =
   | { genre: "reparation-correction-exercice"; correction: PropositionReparationCorrectionExercice }
   | { genre: "referentiel"; branche: PropositionReferentiel }
   | { genre: "correction"; correction: PropositionCorrection }
+  | { genre: "correction-contestable"; motif: string }
   | { genre: "contenu-activite"; contenu: PropositionContenuActivite }
   | { genre: "evaluation-explication"; evaluation: PropositionEvaluationExplication }
   | { genre: "revision"; revision: PropositionRevision }
@@ -1769,6 +1772,21 @@ export interface PropositionCoherenceExercice {
   coherent: boolean;
   /** Motifs courts, réservés au diagnostic interne quand le contrôle échoue. */
   motifs: string[];
+}
+
+/** Confiné, comme `outilCorrection`, au seul chemin de correction. */
+export function outilCorrectionContestable(): OutilTuteur {
+  return {
+    nom: OUTIL_CORRECTION_CONTESTABLE,
+    description:
+      "Signale qu'aucun verdict sûr n'est possible parce que l'énoncé, la correction de référence ou les critères sont contradictoires, ambigus ou excluent une réponse valide.",
+    schema: {
+      type: "object",
+      properties: { motif: { type: "string", maxLength: 600 } },
+      required: ["motif"],
+      additionalProperties: false,
+    },
+  };
 }
 
 export interface PropositionReparationCorrectionExercice {
@@ -2428,6 +2446,11 @@ function validerCorrection(entree: Record<string, unknown>): PropositionRecue | 
   };
 }
 
+function validerCorrectionContestable(entree: Record<string, unknown>): PropositionRecue | null {
+  const motif = texteBorne(entree.motif, 600);
+  return motif === null ? null : { genre: "correction-contestable", motif };
+}
+
 /**
  * Valide un référentiel complet — et **écarte** une branche invalide au lieu de
  * rejeter le lot.
@@ -2994,6 +3017,8 @@ export function validerAppelOutil(
       return validerReferentiel(donnees);
     case OUTIL_CORRECTION:
       return validerCorrection(donnees);
+    case OUTIL_CORRECTION_CONTESTABLE:
+      return validerCorrectionContestable(donnees);
     case OUTIL_MINI_PROJET_ADAPTATIF:
       return validerMiniProjetAdaptatif(donnees);
     case OUTIL_EVALUATION_EXPLICATION:

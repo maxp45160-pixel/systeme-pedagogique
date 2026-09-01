@@ -1,6 +1,16 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.16 — 31/08/2026.** Le rangement vers les domaines long terme est
+**Version 4.17 — 01/09/2026.** Une correction assistée s'abstient désormais
+quand l'énoncé, la référence ou les critères peuvent exclure une réponse
+valide. Sans document source, la génération refuse les listes factuelles
+présentées comme officielles et exhaustives ; elle doit demander des éléments
+applicables sans fermer artificiellement le référentiel. Une Observation déjà
+écrite mais issue d'un instrument reconnu défectueux reste dans l'historique :
+un journal append-only d'invalidation ou de restauration détermine seulement
+si elle entre dans les calculs. Aucune rectification ne fabrique de nouvelle
+mesure (ADR-141).
+
+**Version précédente : 4.16 — 31/08/2026.** Le rangement vers les domaines long terme est
 désormais présenté comme un geste de fin de semestre, disponible plus tôt
 uniquement pour le préparer. Le compteur reste neutre tant que le module est
 actif et ne devient une alerte qu'après sa clôture. La création

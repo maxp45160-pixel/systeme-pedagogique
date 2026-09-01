@@ -542,6 +542,23 @@ CREATE TABLE IF NOT EXISTS public.sessions (
   PRIMARY KEY (user_id, id)
 );
 
+-- Rectifications append-only de recevabilité (ADR-141). Une Observation reste
+-- un fait stocké ; ces événements déterminent seulement si le moteur peut la
+-- prendre en compte. Le dernier événement daté décide à la lecture.
+CREATE TABLE IF NOT EXISTS public.observation_rectifications (
+  id              TEXT NOT NULL,
+  user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  observation_id  TEXT NOT NULL,
+  date            TEXT NOT NULL,
+  type            TEXT NOT NULL CHECK (type IN ('invalidation', 'restauration')),
+  motif           TEXT NOT NULL CHECK (length(btrim(motif)) > 0),
+  origine         TEXT NOT NULL CHECK (origine IN ('administrateur', 'utilisateur')),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, id),
+  FOREIGN KEY (user_id, observation_id)
+    REFERENCES public.observations(user_id, id) ON DELETE CASCADE
+);
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -1248,6 +1265,41 @@ DROP TRIGGER IF EXISTS observations_append_only ON public.observations;
 CREATE TRIGGER observations_append_only
 BEFORE UPDATE OR DELETE ON public.observations
 FOR EACH ROW EXECUTE FUNCTION public.verifier_observations_append_only();
+
+ALTER TABLE public.observation_rectifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "observation_rectifications_lecture_compte"
+  ON public.observation_rectifications;
+CREATE POLICY "observation_rectifications_lecture_compte"
+  ON public.observation_rectifications FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id AND (select public.compte_actif()));
+REVOKE ALL ON TABLE public.observation_rectifications FROM anon, authenticated;
+GRANT SELECT ON TABLE public.observation_rectifications TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.observation_rectifications TO service_role;
+CREATE INDEX IF NOT EXISTS observation_rectifications_user_created_idx
+  ON public.observation_rectifications (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS observation_rectifications_observation_date_idx
+  ON public.observation_rectifications (user_id, observation_id, date DESC, id DESC);
+
+CREATE OR REPLACE FUNCTION public.verifier_observation_rectifications_append_only()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  IF COALESCE(current_setting('app.purge_compte', true), '') <> 'on' THEN
+    RAISE EXCEPTION 'Les rectifications d''Observation sont append-only.'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.verifier_observation_rectifications_append_only()
+  FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS observation_rectifications_append_only
+  ON public.observation_rectifications;
+CREATE TRIGGER observation_rectifications_append_only
+BEFORE UPDATE OR DELETE ON public.observation_rectifications
+FOR EACH ROW EXECUTE FUNCTION public.verifier_observation_rectifications_append_only();
 
 CREATE OR REPLACE FUNCTION public.purger_observations_compte()
 RETURNS VOID
@@ -2354,6 +2406,8 @@ BEGIN
   SELECT json_build_object(
     'profile',     (SELECT row_to_json(p) FROM profiles p WHERE p.id = uid),
     'observations',    COALESCE((SELECT json_agg(row_to_json(e)) FROM observations e WHERE e.user_id = uid), '[]'::json),
+    'observation_rectifications',
+                   COALESCE((SELECT json_agg(row_to_json(orx)) FROM observation_rectifications orx WHERE orx.user_id = uid), '[]'::json),
     'exercises',   COALESCE((SELECT json_agg(row_to_json(x)) FROM exercises x WHERE x.user_id = uid), '[]'::json),
     'attempts',    COALESCE((SELECT json_agg(row_to_json(a)) FROM attempts a WHERE a.user_id = uid), '[]'::json),
     'sessions',    COALESCE((SELECT json_agg(row_to_json(s)) FROM sessions s WHERE s.user_id = uid), '[]'::json),

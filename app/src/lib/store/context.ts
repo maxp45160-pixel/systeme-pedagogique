@@ -12,6 +12,7 @@
  */
 
 import { cache } from "react";
+import { observationsApresRectifications } from "@/lib/domain/rectifications-observations";
 import type { Collections } from "./db";
 import { lireTout, dorsaleCompte, chargerToutRPC } from "./db";
 import { chargerReferentiel } from "./referentiel";
@@ -102,12 +103,8 @@ export interface Contexte {
   /**
    * Les observations qui comptent pour le moteur.
    *
-   * Elles étaient filtrées par un journal de rectifications, retiré le
-   * 15/08/2026 avec la boucle qui le portait (ADR-071) : la table
-   * Ce journal de rectifications n'a jamais existé en production. Le champ reste
-   * distinct de `donnees.observations` parce qu'il nomme une intention — ce qui
-   * entre dans le calcul — et qu'un futur mécanisme d'invalidation reprendrait
-   * exactement cette place, sans avoir à retoucher ses consommateurs.
+   * Le journal append-only de rectifications retire ou rétablit une Observation
+   * dans les calculs sans modifier le fait historique (ADR-141).
    */
   observationsEffectives: Collections["observations"];
   now: Date;
@@ -178,7 +175,13 @@ export const chargerContexte = cache(async (): Promise<Contexte> => {
     ...donneesBrutes.exercises,
     ...EXERCICES_DIAGNOSTIC,
   ]);
-  const observationsEffectives = attacherFamilles(donneesBrutes.observations, catalogueSituation);
+  const observationsEffectives = attacherFamilles(
+    observationsApresRectifications(
+      donneesBrutes.observations,
+      donneesBrutes.observationRectifications,
+    ),
+    catalogueSituation,
+  );
 
   // Les exercices de diagnostic font partie du logiciel, pas du journal :
   // ils sont toujours disponibles, sans étape d'initialisation.

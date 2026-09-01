@@ -11565,6 +11565,70 @@ nécessaires de la résolution et les hypothèses explicitement signalées.
 Une hausse des faux rejets, ou un nouvel exemple incohérent accepté, impose de
 réviser le protocole et son emplacement avant de promouvoir cette brique.
 
+**Amendement du 01/09/2026.** L'énoncé n'est plus admis comme source de sa
+propre exhaustivité. Un garde-fou déterministe refuse les formulations fermées
+du type « les quatre principes » lorsqu'aucun texte source n'est fourni ; le
+contrôle par modèle porte la même règle. La réparation d'une correction ne
+peut donc pas sauver une prémisse factuelle non étayée en réécrivant seulement
+la réponse attendue. Voir ADR-141 pour le traitement des exercices et mesures
+déjà enregistrés.
+
+---
+
+<a name="adr-141"></a>
+## ADR-141 — Une référence contestable suspend la mesure sans réécrire l'Observation 🔬
+
+**Date.** 01/09/2026. **Statut :** mécanisme construit, hypothèse non
+réfutée. La demande humaine d'implémentation valide le chantier, pas la
+promotion de son statut en ✅.
+
+### Le défaut
+
+Un exercice de comptabilité demandait « les quatre principes fondamentaux »
+alors que cette liste n'était ni sourcée ni canonique. La correction générée
+traitait quatre éléments comme exclusifs et a jugé fausses des réponses
+comptables recevables. Le chat, qui ne voit volontairement jamais la correction
+de référence (ADR-036 et ADR-041), pouvait reconnaître ces réponses comme
+valides. Les deux surfaces étaient donc cohérentes avec leurs contextes
+respectifs, mais le système produisait une mesure incohérente.
+
+### Décision de construction
+
+1. Sans source documentaire, une liste factuelle fermée est refusée avant
+   diffusion. Les demandes ouvertes (« citez N éléments applicables parmi… »)
+   restent recevables ; les exercices calculables ne sont pas visés.
+2. Le chemin de correction possède deux sorties structurées exclusives : un
+   verdict, ou le signalement d'une référence contestable. La seconde sortie
+   ne préremplit aucun bilan et ne produit donc aucune Observation.
+3. La route applique aussi le garde-fou déterministe aux exercices existants :
+   elle échoue fermée avant tout appel au fournisseur lorsqu'une liste factuelle
+   fermée n'a aucune source accessible.
+4. Une Observation déjà écrite n'est jamais modifiée ni supprimée. La table
+   `observation_rectifications` journalise des événements append-only
+   `invalidation` ou `restauration`, avec date, motif et origine. Le dernier
+   événement daté décide de sa recevabilité dans les calculs.
+5. Les données brutes restent dans **Observe** ; l'ensemble
+   `observationsEffectives` filtré reste une dérivation de **Décide** et n'est
+   jamais stocké. Le chargement valide la rectification à la frontière
+   Supabase avant de la remettre au moteur.
+
+La migration additive locale
+`20260901133558_rectifications_observations.sql` est appliquée au projet
+Supabase de production sous la version distante `20260901134712`. Le
+01/09/2026, la rectification de l'Observation concernée du compte de Quentin a
+été vérifiée en base et son exercice source a été archivé ; le fait brut reste
+présent.
+
+### Limites et test de réfutation
+
+Le détecteur déterministe est volontairement étroit : l'élargir sans corpus de
+contre-exemples risquerait de refuser des questions calculables ou réellement
+ancrées. Le signal de contestation du modèle reste une abstention, pas une
+preuve que la réponse de l'apprenant est juste. Le mécanisme doit être réfuté
+si une rectification efface le fait brut, si un calcul continue d'utiliser une
+Observation invalidée, si une restauration ne la rétablit pas, ou si le chat
+reçoit la correction de référence par ce nouveau chemin.
+
 ---
 
 ## Comment modifier ce registre

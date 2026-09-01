@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  motifListeFactuelleFermeeSansSource,
   construirePromptCoherenceExercice,
   construirePromptReparationCorrectionExercice,
   controlerCoherenceExercice,
   reparerCorrectionExercice,
 } from "./coherence-exercice";
+
+describe("motifListeFactuelleFermeeSansSource", () => {
+  it("refuse la liste fermée non sourcée qui a piégé Quentin", () => {
+    expect(motifListeFactuelleFermeeSansSource({
+      enonce: "Quels sont les quatre principes fondamentaux de la comptabilité ?",
+    })).toMatch(/liste factuelle/);
+  });
+
+  it("accepte une demande ouverte et une liste ancrée", () => {
+    expect(motifListeFactuelleFermeeSansSource({
+      enonce: "Citez quatre principes comptables applicables parmi ceux que vous connaissez.",
+    })).toBeNull();
+    expect(motifListeFactuelleFermeeSansSource({
+      enonce: "Quels sont les quatre principes donnés dans le texte ?",
+    }, "Le texte du cours source ces quatre principes.")).toBeNull();
+  });
+});
 import {
   OUTIL_COHERENCE_EXERCICE,
   OUTIL_REPARATION_CORRECTION_EXERCICE,

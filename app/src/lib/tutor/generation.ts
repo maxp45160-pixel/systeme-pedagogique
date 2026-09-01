@@ -127,6 +127,7 @@ export function construirePromptGeneration(
     "- L'énoncé doit être précis, autonome et tenir en un écran.",
     "- Les indices vont du plus léger au plus explicite : ils mesurent l'autonomie.",
     "- La correction est complète et cohérente avec l'énoncé : elle permet à l'utilisateur de s'évaluer sans ajouter de faits, de causes ou de paramètres absents.",
+    "- Sans texte source, ne présente jamais un nombre de principes, règles, lois, causes ou catégories comme une liste officielle exhaustive. Formule une demande ouverte (« citez N éléments applicables ») et accepte explicitement les alternatives valides.",
     "- Distingue toujours ce qui est établi par l'énoncé de ce qui n'est qu'une hypothèse à vérifier ; une corrélation ne prouve pas une cause.",
     "- Chaque critère porte sur une dimension du référentiel (compréhension, application, transfert, intégration, justification) et doit être cochable par l'utilisateur.",
     "- La durée estimée doit être réaliste : c'est elle qui permet de juger si la tentative a eu lieu.",
@@ -300,7 +301,12 @@ export async function genererExercices(
    * terminée. Sinon l'interface pourrait afficher puis enregistrer une
    * correction incohérente pendant que le contrôle travaille encore.
    */
-  const controles = await controlerPropositionsExercices(moteur, candidats, signal);
+  const controles = await controlerPropositionsExercices(
+    moteur,
+    candidats,
+    signal,
+    demandes.find((demande) => demande.ancrage)?.ancrage,
+  );
   for (const { exercice: candidat, controle } of controles) {
     if (controle.ok) {
       exercices.push(candidat);

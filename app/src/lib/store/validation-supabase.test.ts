@@ -3,6 +3,7 @@ import {
   validerDomaine,
   validerLignesSupabase,
   validerObservation,
+  validerRectificationObservation,
   validerSeance,
   validerTentative,
 } from "./validation-supabase";
@@ -23,6 +24,25 @@ const observationHistorique = {
 };
 
 describe("validation de la frontière Supabase", () => {
+  it("valide une rectification auditable et refuse un type inventé", () => {
+    expect(validerRectificationObservation({
+      id: "rect-1",
+      observationId: "obs-1",
+      date: "2026-09-01T12:00:00Z",
+      type: "invalidation",
+      motif: "Instrument de correction défectueux",
+      origine: "administrateur",
+    }).observationId).toBe("obs-1");
+
+    expect(() => validerRectificationObservation({
+      id: "rect-2",
+      observationId: "obs-1",
+      date: "2026-09-01T12:00:00Z",
+      type: "suppression",
+      motif: "Instrument de correction défectueux",
+      origine: "administrateur",
+    })).toThrow(/type/);
+  });
   it("valide le champ canonique interventions sans fabriquer de preuve", () => {
     const session = validerSeance({
       id: "ses-intervention",
