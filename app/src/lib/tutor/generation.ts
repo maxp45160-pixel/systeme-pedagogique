@@ -89,6 +89,9 @@ export interface ResultatGeneration {
   erreur: string | null;
 }
 
+/** Deux sorties indépendantes donnent une chance de récupérer une proposition rejetée. */
+const TENTATIVES_GENERATION_MAX = 2;
+
 /* ------------------------------------------------------------------ */
 /* Prompt court                                                        */
 /* ------------------------------------------------------------------ */
@@ -246,7 +249,7 @@ export async function genererExercices(
 ): Promise<ResultatGeneration> {
   const evenements: { evenement: string; donnees: unknown }[] = [];
   const exercices: PropositionExercice[] = [];
-  const candidats: PropositionExercice[] = [];
+  let candidats: PropositionExercice[] = [];
   let outilsActifs = true;
   /** La panne annoncée par le moteur — clé refusée, quota, modèle absent. */
   let panne: string | null = null;
@@ -287,37 +290,49 @@ export async function genererExercices(
     },
   ];
 
-  await moteur.repondre({
-    systemeStable: prompt.stable,
-    systemeProfil: prompt.variable,
-    messages,
-    outils: outilsTuteur(referentiel),
-    signal,
-    envoyer,
-  });
-
-  /*
-   * La proposition reste invisible tant que la seconde lecture n'est pas
-   * terminée. Sinon l'interface pourrait afficher puis enregistrer une
-   * correction incohérente pendant que le contrôle travaille encore.
-   */
-  const controles = await controlerPropositionsExercices(
-    moteur,
-    candidats,
-    signal,
-    demandes.find((demande) => demande.ancrage)?.ancrage,
-  );
-  for (const { exercice: candidat, controle } of controles) {
-    if (controle.ok) {
-      exercices.push(candidat);
-      const donnees = { genre: "exercice", exercice: candidat };
-      evenements.push({ evenement: "proposition", donnees });
-      diffuser?.("proposition", donnees);
-      continue;
+  for (let tentative = 0; tentative < TENTATIVES_GENERATION_MAX && exercices.length === 0; tentative += 1) {
+    candidats = [];
+    if (tentative > 0) {
+      diffuser?.("avertissement", {
+        message: "La première proposition n'a pas passé le contrôle qualité. Nouvelle tentative en cours.",
+      });
     }
 
-    const message = messageRefusCoherenceExercice(controle);
-    erreurControle = erreurControle ?? message;
+    await moteur.repondre({
+      systemeStable: prompt.stable,
+      systemeProfil: prompt.variable,
+      messages,
+      outils: outilsTuteur(referentiel),
+      signal,
+      envoyer,
+    });
+
+    /*
+     * La proposition reste invisible tant que la seconde lecture n'est pas
+     * terminée. Sinon l'interface pourrait afficher puis enregistrer une
+     * correction incohérente pendant que le contrôle travaille encore.
+     */
+    const controles = await controlerPropositionsExercices(
+      moteur,
+      candidats,
+      signal,
+      demandes.find((demande) => demande.ancrage)?.ancrage,
+    );
+    for (const { exercice: candidat, controle } of controles) {
+      if (controle.ok) {
+        exercices.push(candidat);
+        const donnees = { genre: "exercice", exercice: candidat };
+        evenements.push({ evenement: "proposition", donnees });
+        diffuser?.("proposition", donnees);
+        continue;
+      }
+
+      const message = messageRefusCoherenceExercice(controle);
+      erreurControle = erreurControle ?? message;
+    }
+
+    // Une panne déclarée (clé, quota, outils) ne se corrige pas en régénérant.
+    if (panne || signal?.aborted) break;
   }
 
   /*

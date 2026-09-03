@@ -215,7 +215,7 @@ export function ModaleReferentiel({
         setEtat({
           phase: "saisie",
           message:
-            "Le flux s'est interrompu avant que le tuteur n'ait rendu sa proposition. Rien n'a été enregistré — relance la proposition.",
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu sa proposition. Rien n'a été enregistré — relancez la proposition.",
         });
       }
     } catch {

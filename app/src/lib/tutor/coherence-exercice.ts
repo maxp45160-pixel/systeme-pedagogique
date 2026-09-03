@@ -70,8 +70,8 @@ export function messageRefusCoherenceExercice(
   controle: ResultatControleCoherenceExercice,
 ): string {
   return controle.erreur
-    ? "Nous n'avons pas réussi à préparer cet exercice pour le moment. Réessayez."
-    : "Nous n'avons pas pu préparer un exercice conforme cette fois. Réessayez.";
+    ? "Le service n'a pas pu préparer ce test cette fois. Rien n'a été enregistré ; vous pouvez réessayer."
+    : "Le test généré ne respectait pas les critères de qualité. Rien n'a été enregistré ; vous pouvez réessayer.";
 }
 
 export function construirePromptCoherenceExercice(

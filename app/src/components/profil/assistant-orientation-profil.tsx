@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   NIVEAUX_DEPART,
   PREFERENCES_APPRENTISSAGE,
@@ -19,68 +18,66 @@ import {
 } from "@/components/ui/icones";
 
 interface PropsAssistantOrientation {
-  sujetInitial?: string;
-  formationInitiale?: string;
-  preferencesInitiales?: string[];
+  reponses: ReponsesOrientation;
+  surReponsesChange: (reponses: ReponsesOrientation) => void;
+  etape: EtapeOrientation;
+  surEtapeChange: (etape: EtapeOrientation) => void;
   surSyntheseAppliquee: (profil: ProfilSynthetise) => void;
   onFermer?: () => void;
   modeModale?: boolean;
 }
 
+export type EtapeOrientation = 1 | 2 | 3 | 4;
+
 export function AssistantOrientationProfil({
-  sujetInitial = "",
-  formationInitiale = "",
-  preferencesInitiales = [],
+  reponses,
+  surReponsesChange,
+  etape,
+  surEtapeChange,
   surSyntheseAppliquee,
   onFermer,
   modeModale = false,
 }: PropsAssistantOrientation) {
-  const [etape, setEtape] = useState<1 | 2 | 3 | 4>(1);
+  const {
+    sujet,
+    intention,
+    niveauId,
+    pointDeDepartPersonnalise,
+    preferencesChoisies,
+  } = reponses;
+  const syntheseApercu = etape === 4 ? synthetiserProfilDeterministe(reponses) : null;
 
-  const [sujet, setSujet] = useState(sujetInitial);
-  const [niveauId, setNiveauId] = useState<string>("debutant");
-  const [pointDeDepartCustom, setPointDeDepartCustom] = useState(formationInitiale);
-  const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>(
-    preferencesInitiales.length > 0
-      ? preferencesInitiales
-      : ["Pratiquer d'abord", "Des cas concrets"],
-  );
-  const [rythmeHeures, setRythmeHeures] = useState(2);
-
-  const [syntheseApercu, setSyntheseApercu] = useState<ProfilSynthetise | null>(null);
+  function modifierReponses(modification: Partial<ReponsesOrientation>) {
+    surReponsesChange({ ...reponses, ...modification });
+  }
 
   function basculerPreference(libelle: string) {
-    setPreferencesChoisies((prev) =>
-      prev.includes(libelle)
-        ? prev.filter((p) => p !== libelle)
-        : [...prev, libelle],
-    );
+    modifierReponses({
+      preferencesChoisies: preferencesChoisies.includes(libelle)
+        ? preferencesChoisies.filter((p) => p !== libelle)
+        : [...preferencesChoisies, libelle],
+    });
   }
 
   function appliquerSuggestionDomaine(domaine: {
     sujetExemple: string;
     objectifExemple: string;
   }) {
-    setSujet(domaine.sujetExemple);
+    modifierReponses({
+      sujet: domaine.sujetExemple,
+      intention: domaine.objectifExemple,
+    });
   }
 
   function passerEtapeSuivante() {
     if (etape === 1) {
-      if (!sujet.trim()) return;
-      setEtape(2);
+      if (sujet.trim().length < 3 || intention.trim().length < 3) return;
+      surEtapeChange(2);
     } else if (etape === 2) {
-      setEtape(3);
+      if (!niveauId) return;
+      surEtapeChange(3);
     } else if (etape === 3) {
-      const reponses: ReponsesOrientation = {
-        sujet: sujet.trim(),
-        niveauId,
-        pointDeDepartPersonnalise: pointDeDepartCustom.trim() || undefined,
-        preferencesChoisies,
-        rythmeHebdoHeures: rythmeHeures,
-      };
-      const resultat = synthetiserProfilDeterministe(reponses);
-      setSyntheseApercu(resultat);
-      setEtape(4);
+      surEtapeChange(4);
     }
   }
 
@@ -101,7 +98,7 @@ export function AssistantOrientationProfil({
               {etape <= 3 ? etape : 3}/3
             </span>
             <h3 className="text-sm font-semibold text-texte">
-              {etape === 1 && "Étape 1 · Votre axe d'apprentissage"}
+              {etape === 1 && "Étape 1 · Votre objectif d'apprentissage"}
               {etape === 2 && "Étape 2 · Votre point de départ actuel"}
               {etape === 3 && "Étape 3 · Votre méthode et vos préférences"}
               {etape === 4 && "Synthèse et validation de votre profil"}
@@ -152,9 +149,24 @@ export function AssistantOrientationProfil({
             <Champ
               label=""
               value={sujet}
-              onChange={(e) => setSujet(e.target.value)}
+              onChange={(e) => modifierReponses({ sujet: e.target.value })}
+              aria-label="Sujet ou domaine à maîtriser"
               placeholder="Ex : Architecture React & TypeScript, Droit fiscal, Négociation commerciale, Analyse de données…"
               aide="Écrivez-le simplement. Le système calibrera les exercices et leur progression à partir de cet intitulé."
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-texte mb-1.5 block">
+              Que souhaitez-vous être capable de faire ?
+            </label>
+            <Champ
+              label=""
+              value={intention}
+              onChange={(e) => modifierReponses({ intention: e.target.value })}
+              aria-label="Capacité visée"
+              placeholder="Ex : réussir mon partiel, automatiser mes rapports, mener un projet en autonomie…"
+              aide="Décrivez votre objectif avec vos mots. Cette intention sera enregistrée telle quelle après votre validation."
             />
           </div>
 
@@ -202,7 +214,8 @@ export function AssistantOrientationProfil({
                   <button
                     key={n.id}
                     type="button"
-                    onClick={() => setNiveauId(n.id)}
+                    onClick={() => modifierReponses({ niveauId: n.id })}
+                    aria-pressed={estChoisi}
                     className={cx(
                       "flex flex-col items-start rounded-xl border p-3 text-left transition-all shadow-xs",
                       estChoisi
@@ -226,15 +239,15 @@ export function AssistantOrientationProfil({
           <div className="pt-2">
             <Champ
               label="Contexte de départ (facultatif)"
-              value={pointDeDepartCustom}
-              onChange={(e) => setPointDeDepartCustom(e.target.value)}
+              value={pointDeDepartPersonnalise ?? ""}
+              onChange={(e) => modifierReponses({ pointDeDepartPersonnalise: e.target.value })}
               placeholder="Ex : étudiant en 2e année de droit, ancien développeur PHP en reconversion…"
             />
           </div>
         </div>
       )}
 
-      {/* Étape 3 : Méthode & Rythme */}
+      {/* Étape 3 : préférences pédagogiques */}
       {etape === 3 && (
         <div className="space-y-5">
           <div>
@@ -253,6 +266,7 @@ export function AssistantOrientationProfil({
                     key={p.id}
                     type="button"
                     onClick={() => basculerPreference(p.libelle)}
+                    aria-pressed={estActif}
                     className={cx(
                       "flex flex-col items-start rounded-xl border p-3 text-left transition-all shadow-xs",
                       estActif
@@ -273,30 +287,6 @@ export function AssistantOrientationProfil({
             </div>
           </div>
 
-          <div className="rounded-xl border border-bordure/70 bg-surface-2/30 p-3.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-semibold text-texte block">
-                  Rythme hebdomadaire souhaité
-                </span>
-                <span className="text-[0.75rem] text-texte-attenue">
-                  Volume indicatif pour préparer vos premiers exercices.
-                </span>
-              </div>
-              <span className="rounded-lg bg-surface border border-bordure px-2.5 py-1 text-xs font-mono font-semibold text-primaire">
-                {rythmeHeures}h / sem.
-              </span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="10"
-              step="1"
-              value={rythmeHeures}
-              onChange={(e) => setRythmeHeures(Number(e.target.value))}
-              className="mt-3 w-full accent-primaire cursor-pointer"
-            />
-          </div>
         </div>
       )}
 
@@ -350,7 +340,7 @@ export function AssistantOrientationProfil({
           {etape > 1 && (
             <Bouton
               type="button"
-              onClick={() => setEtape((e) => (e - 1) as 1 | 2 | 3)}
+              onClick={() => surEtapeChange((etape - 1) as 1 | 2 | 3)}
               variante="secondaire"
               taille="compacte"
             >
@@ -364,7 +354,10 @@ export function AssistantOrientationProfil({
             <Bouton
               type="button"
               onClick={passerEtapeSuivante}
-              disabled={etape === 1 && !sujet.trim()}
+              disabled={
+                (etape === 1 && (sujet.trim().length < 3 || intention.trim().length < 3)) ||
+                (etape === 2 && !niveauId)
+              }
               variante="principal"
               taille="normale"
               className="group"

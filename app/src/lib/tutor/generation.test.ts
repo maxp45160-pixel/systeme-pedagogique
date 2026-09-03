@@ -304,6 +304,42 @@ const EXERCICE = {
 } as unknown as PropositionExercice;
 
 describe("genererExercices — rien n'est fabriqué", () => {
+  it("relance une proposition refusée avant de renoncer", async () => {
+    let generations = 0;
+    let controles = 0;
+    const moteur: MoteurTuteur = {
+      async repondre({
+        envoyer,
+        outils,
+      }: {
+        envoyer: (evenement: string, donnees: unknown) => void;
+        outils?: { nom: string }[];
+      }) {
+        if (outils?.some((outil) => outil.nom === OUTIL_COHERENCE_EXERCICE)) {
+          controles += 1;
+          envoyer("proposition", {
+            genre: "coherence-exercice",
+            coherence: { coherent: controles > 1, motifs: controles > 1 ? [] : ["Correction à vérifier."] },
+          });
+          return;
+        }
+        if (outils?.some((outil) => outil.nom === OUTIL_REPARATION_CORRECTION_EXERCICE)) return;
+        generations += 1;
+        envoyer("proposition", { genre: "exercice", exercice: EXERCICE });
+      },
+    } as unknown as MoteurTuteur;
+
+    const r = await genererExercices(
+      moteur,
+      REFERENTIEL,
+      [{ competence: LOG_10, calibration: calibration() }],
+    );
+
+    expect(generations).toBe(2);
+    expect(r.exercices).toEqual([EXERCICE]);
+    expect(r.erreur).toBeNull();
+  });
+
   it("ne rend aucun exercice, et le dit, quand le moteur n'en produit aucun", async () => {
     // Une proposition tronquée est rejetée en amont par `validerAppelOutil` :
     // le moteur n'émet alors aucun événement `proposition`. Le cas doit se
@@ -357,7 +393,9 @@ describe("genererExercices — rien n'est fabriqué", () => {
     );
 
     expect(r.exercices).toEqual([]);
-    expect(r.erreur).toBe("Nous n'avons pas pu préparer un exercice conforme cette fois. Réessayez.");
+    expect(r.erreur).toBe(
+      "Le test généré ne respectait pas les critères de qualité. Rien n'a été enregistré ; vous pouvez réessayer.",
+    );
     expect(r.evenements.some((e) => e.evenement === "proposition-rejetee")).toBe(false);
   });
 

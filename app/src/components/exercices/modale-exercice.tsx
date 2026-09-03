@@ -356,12 +356,12 @@ export function ModaleExercice({
       if (!recue && !abandon.signal.aborted) {
         if (!modification && recusLocaux > 0) {
           setAvertissement(
-            `Le flux s'est interrompu après ${recusLocaux} exercice${recusLocaux > 1 ? "s" : ""} sur ${codesAEnvoyer.length}. Ce qui a été rédigé est conservé ci-dessous ; relance la génération pour compléter le lot.`,
+            `Le flux s'est interrompu après ${recusLocaux} exercice${recusLocaux > 1 ? "s" : ""} sur ${codesAEnvoyer.length}. Ce qui a été rédigé est conservé ci-dessous ; relancez la génération pour compléter le lot.`,
           );
           setPhase("previsualisation");
         } else {
           setErreur(
-            "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relance la génération.",
+            "Le flux s'est interrompu avant que le tuteur n'ait rendu son exercice. Rien n'a été enregistré — relancez la génération.",
           );
           setPhase(modification ? "previsualisation" : "formulaire");
         }
@@ -673,11 +673,12 @@ export function ModaleExercice({
       <>
         {phase === "formulaire" && codesLot && (
           <div className={presentation === "inline" ? "mt-4 space-y-4" : "space-y-4"}>
-            <p className="text-xs text-texte-attenue">
-              {erreur
-                ? "Aucun exercice n'a pu être préparé pour le moment — rien n'a été enregistré."
-                : "Génération du lot interrompue avant qu'un exercice n'ait été rendu — rien n'a été enregistré."}
-            </p>
+            {!erreur && (
+              <p className="text-xs text-texte-attenue">
+                La génération s&apos;est interrompue avant qu&apos;un exercice soit disponible.
+                Rien n&apos;a été enregistré.
+              </p>
+            )}
             <ul className="flex flex-wrap gap-1.5">
               {codesLot.map((c) => (
                 <Etiquette key={c} mono>
@@ -976,7 +977,7 @@ export function ModaleExercice({
                       {modificationIndex === i && !enregistrees.has(i) && (
                         <div className="border-b border-primaire/30 bg-primaire-faible/40 p-4">
                           <Champ
-                            label="Que souhaites-tu modifier sur cet exercice ?"
+                            label="Que souhaitez-vous modifier sur cet exercice ?"
                             multiligne
                             rows={2}
                             value={consigneModification}

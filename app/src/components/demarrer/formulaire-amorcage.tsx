@@ -11,11 +11,15 @@ import { ReglagesTuteur } from "@/components/tuteur/reglages-tuteur";
 import { lireConfigTuteur } from "@/lib/tutor/cle-client";
 import { DemarrerTour, TOUR_DEMARRER_ID } from "@/components/onboarding/demarrer-tour";
 import { useOnboarding } from "@/components/onboarding/onboarding-context";
-import { AssistantOrientationProfil } from "@/components/profil/assistant-orientation-profil";
+import {
+  AssistantOrientationProfil,
+  type EtapeOrientation,
+} from "@/components/profil/assistant-orientation-profil";
 import {
   PREFERENCES_APPRENTISSAGE,
   SUGGESTIONS_DOMAINES,
   type ProfilSynthetise,
+  type ReponsesOrientation,
   type SuggestionDomaine,
 } from "@/lib/domain/assistant-orientation";
 import {
@@ -54,9 +58,21 @@ export function FormulaireAmorcage({
   const [validationOuverte, setValidationOuverte] = useState(false);
 
   const [modeGuide, setModeGuide] = useState(true);
+  const [etapeGuide, setEtapeGuide] = useState<EtapeOrientation>(1);
 
-  const [sujet, setSujet] = useState("");
-  const [intention, setIntention] = useState(objectifMoyenTerme);
+  const [reponsesOrientation, setReponsesOrientation] = useState<ReponsesOrientation>(() => ({
+    sujet: "",
+    intention: objectifMoyenTerme,
+    niveauId: undefined,
+    pointDeDepartPersonnalise: "",
+    preferencesChoisies: ["Pratiquer d'abord", "Des cas concrets"],
+  }));
+  const {
+    sujet,
+    intention,
+    pointDeDepartPersonnalise: pointDeDepart = "",
+    preferencesChoisies,
+  } = reponsesOrientation;
 
   /*
    * L'orientation projet / référentiel est un choix de la personne : la
@@ -67,12 +83,6 @@ export function FormulaireAmorcage({
   const [orientationManuelle, setOrientationManuelle] = useState<OrientationAmorcage | null>(null);
   const orientation: OrientationAmorcage =
     orientationManuelle ?? orientationAmorcage(intention);
-  const [pointDeDepart, setPointDeDepart] = useState("");
-  const [preferencesChoisies, setPreferencesChoisies] = useState<string[]>([
-    "Pratiquer d'abord",
-    "Des cas concrets",
-  ]);
-
   const [cleConfiguree, setCleConfiguree] = useState(false);
 
   useEffect(() => {
@@ -113,17 +123,24 @@ export function FormulaireAmorcage({
   const pret = sujetValide && intentionValide;
 
   function choisirExemple(ex: SuggestionDomaine) {
-    setSujet(ex.sujetExemple);
-    setIntention(ex.objectifExemple);
-    if (ex.pointDeDepartExemple) setPointDeDepart(ex.pointDeDepartExemple);
-    if (ex.preferencesExemples) setPreferencesChoisies(ex.preferencesExemples);
+    setReponsesOrientation((precedentes) => ({
+      ...precedentes,
+      sujet: ex.sujetExemple,
+      intention: ex.objectifExemple,
+      pointDeDepartPersonnalise:
+        ex.pointDeDepartExemple ?? precedentes.pointDeDepartPersonnalise,
+      preferencesChoisies: ex.preferencesExemples ?? precedentes.preferencesChoisies,
+    }));
     setModeGuide(false);
   }
 
   function basculerPreference(pref: string) {
-    setPreferencesChoisies((prev) =>
-      prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref],
-    );
+    setReponsesOrientation((precedentes) => ({
+      ...precedentes,
+      preferencesChoisies: precedentes.preferencesChoisies.includes(pref)
+        ? precedentes.preferencesChoisies.filter((p) => p !== pref)
+        : [...precedentes.preferencesChoisies, pref],
+    }));
   }
 
   /*
@@ -148,10 +165,13 @@ export function FormulaireAmorcage({
           objectifLongTerme: objectifLongTerme || undefined,
           preferencesPedagogiques: profil.preferencesPedagogiques,
         });
-        setSujet(profil.sujet);
-        setIntention(profil.intentionDeDepart);
-        setPointDeDepart(profil.formation);
-        setPreferencesChoisies(profil.preferencesPedagogiques);
+        setReponsesOrientation((precedentes) => ({
+          ...precedentes,
+          sujet: profil.sujet,
+          intention: profil.intentionDeDepart,
+          pointDeDepartPersonnalise: profil.formation,
+          preferencesChoisies: profil.preferencesPedagogiques,
+        }));
         if (orientationAmorcage(profil.intentionDeDepart) === "projet") {
           ouvrirIntention({ besoinInitial: profil.intentionDeDepart.trim(), contexte: "projet" });
         } else {
@@ -197,19 +217,20 @@ export function FormulaireAmorcage({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-bordure/60 pb-3">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-full bg-primaire/15 px-2.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-primaire">
-            Étape 1 sur 3 · Votre axe d&apos;apprentissage
+            Parcours de démarrage · Votre profil
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => lancerTour(TOUR_DEMARRER_ID)}
-            className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-primaire hover:underline cursor-pointer touch-manipulation"
-          >
-            <span>Visite guidée</span>
-          </button>
-          <span className="text-xs text-texte-discret">·</span>
-          <span className="text-xs text-texte-discret">2 minutes pour commencer</span>
+          {!modeGuide && (
+            <button
+              type="button"
+              onClick={() => lancerTour(TOUR_DEMARRER_ID)}
+              className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-primaire hover:underline cursor-pointer touch-manipulation"
+            >
+              <span>Visiter la saisie directe</span>
+            </button>
+          )}
+          <span className="text-xs text-texte-discret">Quelques minutes avant le premier test</span>
         </div>
       </div>
 
@@ -282,6 +303,7 @@ export function FormulaireAmorcage({
         <button
           type="button"
           onClick={() => setModeGuide(true)}
+          aria-pressed={modeGuide}
           className={cx(
             "min-h-11 flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-all text-center touch-manipulation",
             modeGuide
@@ -289,11 +311,12 @@ export function FormulaireAmorcage({
               : "text-texte-attenue hover:text-texte",
           )}
         >
-          Diagnostic guidé (3 questions simples)
+          Diagnostic guidé (3 étapes simples)
         </button>
         <button
           type="button"
           onClick={() => setModeGuide(false)}
+          aria-pressed={!modeGuide}
           className={cx(
             "min-h-11 flex-1 rounded-lg px-2 py-2 text-xs font-medium transition-all text-center touch-manipulation",
             !modeGuide
@@ -307,9 +330,10 @@ export function FormulaireAmorcage({
 
       {modeGuide ? (
         <AssistantOrientationProfil
-          sujetInitial={sujet}
-          formationInitiale={pointDeDepart}
-          preferencesInitiales={preferencesChoisies}
+          reponses={reponsesOrientation}
+          surReponsesChange={setReponsesOrientation}
+          etape={etapeGuide}
+          surEtapeChange={setEtapeGuide}
           surSyntheseAppliquee={appliquerSyntheseOrientation}
         />
       ) : (
@@ -362,7 +386,11 @@ export function FormulaireAmorcage({
               <Champ
                 label=""
                 value={sujet}
-                onChange={(e) => setSujet(e.target.value)}
+                onChange={(e) => setReponsesOrientation((precedentes) => ({
+                  ...precedentes,
+                  sujet: e.target.value,
+                }))}
+                aria-label="Ce que vous étudiez"
                 placeholder="Ex : macroéconomie, statistiques, développement web"
                 aide="Avec vos propres mots — vous pouvez en lister plusieurs, séparés par des virgules. Le tuteur IA les découpera ensuite en compétences mesurables ; cette intention déclarée ne constitue pas encore une mesure."
               />
@@ -386,7 +414,11 @@ export function FormulaireAmorcage({
               <Champ
                 label=""
                 value={intention}
-                onChange={(e) => setIntention(e.target.value)}
+                onChange={(e) => setReponsesOrientation((precedentes) => ({
+                  ...precedentes,
+                  intention: e.target.value,
+                }))}
+                aria-label="Ce que vous voulez pouvoir faire"
                 placeholder="Ex : réussir mes partiels, préparer un concours, mener un projet en autonomie…"
                 aide="Écrivez-le avec vos mots. Le système traduit cette intention en compétences puis en exercices ; vous n’avez pas à définir de cible ni de parcours."
               />
@@ -475,6 +507,7 @@ export function FormulaireAmorcage({
                         key={pref.id}
                         type="button"
                         onClick={() => basculerPreference(pref.libelle)}
+                        aria-pressed={selectionne}
                         className={cx(
                           "inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition-all shadow-xs",
                           selectionne
@@ -494,7 +527,10 @@ export function FormulaireAmorcage({
                 <Champ
                   label="Votre point de départ / contexte (facultatif)"
                   value={pointDeDepart}
-                  onChange={(e) => setPointDeDepart(e.target.value)}
+                  onChange={(e) => setReponsesOrientation((precedentes) => ({
+                    ...precedentes,
+                    pointDeDepartPersonnalise: e.target.value,
+                  }))}
                   placeholder="Ex : étudiant en licence, débutant complet, junior, reconversion..."
                   aide="Transmis au tuteur pour qu'il adapte son vocabulaire et ses analogies sans inventer de diplôme."
                 />
@@ -568,7 +604,7 @@ export function FormulaireAmorcage({
       )}
 
       {/* Visite guidée dynamique pour /demarrer */}
-      <DemarrerTour afficherEtapeCle={cleADecider} />
+      <DemarrerTour autoDemarrage={false} afficherEtapeCle={cleADecider} />
     </div>
   );
 }

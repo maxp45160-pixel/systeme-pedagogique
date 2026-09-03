@@ -169,10 +169,9 @@ async function destinationApresExercice(
    * unique exercice est mené à terme — ce que `avancementSeance` dérive des
    * tentatives, jamais un état stocké — elle passe au journal par le même
    * chemin que « Terminer la séance » (`ecrireClotureSeance`, une seule
-   * implémentation), et l'on revient au tableau de bord, qui reflète alors
-   * immédiatement ce qui vient d'être observé. Avant ce correctif, la séance
-   * restait ouverte pour toujours : le tableau de bord reproposait
-   * indéfiniment « Reprendre la séance » comme si rien n'avait eu lieu.
+   * implémentation). Sa page close affiche ensuite l'impact déjà dérivé par le
+   * moteur avant de proposer le tableau de bord : la première boucle ne se
+   * termine plus par une redirection sans explication.
    *
    * Un abandon, en revanche, ne referme rien : la séance reste en cours, on
    * retombe sur le workspace où l'on peut reprendre ou sortir.
@@ -185,7 +184,7 @@ async function destinationApresExercice(
       avancement.enCours.length === 0
     ) {
       await ecrireClotureSeance(seance.id);
-      return "/app";
+      return `/seances?session=${encodeURIComponent(seance.id)}`;
     }
   }
 

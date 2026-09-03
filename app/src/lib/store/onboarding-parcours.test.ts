@@ -147,7 +147,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
     );
   });
 
-  it("clôture l'exercice, referme la séance du premier parcours et ramène à /app", async () => {
+  it("clôture l'exercice et montre la conclusion de la séance du premier parcours", async () => {
     const seance = await creerSeanceAmorce(true);
     expect(seance.blueprint?.premierParcours).toBe(true);
     expect(seance.activites).toHaveLength(1);
@@ -164,7 +164,7 @@ describe("parcours d'onboarding — du premier axe au tableau de bord", () => {
       navigation: { seanceId: seance.id },
     });
 
-    expect(destination).toBe("/app");
+    expect(destination).toBe(`/seances?session=${encodeURIComponent(seance.id)}`);
 
     // La transaction pédagogique : une tentative close, une observation, un
     // seul rattachement de contexte de séance (pas de double journal).

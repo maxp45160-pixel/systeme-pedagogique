@@ -296,7 +296,7 @@ export function impactTentative(entrees: EntreesImpact): ImpactTravail | null {
   if (faible) {
     faitsObserves.push(
       faible.observations >= 2
-        ? `${libelleDimension(faible.dimension)} reste ton point bas sur ${calibration!.skillCode} : ${part(faible.moyenne)} sur ${faible.observations} tentatives.`
+        ? `${libelleDimension(faible.dimension)} reste votre point bas sur ${calibration!.skillCode} : ${part(faible.moyenne)} sur ${faible.observations} tentatives.`
         : `${libelleDimension(faible.dimension)} est la dimension la plus basse de cette tentative (${part(faible.moyenne)}) — une seule observation, à confirmer.`,
     );
   }

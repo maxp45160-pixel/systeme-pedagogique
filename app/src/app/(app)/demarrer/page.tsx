@@ -147,10 +147,6 @@ export default async function PageDemarrer(props: {
         </ol>
       </details>
 
-      <p className="mt-4 px-1 text-xs text-texte-attenue">
-        Rien n&apos;est figé : votre carte se modifie, s&apos;étend et se réduit à tout moment
-        depuis <span className="font-medium">Mes cours</span>.
-      </p>
     </>
   );
 }

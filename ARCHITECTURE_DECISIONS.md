@@ -10385,8 +10385,11 @@ tableau de bord. Correctif, sans nouvelle entité :
   autres, qui n'entre dans aucune mesure ni autorisation ;
 - quand son unique exercice est mené à terme (dérivé des tentatives par
   `avancementSeance`), la séance passe au journal par le même chemin que
-  « Terminer la séance » (`ecrireClotureSeance`, implémentation unique) et la
-  destination retournée est `/app` — jamais avant le succès des écritures ;
+  « Terminer la séance » (`ecrireClotureSeance`, implémentation unique) ;
+- depuis le 04/09/2026, la destination retournée est la page close de cette
+  séance. Elle réutilise `CarteImpact` pour expliquer ce qui vient d'être
+  observé, puis propose le tableau de bord. La destination n'est jamais rendue
+  avant le succès des écritures ;
 - un abandon ne referme rien et reste dans le workspace ;
 - les Server Actions interactives retournent désormais leur destination au lieu
   d'appeler `redirect()` : une redirection traversait le `try/catch` client

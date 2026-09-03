@@ -1,7 +1,7 @@
 /**
  * Assistant d'orientation et diagnostic express pour le profil d'apprentissage.
  *
- * Fournit une structure en 3 questions simples pour aider un nouvel utilisateur
+ * Fournit une structure en 3 étapes simples pour aider un nouvel utilisateur
  * (ou un utilisateur souhaitant recalibrer son profil) à expliciter son point de
  * départ, son ambition et ses préférences pédagogiques, sans jargon abstrait.
  *
@@ -145,10 +145,11 @@ export const SUGGESTIONS_DOMAINES: SuggestionDomaine[] = [
 
 export interface ReponsesOrientation {
   sujet: string;
+  /** Fait déclaré par la personne, jamais dérivé du sujet ou du niveau. */
+  intention: string;
   niveauId?: string;
   pointDeDepartPersonnalise?: string;
   preferencesChoisies: string[];
-  rythmeHebdoHeures?: number;
 }
 
 export interface ProfilSynthetise {
@@ -156,7 +157,6 @@ export interface ProfilSynthetise {
   formation: string;
   intentionDeDepart: string;
   preferencesPedagogiques: string[];
-  rythmePropose: string;
 }
 
 /**
@@ -172,41 +172,22 @@ export function synthetiserProfilDeterministe(
   const formation =
     reponses.pointDeDepartPersonnalise?.trim() ||
     niveau?.formationType ||
-    "Point de départ en cours de définition";
+    "";
 
-  // Formuler un objectif moyen terme pertinent selon le sujet et le niveau
-  let intentionDeDepart = "";
-  if (sujetPropre) {
-    if (niveau?.id === "debutant") {
-      intentionDeDepart = `Acquérir les fondamentaux solides et réussir mes premiers exercices autonomes sur ${sujetPropre}`;
-    } else if (niveau?.id === "autodidacte") {
-      intentionDeDepart = `Combler les angles morts, structurer mes connaissances et gagner en rigueur sur ${sujetPropre}`;
-    } else if (niveau?.id === "professionnel") {
-      intentionDeDepart = `Maîtriser les savoir-faire opérationnels avancés et les appliquer directement à mes projets sur ${sujetPropre}`;
-    } else {
-      intentionDeDepart = `Développer une pratique autonome et rigoureuse sur ${sujetPropre}`;
-    }
-  } else {
-    intentionDeDepart = "Consolider mes compétences et mesurer ma progression réelle";
-  }
+  /*
+   * L'intention appartient à Connaît : elle est déclarée, jamais fabriquée à
+   * partir du sujet ou d'un niveau présélectionné. La synthèse nettoie la
+   * réponse, elle ne la complète pas.
+   */
+  const intentionDeDepart = reponses.intention.trim();
 
   const preferencesPedagogiques =
-    reponses.preferencesChoisies.length > 0
-      ? reponses.preferencesChoisies
-      : ["Pratiquer d'abord", "Des cas concrets"];
-
-  const heures = reponses.rythmeHebdoHeures ?? 2;
-  const rythmePropose = [
-    `Priorité : consolider les compétences clés de ${sujetPropre || "mon parcours"}.`,
-    `Rythme visé : environ ${heures}h par semaine en séances régulières.`,
-    `Approche : ${preferencesPedagogiques.join(", ")}.`,
-  ].join("\n");
+    reponses.preferencesChoisies.map((preference) => preference.trim()).filter(Boolean);
 
   return {
     sujet: sujetPropre,
     formation,
     intentionDeDepart,
     preferencesPedagogiques,
-    rythmePropose,
   };
 }

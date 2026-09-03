@@ -819,6 +819,11 @@ le temps pour **atteindre** le test, pas sur une durée fictive. Test de
 réfutation : un compte tiers doit atteindre et commencer ce premier exercice
 sans assistance, et le taux d'abandon avant l'énoncé doit baisser.
 
+Depuis le 04/09/2026, terminer ce premier exercice clôture sa séance unitaire
+et affiche son bilan d'impact avant le tableau de bord. Cette conclusion ne
+fabrique aucun résumé : elle réutilise les faits et réserves dérivés par
+`CarteImpact`, puis laisse la personne choisir la prochaine action.
+
 🔬 **Pertinence du classement adaptatif (ADR-066).** Le moteur déterministe et
 ses règles de séquençage sont une politique explicable, pas la démonstration
 d'une action pédagogiquement optimale. Test : au moins 10 boucles réelles avec

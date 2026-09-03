@@ -88,7 +88,7 @@ export function FormulaireBilan({
   );
   const [duree, setDuree] = useState(dureeSuggeree);
   const [notes, setNotes] = useState("");
-  const [aide, setAide] = useState<AideExterne>("aucune");
+  const [aide, setAide] = useState<AideExterne | null>(null);
   const [detaille, setDetaille] = useState(!criteresReplies);
   const [enCours, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -101,12 +101,12 @@ export function FormulaireBilan({
 
   const tousRenseignes = exercice.criteres.every((_, i) => criteres[i] !== undefined);
 
-  const autonomieCalculee = autonomieObservee(
-    indicesUtilises,
-    exercice.indices.length,
-    aide,
-  );
-  const autonomiePrevue = `${autonomieCalculee} — ${
+  const autonomieCalculee = aide === null
+    ? null
+    : autonomieObservee(indicesUtilises, exercice.indices.length, aide);
+  const autonomiePrevue = autonomieCalculee === null
+    ? "à déterminer après votre réponse"
+    : `${autonomieCalculee} — ${
     autonomieCalculee === "A0"
       ? "solution donnée"
       : autonomieCalculee === "A1"
@@ -135,6 +135,13 @@ export function FormulaireBilan({
       return;
     }
 
+    if (aide === null) {
+      setErreur("Indiquez si vous avez utilisé une aide extérieure.");
+      return;
+    }
+
+    const aideDeclaree = aide;
+
     // La transition désactive le bouton après le rendu suivant ; le ref ferme
     // aussi la fenêtre très courte d'un double clic synchronisé.
     soumissionLancee.current = true;
@@ -160,7 +167,7 @@ export function FormulaireBilan({
           evaluation,
           dureeMin: duree,
           notes: notes.trim() || undefined,
-          aideExterne: aide,
+          aideExterne: aideDeclaree,
           /*
             Le verdict archivé est celui du TUTEUR, pas celui affiché après
             modification (ADR-046). On envoie `propositionInitiale`, jamais
@@ -218,6 +225,7 @@ export function FormulaireBilan({
               key={r.valeur}
               type="button"
               onClick={() => setResultat(r.valeur)}
+              aria-pressed={resultat === r.valeur}
               className={cx(
                 /*
                  * Le bilan est le geste le plus fréquent du produit, et il se
@@ -253,7 +261,7 @@ export function FormulaireBilan({
             <span className="ml-1.5 font-normal text-texte-discret">
               {assiste
                 ? "— relisez le verdict du tuteur : c'est vous qui décidez"
-                : "— sois honnête : c'est ce qui rend le suivi utile"}
+                : "— soyez honnête : c'est ce qui rend le suivi utile"}
             </span>
           </div>
           {/*
@@ -333,6 +341,7 @@ export function FormulaireBilan({
                         key={a.valeur}
                         type="button"
                         onClick={() => setCriteres((p) => ({ ...p, [i]: a.valeur }))}
+                        aria-pressed={criteres[i] === a.valeur}
                         className={cx(
                           /*
                            * Cibles tactiles du geste le plus fréquent : ~44 px
@@ -394,7 +403,7 @@ export function FormulaireBilan({
       */}
       <div>
         <div className="mb-2 text-xs font-medium">
-          As-tu eu besoin d&apos;aide extérieure ?
+          Avez-vous eu besoin d&apos;aide extérieure ?
           <span className="ml-1.5 font-normal text-texte-discret">
             — déclarer une aide calibre l&apos;outil sans jugement de valeur
           </span>
@@ -405,6 +414,7 @@ export function FormulaireBilan({
               key={a.valeur}
               type="button"
               onClick={() => setAide(a.valeur)}
+              aria-pressed={aide === a.valeur}
               className={cx(
                 "min-h-[2.75rem] rounded-md border px-3 py-2 text-left text-xs transition-colors",
                 aide === a.valeur
@@ -417,6 +427,8 @@ export function FormulaireBilan({
           ))}
         </div>
         <p className="mt-1.5 text-[0.625rem] text-texte-discret">
+          {aide === null &&
+            "Choisissez une réponse : aucune valeur ne sera supposée à votre place."}
           {aide === "aucune" &&
             "Aucune aide extérieure : l'autonomie est déduite des seuls indices internes consultés."}
           {aide === "documentation" &&
@@ -472,7 +484,7 @@ export function FormulaireBilan({
           <li>
             · Autonomie <strong>{autonomiePrevue}</strong>, déduite des {indicesUtilises} indice(s)
             consulté(s)
-            {aide !== "aucune" && (
+            {aide !== null && aide !== "aucune" && (
               <>
                 {" "}
                 — calibrée par l&apos;aide déclarée : {LIBELLE_AIDE[aide]}
@@ -496,7 +508,7 @@ export function FormulaireBilan({
       <div className="flex flex-wrap items-center gap-3">
         <Bouton
           onClick={soumettre}
-          disabled={resultat === null || !tousRenseignes || enCours}
+          disabled={resultat === null || !tousRenseignes || aide === null || enCours}
           variante="principal"
         >
           {enCours
@@ -505,7 +517,7 @@ export function FormulaireBilan({
               ? "Accepter et enregistrer"
               : "Enregistrer l'observation"}
         </Bouton>
-        {resultat !== null && tousRenseignes && (
+        {resultat !== null && tousRenseignes && aide !== null && (
           <span className="hidden sm:flex items-center gap-1 text-[0.6875rem] text-texte-discret">
             <kbd className="rounded border border-bordure bg-surface-2 px-1 py-0.5 font-mono text-[0.625rem]">Ctrl+Entrée</kbd>
             <span>pour enregistrer</span>
@@ -519,6 +531,11 @@ export function FormulaireBilan({
         {resultat !== null && !tousRenseignes && (
           <span className="text-xs text-texte-discret">
             Renseignez chaque critère pour continuer.
+          </span>
+        )}
+        {resultat !== null && tousRenseignes && aide === null && (
+          <span className="text-xs text-texte-discret">
+            Indiquez si vous avez utilisé une aide extérieure pour continuer.
           </span>
         )}
       </div>

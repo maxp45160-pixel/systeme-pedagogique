@@ -21,40 +21,56 @@ describe("Assistant d'orientation — diagnostic et synthèse", () => {
   it("synthétise un profil complet pour un débutant", () => {
     const res = synthetiserProfilDeterministe({
       sujet: "React & TypeScript",
+      intention: "Créer une application web accessible de bout en bout",
       niveauId: "debutant",
       preferencesChoisies: ["Pratiquer d'abord", "Pas à pas"],
-      rythmeHebdoHeures: 3,
     });
 
     expect(res.sujet).toBe("React & TypeScript");
     expect(res.formation).toContain("Débutant complet");
-    expect(res.intentionDeDepart).toContain("fondamentaux");
+    expect(res.intentionDeDepart).toBe("Créer une application web accessible de bout en bout");
     expect(res.preferencesPedagogiques).toEqual(["Pratiquer d'abord", "Pas à pas"]);
-    expect(res.rythmePropose).toContain("3h par semaine");
   });
 
   it("synthétise un profil avec point de départ personnalisé", () => {
     const res = synthetiserProfilDeterministe({
       sujet: "Droit fiscal",
+      intention: "Sécuriser les déclarations de TVA de mon entreprise",
       niveauId: "professionnel",
       pointDeDepartPersonnalise: "Juriste d'entreprise en reconversion",
       preferencesChoisies: ["Des cas concrets"],
     });
 
     expect(res.formation).toBe("Juriste d'entreprise en reconversion");
-    expect(res.intentionDeDepart).toContain("opérationnels");
+    expect(res.intentionDeDepart).toBe("Sécuriser les déclarations de TVA de mon entreprise");
     expect(res.preferencesPedagogiques).toEqual(["Des cas concrets"]);
   });
 
-  it("gère les cas limites sans crash ni valeur absente", () => {
+  it("ne fabrique aucune déclaration absente", () => {
     const res = synthetiserProfilDeterministe({
       sujet: "",
+      intention: "",
       preferencesChoisies: [],
     });
 
-    expect(res.formation).toBe("Point de départ en cours de définition");
-    expect(res.intentionDeDepart).not.toBe("");
-    expect(res.preferencesPedagogiques.length).toBeGreaterThan(0);
-    expect(res.rythmePropose).toContain("par semaine");
+    expect(res.formation).toBe("");
+    expect(res.intentionDeDepart).toBe("");
+    expect(res.preferencesPedagogiques).toEqual([]);
+  });
+
+  it("normalise sans reformuler les réponses déclarées", () => {
+    const res = synthetiserProfilDeterministe({
+      sujet: "  Analyse de données  ",
+      intention: "  Automatiser mes rapports mensuels  ",
+      pointDeDepartPersonnalise: "  Bases Python  ",
+      preferencesChoisies: [" Des cas concrets ", ""],
+    });
+
+    expect(res).toEqual({
+      sujet: "Analyse de données",
+      formation: "Bases Python",
+      intentionDeDepart: "Automatiser mes rapports mensuels",
+      preferencesPedagogiques: ["Des cas concrets"],
+    });
   });
 });
