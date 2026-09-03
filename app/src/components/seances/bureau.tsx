@@ -92,6 +92,7 @@ export function Bureau({
   entrees,
   aujourdHui,
   compteId,
+  echeances,
   seanceDeployee,
   onChangerJour,
   onChangerMois,
@@ -105,6 +106,8 @@ export function Bureau({
   entrees: EntreesCahier;
   aujourdHui: Date;
   compteId: string;
+  /** Faits datés ouverts, affichés après le travail immédiat. */
+  echeances?: ReactNode;
   /** La séance ouverte en plein travail, rendue à sa place dans le déroulé. */
   seanceDeployee?: { id: string; contenu: ReactNode };
   onChangerJour: (jour: string) => void;
@@ -263,6 +266,8 @@ export function Bureau({
             </div>
           </Bloc>
         )}
+
+        {estAujourdHui && echeances && <Bloc titre="À venir">{echeances}</Bloc>}
 
         {/*
           Une séance REFERMÉE ouverte par un lien se relit à sa place, dépliée.

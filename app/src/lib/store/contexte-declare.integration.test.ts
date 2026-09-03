@@ -37,6 +37,10 @@ const pageTableauBord = readFileSync(
   new URL("../../app/(app)/app/page.tsx", import.meta.url),
   "utf8",
 );
+const pageSeances = readFileSync(
+  new URL("../../app/(app)/seances/page.tsx", import.meta.url),
+  "utf8",
+);
 const actionsPlan = readFileSync(
   new URL("./plan-actions.ts", import.meta.url),
   "utf8",
@@ -83,7 +87,8 @@ describe("retrait de la configuration abstraite de période", () => {
     expect(cartePlan).toContain("traduireErreurProposition");
     expect(cartePlan).toContain("commandeLancee.current");
     expect(pageTableauBord).toContain("CarteProchaineAction");
-    expect(pageTableauBord).toContain("CarteEcheances");
+    expect(pageTableauBord).not.toContain("CarteEcheances");
+    expect(pageSeances).toContain("CarteEcheances");
     expect(pageTableauBord).not.toContain("TableauBordOrchestration");
     expect(pageTableauBord).not.toContain("referenceStableProposition");
     expect(pageTableauBord).not.toContain("crypto.randomUUID");

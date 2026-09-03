@@ -20,6 +20,8 @@ import { BilanCroissanceLie } from "@/components/progression/bilan-croissance-li
 import { ModaleExportBilan } from "@/components/progression/modale-export-bilan";
 import { Glossaire } from "@/components/ui/glossaire";
 import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
+import { calculerActivite } from "@/lib/engine/historique";
+import { MiniActivite } from "@/components/dashboard/mini-activite";
 
 /**
  * La Progression : le profil de carrière — ce que la pratique a totalisé,
@@ -33,14 +35,8 @@ import { libelleMesureLisible } from "@/lib/ui/mesures-lisibles";
  * (ADR-017), les conversions parlantes restent des fonctions des observations
  * (ADR-097).
  *
- * ## Ce que cette page ne fait plus
- *
- * Elle ne répète plus le tableau de bord. La grille d'activité annuelle et
- * la couverture du référentiel y vivaient en double — le widget Continuité
- * du bord et la synthèse du référentiel les portent déjà ; ce qui reste ici
- * est ce qu'aucun autre écran ne montre : l'évolution du score rejouée depuis
- * le journal, les faits marquants de toute la pratique, et le bilan de ce
- * que le travail récent a changé.
+ * La continuité rejoint cette lecture longitudinale : elle décrit le rythme
+ * passé et ne concurrence plus l'action immédiate du tableau de bord.
  *
  * La fiche d'un domaine sert maintenant à travailler, sans lecture parallèle
  * « Progression ». Cette page conserve la lecture longitudinale globale : elle
@@ -162,6 +158,13 @@ function VueGlobale({
     now: ctx.now,
   });
 
+  const activite = calculerActivite(
+    ctx.donnees.sessions,
+    ctx.now,
+    ctx.donnees.attempts,
+    ctx.dureesEstimees,
+  );
+
   // Répartition des compétences par niveau — la seule lecture du lot « mesures »
   // qui reste sur la page : elle rejoint le héros, où sa place est visuelle.
   const repartition: Record<number, number> = {};
@@ -205,6 +208,7 @@ function VueGlobale({
           qu'allonger l'écran. */}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
         <div className="space-y-4 min-w-0 lg:col-span-4">
+          <MiniActivite activite={activite} now={ctx.now} />
           <CartePratique carriere={carriere} />
           <ComparaisonDomaines parDomaine={ctx.global.parDomaine} />
         </div>
@@ -212,11 +216,9 @@ function VueGlobale({
         <div className="space-y-4 min-w-0 lg:col-span-8">
           <CourbeEtMethode evolution={evolution} facteurs={ctx.global.facteurs} reserves={ctx.global.reserves} />
           <TopCompetences etats={ctx.etats} />
+          <BilanCroissanceLie resume={croissance} intitules={intitules} />
         </div>
       </div>
-
-      {/* Le bilan de croissance, repris de l'accueil de l'Atelier. */}
-      <BilanCroissanceLie resume={croissance} intitules={intitules} />
     </>
   );
 }

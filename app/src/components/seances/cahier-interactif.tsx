@@ -30,6 +30,7 @@ export function CahierInteractif({
   compteId,
   recherche,
   compositeur,
+  echeances,
   seanceDeployee,
 }: {
   /** Le jour ouvert : la page du jour, sauf lien explicite (`?jour=`, `?session=`). */
@@ -52,6 +53,8 @@ export function CahierInteractif({
   /** Terme de recherche actif, le cas échéant. Le Cahier s'ouvre dessus. */
   recherche?: string;
   compositeur?: ReactNode;
+  /** Échéances ouvertes, rendues dans le flux du Bureau seulement. */
+  echeances?: ReactNode;
   seanceDeployee?: { id: string; contenu: ReactNode };
 }) {
   const [jour, setJour] = useState<string>(jourInitial);
@@ -126,6 +129,7 @@ export function CahierInteractif({
         entrees={entrees}
         aujourdHui={aujourdHui}
         compteId={compteId}
+        echeances={echeances}
         onChangerJour={allerALaPage}
         onChangerMois={setMois}
         onOuvrirCahier={ouvrirCahier}

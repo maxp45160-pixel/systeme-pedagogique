@@ -16,7 +16,6 @@ import {
   CodeCompetence,
   Etiquette,
   EtatVide,
-  Filigrane,
 } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { IconeFleche } from "@/components/ui/icones";
@@ -189,13 +188,9 @@ export function CarteProchaineAction({
   );
 
   return (
-    <Carte accent className="relative overflow-hidden">
-      {/* Épine en haut : signale la carte prioritaire de l'écran. */}
-      <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-      <Filigrane />
-
+    <Carte accent className="relative h-full overflow-hidden">
       <div
-        className="relative p-4 sm:p-5"
+        className="relative p-5 sm:p-6 lg:p-8"
         data-testid="prochaine-action"
         data-tour="action-prioritaire"
         data-nature="exercice"
@@ -220,19 +215,21 @@ export function CarteProchaineAction({
             {revision.due && <Etiquette ton="alerte">Révision due</Etiquette>}
           </div>
 
-          <BoutonRefusRecommandation code={etat.skill.code} exerciceId={exercice?.id} />
+          <div className="[&_button]:!border-transparent [&_button]:!bg-transparent [&_button]:!px-2 [&_button]:!text-texte-discret [&_button:hover]:!text-texte">
+            <BoutonRefusRecommandation code={etat.skill.code} exerciceId={exercice?.id} />
+          </div>
         </div>
 
-        <h2 className="mt-3 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight text-texte">
+        <h2 className="mt-8 max-w-3xl font-serif text-3xl font-medium leading-[1.05] tracking-tight text-texte sm:text-[2.25rem] lg:text-[2.5rem]">
           {exercice ? exercice.titre : etat.skill.intitule}
         </h2>
 
         {exercice ? (
-          <p className="mt-1 text-xs text-texte-attenue">
+          <p className="mt-4 text-sm text-texte-attenue">
             Compétence : <strong className="font-medium text-texte">{etat.skill.intitule}</strong>
           </p>
         ) : (
-          <p className="mt-1 text-xs sm:text-sm text-texte-attenue leading-relaxed">
+          <p className="mt-4 text-sm leading-relaxed text-texte-attenue sm:text-base">
             {etat.prochaineEtape}
           </p>
         )}
@@ -244,12 +241,12 @@ export function CarteProchaineAction({
           </p>
         )}
 
-        <div className="mt-4 border-t border-bordure/60 pt-3 space-y-3">
+        <div className="mt-8 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {actionPrincipale ?? (exercice ? (
                 <form action={demarrerExerciceEnFocus.bind(null, exercice.id)}>
-                  <Bouton type="submit" variante="principal" className="shadow-xs">
+                  <Bouton type="submit" variante="principal" className="min-h-12 px-5 text-base shadow-xs">
                     Commencer l’exercice
                     <IconeFleche className="size-4" />
                   </Bouton>
@@ -281,7 +278,7 @@ export function CarteProchaineAction({
               ))}
               <Link
                 href={`/atelier?document=${encodeURIComponent(etat.skill.code)}`}
-                className={classesLienBouton("secondaire")}
+                className={`${classesLienBouton("secondaire")} !min-h-12 !px-5 !text-base`}
               >
                 Fiche compétence
               </Link>
@@ -364,12 +361,9 @@ function CarteActionActivite({
         : "Commencer l’activité";
 
   return (
-    <Carte accent className="relative overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-1 bg-primaire" aria-hidden />
-      <Filigrane />
-
+    <Carte accent className="relative h-full overflow-hidden">
       <div
-        className="relative p-4 sm:p-5"
+        className="relative p-5 sm:p-6 lg:p-8"
         data-testid="prochaine-action"
         data-tour="action-prioritaire"
         data-nature={estRessource ? "ressource" : estNote ? "note" : "activite"}
@@ -386,18 +380,20 @@ function CarteActionActivite({
             {action.segmented && <Etiquette ton="info">Reprenable plus tard</Etiquette>}
           </div>
 
-          <BoutonRefusRecommandation
-            code={codeRefusable}
-            exerciceId={action.activityId}
-          />
+          <div className="[&_button]:!border-transparent [&_button]:!bg-transparent [&_button]:!px-2 [&_button]:!text-texte-discret [&_button:hover]:!text-texte">
+            <BoutonRefusRecommandation
+              code={codeRefusable}
+              exerciceId={action.activityId}
+            />
+          </div>
         </div>
 
-        <h2 className="mt-3 font-serif text-lg sm:text-xl font-medium leading-snug tracking-tight text-texte">
+        <h2 className="mt-8 max-w-3xl font-serif text-3xl font-medium leading-[1.05] tracking-tight text-texte sm:text-[2.25rem] lg:text-[2.5rem]">
           {action.title}
         </h2>
 
         {facteursInstant[0] && (
-          <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-texte-attenue leading-relaxed">{facteursInstant[0].label}</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-texte-attenue sm:text-base">{facteursInstant[0].label}</p>
         )}
 
         {action.target.skillCodes.length > 0 && (
@@ -413,7 +409,7 @@ function CarteActionActivite({
           </div>
         )}
 
-        <div className="mt-4 border-t border-bordure/60 pt-3 space-y-3">
+        <div className="mt-8 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               {action.activityId && idExerciceDepuisActivite(action.activityId) ? (
@@ -423,13 +419,16 @@ function CarteActionActivite({
                     idExerciceDepuisActivite(action.activityId)!,
                   )}
                 >
-                  <Bouton type="submit" variante="principal" className="shadow-xs">
+                  <Bouton type="submit" variante="principal" className="min-h-12 px-5 text-base shadow-xs">
                     {libelle}
                     <IconeFleche className="size-4" />
                   </Bouton>
                 </form>
               ) : (
-                <Link href={lienActivite(action, instant)} className={classesLienBouton("principal")}>
+                <Link
+                  href={lienActivite(action, instant)}
+                  className={`${classesLienBouton("principal")} !min-h-12 !px-5 !text-base`}
+                >
                   {libelle}
                   <IconeFleche className="size-4" />
                 </Link>

@@ -7603,6 +7603,15 @@ sans deux mesures distantes d'au moins sept jours — pas zéro.
 | Zone « Le détail des mesures » + `CarteEtatGlobal.tsx` (supprimé) | répartition des niveaux → héros ; facteurs/réserves du score → dépliant replié au pied de la courbe ; détail par compétence → Atelier |
 | Bande de totaux sous le héros (redite) | carte « La pratique », seule surface des totaux |
 
+**Correction de composition — 03/09/2026, demandée par Maxime.** Le widget
+compact « Continuité » revient dans Progression. Il ne réintroduit ni la grille
+annuelle retirée ni une mécanique de série : il relit les 22 dernières semaines,
+les jours actifs et le temps investi à partir des séances. Le tableau de bord
+reste réservé au choix immédiat ; Progression redevient la seule surface de ce
+repère longitudinal. Le bilan de croissance reste dans la même page mais rejoint
+la colonne de trajectoire : les deux colonnes se remplissent indépendamment et
+n'imposent plus un grand vide avant le bilan.
+
 **Le bilan redevient un chemin vers l'action.** Chaque événement sans
 progression porte un lien « Travailler → » vers le compositeur prérempli
 (`urlComposerAutonome`) ; l'état vide propose de composer une séance. La page
@@ -8920,6 +8929,20 @@ X », jamais zéro). Depuis la capture d'intention, quand une date est détecté
 (`extraireEcheanceBesoin`), un chemin assisté propose de déclarer
 l'engagement : proposition explicite, aucune écriture automatique — la
 conversion silencieuse qu'[ADR-096](#adr-096) a retirée reste interdite.
+
+**Correction de composition — 03/09/2026, demandée par Maxime.** La carte
+« À venir » quitte le tableau de bord et rejoint Mes cours, plus proche du
+contexte académique qu'elle organise. Le geste, les actions et le contrat de
+données restent identiques ; seule leur destination visuelle change. Le facteur
+« Proximité d'échéance » continue d'informer la recommandation du tableau de
+bord sans y dupliquer la liste des échéances.
+
+**Seconde correction de composition — 03/09/2026, demandée par Maxime.** La
+liste quitte finalement l'en-tête de Mes cours : elle interrompait l'accès aux
+modules qu'elle était censée contextualiser. Elle rejoint Séances, sous le
+travail immédiat de la page du jour, sans carte ni en-tête redondants. Mes cours
+reste consacré aux contenus et à leur organisation ; le contrat de l'engagement
+et ses actions ne changent pas.
 
 ### Test de réfutation
 

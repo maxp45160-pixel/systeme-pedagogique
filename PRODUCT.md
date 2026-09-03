@@ -1,6 +1,33 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.17 — 01/09/2026.** Une correction assistée s'abstient désormais
+**Version 4.20 — 03/09/2026.** La lecture de Progression remplit désormais ses
+deux colonnes indépendamment : le bilan récent suit la trajectoire à droite au
+lieu d'attendre la fin de l'inventaire à gauche. « À venir » quitte Mes cours
+et rejoint le flux de la page du jour dans Séances, après le travail immédiat.
+Les trois actions de la priorité partagent la même hauteur et la même taille de
+texte. Aucun fait, calcul ni arbitrage n'est modifié.
+
+**Version précédente : 4.19 — 03/09/2026.** Le choix immédiat reste le seul contenu du
+tableau de bord, mais ses deux voies retrouvent des limites visuelles : une
+carte accentuée pour la priorité et une carte secondaire pour les alternatives.
+« Organiser dans Mes cours » remonte dans l'en-tête. La continuité rejoint
+Progression, où elle décrit le rythme passé ; « À venir » rejoint Mes cours,
+où les échéances déclarées gardent leur contexte. Ces déplacements ne changent
+aucune donnée, mesure ni décision du moteur.
+
+**Version précédente : 4.18 — 01/09/2026.** Le tableau de bord donne désormais tout son
+premier écran au choix immédiat : la priorité du jour occupe la surface
+principale et les deux recommandations suivantes restent directement
+actionnables à côté. En l'absence de séance acceptée aujourd'hui, le grand
+état vide « Aujourd'hui » est remplacé par une ligne discrète ; une séance
+réelle continue de remonter avant la recommandation. La saisie libre, ses
+suggestions, le résumé chiffré et les deux cartes d'organisation quittent ce
+premier écran. « Mes cours » devient l'entrée explicite pour organiser, tandis
+que les échéances, propositions et repères de continuité restent disponibles
+après le choix immédiat. Cette recomposition ne change aucune donnée, aucune
+mesure ni aucun arbitrage du moteur.
+
+**Version précédente : 4.17 — 01/09/2026.** Une correction assistée s'abstient désormais
 quand l'énoncé, la référence ou les critères peuvent exclure une réponse
 valide. Sans document source, la génération refuse les listes factuelles
 présentées comme officielles et exhaustives ; elle doit demander des éléments
@@ -99,11 +126,11 @@ acceptation, une `LearningSession` unitaire est créée et le travail s'ouvre
 directement. Un échec de création de séance revient au compositeur sans
 réémettre la génération.
 
-Le tableau de bord visible garde une seule surface de référence pour les
-échéances : « À venir ». Le raccourci de contexte et le résumé prioritaire qui
-répétaient la même échéance ont été retirés ; « Mes cours » reste une entrée
-générale vers le contexte académique. La carte conserve la liste des échéances
-et leurs actions sans changer les faits persistés.
+Séances garde une seule surface de référence pour les échéances : « À venir ».
+Le tableau de bord n'en répète ni la liste ni un résumé prioritaire ; son moteur
+peut toujours utiliser la proximité d'une échéance déclarée pour expliquer une
+recommandation. Le bloc conserve la liste et ses actions sans changer les faits
+persistés.
 
 La frontière distante d'acceptation atomique est désormais fonctionnelle et
 prouvée côté PostgreSQL. La reproduction du 29/08/2026 avait montré que `sum(integer)`
@@ -1054,14 +1081,16 @@ intégration visible ne valide pas le plan global d'ADR-139.
 
 ### Lot 9 — créneaux et échéances concrètes
 
-🔬 Le tableau de bord expose désormais une configuration permanente et courte :
-la personne ajoute, modifie ou supprime plusieurs créneaux disponibles, puis
-déclare plusieurs échéances depuis le même écran. Les créneaux sont conservés
-dans le tableau déclaré du profil et validés ensemble ; une plage inversée ou
-un chevauchement est refusé. Une absence de créneau demeure une absence de fait,
-jamais une faiblesse ou une indisponibilité fabriquée. Aucun parcours local à
-acquitter, calendrier externe, plan, score ou nouvelle entité de travail n'est
-créé.
+🔬 Les créneaux et échéances restent des faits déclarés, mais leur configuration
+permanente a quitté le tableau de bord : elle mettait l'administration du cadre
+avant le travail immédiat. Séances relit les échéances ouvertes dans son bloc
+« À venir », après le travail immédiat ; les modules de Mes cours conservent les
+gestes de déclaration cohérents avec leur contexte.
+Les créneaux sont conservés dans le tableau déclaré du profil et
+validés ensemble ; une plage inversée ou un chevauchement est refusé. Une
+absence de créneau demeure une absence de fait, jamais une faiblesse ou une
+indisponibilité fabriquée. Aucun parcours local à acquitter, calendrier externe,
+plan, score ou nouvelle entité de travail n'est créé.
 
 La migration additive `20260828201530` (`lot_9_contexte_declare`) a été
 appliquée et vérifiée dans Supabase le 28/08/2026. Le code n'utilise plus la

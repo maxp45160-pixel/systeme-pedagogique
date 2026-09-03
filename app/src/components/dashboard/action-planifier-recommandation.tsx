@@ -56,6 +56,7 @@ export function ActionPlanifierRecommandation({
         <Bouton
           type="button"
           variante="secondaire"
+          className="!min-h-12 !px-5 !text-base"
           aria-expanded={ouvert}
           aria-controls={identifiant}
           onClick={() => {

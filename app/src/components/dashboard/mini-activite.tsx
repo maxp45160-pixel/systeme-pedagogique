@@ -1,12 +1,10 @@
-import Link from "next/link";
 import type { Activite } from "@/lib/engine/historique";
 import { Carte, CorpsCarte, EnTeteCarte } from "@/components/ui/primitives";
 import { GrilleActivite, LegendeActivite } from "@/components/charts";
 import { formatDateRelative, formatDuree } from "@/lib/engine/dates";
-import { IconeFleche } from "@/components/ui/icones";
 
 /**
- * Widget compact d'activité et de continuité pour la colonne latérale du tableau de bord.
+ * Repère compact d'activité et de continuité pour la page Progression.
  *
  * Donne un repère visuel calme sur le rythme des dernières semaines sans jamais
  * culpabiliser l'utilisateur (aucune pénalité, pas de streak).
@@ -69,16 +67,6 @@ export function MiniActivite({
             </div>
           </div>
 
-          {/* Lien vers progression */}
-          <div className="border-t border-bordure/60 pt-2">
-            <Link
-              href="/progression"
-              className="group flex items-center justify-between text-xs font-medium text-texte-attenue hover:text-primaire transition-colors"
-            >
-              <span>Voir le détail de progression</span>
-              <IconeFleche className="size-3 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </div>
         </div>
       </CorpsCarte>
     </Carte>

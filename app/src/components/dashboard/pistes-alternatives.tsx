@@ -1,9 +1,7 @@
 import Link from "next/link";
 import type { Recommandation } from "@/lib/engine/recommend";
-import type { Referentiel } from "@/lib/domain/types";
-import { libelleDomaine } from "@/lib/domain/referentiel-compte";
 import { formatDuree } from "@/lib/engine/dates";
-import { Bouton, classesLienBouton, Etiquette } from "@/components/ui/primitives";
+import { Bouton, Carte, classesLienBouton } from "@/components/ui/primitives";
 import { demarrerExerciceEnFocus } from "@/lib/store/seance-actions";
 import { IconeFleche } from "@/components/ui/icones";
 import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exercice";
@@ -15,85 +13,50 @@ import { INFOBULLE_GENERER_PUIS_COMMENCER } from "@/lib/domain/navigation-exerci
  */
 export function PistesAlternatives({
   recommandations,
-  referentiel,
 }: {
   recommandations: readonly Recommandation[];
-  referentiel: Referentiel;
 }) {
   // On prend les 2 meilleures alternatives qui suivent la recommandation principale
   const alternatives = recommandations.slice(1, 3);
   if (alternatives.length === 0) return null;
 
   return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
-          Autres pistes suggérées
-        </h3>
-        <Link
-          href="/atelier"
-          className="group flex items-center gap-1 text-xs font-medium text-texte-attenue hover:text-primaire transition-colors"
-        >
-          <span>Voir tous mes cours</span>
-          <IconeFleche className="size-2.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </div>
+    <Carte className="h-full overflow-hidden">
+      <section className="p-5 sm:p-6">
+        <h2 className="font-serif text-2xl font-medium leading-tight tracking-tight text-texte">
+          Vous préférez autre chose&nbsp;?
+        </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {alternatives.map((rec) => {
+        <div className="mt-5 divide-y divide-bordure/60">
+          {alternatives.map((rec) => {
           const code = rec.etat.skill.code;
-          const nomDomaine = libelleDomaine(referentiel, rec.etat.skill.domaine);
           const duree = rec.exercice?.dureeEstimeeMin ?? rec.dureeEstimeeMin;
-          const difficulte = rec.exercice?.difficulte ?? rec.difficulteCible;
           const estExercice = Boolean(rec.exercice);
           const intituleCompetence = rec.etat.skill.intitule;
           const titreExercice = rec.exercice?.titre;
+          const description = estExercice ? intituleCompetence : rec.etat.prochaineEtape;
 
           return (
-            <div
+            <article
               key={code}
-              className="group flex flex-col justify-between rounded-xl border border-bordure bg-surface p-3.5 shadow-2xs transition-all hover:border-primaire/40 hover:bg-surface-2/30"
+              className="py-6 first:pt-4"
             >
-              <div className="space-y-1.5">
-                {/* En-tête : badge type d'activité + domaine + difficulté/durée */}
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Etiquette ton={estExercice ? "primaire" : "info"}>
-                      {estExercice ? "Exercice" : "Séance"}
-                    </Etiquette>
-                    <span className="text-[0.6875rem] text-texte-discret truncate max-w-[170px]" title={nomDomaine}>
-                      {nomDomaine}
-                    </span>
-                  </div>
-                  <span className="text-[0.6875rem] text-texte-attenue shrink-0 font-mono">
-                    Diff. {difficulte}/5 · ≈ {formatDuree(duree)}
-                  </span>
-                </div>
-
-                {/* Titre principal */}
-                <h4 className="font-serif text-sm font-medium text-texte leading-snug">
+              <div className="space-y-2">
+                <h3 className="font-serif text-lg font-medium leading-snug text-texte">
                   {estExercice && titreExercice ? titreExercice : intituleCompetence}
-                </h4>
+                </h3>
 
-                {/* Sous-titre indicatif */}
-                {estExercice && intituleCompetence && (
-                  <p className="text-[0.6875rem] text-texte-discret line-clamp-1" title={intituleCompetence}>
-                    {intituleCompetence}
-                  </p>
-                )}
-                {!estExercice && (
-                  <p className="text-[0.6875rem] text-texte-discret line-clamp-1">
-                    {rec.etat.prochaineEtape}
-                  </p>
-                )}
+                <p className="line-clamp-2 text-xs leading-relaxed text-texte-attenue" title={description}>
+                  {description} · ≈ {formatDuree(duree)}
+                </p>
               </div>
 
-              {/* Action directe */}
-              <div className="mt-3 flex items-center justify-between border-t border-bordure/60 pt-2.5">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 {estExercice && rec.exercice ? (
                   <form action={demarrerExerciceEnFocus.bind(null, rec.exercice.id)}>
                     <Bouton type="submit" variante="secondaire" taille="petite">
-                      Commencer l’exercice →
+                      Commencer maintenant
+                      <IconeFleche className="size-3.5" />
                     </Bouton>
                   </form>
                 ) : rec.etat.niveau === 0 ? (
@@ -101,7 +64,8 @@ export function PistesAlternatives({
                     href={`/expliquer?code=${encodeURIComponent(code)}`}
                     className={`${classesLienBouton("secondaire")} !py-1 !px-2.5 !text-xs`}
                   >
-                    Expliquer →
+                    Expliquer
+                    <IconeFleche className="size-3.5" />
                   </Link>
                 ) : (
                   /*
@@ -114,20 +78,22 @@ export function PistesAlternatives({
                     className={`${classesLienBouton("secondaire")} !py-1 !px-2.5 !text-xs`}
                     title={INFOBULLE_GENERER_PUIS_COMMENCER}
                   >
-                    Générer puis commencer →
+                    Générer puis commencer
+                    <IconeFleche className="size-3.5" />
                   </Link>
                 )}
                 <Link
                   href={`/atelier?document=${encodeURIComponent(code)}`}
-                  className="text-xs text-texte-discret hover:text-primaire transition-colors"
+                  className="text-xs text-texte-attenue transition-colors hover:text-primaire"
                 >
                   Fiche compétence
                 </Link>
               </div>
-            </div>
+            </article>
           );
-        })}
-      </div>
-    </section>
+          })}
+        </div>
+      </section>
+    </Carte>
   );
 }

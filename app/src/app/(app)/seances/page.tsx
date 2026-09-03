@@ -19,6 +19,7 @@ import { ConcepteurSeance, type PresetSeance } from "@/components/seances/concep
 import { statutSeance, TEMPS_DECLARE_MAX } from "@/lib/domain/seance";
 import { nombreExercicesConseille } from "@/lib/engine/caf";
 import { dureeDeclaree } from "@/lib/domain/intention";
+import { CarteEcheances } from "@/components/dashboard/carte-echeances";
 
 /*
  * Les aperçus documentaires ne servent au cahier qu'à lister les documents
@@ -336,6 +337,14 @@ async function ContenuBureau({
       }}
       aujourdHuiIso={ctx.now.toISOString()}
       compteId={ctx.donnees.user.id}
+      echeances={
+        <CarteEcheances
+          engagements={ctx.donnees.engagements}
+          etatsParCode={ctx.etatsParCode}
+          now={ctx.now}
+          variante="liste"
+        />
+      }
       compositeur={composition ? <CompositeurDepuisLien {...composition} /> : undefined}
       seanceDeployee={
         seanceOuverte

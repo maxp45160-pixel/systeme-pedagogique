@@ -28,10 +28,13 @@ export function CarteEcheances({
   engagements,
   etatsParCode,
   now,
+  variante = "carte",
 }: {
   engagements: Engagement[];
   etatsParCode: Map<string, SkillState>;
   now: Date;
+  /** Dans Séances, le titre et le cadre sont portés par le bloc du Bureau. */
+  variante?: "carte" | "liste";
 }) {
   const ouverts = triParUrgence(engagements.filter(estOuvert));
   if (ouverts.length === 0) return null;
@@ -39,15 +42,8 @@ export function CarteEcheances({
   const aVenir = ouverts.filter((e) => joursRestants(e.echeanceLe, now) >= 0);
   const depasses = ouverts.filter((e) => joursRestants(e.echeanceLe, now) < 0);
 
-  return (
-    <Carte id="carte-echeances">
-      <div className="border-b border-bordure px-5 py-3.5">
-        <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">À venir</h2>
-        <p className="mt-0.5 text-xs text-texte-attenue">
-          Vos échéances déclarées, de la plus proche à la plus lointaine.
-        </p>
-      </div>
-      <div className="px-5 py-3" data-testid="echeances-a-venir">
+  const contenu = (
+    <div className={variante === "carte" ? "px-5 py-3" : undefined} data-testid="echeances-a-venir">
         <ul className="divide-y divide-bordure/60">
           {aVenir.map((engagement) => (
             <LigneEngagement key={engagement.id} engagement={engagement} etatsParCode={etatsParCode} now={now} />
@@ -66,7 +62,20 @@ export function CarteEcheances({
             </ul>
           </Depliant>
         )}
+    </div>
+  );
+
+  if (variante === "liste") return contenu;
+
+  return (
+    <Carte id="carte-echeances">
+      <div className="border-b border-bordure px-5 py-3.5">
+        <h2 className="font-serif text-[1.0625rem] font-medium tracking-tight">À venir</h2>
+        <p className="mt-0.5 text-xs text-texte-attenue">
+          Vos échéances déclarées, de la plus proche à la plus lointaine.
+        </p>
       </div>
+      {contenu}
     </Carte>
   );
 }

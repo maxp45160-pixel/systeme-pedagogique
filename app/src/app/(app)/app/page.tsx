@@ -10,8 +10,7 @@ import { CarteProchaineAction } from "@/components/dashboard/prochaine-action";
 import { BlocAujourdHui } from "@/components/dashboard/bloc-aujourd-hui";
 import { PistesAlternatives } from "@/components/dashboard/pistes-alternatives";
 import { AvisPropositions } from "@/components/dashboard/avis-propositions";
-import { MiniActivite } from "@/components/dashboard/mini-activite";
-import { IconeFleche } from "@/components/ui/icones";
+import { IconeCalendrier, IconeDossier, IconeFleche } from "@/components/ui/icones";
 import { BandeauInfo, classesLienBouton } from "@/components/ui/primitives";
 import { AbandonnerExerciceCarte } from "@/components/dashboard/abandonner-exercice-carte";
 import { statutSeance } from "@/lib/domain/seance";
@@ -22,14 +21,7 @@ import {
   type ContexteInstant,
 } from "@/lib/engine/action-unifiee";
 import { DashboardTour } from "@/components/onboarding/dashboard-tour";
-import {
-  BoutonIntentionDashboard,
-  VoiesApprentissageDashboard,
-} from "@/components/intention/bouton-intention";
-import { CarteEcheances } from "@/components/dashboard/carte-echeances";
-import { BoutonEcheance } from "@/components/dashboard/bouton-echeance";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
-import { repartirDomainesParUsage, estModuleActif } from "@/lib/domain/usage-domaine";
 import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 
@@ -86,7 +78,6 @@ async function ContenuTableauDeBord({
   }
 
   const ctx = await chargerContexte();
-  const domainesParUsage = repartirDomainesParUsage(ctx.referentiel.domaines);
 
   const action = await chargerActionProposee(ctx, instant);
   const activite = calculerActivite(
@@ -112,6 +103,8 @@ async function ContenuTableauDeBord({
     return statut === "planifiee" || statut === "en-cours";
   });
   const vueSeancesDuJour = construireSeancesDuJour(seancesOuvertes, cleJour(ctx.now));
+  const aUneSeanceAujourdhui =
+    vueSeancesDuJour.enCours.length > 0 || vueSeancesDuJour.planifiees.length > 0;
 
   const exercicesDesSeancesActives = new Set(
     seancesActives
@@ -141,17 +134,8 @@ async function ContenuTableauDeBord({
   const competencesGeneration = competencesPourModale(ctx.referentiel.actifs);
   const calibragesGeneration = calibragesPourModale(ctx.referentiel.actifs, ctx.calibrations);
 
-  /*
-   * La pastille annonce des EXERCICES, elle doit donc en compter — pas les
-   * observations. `nombreObservations` cumule toutes les observations de
-   * toutes les compétences : trois exercices menés deux fois affichaient « 6 ».
-   * Le compte honnête est le nombre d'exercices réellement tentés, dérivé des
-   * tentatives (P3 : le chiffre affiché dit ce qu'il compte).
-   */
-  const exercicesTravailles = new Set(ctx.donnees.attempts.map((a) => a.exerciseId)).size;
-
   return (
-    <div className="space-y-3.5 sm:space-y-4">
+    <div className="space-y-6 sm:space-y-8">
       {explicationEnregistree && (
         <BandeauInfo ton="succes" className="justify-between gap-3">
           <span>
@@ -171,75 +155,49 @@ async function ContenuTableauDeBord({
         recommandationTitre={premiereRecommandation?.etat.skill.intitule}
       />
 
-      {/* En-tête épuré avec résumé de progression intégré */}
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-bordure/40 pb-2.5">
+      {/* L'en-tête dit seulement où l'on est et si une séance attend aujourd'hui. */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-bordure/50 pb-5 sm:pb-6">
         <div className="min-w-0">
           <div className="font-serif text-xs italic text-texte-discret">{dateJour}</div>
-          <h1 className="font-serif text-xl sm:text-2xl font-medium leading-tight tracking-tight">
+          <h1 className="mt-1 font-serif text-2xl font-medium leading-tight tracking-tight sm:text-3xl">
             Tableau de bord
           </h1>
-          <p className="mt-0.5 text-xs text-texte-attenue">
-            Ce qu&apos;il y a de mieux à faire maintenant, et le reste juste en dessous.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {!aUneSeanceAujourdhui && (
+            <p className="flex items-center gap-2 text-sm text-texte-attenue">
+              <IconeCalendrier className="size-4 text-texte-discret" aria-hidden />
+              Rien de planifié aujourd&apos;hui
+            </p>
+          )}
           <Link
-            href="/progression"
-            className="group flex flex-wrap items-center gap-2.5 rounded-full border border-bordure bg-surface px-3.5 py-1.5 text-xs text-texte-attenue shadow-xs transition-colors hover:border-primaire/40 hover:text-texte"
-            title="Voir le détail de ma progression"
+            href="/atelier"
+            className={`${classesLienBouton("secondaire", "petite")} group`}
           >
-            {aucuneObservation ? (
-              <span className="font-medium text-texte">Premier repère à construire</span>
-            ) : (
-              <>
-                <span>
-                  <strong className="font-medium text-texte">{ctx.referentiel.actifs.length}</strong> compétences
-                </span>
-                <span className="text-bordure-contraste" aria-hidden>·</span>
-              </>
-            )}
-            <span>
-              <strong className="font-medium text-texte">{exercicesTravailles}</strong> exercice{exercicesTravailles > 1 ? "s" : ""}
-            </span>
-            <span className="text-bordure-contraste" aria-hidden>·</span>
-            <span>
-              <strong className="font-medium text-texte">{activite.joursActifs30}</strong>/30 j.
-            </span>
-            <IconeFleche className="size-3 text-texte-discret transition-transform group-hover:translate-x-0.5 group-hover:text-primaire" />
+            <IconeDossier className="size-3.5 text-primaire" aria-hidden />
+            <span>Organiser dans Mes cours</span>
+            <IconeFleche className="size-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       </div>
 
-      <BlocAujourdHui
-        sessions={seancesOuvertes}
-        initialView={vueSeancesDuJour}
-        compteId={ctx.donnees.user.id}
-        domaines={ctx.referentiel.domaines.map(({ id, nom }) => ({ id, nom }))}
-      />
+      {aUneSeanceAujourdhui && (
+        <BlocAujourdHui
+          sessions={seancesOuvertes}
+          initialView={vueSeancesDuJour}
+          compteId={ctx.donnees.user.id}
+          domaines={ctx.referentiel.domaines.map(({ id, nom }) => ({ id, nom }))}
+        />
+      )}
 
-      {/* Entrée unique de déclaration : le cadre se choisit dans le même geste. */}
-      <div className="space-y-1.5">
-        <BoutonIntentionDashboard />
-        <div className="flex justify-end px-1">
-          <BoutonEcheance
-            competences={ctx.referentiel.actifs.map(({ code, intitule }) => ({ code, intitule }))}
-            modules={ctx.referentiel.domaines
-              .filter(estModuleActif)
-              .map(({ id, nom }) => ({ id, nom }))}
-          />
-        </div>
-      </div>
+      <Suspense fallback={null}>
+        <AvisPropositions />
+      </Suspense>
 
-      <VoiesApprentissageDashboard
-        nombreModules={domainesParUsage.modulesActifs.length}
-        nombreProgressions={domainesParUsage.continues.length}
-      />
-
-      {/* Grille principale asymétrique : Flux d'action (gauche) + Repères contextuels (droite) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5 items-start">
-        {/* Colonne gauche : Focus d'action immédiat & Pistes alternatives */}
-        <div className="space-y-3.5 sm:space-y-4 lg:col-span-7 xl:col-span-8 min-w-0">
+      {/* Le premier écran ne contient que le choix immédiat. */}
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12 lg:gap-5">
+        <div className="min-w-0 space-y-4 lg:col-span-8 [&>*:last-child]:h-full">
           {/* Alerte si des exercices sont déjà en cours */}
           {enCours.length > 0 && (
             <BandeauInfo ton="primaire">
@@ -283,7 +241,6 @@ async function ContenuTableauDeBord({
             </BandeauInfo>
           )}
 
-          {/* Recommandation actuelle, distincte des séances acceptées du jour */}
           <div className="[&>*]:min-w-0">
             <CarteProchaineAction
               recommandations={recommandationsFile}
@@ -300,44 +257,12 @@ async function ContenuTableauDeBord({
               calibragesGeneration={calibragesGeneration}
             />
           </div>
-
-          {/* Échéances déclarées (fait daté) — absente tant que rien n'est déclaré */}
-          <CarteEcheances
-            engagements={ctx.donnees.engagements}
-            etatsParCode={ctx.etatsParCode}
-            now={ctx.now}
-          />
-
-          {/* Pistes alternatives suggérées */}
-          <PistesAlternatives
-            recommandations={recommandationsFile}
-            referentiel={ctx.referentiel}
-          />
         </div>
 
-        {/*
-          Colonne droite : ce qui appelle un geste, puis la continuité.
-
-          La synthèse du référentiel (27 compétences, jauge de découverte,
-          domaines actifs) a été retirée le 24/08/2026 : elle redisait, en
-          panneau permanent, ce que l'Atelier montre mieux.
-
-          L'avis de propositions, lui, revient — et coexiste avec la pastille du
-          rail sans faire doublon. La pastille est un signal qui suit partout ;
-          cette carte est une entrée de PILOTAGE, et le tableau de bord est
-          l'endroit où l'on décide de ce qu'on fait maintenant.
-
-          Sous `Suspense` avec un repli VIDE : c'est une lecture de plus, et le
-          tableau de bord ne doit pas l'attendre. Un repli vide plutôt qu'un
-          squelette — un squelette annoncerait un bloc qui, le plus souvent, ne
-          s'affichera pas.
-        */}
-        <div className="space-y-3.5 sm:space-y-4 lg:col-span-5 xl:col-span-4 min-w-0">
-          <Suspense fallback={null}>
-            <AvisPropositions />
-          </Suspense>
-
-          <MiniActivite activite={activite} now={ctx.now} />
+        <div className="min-w-0 lg:col-span-4">
+          <PistesAlternatives
+            recommandations={recommandationsFile}
+          />
         </div>
       </div>
 
