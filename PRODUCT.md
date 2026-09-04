@@ -1,6 +1,13 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.21 — 04/09/2026.** « Mes cours > Domaines » retrouve un geste
+**Version 4.22 — 04/09/2026.** Le graphe de Mes cours regroupe désormais les
+compétences depuis leurs rattachements vivants (`competence_domaines`), jamais
+depuis leur namespace de création. Un module académique reste un contexte : il
+ne dessine plus un halo propriétaire autour des compétences créées depuis sa
+fiche. Les rattachements multiples vers des domaines non modules restent
+représentables sans copier la compétence ni choisir un propriétaire.
+
+**Version précédente : 4.21 — 04/09/2026.** « Mes cours > Domaines » retrouve un geste
 permanent « Ajouter », avec deux choix explicites : module de cours ou domaine
 à long terme. Le choix ouvre une saisie déterministe sans appel au tuteur ;
 l'état vide montre les mêmes deux entrées. Le tableau de bord reste consacré

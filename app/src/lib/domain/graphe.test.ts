@@ -32,6 +32,46 @@ function etatsDuReferentiel(): SkillState[] {
 }
 
 describe("construireGraphe", () => {
+  it("regroupe les compétences par leurs tags vivants sans faire du module leur propriétaire", () => {
+    const logistique = {
+      ...domaineDeTest("logistique", "Logistique", "LOG", 0),
+      usage: { type: "continu" as const },
+    };
+    const moduleCours = {
+      ...domaineDeTest("logistique-industrielle", "Logistique industrielle", "LI", 1),
+      parentId: logistique.id,
+      usage: {
+        type: "module" as const,
+        module: { anneeAcademique: "2026-2027" },
+      },
+    };
+    const competence = skillDeTest("LOG-01", moduleCours.id, "fondamentaux", 1, 0);
+    const sansDestinationDurable = skillDeTest("LOG-02", moduleCours.id, "fondamentaux", 1, 1);
+    const referentiel = referentielDe(
+      [competence, sansDestinationDurable],
+      [logistique, moduleCours],
+      [
+        { code: competence.code, domaine: moduleCours.id },
+        { code: competence.code, domaine: logistique.id },
+        { code: sansDestinationDurable.code, domaine: moduleCours.id },
+      ],
+    );
+
+    const { noeuds } = construireGraphe(
+      referentiel,
+      referentiel.actifs.map((skill) => etat({ skill })),
+      [],
+    );
+    const noeud = noeuds.find(({ id }) => id === `competence:${competence.code}`);
+
+    expect(noeud?.domaineIds).toEqual([logistique.id]);
+    expect(noeud?.etiquettes).toContain(`domaine:${logistique.id}`);
+    expect(noeud?.etiquettes).not.toContain(`domaine:${moduleCours.id}`);
+    expect(
+      noeuds.find(({ id }) => id === `competence:${sansDestinationDurable.code}`)?.domaineIds,
+    ).toEqual([]);
+  });
+
   it("ne produit aucune arête pour une compétence sans prérequis ni exercice", () => {
     const referentiel = referentielDe([
       skillDeTest("DEV-01", "developpement", "fondamentaux", 1, 0),
@@ -223,7 +263,7 @@ describe("domaines mis de côté", () => {
     const noeudExercice = noeuds.find((n) => n.id === "exercice:ex-1");
 
     expect(noeudExercice).toBeDefined();
-    expect(noeudExercice?.domaineId).toBeNull();
+    expect(noeudExercice?.domaineIds).toEqual([]);
     expect(noeudExercice?.etiquettes).not.toContain("domaine:statistiques");
   });
 

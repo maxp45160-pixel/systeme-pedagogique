@@ -112,25 +112,26 @@ export function GrapheCompetences({
   const domainesDisponibles = useMemo(() => {
     const map = new Map<string, { id: string; nom: string; total: number }>();
     for (const n of donnees.noeuds) {
-      if (n.domaineId) {
-        const existant = map.get(n.domaineId) ?? {
-          id: n.domaineId,
-          nom: n.etiquettes.find((e) => e.startsWith("domaine:"))?.slice(8) ?? n.domaineId,
+      for (const domaineId of n.domaineIds) {
+        const existant = map.get(domaineId) ?? {
+          id: domaineId,
+          nom: donnees.nomsDomaines[domaineId] ?? domaineId,
           total: 0,
         };
         if (n.type === "competence") existant.total += 1;
-        map.set(n.domaineId, existant);
+        map.set(domaineId, existant);
       }
     }
     return Array.from(map.values());
-  }, [donnees.noeuds]);
+  }, [donnees.noeuds, donnees.nomsDomaines]);
 
   const noeudsVisibles = useMemo(
     () =>
       donnees.noeuds.filter(
         (n) =>
           reglages.typesNoeudsVisibles[n.type] &&
-          (!n.domaineId || !reglages.domainesMasques?.[n.domaineId]),
+          (n.domaineIds.length === 0 ||
+            n.domaineIds.some((domaineId) => !reglages.domainesMasques?.[domaineId])),
       ),
     [donnees.noeuds, reglages.typesNoeudsVisibles, reglages.domainesMasques],
   );
@@ -205,7 +206,9 @@ export function GrapheCompetences({
   const noeudsAAfficher = noeudsVisibles;
 
   const contexteCouleur: ContexteCouleur = useMemo(() => {
-    const { indexDomaine, totalDomaines } = indexerDomaines(donnees.noeuds.map((n) => n.domaineId));
+    const { indexDomaine, totalDomaines } = indexerDomaines(
+      donnees.noeuds.flatMap((n) => n.domaineIds),
+    );
     const competencesCouvertes = new Set(
       donnees.liens.filter((l) => l.type === "exercice").flatMap((l) => [l.source, l.target]),
     );
@@ -263,8 +266,8 @@ export function GrapheCompetences({
     const survol = survolIdRef.current;
     const noeudSurvole = survol ? noeudsRef.current.find((n) => n.id === survol) : null;
     const domainesMisEnValeur = new Set<string>();
-    if (noeudSurvole?.domaineId) {
-      domainesMisEnValeur.add(noeudSurvole.domaineId);
+    for (const domaineId of noeudSurvole?.domaineIds ?? []) {
+      domainesMisEnValeur.add(domaineId);
     }
 
     // Dessin des halos et titres de domaines en arrière-plan

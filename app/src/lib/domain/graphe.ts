@@ -45,6 +45,7 @@
  */
 
 import type { Exercise, Referentiel, SkillState } from "./types";
+import { usageDuDomaine } from "./usage-domaine";
 import type { IndexDocumentaire } from "@/lib/documents/index";
 import { estDocumentPreuve } from "@/lib/documents/nature-document";
 import {
@@ -64,7 +65,14 @@ export interface NoeudGraphe {
   id: string;
   type: TypeNoeud;
   libelle: string;
-  domaineId: string | null;
+  /**
+   * Domaines déclarés qui organisent visuellement ce nœud.
+   *
+   * Une compétence peut en servir plusieurs (ADR-107). Son namespace de
+   * création n'est jamais une appartenance, et un module reste un contexte,
+   * pas le propriétaire de ses compétences (ADR-138).
+   */
+  domaineIds: string[];
   /** Étiquettes dérivées — domaine, palier, niveau, couverture. Extensible. */
   etiquettes: string[];
   /** Pilote le rayon affiché — un fait compté (observations, codes), jamais une mesure. */
@@ -121,8 +129,8 @@ export function construireGraphe(
    * partout ailleurs. Le nœud reste — il existe —, son rattachement de
    * domaine tombe.
    */
-  const domainesVivants = new Set(
-    referentiel.domaines.filter((d) => !d.archive).map((d) => d.id),
+  const domainesVivants = new Map(
+    referentiel.domaines.filter((d) => !d.archive).map((d) => [d.id, d]),
   );
   const domaineVivant = (id: string | null): string | null =>
     id !== null && domainesVivants.has(id) ? id : null;
@@ -134,14 +142,18 @@ export function construireGraphe(
   for (const e of etats) {
     if (!codesActifs.has(e.skill.code)) continue;
     const id = `competence:${e.skill.code}`;
+    const domaineIds = [...new Set(e.skill.tagsDomaine ?? [])].filter((domaineId) => {
+      const domaine = domainesVivants.get(domaineId);
+      return domaine !== undefined && usageDuDomaine(domaine).type !== "module";
+    });
     idsCompetences.add(id);
     noeuds.push({
       id,
       type: "competence",
       libelle: e.skill.intitule,
-      domaineId: e.skill.domaine,
+      domaineIds,
       etiquettes: [
-        `domaine:${e.skill.domaine}`,
+        ...domaineIds.map((domaineId) => `domaine:${domaineId}`),
         `palier:${e.skill.palier}`,
         e.niveau === null ? "niveau:aucune-observation" : `niveau:${e.niveau}`,
       ],
@@ -186,7 +198,7 @@ export function construireGraphe(
       id: idExercice,
       type: "exercice",
       libelle: ex.titre,
-      domaineId: domaineExercice,
+      domaineIds: domaineExercice ? [domaineExercice] : [],
       etiquettes: [
         ...(domaineExercice ? [`domaine:${domaineExercice}`] : []),
         "type:exercice",
@@ -220,7 +232,7 @@ export function construireGraphe(
         id,
         type: "document",
         libelle: document.titre,
-        domaineId,
+        domaineIds: domaineId ? [domaineId] : [],
         etiquettes: [
           `type:${document.type ?? "document"}`,
           ...(document.typeConnu ? [`categorie:${document.typeConnu}`] : []),
@@ -277,7 +289,7 @@ export function construireGraphe(
     noeuds,
     liens,
     nomsDomaines: Object.fromEntries(
-      [...domainesVivants].map((id) => [id, nomsDomaines.get(id) ?? id]),
+      [...domainesVivants.keys()].map((id) => [id, nomsDomaines.get(id) ?? id]),
     ),
   };
 }

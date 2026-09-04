@@ -429,7 +429,7 @@ export default async function PageAtelier(props: {
     contexte.donnees.exercises,
     index,
   );
-  const couleursDomaines = paletteDomaines(graphe.noeuds.map((noeud) => noeud.domaineId));
+  const couleursDomaines = paletteDomaines(graphe.noeuds.flatMap((noeud) => noeud.domaineIds));
 
   /*
    * La carte des domaines — l'échelon au-dessus du graphe de compétences.

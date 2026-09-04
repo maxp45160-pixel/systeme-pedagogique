@@ -146,8 +146,10 @@ export function couleurNoeud(
       return ctx.competencesCouvertes.has(n.id) ? palette.succes : palette.alerte;
     case "domaine":
     default: {
-      if (!n.domaineId) return palette.texteDiscret;
-      const idx = ctx.indexDomaine.get(n.domaineId) ?? 0;
+      // Une couleur unique prétendrait qu'un des rattachements multiples est
+      // prioritaire. Le gris signale honnêtement le partage entre domaines.
+      if (n.domaineIds.length !== 1) return palette.texteDiscret;
+      const idx = ctx.indexDomaine.get(n.domaineIds[0]) ?? 0;
       return couleurDomaine(idx, ctx.totalDomaines);
     }
   }
@@ -367,10 +369,11 @@ export function dessinerGroupementsDomaines(
 
   const parDomaine = new Map<string, NoeudSimule[]>();
   for (const n of noeuds) {
-    if (n.domaineId && n.x !== undefined && n.y !== undefined) {
-      const liste = parDomaine.get(n.domaineId) ?? [];
+    if (n.x === undefined || n.y === undefined) continue;
+    for (const domaineId of n.domaineIds) {
+      const liste = parDomaine.get(domaineId) ?? [];
       liste.push(n);
-      parDomaine.set(n.domaineId, liste);
+      parDomaine.set(domaineId, liste);
     }
   }
 

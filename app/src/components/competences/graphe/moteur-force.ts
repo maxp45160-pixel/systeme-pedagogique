@@ -84,7 +84,7 @@ export function creerSimulation(
   // Calcul des centres polaires pour chaque domaine afin de créer des regroupements naturels
   const domainesUniques =
     domainesOrdre ??
-    Array.from(new Set(noeuds.map((n) => n.domaineId).filter((d): d is string => Boolean(d))));
+    Array.from(new Set(noeuds.flatMap((n) => n.domaineIds)));
   const totalDomaines = domainesUniques.length;
   const rayonCluster = Math.max(130, Math.min(320, totalDomaines * 45));
 
@@ -101,11 +101,17 @@ export function creerSimulation(
   const centresNoeuds = new Map<string, { x: number; y: number }>();
 
   noeuds.forEach((n) => {
-    if (n.domaineId && centresDomaines.has(n.domaineId)) {
-      centresNoeuds.set(n.id, centresDomaines.get(n.domaineId)!);
-    } else {
+    const centres = n.domaineIds
+      .map((domaineId) => centresDomaines.get(domaineId))
+      .filter((centre): centre is { x: number; y: number } => centre !== undefined);
+    if (centres.length === 0) {
       centresNoeuds.set(n.id, { x: 0, y: 0 });
+      return;
     }
+    centresNoeuds.set(n.id, {
+      x: centres.reduce((somme, centre) => somme + centre.x, 0) / centres.length,
+      y: centres.reduce((somme, centre) => somme + centre.y, 0) / centres.length,
+    });
   });
 
   // Initialisation des nœuds non positionnés autour de leur centre naturel
@@ -136,13 +142,13 @@ export function creerSimulation(
     .force(
       "x",
       forceX<NoeudSimule>((n) => centresNoeuds.get(n.id)?.x ?? 0).strength((n) =>
-        n.domaineId ? forceDomaine : forces.centrage,
+        n.domaineIds.length > 0 ? forceDomaine : forces.centrage,
       ),
     )
     .force(
       "y",
       forceY<NoeudSimule>((n) => centresNoeuds.get(n.id)?.y ?? 0).strength((n) =>
-        n.domaineId ? forceDomaine : forces.centrage,
+        n.domaineIds.length > 0 ? forceDomaine : forces.centrage,
       ),
     )
     .force("center", forceCenter(0, 0).strength(0.015))
