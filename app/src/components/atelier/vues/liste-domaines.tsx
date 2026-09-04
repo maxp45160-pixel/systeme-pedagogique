@@ -23,17 +23,21 @@ import type { VueAClasserAtelier, VueDomaineAtelier } from "@/lib/documents/vue-
 import { usageDuDomaine, repartirDomainesParUsage } from "@/lib/domain/usage-domaine";
 import { useIntention } from "@/components/intention/contexte-intention";
 import type { GrapheDomaines } from "@/lib/domain/graphe-domaines";
-import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
+import { IconeAmpoule, IconeCours } from "@/components/ui/icones";
 import {
   BoutonRestaurationCarte,
   BoutonSuppressionCarte,
   ModaleConfirmationSuppression,
 } from "../modale-confirmation-suppression";
-import { archiverDomaine, restaurerDomaine } from "@/lib/store/referentiel-actions";
+import {
+  archiverDomaine,
+  restaurerDomaine,
+  supprimerDomaineArchive,
+  taguerCompetences,
+} from "@/lib/store/referentiel-actions";
 import { formatDateRelative } from "@/lib/engine/dates";
 import { filtrerEtTrierDomaines, type TriDomaine } from "@/lib/documents/tri-domaines";
-import { CarteCreationPointillee, type VueAtelier } from "../vues-synthese-atelier";
-import { taguerCompetences } from "@/lib/store/referentiel-actions";
+import type { VueAtelier } from "../vues-synthese-atelier";
 
 /**
  * Une carte de domaine.
@@ -176,7 +180,6 @@ export function VueTousLesDomaines({
   grapheDomaines,
   ouvrirElement,
   selection,
-  compteId,
   aClasser = [],
   tri = "recent",
   onArchiver,
@@ -189,7 +192,6 @@ export function VueTousLesDomaines({
   ouvrirElement: (id: string) => void;
   changerVue: (vue: VueAtelier) => void;
   selection?: string | null;
-  compteId?: string;
   /** Les compétences qu'aucun domaine ne montre (ADR-107). */
   aClasser?: VueAClasserAtelier[];
   tri?: TriDomaine;
@@ -411,8 +413,39 @@ export function VueTousLesDomaines({
         )}
 
         {!estArchives && domainesAffiches.length === 0 && (
-          <div className="mb-6 rounded-xl border border-dashed border-bordure bg-surface/40 px-6 py-5 text-center">
-            <RappelNouveauBesoin />
+          <div className="mb-6 rounded-xl border border-dashed border-bordure bg-surface/40 px-6 py-7 text-center">
+            <p className="font-serif text-base font-semibold text-texte">Ajoutez votre premier domaine</p>
+            <p className="mx-auto mt-1 max-w-xl text-xs leading-relaxed text-texte-discret">
+              Choisissez le cadre qui correspond à ce que vous voulez organiser. Vous pourrez le compléter ensuite.
+            </p>
+            <div className="mx-auto mt-5 grid max-w-2xl gap-3 text-left sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => ouvrir({ usageDomaine: "module" })}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-bordure bg-surface p-4 transition-colors hover:border-primaire/40 hover:bg-primaire-faible/40"
+              >
+                <IconeCours className="mt-0.5 size-4 shrink-0 text-primaire" />
+                <span>
+                  <span className="block text-sm font-semibold text-texte">Un module de cours</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
+                    Un enseignement suivi pendant une année ou un semestre.
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => ouvrir({ usageDomaine: "continu" })}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-bordure bg-surface p-4 transition-colors hover:border-primaire/40 hover:bg-primaire-faible/40"
+              >
+                <IconeAmpoule className="mt-0.5 size-4 shrink-0 text-primaire" />
+                <span>
+                  <span className="block text-sm font-semibold text-texte">Un domaine à long terme</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-texte-discret">
+                    Un sujet que vous développez au-delà d’un cours.
+                  </span>
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -501,13 +534,6 @@ export function VueTousLesDomaines({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {domainesParUsage.aPreciser.map(carte)}
-                  {compteId && (
-                    <CarteCreationPointillee
-                      titre="Déclarer un besoin"
-                      description="Choisir un module académique ou une progression continue"
-                      onClick={() => ouvrir()}
-                    />
-                  )}
                 </div>
               </section>
             )}
@@ -717,9 +743,9 @@ export function VueTousLesDomaines({
           texteBoutonConfirmer="Supprimer définitivement"
           onConfirmer={async () => {
             const id = domaineASupprimer.id;
+            const resultat = await supprimerDomaineArchive(id);
+            if (!resultat.ok) throw new Error(resultat.erreur);
             onSupprimer?.(id);
-            setDomaineASupprimer(null);
-            await archiverDomaine(id);
             router.refresh();
           }}
           onFermer={() => setDomaineASupprimer(null)}

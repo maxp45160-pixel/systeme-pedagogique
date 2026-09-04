@@ -23,6 +23,7 @@ import { ApercuFormulesTexte, PaletteFormulesTexte } from "@/components/ui/palet
 import { ModaleReferentiel } from "@/components/referentiel/modale-referentiel";
 import { ParcoursNouveauProjet } from "@/components/projets/modale-nouveau-projet";
 import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
+import { useIntention, type UsageDomaineIntention } from "@/components/intention/contexte-intention";
 
 /**
  * La création de **documents typés** dans Mes cours, et les destinations que
@@ -30,11 +31,11 @@ import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
  *
  * Ce module fait deux choses, et il faut les tenir séparées :
  *
- * 1. **Un menu**, qui ne propose que ce que le `+` du rail ne sait pas faire —
- *    ressource, cours (PDF), formule. Voir `actionsPourVue`.
+ * 1. **Un menu contextuel** : formats documentaires dans Ressources, et les
+ *    deux cadres déclarés de domaine dans Domaines. Voir `actionsPourVue`.
  * 2. **Sept destinations**, montées ci-dessous et atteintes par `?creation=` :
- *    la palette ⌘K du Bureau et l'état vide des domaines y mènent. Elles ne
- *    sont pas dans le menu, elles sont au bout d'un lien.
+ *    la palette ⌘K et les liens profonds continuent d'y mener, indépendamment
+ *    des entrées visibles dans le menu courant.
  *
  * ## Pourquoi le menu s'est réduit (ADR-126, révise ADR-120)
  *
@@ -61,6 +62,13 @@ import type { CompetenceModale } from "@/lib/domain/proprietes-generation";
  * est créée à partir du fichier, le PDF est attaché, et la lecture par le
  * tuteur — qui décompte — est enchaînée. Saisir la fiche reste un travail sur
  * le cours, dans l'espace de travail ; ce n'est plus le geste d'entrée.
+ *
+ * ## Pourquoi Domaines retrouve « Ajouter » (ADR-142)
+ *
+ * Le retour d'usage a réfuté l'hypothèse d'ADR-126 : après le retrait du menu,
+ * il n'existait plus de geste explicite pour construire le référentiel depuis
+ * sa surface canonique. Les deux choix ci-dessous posent directement l'usage
+ * déclaré et ouvrent la saisie manuelle, sans appel au tuteur.
  */
 export type CreationAtelier =
   | "domaine"
@@ -246,11 +254,31 @@ function estCreationAtelier(valeur: string | undefined): valeur is CreationAteli
  * le menu n'y était pas le chemin gratuit qu'ADR-120 lui prêtait. « Explication
  * Feynman » en sort aussi : démarrer une activité n'est pas créer un objet.
  *
- * Hors de la vue « Ressources », le menu n'a donc plus rien à proposer et ne
- * s'affiche pas. Il reste monté : les liens profonds `?creation=` continuent
- * d'ouvrir les sept modales (palette ⌘K, état vide des domaines).
+ * La vue « Domaines » ajoute désormais les deux cadres qu'elle gouverne
+ * (ADR-142). Le graphe reste sans menu. Les destinations profondes
+ * `?creation=` continuent d'ouvrir les modales historiques.
  */
-function actionsPourVue(vue: "domaines" | "ressources" | "graphe"): CreationAtelier[] {
+type ActionMenuAtelier = CreationAtelier | UsageDomaineIntention;
+
+const ACTIONS_DOMAINES: Record<UsageDomaineIntention, {
+  libelle: string;
+  description: string;
+  Icone: typeof IconePlus;
+}> = {
+  module: {
+    libelle: "Un module de cours",
+    description: "Un enseignement suivi pendant une année ou un semestre.",
+    Icone: IconeCours,
+  },
+  continu: {
+    libelle: "Un domaine à long terme",
+    description: "Un sujet que vous développez au-delà d’un cours.",
+    Icone: IconeAmpoule,
+  },
+};
+
+function actionsPourVue(vue: "domaines" | "ressources" | "graphe"): ActionMenuAtelier[] {
+  if (vue === "domaines") return ["module", "continu"];
   return vue === "ressources" ? ["ressource", "cours", "formule"] : [];
 }
 
@@ -269,6 +297,7 @@ export function ActionsCreationAtelier({
   creationInitiale?: string;
   domaineInitial?: string;
 }) {
+  const { ouvrir } = useIntention();
   const racine = useRef<HTMLDivElement>(null);
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [creation, setCreation] = useState<CreationAtelier | null>(
@@ -297,8 +326,12 @@ export function ActionsCreationAtelier({
   }, [menuOuvert]);
 
   const actions = useMemo(() => actionsPourVue(vue), [vue]);
-  const ouvrirCreation = (action: CreationAtelier) => {
+  const ouvrirCreation = (action: ActionMenuAtelier) => {
     setMenuOuvert(false);
+    if (action === "module" || action === "continu") {
+      ouvrir({ usageDomaine: action });
+      return;
+    }
     setCreation(action);
   };
   const fermerCreation = () => {
@@ -322,7 +355,7 @@ export function ActionsCreationAtelier({
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primaire px-3 py-1.5 text-xs font-semibold text-texte-inverse shadow-sm transition-colors hover:bg-primaire-survol focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire/40"
         >
           <IconePlus className="size-3.5" />
-          <span>Créer</span>
+          <span>{vue === "domaines" ? "Ajouter" : "Créer"}</span>
         </button>
 
         {menuOuvert && (
@@ -332,7 +365,10 @@ export function ActionsCreationAtelier({
             className="absolute right-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-xl border border-bordure bg-surface p-1.5 shadow-[var(--ombre-surcouche)]"
           >
             {actions.map((action) => {
-              const Icone = ICONES_CREATION[action];
+              const domaine = action === "module" || action === "continu"
+                ? ACTIONS_DOMAINES[action]
+                : null;
+              const Icone = domaine?.Icone ?? ICONES_CREATION[action as CreationAtelier];
               return (
                 <button
                   key={action}
@@ -342,7 +378,16 @@ export function ActionsCreationAtelier({
                   className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-texte-attenue transition-colors hover:bg-primaire-faible hover:text-primaire"
                 >
                   <Icone className="size-4 shrink-0" />
-                  <span>{LIBELLES_CREATION[action]}</span>
+                  <span>
+                    <span className="block font-medium text-texte">
+                      {domaine?.libelle ?? LIBELLES_CREATION[action as CreationAtelier]}
+                    </span>
+                    {domaine?.description && (
+                      <span className="mt-0.5 block text-[0.6875rem] leading-snug text-texte-discret">
+                        {domaine.description}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}

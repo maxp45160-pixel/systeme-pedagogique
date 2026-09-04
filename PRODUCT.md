@@ -1,6 +1,15 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.20 — 03/09/2026.** La lecture de Progression remplit désormais ses
+**Version 4.21 — 04/09/2026.** « Mes cours > Domaines » retrouve un geste
+permanent « Ajouter », avec deux choix explicites : module de cours ou domaine
+à long terme. Le choix ouvre une saisie déterministe sans appel au tuteur ;
+l'état vide montre les mêmes deux entrées. Le tableau de bord reste consacré
+au choix immédiat. La suppression définitive d'un domaine archivé appelle
+désormais une commande distincte de l'archivage : elle n'est admise qu'en
+l'absence d'historique ou de dépendance, conserve le registre des codes et
+journalise le retrait (ADR-142).
+
+**Version précédente : 4.20 — 03/09/2026.** La lecture de Progression remplit désormais ses
 deux colonnes indépendamment : le bilan récent suit la trajectoire à droite au
 lieu d'attendre la fin de l'inventaire à gauche. « À venir » quitte Mes cours
 et rejoint le flux de la page du jour dans Séances, après le travail immédiat.
@@ -779,10 +788,13 @@ dans un domaine continu garde une identité, un historique et un état uniques ;
 la clôture d'un module conserve tout l'historique ; les vues de module se
 dérivent, la recommandation de module réutilise le moteur avec un périmètre
 explicite. Quatre colonnes additives sur `domaines`, une commande gouvernée
-séparée, aucune table nouvelle. L'entrée « Déclarer un besoin » est unique au
+séparée, aucune table nouvelle. L'entrée « Déclarer un besoin » reste unique au
 tableau de bord : son cadre ouvre le même parcours pour un module ou une
-progression continue. « Mes cours » regroupe ensuite les domaines selon cet
-usage déclaré, sans recopier compétences, échéances, séances ou scores.
+progression continue. Sur la surface canonique « Mes cours > Domaines »,
+« Ajouter » expose directement ces deux cadres et ouvre leur saisie manuelle,
+sans détour par le besoin ni appel au tuteur. « Mes cours » regroupe ensuite
+les domaines selon cet usage déclaré, sans recopier compétences, échéances,
+séances ou scores.
 Une fiche de domaine permet aussi de préciser ou corriger ce cadre après
 création ; les domaines historiques restent « à préciser » tant que personne
 ne pose ce geste.
@@ -791,6 +803,14 @@ Le module académique peut être créé vide : l'année et la période déclaren
 cadre, puis le cockpit de « Mes cours » permet de déposer le premier cours ou
 d'ajouter la première compétence. Cette exception ne s'étend pas aux domaines
 continus ; elle ne crée ni compétence sentinelle, ni score, ni contenu implicite.
+
+Un domaine mis de côté peut être supprimé définitivement par un geste séparé.
+La base refuse ce retrait dès qu'un sous-domaine, une compétence active, un
+rattachement extérieur, une observation, une relation, un document, un
+exercice, une séance, une échéance ou une trace de relecture le désigne. Quand
+le retrait est recevable, seules le domaine et ses compétences sans historique
+disparaissent ; `referentiel_codes_emis` et `referentiel_changes` restent
+append-only.
 
 Dans « À classer », Mes cours peut proposer le domaine qui a créé une
 compétence comme point de départ stable. Cette proposition reste une lecture

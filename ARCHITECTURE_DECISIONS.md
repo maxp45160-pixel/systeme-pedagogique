@@ -133,6 +133,8 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [138](#adr-138) | L'usage d'un domaine est déclaré : module académique, progression continue, ou à préciser | ✅ Acceptée (26/08) — remplace [ADR-137](#adr-137) ; tranche 1 construite le même jour |
 | [139](#adr-139) | Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail | ❓ Direction validée le 27/08, planificateur/acceptation/revue locale préparés ; migration lot 5 en attente — aucune montée en ✅ |
 | [140](#adr-140) | Une correction générée doit rester étayée par son énoncé | 🔬 Construite (30/08/2026), à réfuter en usage |
+| [141](#adr-141) | Une référence contestable suspend la mesure sans réécrire l'Observation | 🔬 Construite (01/09/2026), à réfuter en usage |
+| [142](#adr-142) | Mes cours crée directement ses domaines ; la suppression définitive reste sûre | ✅ Acceptée et construite (04/09/2026) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -10157,9 +10159,11 @@ construction, toujours dit ailleurs dans la même requête.
 
 ---
 
-## ADR-126 — Le menu de Mes cours ne garde que ce que le « + » ne sait pas faire 🔬
+## ADR-126 — Le menu de Mes cours ne garde que ce que le « + » ne sait pas faire 🔄
 
-**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Révise
+**Statut :** 🔄 révisée par [ADR-142](#adr-142) le 04/09/2026 : le retour
+d'usage a réfuté l'absence de création contextuelle dans Domaines. La règle
+reste active pour les formats documentaires de Ressources. **Révise
 [ADR-120](#adr-120)**, écrit le même jour et fondé sur une vérification
 incomplète. N'en fait monter aucune. **Révisé le 24/08/2026 par
 [ADR-129](#adr-129)** : l'entrée « cours » du menu n'est plus une saisie sans
@@ -11116,6 +11120,9 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
 - le tableau de bord conserve une seule entrée (« Déclarer un besoin ») : le
   sélecteur de cadre ouvre le même parcours de création pour un module ou une
   progression continue, sans deuxième bouton ni deuxième modèle ;
+- « Mes cours > Domaines » expose « Ajouter » avec ces deux cadres déclarés et
+  ouvre directement leur saisie manuelle, sans appel au tuteur ; l'état vide
+  rend les mêmes deux choix visibles (révision ADR-142) ;
 - « Mes cours » lit ce même référentiel par usage déclaré : modules actifs
   regroupés par année/période, modules clôturés, progression continue et
   domaines à préciser. Le regroupement est une vue, aucune copie n'est écrite ;
@@ -11654,6 +11661,73 @@ preuve que la réponse de l'apprenant est juste. Le mécanisme doit être réfut
 si une rectification efface le fait brut, si un calcul continue d'utiliser une
 Observation invalidée, si une restauration ne la rétablit pas, ou si le chat
 reçoit la correction de référence par ce nouveau chemin.
+
+---
+
+<a name="adr-142"></a>
+## ADR-142 — Mes cours crée directement ses domaines ; la suppression définitive reste sûre ✅
+
+**Date.** 04/09/2026. **Statut :** ✅ acceptée explicitement par Maxime, puis
+construite le même jour. Révise [ADR-126](#adr-126) et complète
+[ADR-138](#adr-138), sans changer le principe « module = domaine ».
+
+### Le problème constaté
+
+La simplification du tableau de bord a bien réduit la charge du premier écran,
+mais elle a retiré en même temps toute entrée évidente pour saisir un module ou
+un domaine depuis leur lieu naturel. Le test de réfutation d'ADR-126 est donc
+atteint : la création du référentiel est devenue matériellement coûteuse, non
+par le nombre d'appels au tuteur, mais parce que le geste n'était plus visible.
+
+Un second défaut révélait la même confusion entre geste affiché et contrat
+réel : dans les domaines archivés, « Supprimer définitivement » rappelait
+`archiverDomaine`. Le retrait optimiste masquait la carte, puis le rechargement
+relisait la ligne toujours présente en base.
+
+### Décisions
+
+1. Le tableau de bord reste consacré au choix immédiat. Aucune nouvelle entrée
+   de création n'y est ajoutée.
+2. « Mes cours > Domaines » est la surface canonique d'organisation. Son bouton
+   permanent « Ajouter » propose « Un module de cours » et « Un domaine à long
+   terme ». L'état vide expose les mêmes deux choix.
+3. Ces deux entrées transmettent directement l'usage `module` ou `continu` à
+   `ModaleCompetence` et commencent en saisie manuelle. Elles n'appellent pas le
+   tuteur ; l'assistance reste un choix ultérieur de la personne.
+4. La section « À préciser » ne porte plus une carte de création déguisée en
+   « Déclarer un besoin ». Elle ne contient que les domaines existants dont le
+   cadre reste réellement à déclarer.
+5. Supprimer n'est pas archiver. La commande dédiée
+   `supprimer_domaine_archive` exige le domaine déjà archivé, sa version relue,
+   l'identité du compte et un `request_id` idempotent. Elle est
+   `SECURITY INVOKER`, passe par les politiques RLS et journalise le résultat.
+6. La suppression est refusée dès qu'elle ferait perdre un fait ou modifierait
+   indirectement un autre objet : sous-domaine, compétence active, tag externe,
+   observation, relation, exercice, séance, échéance, document, lien, relecture
+   ou trace du moteur. Quand aucun blocage n'existe, les compétences de
+   namespace sont retirées avec le domaine. Le registre
+   `referentiel_codes_emis` et le journal `referentiel_changes` restent
+   append-only.
+
+La migration locale
+`20260904084047_supprimer_domaine_archive.sql` a été appliquée au projet
+Supabase réel le 04/09/2026 sous la version distante
+`20260904084917_supprimer_domaine_archive`. Un essai transactionnel annulé a
+vérifié le retrait domaine + compétences, la conservation du registre et du
+journal, puis le refus d'un domaine encore désigné par un document.
+
+### Limites et vérification
+
+Ce geste n'est pas un nettoyage en cascade. Un domaine bloqué reste mis de côté
+jusqu'à ce que ses objets liés soient traités par leurs propres parcours. Les
+tests de composition protègent les deux entrées contextuelles et l'absence de
+bouton ajouté au tableau de bord ; les tests d'action protègent la version et
+l'archivage préalable ; le contrat SQL protège les dépendances, l'idempotence
+et les deux journaux de gouvernance.
+
+La décision est violée si une suppression recevable réapparaît après
+rechargement, si un domaine actif peut être supprimé, si une donnée liée est
+effacée par cascade, ou si le chemin direct consomme un appel au tuteur.
 
 ---
 

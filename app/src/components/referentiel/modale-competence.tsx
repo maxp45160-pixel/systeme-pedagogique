@@ -115,7 +115,7 @@ export function ModaleCompetence({
     if (brancheInitiale && brancheInitiale.competences.length > 0) {
       return "ia";
     }
-    return usageInitial === "module" ? "manuel" : "ia";
+    return usageInitial && !suggestionAutomatique ? "manuel" : "ia";
   });
 
   const [intention, setIntention] = useState(

@@ -1501,7 +1501,6 @@ export function EspaceDocumentaire({
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
               selection={statutFiltre === "archives" || selection === "domaines-archives" ? "domaines-archives" : "domaines"}
-              compteId={graphe.compteId}
               aClasser={aClasser}
               tri={triDomaines}
               onArchiver={onArchiverDomaine}
@@ -1907,7 +1906,6 @@ export function EspaceDocumentaire({
               ouvrirElement={ouvrirElement}
               changerVue={changerVue}
               selection="domaines"
-              compteId={graphe.compteId}
               aClasser={aClasser}
             />
           )}

@@ -747,6 +747,53 @@ export async function archiverDomaine(domaineId: string): Promise<ResultatComman
   return resultat;
 }
 
+/**
+ * Supprime un domaine déjà mis de côté, uniquement si la base confirme qu'il
+ * ne porte plus aucune donnée pédagogique ni relation extérieure (ADR-142).
+ * Le contrôle vit dans la commande SQL atomique : l'interface ne peut pas
+ * décider seule qu'un domaine est sans historique.
+ */
+export async function supprimerDomaineArchive(
+  domaineId: string,
+): Promise<
+  | { ok: true; resultat: ResultatCommandeReferentiel }
+  | { ok: false; erreur: string }
+> {
+  const dorsale = await dorsaleCompte();
+  const referentiel = await lireReferentiel(dorsale);
+  const domaine = referentiel.domainesParId.get(domaineId);
+  if (!domaine) return { ok: false, erreur: "Ce domaine n’existe plus dans votre référentiel." };
+  if (!domaine.archive) {
+    return { ok: false, erreur: "Mettez d’abord ce domaine de côté avant de le supprimer." };
+  }
+
+  const { data, error } = await dorsale.supabase.rpc("supprimer_domaine_archive", {
+    p_request_id: nouvelIdCommande(),
+    p_expected_version: domaine.version,
+    p_domaine_id: domaineId,
+  });
+  if (error) {
+    if (error.code === "40001") {
+      return {
+        ok: false,
+        erreur: "Le domaine a changé entre-temps. Rechargez la page avant de réessayer.",
+      };
+    }
+    if (
+      error.message.startsWith("Ce domaine ne peut pas être supprimé :")
+      || error.message.startsWith("Mettez d'abord ce domaine de côté")
+    ) {
+      return { ok: false, erreur: error.message };
+    }
+    return {
+      ok: false,
+      erreur: "La suppression n’a pas abouti. Le domaine et son historique sont restés intacts.",
+    };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, resultat: data as ResultatCommandeReferentiel };
+}
+
 export async function restaurerDomaine(domaineId: string): Promise<void> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
