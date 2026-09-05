@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { OutilSeance } from "@/components/seances/outil-seance";
 import { Calculatrice } from "@/components/seances/calculatrice";
 import { IconeCalculatrice } from "@/components/ui/icones";
+import { cleParCompte } from "@/lib/ui/stockage-session";
 import {
   calculatriceActive,
   sAbonnerPreferencesOutils,
@@ -19,7 +20,7 @@ import {
  * flash puis une disparition serait plus bruyant qu'une apparition différée
  * d'un rendu.
  */
-export function CalculatriceSeance({ compteId }: { compteId: string }) {
+export function CalculatriceSeance({ compteId, seanceId }: { compteId: string; seanceId: string }) {
   const activee = useSyncExternalStore(
     sAbonnerPreferencesOutils,
     () => calculatriceActive(compteId),
@@ -27,6 +28,7 @@ export function CalculatriceSeance({ compteId }: { compteId: string }) {
   );
 
   if (!activee) return null;
+  const cleBrouillon = cleParCompte(`calculatrice:${seanceId}`, compteId);
 
   return (
     <OutilSeance
@@ -42,7 +44,7 @@ export function CalculatriceSeance({ compteId }: { compteId: string }) {
       */
       contenuClassName="sm:left-1/2 sm:-translate-x-1/2 sm:w-[min(24rem,calc(100vw-2rem))] fixed left-4 right-4 top-28 z-[var(--superposition-menu)] mt-2 rounded-xl border border-bordure bg-surface p-3 shadow-[var(--ombre-surcouche)] sm:absolute sm:top-auto"
     >
-      <Calculatrice />
+      <Calculatrice key={cleBrouillon} cleBrouillon={cleBrouillon} />
     </OutilSeance>
   );
 }

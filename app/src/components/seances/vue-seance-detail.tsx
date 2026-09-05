@@ -487,7 +487,7 @@ export async function VueSeanceDetail({
                   montre ou se cache depuis les réglages du compte (Apparence &
                   Compte), et la préférence reste sur l'appareil.
                 */}
-                <CalculatriceSeance compteId={ctx.donnees.user.id} />
+                <CalculatriceSeance compteId={ctx.donnees.user.id} seanceId={seance.id} />
                 {/*
                   La marge suit le travail. C'est pendant un exercice qu'on se
                   dit « il faudra revoir ça » — et jusqu'ici le workspace

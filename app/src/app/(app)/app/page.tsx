@@ -153,6 +153,7 @@ async function ContenuTableauDeBord({
         joursSansActivite={joursSansActivite}
         nombreCompetencesActives={ctx.referentiel.actifs.length}
         recommandationTitre={premiereRecommandation?.etat.skill.intitule}
+        recommandationCode={premiereRecommandation?.etat.skill.code}
       />
 
       {/* L'en-tête dit seulement où l'on est et si une séance attend aujourd'hui. */}

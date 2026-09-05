@@ -4,12 +4,14 @@ import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { cx, classesLienBouton } from "@/components/ui/primitives";
 import { IconeFeuille, IconeFermer, IconeFleche, IconeMinuteur } from "@/components/ui/icones";
+import { urlComposerAutonome } from "@/lib/domain/navigation-exercice";
 
 interface Props {
   userId: string;
   joursSansActivite: number;
   nombreCompetencesActives: number;
   recommandationTitre?: string;
+  recommandationCode?: string;
 }
 
 const sansAbonnement = () => () => {};
@@ -19,6 +21,7 @@ export function BandeauRepriseBienveillante({
   joursSansActivite,
   nombreCompetencesActives,
   recommandationTitre,
+  recommandationCode,
 }: Props) {
   const estHydrate = useSyncExternalStore(sansAbonnement, () => true, () => false);
   const [estFerme, setEstFerme] = useState(false);
@@ -66,7 +69,7 @@ export function BandeauRepriseBienveillante({
 
             <div className="mt-3.5 flex flex-wrap items-center gap-3">
               <Link
-                href="/app?temps=15&capacite=moderee"
+                href={urlComposerAutonome(recommandationCode, 15)}
                 className={cx(classesLienBouton("principal"), "!py-1 !px-3 !text-xs")}
               >
                 <IconeMinuteur className="size-3.5" />

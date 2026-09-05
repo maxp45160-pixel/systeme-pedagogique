@@ -7,6 +7,12 @@ ne dessine plus un halo propriétaire autour des compétences créées depuis sa
 fiche. Les rattachements multiples vers des domaines non modules restent
 représentables sans copier la compétence ni choisir un propriétaire.
 
+Correction du 05/09/2026 : « Séance douce de 15 minutes », dans l'accueil
+après interruption, ouvre le compositeur de Séances avec une durée cible de
+15 minutes et la compétence suggérée si elle est disponible. L'ancien lien
+ne faisait que recalculer le tableau de bord. La séance reste à confirmer
+dans le compositeur.
+
 **Version précédente : 4.21 — 04/09/2026.** « Mes cours > Domaines » retrouve un geste
 permanent « Ajouter », avec deux choix explicites : module de cours ou domaine
 à long terme. Le choix ouvre une saisie déterministe sans appel au tuteur ;
@@ -1003,7 +1009,15 @@ l'assiste. Deux portes, et seulement deux :
    formules : on la rencontre en rédigeant sa réponse à un exercice.*
 2. **Éteint par défaut** — l'outil n'est sur aucun chemin, mais un compte qui
    ne l'allume jamais ne peut pas constater son existence en travaillant. Il
-   entre, et il reste éteint. *La calculatrice de séance.*
+   entre, et il reste éteint.
+
+La calculatrice de séance conserve sa formule en cours dans l'onglet, isolée
+par compte et par séance : fermeture du panneau, navigation et rechargement
+ne la vident plus. Échap ferme ; C efface explicitement. Ce brouillon ne
+constitue ni une sauvegarde distante ni une preuve et disparaît à la fermeture
+de l'onglet. Écart d'implémentation constaté le 05/09/2026 : la préférence de
+calculatrice est actuellement activée par défaut, contrairement à la règle
+d'ADR-122 ; ce correctif ne valide ni ne modifie ce choix.
 
 Tout le reste relève du refus ci-dessus. Un outil intéressant, visible par
 défaut, hors du chemin d'une preuve, est la définition de la dérive de
@@ -1137,8 +1151,9 @@ retrait. `profiles.disponibilites_declarees` reste la seule donnée de créneaux
 🔬 Les formules sont lisibles à la consultation comme à la saisie : KaTeX est
 composé par une primitive commune, le texte Unicode reste le repli accessible,
 et les champs pédagogiques qui proposent la palette affichent un rendu
-immédiat avec le même chemin que la lecture. Dans le chat, la formule est
-composée directement dans la zone d’édition ; sa source reste conservée pour
+immédiat avec le même chemin que la lecture. Dans le chat et la réponse à un
+exercice, la formule est composée directement dans la zone d’édition, sans
+aperçu séparé ; sa source reste conservée pour
 un geste explicite d’édition, sans devenir une mesure ni une donnée dérivée.
 
 ❓ Le modèle `Exercise` ne porte pas encore de figure structurée. Le contrat

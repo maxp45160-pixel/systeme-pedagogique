@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ecrireSession, lireSession } from "@/lib/ui/stockage-session";
 
 /**
  * Calculatrice scientifique — un outil de séance, sans dépendance.
@@ -170,10 +171,19 @@ function formater(valeur: number): string {
 /** Une ligne du ruban d'historique : ce qui a été demandé, ce qui est sorti. */
 type LigneHistorique = { expression: string; resultat: string };
 
-export function Calculatrice() {
-  const [expression, setExpression] = useState("");
+export function Calculatrice({ cleBrouillon }: { cleBrouillon: string }) {
+  const [expression, setExpression] = useState(() => {
+    const brouillon = lireSession<unknown>(cleBrouillon);
+    return typeof brouillon === "string" ? brouillon : "";
+  });
   const [historique, setHistorique] = useState<LigneHistorique[]>([]);
   const champ = useRef<HTMLInputElement>(null);
+
+  // Le panneau est démonté à sa fermeture : le brouillon suit la séance,
+  // même après navigation ou rechargement, pendant la durée de cet onglet.
+  useEffect(() => {
+    ecrireSession(cleBrouillon, expression);
+  }, [cleBrouillon, expression]);
 
   const apercu = useMemo(() => {
     if (!expression.trim()) return null;
@@ -277,12 +287,7 @@ export function Calculatrice() {
       egale();
       return;
     }
-    if (event.key === "Escape" && expression) {
-      /* Échap vide le champ tant qu'il y a quelque chose ; sur un champ déjà
-         vide, on laisse l'événement remonter fermer le panneau de l'outil. */
-      event.stopPropagation();
-      toutEffacer();
-    }
+    // Échap remonte jusqu'au panneau : fermer ne doit pas effacer la saisie.
   }
 
   return (
@@ -367,7 +372,7 @@ export function Calculatrice() {
       </div>
 
       <p className="mt-2 text-center text-[0.625rem] leading-relaxed text-texte-discret">
-        Pavé numérique actif. Entrée calcule, Retour arrière efface, Échap vide.
+        Pavé numérique actif. Entrée calcule, Retour arrière efface, Échap ferme.
       </p>
     </div>
   );

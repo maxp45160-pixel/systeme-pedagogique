@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { enregistrerReponse } from "@/lib/store/actions";
 import { useEstHydrate } from "@/lib/ui/hydratation";
-import { PaletteFormulesTexte, ApercuFormulesTexte } from "@/components/ui/palette-formules";
+import { PaletteFormules } from "@/components/ui/palette-formules";
+import { EditeurDirect } from "@/components/atelier/editeur-document";
+import { insererFormuleDansEditeur } from "@/lib/documents/insertion-formule-editeur";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
 
 /**
@@ -118,11 +120,10 @@ function ZoneHydrate({
   const texteRef = useRef(texte);
   const enregistreRef = useRef(valeur);
   const envoiEnVol = useRef(false);
-  const champRef = useRef<HTMLTextAreaElement | null>(null);
+  const champRef = useRef<HTMLDivElement | null>(null);
 
-  // Synchronisées après le rendu, jamais pendant : un rendu qui écrit dans une
-  // ref est un rendu impur. L'effet passe avant tout événement utilisateur
-  // suivant, donc les gestionnaires lisent toujours la frappe du dernier rendu.
+  // Alignées après le rendu, jamais pendant. La saisie met aussi texteRef
+  // à jour immédiatement pour l'enregistrement forcé dans le même événement.
   useEffect(() => {
     texteRef.current = texte;
     enregistreRef.current = enregistre;
@@ -250,7 +251,7 @@ function ZoneHydrate({
     else if (urlCorrection) router.push(urlCorrection);
   }
 
-  function gererToucheClavier(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function gererToucheClavier(e: React.KeyboardEvent<HTMLDivElement>) {
     if (!(e.ctrlKey || e.metaKey) || e.key !== "Enter") return;
     if (!urlCorrection && !onDemanderCorrection) return;
     e.preventDefault();
@@ -261,6 +262,9 @@ function ZoneHydrate({
      sigma sans connaître LaTeX. La palette écrit dans le même état que la
      frappe, donc l'enregistrement différé la voit comme le reste. */
   function ecrireReponse(suivant: string) {
+    // Le blur de l'éditeur synchronise puis force l'écriture dans le même
+    // événement : le filet doit déjà connaître la toute dernière saisie.
+    texteRef.current = suivant;
     setTexte(suivant);
     if (!envoiEnVol.current) setEtat(suivant === enregistre ? "enregistre" : "modifie");
   }
@@ -268,25 +272,25 @@ function ZoneHydrate({
   return (
     <div>
       <div className="mb-1.5 flex justify-end">
-        <PaletteFormulesTexte champ={champRef} valeur={texte} onChange={ecrireReponse} />
+        <PaletteFormules
+          onInserer={(latex, recul) => insererFormuleDansEditeur(champRef.current, latex, recul)}
+        />
       </div>
-      <textarea
-        ref={champRef}
-        value={texte}
-        onChange={(e) => ecrireReponse(e.target.value)}
-        onKeyDown={gererToucheClavier}
-        onBlur={forcer}
-        rows={10}
-        placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
-        className="h-[40dvh] min-h-[15.5rem] w-full scroll-mb-[45dvh] resize-y overscroll-contain rounded-md border border-bordure-controle bg-surface px-3 py-3 font-mono text-base leading-relaxed placeholder:text-texte-discret sm:text-sm lg:h-[min(32rem,calc(100dvh-16rem))]"
-      />
-      {/*
-        Aperçu immédiat (25/08/2026) : la réponse porte des formules, la source
-        ne doit pas se lire à l'aveugle. Il ne s'affiche que si le texte en
-        contient une, et rend exactement ce que le bilan relira.
-      */}
-      <div className="mt-2">
-        <ApercuFormulesTexte valeur={texte} />
+      <div onBlur={forcer}>
+        <EditeurDirect
+          ref={champRef}
+          documentId={attemptId}
+          contenuInitialMd={texte}
+          contenuCharge
+          lectureSeule={false}
+          onSynchroniser={ecrireReponse}
+          onRaccourci={gererToucheClavier}
+          ariaLabel="Votre réponse"
+          hauteurPleine={false}
+          recomposerFormulesSurSaisie
+          placeholder="Hypothèses, méthode, calculs, résultat, interprétation, limites…"
+          className="h-[40dvh] min-h-[15.5rem] w-full scroll-mb-[45dvh] resize-y overflow-y-auto overscroll-contain rounded-md border border-bordure-controle bg-surface px-3 py-3 text-base leading-relaxed focus-visible:ring-2 focus-visible:ring-primaire sm:text-sm lg:h-[min(32rem,calc(100dvh-16rem))]"
+        />
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[0.625rem] text-texte-discret">
         <div className="flex flex-wrap items-center gap-2">

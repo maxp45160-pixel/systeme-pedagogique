@@ -1,6 +1,50 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { evaluer } from "./calculatrice";
+import { Calculatrice, evaluer } from "./calculatrice";
+import { cleParCompte, ecrireSession } from "@/lib/ui/stockage-session";
+
+describe("restauration de la saisie de calculatrice", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stockage() {
+    const valeurs = new Map<string, string>();
+    vi.stubGlobal("window", {
+      sessionStorage: {
+        getItem: (cle: string) => valeurs.get(cle) ?? null,
+        setItem: (cle: string, valeur: string) => valeurs.set(cle, valeur),
+      },
+    });
+  }
+
+  function ouvrir(compte: string, seance: string) {
+    return renderToStaticMarkup(createElement(Calculatrice, {
+      cleBrouillon: cleParCompte(`calculatrice:${seance}`, compte),
+    }));
+  }
+
+  it("retrouve une formule incomplète à chaque nouvelle ouverture", () => {
+    stockage();
+    ecrireSession(cleParCompte("calculatrice:s1", "c1"), "√(2*120/");
+    expect(ouvrir("c1", "s1")).toContain('value="√(2*120/"');
+    expect(ouvrir("c1", "s1")).toContain('value="√(2*120/"');
+  });
+
+  it("ne reprend pas la formule d'un autre compte ou d'une autre séance", () => {
+    stockage();
+    ecrireSession(cleParCompte("calculatrice:s1", "c1"), "42+7");
+    expect(ouvrir("c2", "s1")).toContain('value=""');
+    expect(ouvrir("c1", "s2")).toContain('value=""');
+    expect(ouvrir("c1", "s1")).toContain('value="42+7"');
+  });
+
+  it("ignore une valeur de stockage qui n'est pas du texte", () => {
+    stockage();
+    ecrireSession(cleParCompte("calculatrice:s1", "c1"), { expression: 42 });
+    expect(ouvrir("c1", "s1")).toContain('value=""');
+  });
+});
 
 /**
  * Ce que fige ce fichier : la liste blanche de la calculatrice, seule barrière

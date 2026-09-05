@@ -9200,6 +9200,12 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
   n'est conservée dans l'interface que pendant un geste explicite d'édition
   d'une formule.
 
+  Le 05/09/2026, à la demande de la personne, la zone de réponse d'exercice
+  réutilise aussi cet éditeur et retire son aperçu séparé. La palette insère
+  les formules sur place ; la sauvegarde automatique, le filet par compte et
+  tentative, et le raccourci de correction gardent le même chemin. Le départ
+  du champ synchronise la source avant de forcer son enregistrement.
+
 - **L'emphase Markdown ne s'applique plus à l'intérieur du LaTeX.**
   `*` est un opérateur en mathématiques et un délimiteur d'italique en
   Markdown ; `_` est un indice et une emphase. `formaterEnLigneVersHtml`
@@ -9765,12 +9771,21 @@ familiarité de la personne avec LaTeX, ce qui n'est pas ce qu'on mesure. Elle
 sert aussi la saisie du tuteur et l'éditeur documentaire, mais c'est le premier
 usage qui la justifie.
 
-**La calculatrice ne l'est pas — et elle est éteinte.** Elle vit dans la barre
-d'outils d'une séance, derrière une préférence **désactivée par défaut**. Qui
-ne l'allume pas ne la voit jamais, et rien n'en dépend. `vue-seance-detail.tsx`
+**La calculatrice n'est pas sur le chemin d'une preuve.** Elle vit dans la barre
+d'outils d'une séance, derrière une préférence. Écart constaté le 05/09/2026 :
+`preferences-outils.ts` l'active actuellement par défaut, contrairement à la
+décision ci-dessous ; ce constat ne valide pas l'écart. `vue-seance-detail.tsx`
 porte déjà la phrase qui la borne : « la calculatrice est un support, pas une
 évidence ». Son évaluation passe par une liste blanche stricte, verrouillée par
 un test.
+
+Correction du 05/09/2026 : fermer le panneau détruisait son état React et
+perdait la formule en cours. La saisie est désormais un brouillon
+`sessionStorage`, isolé par compte et `LearningSession`, restauré à l'ouverture
+et après navigation ou rechargement dans le même onglet. Échap ferme sans
+effacer ; C reste le geste d'effacement. Seul le contenu du champ est conservé ;
+l'aperçu du résultat se recalcule. Aucune observation ni persistance Supabase n'est
+ajoutée ; fermer l'onglet met fin à la conservation du brouillon.
 
 ### La décision
 
@@ -10921,7 +10936,9 @@ fortement la friction du geste qui produit une observation.
    reste le filet. La détection (`contientFormuleLatex`) réutilise
    `segmenterFormulesEnLigne`, une seule implémentation. L'éditeur WYSIWYG
    (`EditeurDirect`) n'est pas remplacé : il reste la surface riche là où elle
-   existe déjà.
+   existe déjà. Depuis le 05/09/2026, la réponse d'exercice rejoint cet éditeur
+   et retire son aperçu séparé, comme le champ du chat (ADR-115). Les autres
+   zones de texte brut conservent leur aperçu.
 
 ### Test de réfutation
 
