@@ -9,7 +9,6 @@ import type { PieceJointeDocument } from "@/lib/documents/types-documents";
 import {
   BUCKET_PIECES_JOINTES,
   MAX_PIECE_OCTETS,
-  MIME_PDF,
   estMimePieceJointe,
   extensionPourMime,
   mimeDepuisNomFichier,
@@ -57,10 +56,11 @@ function cheminAttendu(userId: string, documentId: string, chemin: string): bool
 }
 
 function pieceDepuisLigne(ligne: LignePieceJointe, url?: string): PieceJointeDocument {
+  if (!estMimePieceJointe(ligne.mime_type)) throw new Error("Type de pièce jointe stocké invalide.");
   return {
     id: ligne.id,
     nom: ligne.file_name,
-    mimeType: estMimePieceJointe(ligne.mime_type) ? ligne.mime_type : MIME_PDF,
+    mimeType: ligne.mime_type,
     tailleOctets: ligne.size_bytes,
     creeLe: ligne.created_at,
     ...(url ? { url } : {}),
@@ -149,7 +149,6 @@ export async function enregistrerPieceJointe(
   const tailleStockee = typeof metadata.size === "number" ? metadata.size : tailleOctets;
   const typeStocke = typeof metadata.mimetype === "string" ? metadata.mimetype : mimeType;
   if (typeStocke !== mimeType || tailleStockee <= 0 || tailleStockee > MAX_PIECE_OCTETS) {
-    await dorsale.supabase.storage.from(BUCKET_PIECES_JOINTES).remove([chemin]);
     throw new Error("Le fichier téléversé ne correspond pas au type déclaré.");
   }
 
@@ -166,7 +165,14 @@ export async function enregistrerPieceJointe(
     .select("id, document_id, storage_path, file_name, mime_type, size_bytes, created_at")
     .single();
   if (error) {
-    await dorsale.supabase.storage.from(BUCKET_PIECES_JOINTES).remove([chemin]);
+    // Un accusé de réception perdu ne doit ni doubler la pièce, ni supprimer
+    // l'original d'une insertion déjà réussie. La reprise conserve le chemin.
+    const { data: existante } = await dorsale.supabase.from(TABLE_PIECES_JOINTES)
+      .select("id, document_id, storage_path, file_name, mime_type, size_bytes, created_at")
+      .eq("user_id", dorsale.userId).eq("document_id", identifiant).eq("storage_path", chemin).maybeSingle();
+    if (existante && existante.file_name === nomNormalise && existante.mime_type === mimeType && Number(existante.size_bytes) === tailleStockee) {
+      return pieceDepuisLigne(existante as LignePieceJointe);
+    }
   }
   verifier("enregistrement de la pièce jointe", error);
   revalidatePath("/atelier");
@@ -183,10 +189,11 @@ export async function annulerTeleversementPiece(documentId: string, chemin: stri
   verifier("annulation du téléversement PDF", error);
 }
 
-export async function lirePiecesJointes(documentId: string): Promise<PieceJointeDocument[]> {
+export async function lirePiecesJointes(documentId: string, inclureUrlSignee = true): Promise<PieceJointeDocument[]> {
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);
   const lignes = await lireLignes(identifiant, dorsale);
+  if (!inclureUrlSignee) return lignes.map(ligne=>pieceDepuisLigne(ligne));
   const pieces = await Promise.all(lignes.map(async (ligne) => {
     const { data, error } = await dorsale.supabase.storage
       .from(BUCKET_PIECES_JOINTES)

@@ -135,6 +135,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [140](#adr-140) | Une correction générée doit rester étayée par son énoncé | 🔬 Construite (30/08/2026), à réfuter en usage |
 | [141](#adr-141) | Une référence contestable suspend la mesure sans réécrire l'Observation | 🔬 Construite (01/09/2026), à réfuter en usage |
 | [142](#adr-142) | Mes cours crée directement ses domaines ; la suppression définitive reste sûre | ✅ Acceptée et construite (04/09/2026) |
+| [143](#adr-143) | Dépôt documentaire consenti, retour sourcé et reformulation sans mesure | ❓ Pilote implémenté le 06/09/2026 ; fidélité et ouverture à valider par Maxime |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -1112,7 +1113,9 @@ Ce qui ne change **pas** :
 - Le rafraîchissement du jeton reste le rôle nº 1 du proxy : `getClaims()`
   passe par `getSession()`, qui rafraîchit si nécessaire, et le `setAll` du
   proxy persiste les cookies comme avant.
-- Aucune clé `service_role` n'entre dans le code.
+- Aucune clé `service_role` n'entre dans le client. Les exceptions serveur
+  ajoutées depuis cette décision sont confinées à ADR-074 (révocation) et
+  ADR-143 (écritures d'infrastructure documentaire après autorisation).
 
 **Repli automatique.** Si le projet repassait à un secret symétrique, ou si
 `crypto.subtle` était absent de l'environnement, auth-js retombe de lui-même
@@ -5770,6 +5773,13 @@ ouverte survivra jusqu'à son expiration. Faire de la révocation une condition 
 la suspension aurait rendu la fonction principale dépendante d'un secret
 optionnel.
 
+Amendement du 06/09/2026, ADR-143 : la même variable serveur devient également
+nécessaire aux analyses payantes du pilote documentaire, dans un module
+`server-only` distinct. Les lectures passent par le JWT/RLS du compte ; les
+écritures d'analyse et réservations passent par des RPC exclusivement serveur,
+qui contrôlent aussi le compte actif et son activation. Son absence n'empêche
+ni la conservation des fichiers ni le travail manuel.
+
 **L'inscription reste ouverte.** N'importe qui crée un compte et travaille
 immédiatement ; l'administrateur voit les arrivées et peut couper après coup.
 Une validation préalable ferait de l'administrateur un goulot dès le second
@@ -8986,6 +8996,12 @@ caractéristique déclarée au départ sur la séance elle-même suffisait.
 <a name="adr-111"></a>
 ## ADR-111 — Les images sont des pièces jointes documentaires, acceptées passivement ✅
 
+**Périmètre amendé le 06/09/2026 par ADR-143.** La réception reste passive.
+Le pilote ajoute une lecture visuelle séparée, explicitement consentie, avec
+restitution attribuée à l'IA. L'interdiction ci-dessous d'analyser l'image
+décrit le parcours historique ; elle ne s'applique plus à ce geste du pilote.
+Aucune mesure ni alimentation du moteur n'est autorisée par cette extension.
+
 **Date.** 22/08/2026. **Tranchée par Maxime** — option « acceptation passive »
 du plan persona parent (chantier P2).
 
@@ -9033,6 +9049,11 @@ facultatifs au référentiel. Elle **documente**, elle ne nourrit pas :
 
 <a name="adr-113"></a>
 ## ADR-113 — Le tuteur peut lire un PDF déposé pour proposer des branches ✅
+
+**Périmètre amendé le 06/09/2026 par ADR-143.** L'extraction `unpdf` ci-dessous
+reste celle du parcours historique de proposition de branches. Le dépôt pilote
+utilise l'OCR visuel pour les scans et les PDF mixtes, conserve les pages et
+ne propose aucune compétence. « Pas d'OCR » n'est donc plus une règle globale.
 
 **Date.** 22/08/2026. **Tranchée par Maxime** — arbitrage rendu favorable sur
 le chantier C du plan académique.
@@ -9242,6 +9263,11 @@ elle n'ouvre pas la porte à une librairie d'interface générale.
 
 ## ADR-116 — La clé du tuteur est servie par le produit, bornée par un quota mensuel 🔬
 
+**Amendement du 06/09/2026, ADR-143.** `envTuteur` est aussi le passage obligé
+des appels documentaires Mistral. Ceux-ci réservent un coût dans un budget
+distinct de 5 €/mois UTC, administrateur compris ; ils n'utilisent ni le quota
+de générations historique ni une clé saisie dans le navigateur.
+
 **Statut :** 🔬 hypothèse posée le 24/08/2026. Étend [ADR-007](#adr-007)
 (sélection du moteur) et s'appuie sur [ADR-074](#adr-074) (`comptes_acces`).
 
@@ -9301,7 +9327,8 @@ réserve mensuelle consommée — ni `503` — le moteur va très bien. Le corps
 affichent déjà le champ `message` d'une réponse en échec, et il ne doit pas
 exister un écran de quota par surface.
 
-**Un administrateur n'est jamais décompté** : une ligne dans la fonction, pas
+**Un administrateur n'est jamais décompté par ce quota historique** (le budget
+documentaire ADR-143 le décompte) : une ligne dans la fonction, pas
 une donnée à maintenir ni à remettre après un test.
 
 ### Ce que cette décision n'autorise pas
@@ -9923,6 +9950,14 @@ réponse est écrite dans les deux fichiers : **§10.1 décide.**
 
 ## ADR-124 — Une fiche atteint le tuteur par un geste, jamais par le contexte 🔬
 
+**Amendement du 06/09/2026, ADR-143.** Le contexte permanent reste sans
+documents. L'analyse du dépôt est un second geste explicite, hors chat : les
+fichiers concernés, pages à traiter, fournisseur et coût maximal sont présentés
+avant transmission. Elle ne demande pas de relire une transcription OCR encore
+inexistante. Le retour sourcé est ensuite relu et corrigé librement. Les
+contraintes de composition/relecture du message ci-dessous restent celles du
+chat historique, sans autoriser l'envoi automatique d'un corpus.
+
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Tranche Q1 et Q2
 de `docs/audit/CHARGE-MES-COURS.md`. Ne fait monter aucune brique en ✅.
 
@@ -10358,6 +10393,10 @@ du `try`.
 
 ## ADR-128 — Le premier parcours atteint l'exercice avant le tableau de bord 🔬
 
+**Exception pilote du 06/09/2026, ADR-143.** Un compte explicitement activé
+accède au dépôt depuis `/app` sans micro-diagnostic ni référentiel préalable.
+Les autres comptes conservent le parcours décrit ci-dessous.
+
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Ne fait
 monter aucun statut existant.
 
@@ -10439,6 +10478,10 @@ temps jusqu'au premier exercice commencé, pas sur le nombre d'écrans retirés.
 
 ## ADR-129 — Déposer mon cours commence par le PDF, pas par la fiche 🔬
 
+**Extension pilote du 06/09/2026, ADR-143.** Le dépôt libre accepte plusieurs
+fichiers et une note facultative sans titre ni classement. Le parcours de cours
+décrit ci-dessous subsiste, mais n'est pas une étape imposée au dépôt libre.
+
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. **Révise
 [ADR-126](#adr-126)** sur un point précis. Décision validée par Maxime le
 24/08/2026 (arbitrage produit : la boucle de travail sur un cours ne commence
@@ -10516,6 +10559,10 @@ recréer une saisie préalable.
 ---
 
 ## ADR-130 — Le cours saisi devient un protocole de séances, relu case par case 🔬
+
+**Distinction du 06/09/2026, ADR-143.** Le dépôt libre ne lance aucun protocole
+de cours et ne stocke aucun plan dérivé. Seul le geste explicite de lecture
+crée une `LearningSession` de préparation sans module ni compétence.
 
 **Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Décisions
 validées par Maxime le 24/08/2026 (intention enum + libre, protocole plan fixe
@@ -11269,6 +11316,11 @@ violée.
 <a name="adr-139"></a>
 ## ADR-139 — Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail ❓
 
+**Complément du 06/09/2026, ADR-143.** Le pilote documentaire ne construit
+pas de planification supplémentaire. Il démarre directement une séance
+documentaire acceptée, sans module ; le compte rendu IA historique et son
+cache d'extraction ne sont ni un plan ni une vérité pédagogique.
+
 **Date.** 27/08/2026.
 
 **Validation humaine.** Maxime a validé explicitement la vision
@@ -11748,7 +11800,133 @@ effacée par cascade, ou si le chemin direct consomme un appel au tuteur.
 
 ---
 
+<a name="adr-143"></a>
+## ADR-143 — Déposer, relire un retour sourcé, travailler sans mesure ❓
+
+**Date :** 06/09/2026. **Direction explicitement demandée par Maxime** dans
+le plan Twiny V1. L'implémentation pilote est construite ; Maxime doit encore
+éprouver la fidélité sur ses manuscrits et décider de l'ouverture générale.
+Cette livraison ne promeut aucun statut existant.
+
+### Problème et parcours
+
+La taxonomie préalable empêche de déposer la matière de la journée et de
+commencer. Le pilote réutilise l'application : `/app` accueille une note
+facultative et jusqu'à cent PDF/JPEG/PNG/WebP de 10 Mio chacun (100 Mio au total), sans domaine ni
+titre demandé. La conservation précède l'analyse. Un reçu est affiché par
+fichier ; une erreur du fournisseur ne supprime jamais l'original.
+
+Révision après le retour pilote du 06/09 : la sélection devient cumulative,
+y compris par dossiers et sous-dossiers. Les chemins relatifs sont conservés
+comme libellés plats, sans entité de classement. Les refus sont indiqués par
+fichier. La préparation serveur borne aussi le lot à 100 fichiers / 100 Mio ;
+le plafond de vingt pages analysées par tranche ne change pas.
+« Comprendre mes documents » ouvre la confirmation « Autoriser et analyser ».
+Le bouton technique d'actualisation est remplacé par une lecture périodique
+de l'état en cours ; aucun appel fournisseur n'est réessayé automatiquement.
+Le geste de lecture et reformulation est présenté comme « Travailler ce passage »
+avec sa consigne, et reste accessible directement sur l'original sans IA.
+
+La personne prépare puis confirme l'analyse après avoir vu les fichiers,
+les pages traitées, Mistral et le coût maximal. Les fichiers sélectionnés
+sont transmis entiers à l'OCR avec une liste de pages à traiter ; les autres
+fichiers ne sont pas envoyés. Ce consentement porte donc sur les fichiers,
+pas uniquement sur un extrait binaire de leurs pages. La note libre et les
+pages extraites servent ensuite à la restitution. Aucun contenu ne rejoint
+le contexte permanent du chat. Cela amende les portées d'ADR-111, 113 et 124.
+
+Le retour affiche au plus huit sujets, annotations ou incertitudes avec des
+citations vérifiées contre la note ou la page extraite désignée. La couverture
+réelle et les lectures incertaines restent visibles. La vérification des
+citations n'est pas une preuve de fidélité de l'OCR ni de l'interprétation :
+la relecture des originaux reste nécessaire. Les corrections humaines sont
+ajoutées séparément, sans validation de l'ensemble et sans nouvel appel IA.
+
+### Données et frontières
+
+Le dépôt est une fiche `documents` de rôle support, marquée `depot_version: 1`,
+avec les `document_attachments` existantes. Les originaux restent privés et
+inchangés. `document_depot_analyses` porte l'état d'exécution, les pages
+extraites, la couverture, une empreinte SHA-256 des sources, la note source
+figée et le compte rendu effectivement présenté, daté et attribué à l'IA.
+Cette dernière trace est du contenu documentaire historique, jamais un état
+de compétence ou une décision pédagogique persistée. Le cache reste de
+l'infrastructure ; le moteur ne lit ni le cache ni le compte rendu.
+`document_depot_corrections` conserve les déclarations humaines distinctes.
+
+« Lire et reformuler » crée une seule `LearningSession` avec `read`, puis
+`explain`, en préparation. Aucun module, code de compétence, exercice,
+contrat de preuve ou Observation n'est créé. La source peut porter la pièce
+et la page ; ces champs sont facultatifs pour les anciennes séances.
+La production humaine est un document `redaction`, sauvegardé explicitement
+avec contrôle de version, puis conservé après fin ou abandon. Le rendu
+Feynman ciblé historique reste compatible.
+
+### Coût et traitement
+
+REST Mistral, modèles versionnés `mistral-ocr-4-1` et `mistral-medium-3-5`,
+sans nouvelle dépendance. Chaque appel passe par `envTuteur` puis réserve son
+coût maximal atomiquement dans `document_depot_usage` avant transmission.
+Le plafond est de 5 000 000 micro-euros par compte et mois UTC, indépendant
+des autres usages du tuteur. Le verrou transactionnel par compte sérialise
+le calcul du restant et l'insertion ; répéter un identifiant ne réserve pas
+deux fois et n'autorise pas un deuxième appel.
+
+Tarifs de référence vérifiés le 06/09/2026 : OCR 4 $/1 000 pages, texte
+1,50 $/million de jetons entrants et 7,50 $/million sortants. La conversion
+conservatrice de 2 EUR/USD inclut une marge ; les unités comptées sont donc
+majorées, pas une facture fournisseur. Entrée bornée à 100 000 octets
+(borne supérieure conservatrice des jetons), sortie à 2 500 jetons, vingt
+pages au plus par demande. La même formule est tenue en SQL et TypeScript
+avec un test de contrat. Les tarifs expirent le 06/10/2026 : revérification
+et migration nécessaires avant de réautoriser l'IA.
+
+Un compte rendu valide clôt la tranche ; les pages suivantes demandent une
+nouvelle confirmation. Les extractions inchangées sont réutilisées après
+échec. Une reprise est explicite ; un appel ou coût incertain garde sa
+réservation. Aucun réessai payant silencieux. Une tentative reprise possède
+un nouvel identifiant : une ancienne exécution ne peut plus écrire son état.
+La limite d'exécution applicative est de quatre minutes, celle de la route de
+cinq minutes ; une analyse restée en cours devient reprenable après cinq
+minutes sans écriture. Une tranche trop dense demande une sélection réduite.
+
+### Accès, purge et activation
+
+Les lectures et corrections utilisent le JWT et la RLS du propriétaire actif.
+Les écritures d'infrastructure sont confinées au serveur ; les trois RPC
+ne sont exécutables que par `service_role` et contrôlent le pilote actif.
+Le navigateur ne choisit ni tarif, ni remboursement, ni résultat d'analyse.
+`comptes_acces.depot_pilote` est faux par défaut et administrable par les
+administrateurs existants. L'activation ne vaut jamais consentement à un appel.
+
+La suppression d'une fiche purge ses analyses et corrections par cascade.
+Le reset pédagogique purge les contenus mais conserve le compteur de
+dépense sans texte, comme le quota du tuteur. Sa FK vers `comptes_acces`
+empêche de recréditer 5 € à chaque reset ; la suppression du compte Auth le
+purge par cascade. Aucun secret n'est ajouté au navigateur.
+
+Les deux migrations locales du pilote sont appliquées au projet
+`vxkjzzshlqulexydgfpc` ; les correspondances de versions et résultats de
+vérification sont dans le [registre du pilote](docs/pilotes/DEPOT_DOCUMENTAIRE.md).
+Le schéma de référence les reprend. La désactivation du drapeau rend
+l'accueil historique ; elle ne supprime pas les fichiers.
+
+### Réfutation et hors périmètre
+
+Maxime éprouve environ vingt pages anciennes, avec repérage manuel préalable
+des points importants et omissions. Au moins neuf restitutions sur dix
+doivent être reconnues comme fidèles, une correction courante prendre moins
+d'une minute, et aucune échéance inventée être présentée comme certaine.
+Si le retour demande régulièrement une réécriture, arrêter l'élargissement
+et revoir la lecture. Ces résultats ne sont pas encore acquis.
+
+Synchronisation reMarkable, tri interjournées, priorisation globale,
+planification et correction IA de la reformulation restent hors V1.
+
+---
+
 ## Comment modifier ce registre
+
 
 1. Une décision ✅ ne se retire pas : elle passe en 🔄 **Remplacée**, avec le
    numéro de l'ADR qui la remplace.

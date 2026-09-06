@@ -3,9 +3,9 @@
  * documentaires.
  *
  * Une pièce jointe est un fichier déposé par la personne — PDF de support ou
- * photo de cahier. L'application n'affirme rien sur son contenu : aucune
- * analyse, aucune mesure, seulement la conservation du fichier tel quel
- * derrière le bucket privé.
+ * photo de cahier. Le téléversement conserve le fichier tel quel derrière
+ * le bucket privé, sans analyse. Le pilote ADR-143 ajoute une lecture OCR
+ * séparée, explicitement consentie ; elle ne produit aucune mesure.
  */
 
 export const BUCKET_PIECES_JOINTES = "document-support";

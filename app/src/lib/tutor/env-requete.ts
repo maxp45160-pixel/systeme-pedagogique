@@ -62,7 +62,25 @@ export function messageQuotaEpuise(plafond: number): string {
  * `402` en cas de quota épuisé : ni `429` (ce n'est pas une limite de débit,
  * c'est une réserve mensuelle consommée), ni `503` (le moteur va très bien).
  */
-export async function envTuteur(config?: ConfigTuteurClient): Promise<EnvTuteur> {
+export interface OperationDocumentaire {
+  operation: string;
+  pages: number;
+  entreeOctets: number;
+  sortieMax: number;
+}
+
+export async function envTuteur(config?: ConfigTuteurClient, documentaire?: OperationDocumentaire): Promise<EnvTuteur> {
+  if (documentaire) {
+    if (config) return { ok: false, reponse: Response.json({ message: "Le pilote utilise son fournisseur documentaire dédié." }, { status: 400 }) };
+    const { configurationDepotDisponible, reserverCoutDepot } = await import("@/lib/store/depot-budget");
+    if (!configurationDepotDisponible()) return { ok: false, reponse: Response.json({ message: "L'analyse documentaire n'est pas configurée ou ses tarifs doivent être revérifiés. Les fichiers restent conservés." }, { status: 503 }) };
+    try {
+      await reserverCoutDepot(documentaire.operation, documentaire.pages, documentaire.entreeOctets, documentaire.sortieMax);
+    } catch (erreur) {
+      return { ok: false, reponse: Response.json({ message: erreur instanceof Error ? erreur.message : "Réservation documentaire refusée." }, { status: 402 }) };
+    }
+    return { ok: true, env: process.env };
+  }
   if (!config) {
     const quota = await consommerQuotaTuteur();
     if (!quota.autorise) {

@@ -153,6 +153,9 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   et nulle part ailleurs qu'est décompté le quota de la clé serveur : un appel
   direct à `choisirConfiguration` génère gratuitement aux frais du compte
   fournisseur partagé.
+  Pour le pilote documentaire (ADR-143), ce même point d'entrée réserve un
+  budget distinct de 5 €/mois UTC, même pour l'administrateur. Le compteur
+  survit au reset pédagogique ; aucun réessai payant n'est automatique.
 - La phrase du tour d'accueil qui décrit les destinations se **dérive** de
   `NAVIGATION` (ADR-117), jamais recopiée — comme `NAV_MOBILE`.
 - Une règle de mesure vit dans `app/data/00_instructions/`, jamais dans un
@@ -165,6 +168,10 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   sans rouvrir la question de la fenêtre. Un document n'atteint le tuteur que
   par un geste explicite, composé côté client et **relu par la personne avant
   l'envoi** — `composerSujetFiche`, `composerSujetLecture`, `TraiterLigneMarge`.
+  Exception explicitement retenue pour le pilote ADR-143 : « Analyser le dépôt »
+  autorise la transmission des fichiers après présentation des sources,
+  pages traitées, fournisseur et coût maximal. L'OCR précède la relecture de
+  sa transcription ; aucun de ces contenus ne rejoint le contexte du chat.
   Rien de ce qui vient d'un document ne devient une mesure.
 - Le prompt système du chat porte un plafond mesuré (ADR-125) :
   `budget-contexte.test.ts` échoue au-delà. Le relever est une décision qui

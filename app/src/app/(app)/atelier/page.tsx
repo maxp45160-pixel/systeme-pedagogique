@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { DepotsRecents } from "@/components/depot/accueil-depot";
 import { EntetePage } from "@/components/layout/entete-page";
 import { WorkspaceDocument } from "@/components/atelier/workspace-document";
 import { EspaceDocumentaire, type ElementAtelier } from "@/components/atelier/espace-documentaire";
@@ -458,6 +459,7 @@ export default async function PageAtelier(props: {
         ne serait plus « sans avoir rien à faire »).
       */}
       <RelectureAuChargement due={relectureDue} />
+      <DepotsRecents />
       <EspaceDocumentaire
         key={cleAtelier}
         elements={elementsAtelier}

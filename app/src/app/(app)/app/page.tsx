@@ -24,11 +24,16 @@ import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-reprise-bienveillante";
 import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
+import { estPiloteDepot } from "@/lib/store/depot-budget";
+import { AccueilDepot } from "@/components/depot/accueil-depot";
 
 export default async function TableauDeBord(props: {
-  searchParams: Promise<{ temps?: string; capacite?: string; explication?: string }>;
+  searchParams: Promise<{ temps?: string; capacite?: string; explication?: string; depot?: string; classique?: string }>;
 }) {
   const recherche = await props.searchParams;
+  if (recherche.classique !== "1" && await estPiloteDepot()) {
+    return <Suspense fallback={<SquelettePage />}><AccueilDepot documentId={recherche.depot}/></Suspense>;
+  }
   const instant = lireContexteInstant(recherche);
   const dateJour = formatDateAujourdhui();
 

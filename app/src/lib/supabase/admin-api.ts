@@ -1,5 +1,7 @@
 /**
- * Révocation de session — le seul usage de `service_role` du dépôt (ADR-074).
+ * Révocation de session via `service_role` (ADR-074).
+ * Le budget et les analyses documentaires ont un second accès confiné dans
+ * `store/depot-budget.ts` (ADR-143), après contrôle du compte pilote.
  *
  * ## Pourquoi ce module existe alors que RLS suffit
  *
@@ -11,7 +13,7 @@
  * garde une session ouverte jusqu'à son expiration : elle voit l'application
  * se vider plutôt que d'être déconnectée. Le ban Supabase, lui, coupe à la
  * source — mais il exige `service_role`, c'est-à-dire une clé qui contourne
- * RLS. Elle vit donc ici, dans un module `server-only`, et nulle part ailleurs.
+ * RLS. Son emploi reste confiné à des modules `server-only` explicitement documentés.
  *
  * ## Absence de clé = fonctionnement dégradé, jamais d'échec
  *

@@ -1,6 +1,25 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.22 — 04/09/2026.** Le graphe de Mes cours regroupe désormais les
+**Version 4.23 — 06/09/2026.** Twiny V1 ajoute un pilote documentaire dans
+l'application existante : conserver un dépôt, demander une analyse explicite,
+se reconnaître dans un retour bref et sourcé, puis lire et reformuler un passage.
+L'accueil du compte administrateur explicitement activé présente ce parcours ;
+les autres comptes conservent leur accueil. Aucun domaine, titre ou objectif
+n'est obligatoire. La qualité sur les manuscrits et l'ouverture générale
+restent à valider par Maxime : aucun statut de brique n'est promu.
+Contrat : ADR-143 ; préparation et résultats du pilote :
+[`docs/pilotes/DEPOT_DOCUMENTAIRE.md`](docs/pilotes/DEPOT_DOCUMENTAIRE.md).
+
+Révision du retour pilote du 06/09 : la sélection est cumulative et accepte
+les dossiers avec leurs sous-dossiers, par choix ou glisser-déposer. Le parcours
+borne un dépôt à 100 fichiers et 100 Mio au total, avec 10 Mio par fichier.
+Les chemins servent de libellés, sans créer de classement. L'action principale
+« Comprendre mes documents » prépare une confirmation ; seul « Autoriser et
+analyser » envoie à Mistral. Le suivi en cours s'actualise automatiquement,
+sans réessai IA. « Travailler ce passage » explique le geste de lecture et
+d'écriture ; le travail manuel reste accessible sans analyse.
+
+**Version précédente : 4.22 — 04/09/2026.** Le graphe de Mes cours regroupe désormais les
 compétences depuis leurs rattachements vivants (`competence_domaines`), jamais
 depuis leur namespace de création. Un module académique reste un contexte : il
 ne dessine plus un halo propriétaire autour des compétences créées depuis sa
@@ -407,6 +426,12 @@ cible et ne doit pas atteindre la vitrine avant que le plan soit construit.
 
 **Parcours canonique :**
 
+Le pilote documentaire ADR-143 précède ce parcours sur les seuls comptes
+activés : **déposer → analyser explicitement → lire et corriger le retour →
+lire et reformuler**. Il permet de travailler sans référentiel constitué.
+Les étapes ci-dessous restent la direction d'orchestration et le parcours
+historique ; leur diagnostic initial n'est pas un prérequis du pilote.
+
 1. L'étudiant vit une première boucle courte : profil, micro-diagnostic,
    exercice réel, observation et premier retour de progression.
 2. Il déclare ou importe son cadre : modules, cours suivis, échéances,
@@ -438,7 +463,7 @@ module se dérive à la lecture. Le module peut précéder sa première compéte
 son usage déclaré suffit à le rendre visible, sans compétence factice ni
 document inventé. Aucune entité nouvelle.
 
-Le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
+Hors pilote documentaire ADR-143, le premier parcours doit démontrer cette boucle avant d'exposer la richesse du
 référentiel ou des documents — même exigence qu'ADR-128 : atteindre un
 exercice probant avant tout le reste.
 
@@ -612,15 +637,21 @@ dédié, et **150 générations par mois sont incluses** par compte. Ce que « g
 promet sur la vitrine est donc exact et borné : passé le plafond, la génération
 s'arrête avec un message qui dit quand le compteur repart, et renseigner sa
 propre clé lève la limite sans rien décompter. Le plafond est réglable par
-compte ; un administrateur n'est jamais décompté.
+compte ; un administrateur n'est jamais décompté pour ce quota historique.
+Les appels documentaires ADR-143 ont un budget distinct de 5 € par mois UTC,
+y compris pour l'administrateur pilote, réservé avant chaque appel.
 🔬 **Une fiche de cours atteint le tuteur par un geste, jamais par le contexte**
 (24/08/2026, ADR-124). « S'entraîner sur ce document » compose un message
 — titre plus corps borné à 4 000 caractères — que la personne relit et envoie
 elle-même. Le contexte permanent du tuteur ne contient toujours aucun document,
 et le moteur n'en lit aucun : une fiche est de la matière pour un énoncé, jamais
 une mesure. Avoir écrit un cours n'est pas l'avoir démontré.
+Le pilote ADR-143 ajoute un consentement documentaire distinct : la personne
+relit la sélection des fichiers, des pages à traiter, le fournisseur et le
+coût maximal, puis autorise l'envoi. La transcription OCR ne peut pas être
+relue avant sa création. Elle reste hors contexte permanent du chat.
 🔬 **Le cours saisi devient un protocole de séances, relu case par case**
-(24/08/2026, ADR-130). Au dépôt d'un cours, la personne déclare son intention
+(24/08/2026, ADR-130). Dans le parcours historique de dépôt d'un cours, la personne déclare son intention
 (mémoriser / maîtriser / comprendre, enum serveur + précision libre) ; le
 tuteur lit le PDF et propose un plan de 1 à 6 séances typées par dimension
 (compréhension, application, contextualisation, mémorisation) et liées aux

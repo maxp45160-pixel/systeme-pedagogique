@@ -217,6 +217,15 @@ Le contexte permanent du tuteur ne contient aucun corpus documentaire. Un
 document ne lui parvient que par un geste explicite, composé côté client et
 relu avant l'envoi. Rien de ce qui vient d'un document ne devient une mesure.
 
+Le pilote documentaire ADR-143 ajoute une entrée sans domaine ni compétence :
+les fichiers et une note facultative forment une fiche support existante. Son
+analyse séparée est consentie après présentation des fichiers, pages à traiter,
+fournisseur et coût maximal ; l'OCR précède nécessairement la relecture de sa
+transcription. Le compte rendu IA daté est un contenu documentaire historique,
+pas une décision pédagogique persistée ni une déclaration de l'apprenant.
+Les corrections humaines restent des déclarations séparées. Ni les extraits
+ni ce compte rendu ne sont consommés par le moteur ou le contexte permanent.
+
 Le protocole d'analyse d'un cours produit des informations et des séances
 candidates pour le plan global. Il ne crée pas un second plan autonome. Les
 exercices absents sont générés au démarrage de la séance acceptée qui les
@@ -257,6 +266,12 @@ d'une vérification de la base réelle avant implémentation.
 ## 12. Statut d'implémentation
 
 Le modèle ci-dessus décrit une direction validée, pas un état construit.
+
+Le pilote documentaire du 06/09/2026 est implémenté derrière une activation
+explicite par compte. Il réutilise les documents et `LearningSession`, avec
+`read` et `explain` de préparation, pièce/page facultatives, écriture humaine
+sauvegardée et aucune Observation. Les essais de fidélité manuscrite et
+l'ouverture générale restent en attente ; voir le protocole du pilote.
 
 - Le référentiel par compte, les preuves, observations, états dérivés et la
   recommandation immédiate existent en partie dans le code courant.

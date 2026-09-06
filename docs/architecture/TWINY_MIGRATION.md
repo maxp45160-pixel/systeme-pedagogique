@@ -1,5 +1,13 @@
 # Twiny — Continuité de la refonte
 
+**Complément du 06/09/2026 — pilote documentaire ADR-143.** Le chantier
+explicitement demandé « déposer, se reconnaître, travailler » s'ajoute à
+l'application sans reprendre ni valider automatiquement les lots historiques
+ci-dessous. Il réutilise les fiches support et les séances ; son infrastructure
+est migrée, son activation reste explicite par compte. Le passage de relais,
+les versions locales/distantes et les essais restant ouverts sont tenus dans
+[`../pilotes/DEPOT_DOCUMENTAIRE.md`](../pilotes/DEPOT_DOCUMENTAIRE.md).
+
 **Support canonique de passage de relais — baseline du 20/08/2026.**
 
 Ce document permet à un nouveau chat de reprendre la refonte sans dépendre de

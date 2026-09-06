@@ -41,6 +41,9 @@ export type InterventionSourceKind = typeof INTERVENTION_SOURCE_KINDS[number];
 export interface InterventionSource {
   kind: InterventionSourceKind;
   ref: string;
+  /** Repère facultatif pour les sources documentaires ; pages à partir de 1. */
+  pieceId?: string;
+  page?: number;
 }
 
 /** Contrat annoncé avant le geste et vérifié par le chemin de preuve. */
@@ -157,6 +160,15 @@ export function parseInterventionSeance(
       invalide(`${chemin}.estimatedDurationMinutes`, "entier positif ou nul attendu");
     }
     resultat.estimatedDurationMinutes = duree;
+  }
+
+  const sourceDocumentaire = objet(intervention.source, `${chemin}.source`);
+  if (sourceDocumentaire.pieceId !== undefined || sourceDocumentaire.page !== undefined) {
+    if (resultat.source.kind !== "document" || typeof sourceDocumentaire.page !== "number" || !Number.isSafeInteger(sourceDocumentaire.page) || sourceDocumentaire.page < 1) {
+      invalide(`${chemin}.source`, "fichier et page documentaire positive attendus");
+    }
+    resultat.source.pieceId = texte(sourceDocumentaire.pieceId, `${chemin}.source.pieceId`);
+    resultat.source.page = sourceDocumentaire.page as number;
   }
 
   if (intervention.targetSkillCodes !== undefined) {

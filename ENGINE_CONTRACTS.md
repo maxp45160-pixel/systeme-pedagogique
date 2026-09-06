@@ -9,6 +9,15 @@
 
 ## 1. But et périmètre
 
+**Extension d'interface du 06/09/2026, ADR-143.** Le pilote documentaire ne
+modifie pas les contrats de mesure proposés ici. Une fiche support, son cache
+OCR et son compte rendu IA historique restent hors entrées du moteur. La
+correction humaine du retour n'est pas une Observation. Une séance acceptée
+peut porter `read` puis `explain` de préparation sans module ni compétence ;
+sa production `redaction` reste un texte humain, sans score ni preuve implicite.
+Les sources d'intervention du code acceptent une pièce et une page facultatives
+en plus de `{kind, ref}`. Les contrats cibles ci-dessous ne sont pas promus.
+
 Le moteur doit répondre à une seule question :
 
 > Quelle est la meilleure action étayée maintenant, compte tenu des faits

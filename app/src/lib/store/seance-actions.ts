@@ -131,8 +131,8 @@ export async function creerSeanceDepuisContenu(
     lireApercusDocuments(),
     lireReferentiel(dorsale),
   ]);
-  const module = referentiel.domainesParId.get(entree.moduleId);
-  if (!module || !estModuleActif(module)) {
+  const domaineModule = referentiel.domainesParId.get(entree.moduleId);
+  if (!domaineModule || !estModuleActif(domaineModule)) {
     throw new Error("Ce contenu n’appartient plus à un module académique actif.");
   }
   const domaineDeclare = document.frontmatter?.domaine ?? document.frontmatter?.domain;

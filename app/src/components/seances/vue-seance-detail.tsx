@@ -47,6 +47,7 @@ import {
 import { SasSeance } from "@/components/seances/sas-seance";
 import { IconeExercices, IconeFleche, IconeMinuteur, IconeNote } from "@/components/ui/icones";
 import { RenduIntervention } from "@/components/seances/rendu-intervention";
+import { ReformulationDocumentaire } from "@/components/seances/reformulation-documentaire";
 import {
   interventionCourante,
   interventionsTerminees,
@@ -608,6 +609,13 @@ export async function VueSeanceDetail({
             {activites.length > 0 && <ListeActivites activites={activites} parId={parId} avancement={avancement} seanceId={seance.id} liens={false} />}
           </div>
         )}
+
+        {executionCanonique?.executions.filter(e=>e.rendu.kind === "reformulation" && (statut !== "en-cours" || e.statut === "terminee" || e.statut === "abandonnee")).map(e=>(
+          <details key={e.intervention.id} className="rounded-xl border border-bordure bg-surface p-4">
+            <summary className="cursor-pointer text-sm font-medium">Relire la reformulation</summary>
+            <div className="mt-4"><ReformulationDocumentaire sessionId={seance.id} interventionId={e.intervention.id}/></div>
+          </details>
+        ))}
 
         {statut === "en-cours" && (
           <div className="space-y-5">

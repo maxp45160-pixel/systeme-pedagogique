@@ -18,6 +18,7 @@ export type InterventionRenderKind =
   | "recall"
   | "document"
   | "writing"
+  | "reformulation"
   | "tutor";
 
 export interface InterventionRenderDefinition {
@@ -80,8 +81,11 @@ export const REGISTRE_RENDUS_INTERVENTIONS = {
 } satisfies Record<InterventionType, InterventionRenderDefinition>;
 
 export function renduPourIntervention(
-  intervention: Pick<InterventionSeance, "type"> & Partial<Pick<InterventionSeance, "source" | "expectedEffect">>,
+  intervention: Pick<InterventionSeance, "type"> & Partial<Pick<InterventionSeance, "source" | "expectedEffect" | "targetSkillCodes" | "proofContract">>,
 ): InterventionRenderDefinition {
+  if (intervention.type === "explain" && intervention.source?.kind === "document" && intervention.expectedEffect === "preparation" && !intervention.targetSkillCodes?.length && !intervention.proofContract) {
+    return { type: "explain", kind: "reformulation", label: "Reformuler sans mesure", observationPath: "none" };
+  }
   if (
     intervention.type === "resolve"
     && intervention.source?.kind === "document"

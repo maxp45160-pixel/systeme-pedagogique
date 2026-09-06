@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ActionSeance } from "@/components/seances/action-seance";
 import { TiroirTuteur } from "@/components/tuteur/tiroir-tuteur";
 import { RappelIntervention } from "@/components/seances/rappel-intervention";
+import { ReformulationDocumentaire } from "@/components/seances/reformulation-documentaire";
 import { VueExercice } from "@/components/exercices/vue-exercice";
 import {
   Carte,
@@ -99,6 +100,7 @@ function CarteGestuelle({
       <EnTeteCarte titre={intervention.label} legende={execution.rendu.label} />
       <CorpsCarte>
         <MetaIntervention execution={execution} />
+        {execution.rendu.kind === "reformulation" && <ReformulationDocumentaire key={intervention.id} sessionId={seanceId} interventionId={intervention.id} sourceHref={sourceHref} />}
         {execution.rendu.kind === "feynman" && (
           <div className="space-y-3 text-sm">
             {consigneDeterministeIntervention(intervention) && (
@@ -173,7 +175,7 @@ function CarteGestuelle({
             Intervention abandonnée : aucune observation n&apos;a été produite.
           </p>
         )}
-        {terminer && (
+        {terminer && execution.rendu.kind !== "reformulation" && (
           <div className="mt-4 border-t border-bordure/60 pt-3">
             <ActionSeance
               action={terminerInterventionPourSeance.bind(null, intervention.id)}
@@ -221,5 +223,9 @@ export function RenduIntervention(props: RenduInterventionProps) {
       </div>
     );
   }
-  return <CarteGestuelle {...props} />;
+  const source = execution.intervention.source;
+  const sourceHref = source.kind === "document" && source.pieceId
+    ? `/api/depot/source?${new URLSearchParams({documentId:source.ref,pieceId:source.pieceId})}#page=${source.page ?? 1}`
+    : props.sourceHref;
+  return <CarteGestuelle {...props} sourceHref={sourceHref} />;
 }

@@ -1,6 +1,7 @@
 # Matrice des interventions d'une `LearningSession`
 
-État vérifié le 29/08/2026. `LearningSession` est l'épisode de travail unique.
+Matrice historique vérifiée le 29/08/2026, complétée le 06/09/2026 pour le
+pilote ADR-143 (validation manuscrite en attente). `LearningSession` est l'épisode de travail unique.
 Une intervention est un geste porté dans `sessions.interventions` ; elle ne
 crée ni séance parallèle ni nouvelle entité de travail. Son statut d'exécution
 est un fait de séance, distinct d'une Observation.
@@ -18,6 +19,21 @@ est un fait de séance, distinct d'une Observation.
 
 ## Règles communes
 
+**Extension documentaire du pilote.** « Lire et reformuler » crée une seule
+séance en cours, sans module, compétence ni exercice. Elle porte `read`, puis
+`explain`, tous deux `expectedEffect: preparation`. La source documentaire
+peut ajouter `pieceId` et `page` (à partir de 1, ensemble) ; les anciennes
+sources `{kind, ref}` restent valides. Le rendu `explain` sans compétence ni
+contrat de preuve devient une reformulation libre ; le Feynman ciblé reste
+inchangé. Le fichier est ouvert à la page choisie. L'écriture se sauvegarde
+explicitement comme document `redaction`, avec version attendue pour refuser
+un écrasement concurrent ; une modification éditoriale extérieure est signalée.
+La fin sauvegarde avant de clore l'intervention existante, sans score,
+Observation ni niveau recalculé. Les actions historiques de reprise, fin et
+abandon restent celles de la même `LearningSession`.
+Le détail de séance permet de relire la reformulation après fin ou abandon,
+y compris si l'entrée du pilote a ensuite été désactivée.
+
 - L'acceptation du plan matérialise uniquement la `LearningSession` acceptée.
   Les interventions restent dans sa composition canonique et les exercices
   manquants sont générés au démarrage prévu, pas à la validation du plan.
@@ -25,8 +41,10 @@ est un fait de séance, distinct d'une Observation.
   compétence. Une Observation exige son chemin de preuve et sa provenance
   exacte ; terminer une intervention sans preuve laisse une séance terminée
   sans observation.
-- Un document n'atteint le tuteur qu'après ouverture explicite et relecture
-  humaine. Les liens documentaires portent un retour vers la séance, afin de
+- Dans le chat, un document n'atteint le tuteur qu'après ouverture explicite et relecture
+  humaine. L'analyse documentaire ADR-143 dispose de son consentement séparé
+  aux fichiers/pages/fournisseur/coût ; travailler ou consulter son résultat
+  n'appelle pas l'IA. Les liens documentaires portent un retour vers la séance, afin de
   ne pas transformer un changement d'écran en perte de contexte.
 - Les composants d'exercice, d'Atelier, de Feynman, du tuteur et d'action de
   séance restent les primitives de parcours. Aucun composant n'introduit une

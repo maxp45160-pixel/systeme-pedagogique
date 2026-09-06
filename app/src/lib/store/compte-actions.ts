@@ -53,7 +53,10 @@ export async function reinitialiserDonneesCompteAction(
     // Si le bucket de stockage n'est pas actif ou configuré en local, continuer la purge DB
   }
 
-  // 2. Suppression ordonnée des tables documentaires
+  // 2. Suppression ordonnée des tables documentaires.
+  // Les analyses et corrections du dépôt partent par cascade des documents.
+  // Le budget documentaire, sans contenu, survit au reset comme le quota tuteur
+  // dans comptes_acces : réinitialiser les données ne renouvelle pas 5 €.
   // document_snapshots a une contrainte ON DELETE RESTRICT vers documents : on la vide en premier
   const { error: errSnapshots } = await dorsale.supabase
     .from("document_snapshots")
