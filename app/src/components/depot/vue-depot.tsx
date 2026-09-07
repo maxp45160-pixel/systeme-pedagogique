@@ -145,7 +145,6 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
                 <span className="flex size-9 items-center justify-center rounded-full bg-primaire/10 text-primaire"><IconeValide className="size-4"/></span>
                 <div><h2 className="font-semibold">Vos documents sont là.</h2><p className="mt-1 text-xs text-texte-attenue">{depot.pieces.length} fichier{depot.pieces.length>1?"s":""} conservé{depot.pieces.length>1?"s":""}{depot.note?" et votre note":""}</p></div>
               </div>
-              <a href="/app" className="text-sm text-primaire hover:underline">Un autre dépôt <span aria-hidden>↗</span></a>
             </div>
           )}
 

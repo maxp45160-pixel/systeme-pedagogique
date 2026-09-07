@@ -23,8 +23,9 @@
  * 4. aucun historique de conversation : un seul message construit ici ;
  * 5. la sortie ne peut pas contenir la correction — `JUSTIFICATION_MAX` la
  *    borne et le validateur rejette au-delà ;
- * 6. la route ne sert qu'une tentative ouverte, du compte connecté, portant une
- *    réponse écrite.
+ * 6. la route ne sert qu'une tentative du compte connecté portant une réponse
+ *    écrite : ouverte pour l'évaluation, close sans mesure pour le feedback
+ *    consultatif explicitement demandé, sans formulaire de bilan (ADR-136).
  *
  * Ce que le tuteur ne fait toujours pas : écrire. Il propose un verdict que
  * l'utilisateur relit, modifie ou rejette. P5 tient à la lettre — mais il faut

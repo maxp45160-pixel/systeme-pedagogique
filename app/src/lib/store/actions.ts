@@ -16,6 +16,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { ecrireReponseEnCours } from "./reponse-tentative";
 import { ajouter, dorsaleCompte, lire, lireParId, modifier, nouvelId } from "./db";
 import { verifier } from "./supabase-backend";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
@@ -107,8 +108,7 @@ export async function demarrerTentative(exerciseId: string): Promise<void> {
 }
 
 export async function enregistrerReponse(attemptId: string, reponse: string): Promise<void> {
-  const dorsale = await dorsaleCompte();
-  await modifier("attempts", attemptId, { reponse }, dorsale);
+  await ecrireReponseEnCours(attemptId, reponse);
   revalidatePath("/", "layout");
 }
 

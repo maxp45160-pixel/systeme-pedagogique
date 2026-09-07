@@ -12,6 +12,7 @@ import {
 import {
   attendPreparationSeance,
   avancementSeance,
+  resumeClotureSeance,
   ecartBesoinRealise,
   estModeEpreuve,
   peutReprendreSeance,
@@ -750,6 +751,7 @@ export async function VueSeanceDetail({
                   />
                 )}
                 <ResumeExerciceCahier
+                  compteId={ctx.donnees.user.id}
                   exercice={parId.get(explicite)!}
                   tentative={tentativeDeSeance(seance, explicite, ctx.donnees.attempts)}
                 />
@@ -798,7 +800,7 @@ export async function VueSeanceDetail({
                       legende={`Séance du ${formatDateCourte(seance.date)}`}
                     />
                     <div className="space-y-2 px-5 py-4 text-sm">
-                      <p>{seance.resultat ?? `${avancement.menes.length} exercice(s) mené(s)`}</p>
+                      <p>{resumeClotureSeance(seance, ctx.donnees.attempts)}</p>
                       {typeof seance.dureeMin === "number" && <p className="text-texte-attenue">Durée observée : {formatDuree(seance.dureeMin)}</p>}
                       {statut === "abandonnee" && (
                         <p className="text-texte-attenue">
@@ -823,6 +825,7 @@ export async function VueSeanceDetail({
                     const exercice = parId.get(activite.ref)!;
                     return (
                       <ResumeExerciceCahier
+                        compteId={ctx.donnees.user.id}
                         key={activite.ref}
                         exercice={exercice}
                         tentative={tentativeDeSeance(seance, activite.ref, ctx.donnees.attempts)}
@@ -867,14 +870,14 @@ function ListeActivites({
     <ul className="divide-y divide-bordure">
       {activites.map((activite) => {
         const exercice = parId.get(activite.ref);
-        const etat = avancement.menes.includes(activite.ref) ? "Mené" : avancement.enCours.includes(activite.ref) ? "En cours" : avancement.abandonnes.includes(activite.ref) ? "Abandonné" : "À faire";
+        const etat = avancement.menes.includes(activite.ref) ? "Mené" : avancement.enCours.includes(activite.ref) ? "En cours" : avancement.abandonnes.includes(activite.ref) ? "Clos sans mesure" : "À faire";
         return (
           <li key={activite.ref} className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               {liens ? <Link href={urlExercice(activite.ref, { seanceId, plein })} className="text-sm font-medium text-primaire hover:underline">{activite.libelle}</Link> : <p className="text-sm font-medium">{activite.libelle}</p>}
               {exercice && !compacte && <div className="mt-1 flex flex-wrap gap-1.5 text-[0.6875rem] text-texte-discret">{exercice.competences.map((code) => <CodeCompetence key={code} code={code} />)}<span>· Difficulté {exercice.difficulte}/5</span><span>· ≈ {formatDuree(exercice.dureeEstimeeMin)}</span></div>}
             </div>
-            <Etiquette ton={etat === "Mené" ? "succes" : etat === "En cours" ? "primaire" : etat === "Abandonné" ? "danger" : undefined}>{etat}</Etiquette>
+            <Etiquette ton={etat === "Mené" ? "succes" : etat === "En cours" ? "primaire" : undefined}>{etat}</Etiquette>
           </li>
         );
       })}

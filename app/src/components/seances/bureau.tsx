@@ -895,7 +895,7 @@ function TraceHorsSeance({
 
   const resultat =
     tentative?.statut === "abandonnee"
-      ? { texte: "Abandonné", ton: "danger" as const }
+      ? { texte: "Clos sans mesure", ton: "neutre" as const }
       : tentative?.resultat === "reussi"
         ? { texte: "Réussi", ton: "succes" as const }
         : tentative?.resultat === "partiel"

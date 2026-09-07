@@ -11,8 +11,8 @@
  * (qui sont du travail en cours).
  *
  * ⚠️ La clé circule en clair vers la route `/api/tutor` (même origine). Elle ne
- * quitte jamais le navigateur pour un tiers. C'est un compromis acceptable pour
- * un outil personnel ; il est rappelé dans l'interface.
+ * est ensuite utilisée côté serveur pour authentifier l'appel au fournisseur
+ * choisi. Les configurations principale et de secours sont indépendantes.
  */
 
 import { cleParCompte } from "@/lib/ui/stockage-session";
@@ -129,14 +129,16 @@ function notifierChangement(): void {
   window.dispatchEvent(new CustomEvent(EVENEMENT_CHANGEMENT_CONFIG));
 }
 
-function cleStockage(compteId: string): string {
-  return cleParCompte("cle-tuteur", compteId);
+export type UsageConfigTuteur = "principal" | "secours";
+
+function cleStockage(compteId: string, usage: UsageConfigTuteur): string {
+  return cleParCompte(usage === "secours" ? "cle-tuteur:secours" : "cle-tuteur", compteId);
 }
 
 /** Lit la config enregistrée pour ce compte, ou `null` si aucune clé valide. */
-export function lireConfigTuteur(compteId: string): ConfigTuteurClient | null {
+export function lireConfigTuteur(compteId: string, usage: UsageConfigTuteur = "principal"): ConfigTuteurClient | null {
   if (typeof window === "undefined") return null;
-  const config = lireLocal<ConfigTuteurClient>(cleStockage(compteId));
+  const config = lireLocal<ConfigTuteurClient>(cleStockage(compteId, usage));
   if (!config || typeof config.cle !== "string" || config.cle.trim() === "") {
     return null;
   }
@@ -144,16 +146,16 @@ export function lireConfigTuteur(compteId: string): ConfigTuteurClient | null {
 }
 
 /** Enregistre la config pour ce compte. */
-export function ecrireConfigTuteur(compteId: string, config: ConfigTuteurClient): void {
+export function ecrireConfigTuteur(compteId: string, config: ConfigTuteurClient, usage: UsageConfigTuteur = "principal"): void {
   if (typeof window === "undefined") return;
-  ecrireLocal(cleStockage(compteId), config);
+  ecrireLocal(cleStockage(compteId, usage), config);
   notifierChangement();
 }
 
 /** Efface la config enregistrée pour ce compte. */
-export function effacerConfigTuteur(compteId: string): void {
+export function effacerConfigTuteur(compteId: string, usage: UsageConfigTuteur = "principal"): void {
   if (typeof window === "undefined") return;
-  effacerLocal(cleStockage(compteId));
+  effacerLocal(cleStockage(compteId, usage));
   notifierChangement();
 }
 

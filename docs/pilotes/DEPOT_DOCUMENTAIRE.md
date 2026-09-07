@@ -35,6 +35,30 @@ sans IA dans « Je préfère travailler directement sur mes documents ».
 
 ## Installation et activation
 
+Navigation : le clic « Tableau de bord » (desktop/mobile) ouvre les propositions
+via `/app?classique=1`. Ma journée affiche ce même bouton de retour en haut.
+« Ajouter à ma journée » reste accessible dans le rail et l'en-tête mobile,
+sur toutes les pages du pilote. Le lien « Autres propositions de travail »
+a été retiré ; l'accès direct à `/app` conserve la logique quotidienne.
+Après cette correction de navigation, la vérification complète du 07/09 passe :
+TypeScript, lint sans erreur (dix avertissements existants), 2 159 tests dans
+205 fichiers et build de production. Les tests de navigation couvrent la
+destination desktop/mobile, le maintien des liens hors pilote et l'état actif.
+
+Révision du 07/09 : « Supprimer » est disponible dans les dépôts récents,
+avec confirmation et explication des éléments conservés. Les documents avec
+une version figée restent protégés. Après une saisie enregistrée, revenir sur
+`/app` ouvre le dernier dépôt du jour local du navigateur ; « Ajouter à ma
+journée » (`/app?nouveau=1`) rouvre la saisie. Le lendemain, ou après suppression
+de tous les dépôts du jour, la saisie revient automatiquement. Aucun changement
+de schéma ni migration supplémentaire. Les tests couvrent la sélection du
+jour, minuit local, le retour sans dépôt et les refus de suppression.
+Vérification du 07/09 : TypeScript, lint sans erreur et build passent. La suite
+complète donne 2 155 tests réussis et deux échecs de comparaison LF/CRLF dans
+la composition des séances. Après normalisation des fins de ligne dans ce test,
+la reprise ciblée des trois fichiers concernés passe (10 tests, dont les sept
+nouveaux). Aucun document réel n'a été supprimé pour cette vérification.
+
 - Variables **serveur uniquement** : `MISTRAL_API_KEY` et
   `SUPABASE_SERVICE_ROLE_KEY`, avec la configuration Supabase existante.
   Ne jamais les préfixer `NEXT_PUBLIC_`. Sans ces clés, dépôt, lecture et

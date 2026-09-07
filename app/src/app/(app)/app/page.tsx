@@ -28,11 +28,11 @@ import { estPiloteDepot } from "@/lib/store/depot-budget";
 import { AccueilDepot } from "@/components/depot/accueil-depot";
 
 export default async function TableauDeBord(props: {
-  searchParams: Promise<{ temps?: string; capacite?: string; explication?: string; depot?: string; classique?: string }>;
+  searchParams: Promise<{ temps?: string; capacite?: string; explication?: string; depot?: string; nouveau?: string; classique?: string }>;
 }) {
   const recherche = await props.searchParams;
   if (recherche.classique !== "1" && await estPiloteDepot()) {
-    return <Suspense fallback={<SquelettePage />}><AccueilDepot documentId={recherche.depot}/></Suspense>;
+    return <Suspense fallback={<SquelettePage />}><AccueilDepot documentId={recherche.depot} nouveau={recherche.nouveau === "1"}/></Suspense>;
   }
   const instant = lireContexteInstant(recherche);
   const dateJour = formatDateAujourdhui();

@@ -2,6 +2,8 @@ import { Markdown } from "@/components/ui/markdown";
 import { Carte, CodeCompetence, EnTeteCarte, Etiquette } from "@/components/ui/primitives";
 import type { Exercise, ExerciseAttempt } from "@/lib/domain/types";
 import { conclusionsExercice } from "@/lib/domain/conclusions-exercice";
+import { RetourSansCorrection } from "@/components/exercices/retour-sans-correction";
+import { reponseSuffisante } from "@/lib/domain/tentative";
 
 const RESULTATS = {
   reussi: { libelle: "Réussi", ton: "succes" as const },
@@ -13,19 +15,22 @@ const RESULTATS = {
 export function ResumeExerciceCahier({
   exercice,
   tentative,
+  compteId,
 }: {
   exercice: Exercise;
   tentative?: ExerciseAttempt;
+  compteId: string;
 }) {
   const conclusions = conclusionsExercice(exercice, tentative);
   const resultat = tentative?.statut === "terminee" ? RESULTATS[tentative.resultat] : null;
+  const sansMesure = tentative?.statut === "abandonnee";
 
   return (
     <Carte>
       <EnTeteCarte
         titre={exercice.titre}
         legende={tentative?.dureeMin ? `${tentative.dureeMin} min observées` : undefined}
-        action={resultat ? <Etiquette ton={resultat.ton}>{resultat.libelle}</Etiquette> : undefined}
+        action={resultat ? <Etiquette ton={resultat.ton}>{resultat.libelle}</Etiquette> : sansMesure ? <Etiquette>Clos sans mesure</Etiquette> : undefined}
       />
 
       <div className="space-y-4 px-5 py-4">
@@ -41,6 +46,9 @@ export function ResumeExerciceCahier({
           <div className="prose-exo mt-1.5 text-sm"><Markdown contenu={exercice.enonce} /></div>
         </section>
 
+        {sansMesure && tentative && reponseSuffisante(tentative.reponse) ? (
+          <RetourSansCorrection exercice={exercice} tentative={tentative} compteId={compteId} />
+        ) : <>
         <section className="rounded-lg border border-primaire/20 bg-primaire-faible/50 p-4" aria-labelledby={`conclusions-${exercice.id}`}>
           <h3 id={`conclusions-${exercice.id}`} className="font-serif text-lg font-medium">Ce qu’il faut retenir</h3>
           <div className="mt-3 grid gap-4 sm:grid-cols-3">
@@ -58,6 +66,7 @@ export function ResumeExerciceCahier({
             </div>
           </details>
         )}
+        </>}
 
       </div>
     </Carte>

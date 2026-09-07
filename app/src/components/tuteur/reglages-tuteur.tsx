@@ -12,6 +12,7 @@ import {
   validerCleFournisseur,
   type ConfigTuteurClient,
   type FournisseurTuteur,
+  type UsageConfigTuteur,
 } from "@/lib/tutor/cle-client";
 import { validerUrlFournisseur } from "@/lib/tutor/url-fournisseur";
 
@@ -19,13 +20,17 @@ export function ReglagesTuteur({
   compteId,
   surEnregistre,
   compact = false,
+  usage = "principal",
+  surEfface,
 }: {
   compteId: string;
   surEnregistre?: (config: ConfigTuteurClient) => void;
   compact?: boolean;
+  usage?: UsageConfigTuteur;
+  surEfface?: () => void;
 }) {
   const [config, setConfig] = useState<ConfigTuteurClient | null>(() =>
-    lireConfigTuteur(compteId),
+    lireConfigTuteur(compteId, usage),
   );
   const [fournisseur, setFournisseur] = useState<FournisseurTuteur>(
     () => config?.fournisseur ?? "groq",
@@ -42,8 +47,10 @@ export function ReglagesTuteur({
   function choisirFournisseur(f: FournisseurTuteur) {
     setFournisseur(f);
     const p = FOURNISSEURS.find((x) => x.cle === f);
-    if (p?.urlBase && !urlBase) setUrlBase(p.urlBase);
-    if (p?.modeleParDefaut && !modele) setModele(p.modeleParDefaut);
+    setCle("");
+    setUrlBase(p?.urlBase ?? "");
+    setModele(p?.modeleParDefaut ?? "");
+    setMessage(null);
   }
 
   function enregistrer() {
@@ -76,19 +83,20 @@ export function ReglagesTuteur({
       };
     }
 
-    ecrireConfigTuteur(compteId, nouvelleConfig);
-    setConfig(lireConfigTuteur(compteId));
+    ecrireConfigTuteur(compteId, nouvelleConfig, usage);
+    setConfig(lireConfigTuteur(compteId, usage));
     setMessage("Clé enregistrée avec succès.");
     surEnregistre?.(nouvelleConfig);
   }
 
   function effacer() {
-    effacerConfigTuteur(compteId);
+    effacerConfigTuteur(compteId, usage);
     setConfig(null);
     setCle("");
     setUrlBase("");
     setModele("");
     setMessage("Clé effacée.");
+    surEfface?.();
   }
 
   return (
@@ -160,8 +168,8 @@ export function ReglagesTuteur({
       )}
 
       <p className="text-[0.6875rem] leading-relaxed text-texte-discret">
-        La clé est stockée localement dans votre navigateur, isolée par compte, et n&apos;est jamais
-        partagée.
+        La clé est conservée dans ce navigateur pour votre compte et transmise au fournisseur
+        choisi uniquement lors d&apos;un appel. {usage === "secours" && "La clé principale reste inchangée."}
       </p>
 
       <div className="flex items-center gap-2 pt-1">

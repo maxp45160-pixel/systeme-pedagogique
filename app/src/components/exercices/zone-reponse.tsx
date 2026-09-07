@@ -8,6 +8,10 @@ import { PaletteFormules } from "@/components/ui/palette-formules";
 import { EditeurDirect } from "@/components/atelier/editeur-document";
 import { insererFormuleDansEditeur } from "@/lib/documents/insertion-formule-editeur";
 import { cleParCompte, ecrireSession, effacerSession, lireSession } from "@/lib/ui/stockage-session";
+import { Bouton } from "@/components/ui/primitives";
+import { BoutonAbandon } from "./abandon";
+import { reponseSuffisante } from "@/lib/domain/tentative";
+import type { ContexteNavigationExercice } from "@/lib/domain/navigation-exercice";
 
 /**
  * Zone de réponse — enregistrement automatique en base, filet en session.
@@ -58,13 +62,16 @@ const DELAI_RELANCE_MS = 5000;
 
 type EtatSauvegarde = "enregistre" | "modifie" | "envoi" | "echec";
 
-export function ZoneReponse(proprietes: {
+interface ZoneReponseProps {
   attemptId: string;
   valeur: string;
   compteId: string;
   urlCorrection?: string;
   onDemanderCorrection?: () => void;
-}) {
+  cloture?: { exerciceId: string; codes: string[]; dureeMin: number; navigation?: ContexteNavigationExercice };
+}
+
+export function ZoneReponse(proprietes: ZoneReponseProps) {
   // `sessionStorage` n'existe pas côté serveur : on attend l'hydratation pour
   // partir du bon texte dès le premier rendu réel, plutôt que d'afficher la
   // valeur en base puis d'y réinjecter le brouillon dans un effet.
@@ -92,14 +99,8 @@ function ZoneHydrate({
   compteId,
   urlCorrection,
   onDemanderCorrection,
-}: {
-  attemptId: string;
-  /** Dernière réponse enregistrée en base (valeur figée au rendu serveur). */
-  valeur: string;
-  compteId: string;
-  urlCorrection?: string;
-  onDemanderCorrection?: () => void;
-}) {
+  cloture,
+}: ZoneReponseProps) {
   const router = useRouter();
   const cle = cleParCompte(`brouillon-reponse:${attemptId}`, compteId);
 
@@ -111,6 +112,8 @@ function ZoneHydrate({
   const [erreur, setErreur] = useState<string | null>(null);
   /** Incrémenté à chaque échec : c'est lui qui réarme la relance, `etat` restant « echec ». */
   const [essai, setEssai] = useState(0);
+  const [sortieEnCours, setSortieEnCours] = useState(false);
+  const sortieRef = useRef(false);
 
   /*
    * Les gestes de départ (blur, onglet caché, démontage, fermeture) partent de
@@ -119,7 +122,7 @@ function ZoneHydrate({
    */
   const texteRef = useRef(texte);
   const enregistreRef = useRef(valeur);
-  const envoiEnVol = useRef(false);
+  const envoiEnVol = useRef<Promise<boolean> | null>(null);
   const champRef = useRef<HTMLDivElement | null>(null);
 
   // Alignées après le rendu, jamais pendant. La saisie met aussi texteRef
@@ -139,15 +142,15 @@ function ZoneHydrate({
     [cle],
   );
 
-  const enregistrerMaintenant = useCallback(async () => {
+  const enregistrerMaintenant = useCallback((): Promise<boolean> => {
     // Une seule requête en vol : deux écritures concurrentes pourraient
     // aboutir dans le désordre et laisser la base sur la plus ancienne.
-    if (envoiEnVol.current) return;
+    if (envoiEnVol.current) return envoiEnVol.current;
     const corps = texteRef.current;
-    if (corps === enregistreRef.current) return;
+    if (corps === enregistreRef.current) return Promise.resolve(true);
 
-    envoiEnVol.current = true;
     setEtat("envoi");
+    const envoi = (async () => {
     try {
       await enregistrerReponse(attemptId, corps);
       enregistreRef.current = corps;
@@ -158,15 +161,20 @@ function ZoneHydrate({
       const aJour = texteRef.current === corps;
       setEtat(aJour ? "enregistre" : "modifie");
       if (aJour) effacerSession(cle);
+      return true;
     } catch (e) {
       setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       setEtat("echec");
       setEssai((n) => n + 1);
       // Le texte n'est pas en base : le filet local reste la seule copie.
-      ecrireFilet(corps);
+      ecrireFilet(texteRef.current);
+      return false;
     } finally {
-      envoiEnVol.current = false;
+      envoiEnVol.current = null;
     }
+    })();
+    envoiEnVol.current = envoi;
+    return envoi;
   }, [attemptId, cle, ecrireFilet]);
 
   /** Écriture immédiate, pour les gestionnaires qui ne peuvent pas attendre. */
@@ -244,11 +252,26 @@ function ZoneHydrate({
    * Partir sans attendre ferait tomber sur un écran qui dit « pas de réponse »
    * alors qu'elle vient d'être tapée.
    */
-  async function allerCorriger() {
+  async function sauvegarderAvantSortie() {
     ecrireFilet(texteRef.current);
-    await enregistrerMaintenant();
-    if (onDemanderCorrection) onDemanderCorrection();
-    else if (urlCorrection) router.push(urlCorrection);
+    // Attend l'envoi déjà parti, puis la saisie qui a pu continuer pendant cet envoi.
+    do {
+      if (!await enregistrerMaintenant()) throw new Error("La réponse n'a pas pu être enregistrée. Réessayez avant de terminer.");
+    } while (texteRef.current !== enregistreRef.current);
+  }
+
+  async function allerCorriger() {
+    if (sortieRef.current) return;
+    sortieRef.current = true;
+    setSortieEnCours(true);
+    try {
+      await sauvegarderAvantSortie();
+      if (onDemanderCorrection) onDemanderCorrection();
+      else if (urlCorrection) router.push(urlCorrection);
+    } catch {
+      sortieRef.current = false;
+      setSortieEnCours(false);
+    }
   }
 
   function gererToucheClavier(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -273,6 +296,7 @@ function ZoneHydrate({
     <div>
       <div className="mb-1.5 flex justify-end">
         <PaletteFormules
+          desactivee={sortieEnCours}
           onInserer={(latex, recul) => insererFormuleDansEditeur(champRef.current, latex, recul)}
         />
       </div>
@@ -282,7 +306,7 @@ function ZoneHydrate({
           documentId={attemptId}
           contenuInitialMd={texte}
           contenuCharge
-          lectureSeule={false}
+          lectureSeule={sortieEnCours}
           onSynchroniser={ecrireReponse}
           onRaccourci={gererToucheClavier}
           ariaLabel="Votre réponse"
@@ -318,6 +342,23 @@ function ZoneHydrate({
 
       {erreur && etat === "echec" && (
         <p className="mt-1.5 text-[0.6875rem] text-alerte">{erreur}</p>
+      )}
+      {cloture && (
+        <div className="mt-4 flex flex-wrap items-start gap-2">
+          <Bouton onClick={() => void allerCorriger()} disabled={sortieEnCours || !reponseSuffisante(texte)} taille="petite">
+            Demander la correction
+          </Bouton>
+          {reponseSuffisante(texte) && (
+            <BoutonAbandon
+              attemptId={attemptId}
+              {...cloture}
+              mode="sans-mesure"
+              disabled={sortieEnCours}
+              avantCloture={sauvegarderAvantSortie}
+              surClotureEnCours={(occupe) => { sortieRef.current = occupe; setSortieEnCours(occupe); }}
+            />
+          )}
+        </div>
       )}
     </div>
   );

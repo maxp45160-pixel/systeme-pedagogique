@@ -5,7 +5,8 @@ const source = readFileSync(new URL("./vue-exercice.tsx", import.meta.url), "utf
 
 describe("relecture d'un exercice de séance", () => {
   it("affiche la réponse écrite en lecture seule", () => {
-    expect(source).toContain("props.lectureSeule && !enCours && derniereCloturee?.reponse.trim()");
+    expect(source).toContain('props.lectureSeule && !enCours && derniereCloturee?.statut === "terminee" && derniereCloturee.reponse.trim()');
     expect(source).toContain('EnTeteCarte titre="Votre réponse"');
+    expect(source).toContain('<RetourSansCorrection exercice={exercice} tentative={derniereCloturee}');
   });
 });

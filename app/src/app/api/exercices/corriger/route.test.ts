@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Les six verrous de l'exception à ADR-036 (ADR-041), vus depuis la route.
@@ -29,6 +29,7 @@ const chargerContexte = vi.fn(async () => ({
 
 /** Capture les arguments de chaque appel : c'est eux que les verrous inspectent. */
 const appelsCorriger: unknown[][] = [];
+const resoudreMoteur = vi.fn(() => ({ ok: true, moteur: {} }));
 const corrigerReponse = vi.fn(async (...argumentsAppel: unknown[]) => {
   appelsCorriger.push(argumentsAppel);
   return { correction: { resultat: "partiel" } };
@@ -53,7 +54,7 @@ const repondreParFluxSse = vi.fn(
 
 vi.mock("@/lib/store/context", () => ({ chargerContexte }));
 vi.mock("@/lib/tutor/reponse-flux", () => ({
-  resoudreMoteur: () => ({ ok: true, moteur: {} }),
+  resoudreMoteur,
   repondreParFluxSse,
 }));
 vi.mock("@/lib/tutor/correction", () => ({
@@ -71,6 +72,39 @@ function requete(corps: unknown): Request {
 }
 
 describe("POST /api/exercices/corriger — les verrous d'ADR-041", () => {
+  beforeEach(() => { appelsCorriger.length = 0; vi.clearAllMocks(); });
+
+  it("relit une tentative close sans mesure sur sa réponse serveur, sans la rouvrir", async () => {
+    const close = { ...TENTATIVE, statut: "abandonnee" };
+    chargerContexte.mockResolvedValueOnce({ donnees: { attempts: [close], exercises: [EXERCICE_REEL] } });
+    const reponse = await POST(requete({ attemptId: "att-1", mode: "feedback", reponse: "copie du corrigé" }));
+    expect(reponse.status).toBe(200);
+    expect(appelsCorriger[0][2]).toBe(TENTATIVE.reponse);
+    expect(close).toEqual({ ...TENTATIVE, statut: "abandonnee" });
+  });
+
+  it("refuse de présenter une tentative abandonnée comme une évaluation", async () => {
+    chargerContexte.mockResolvedValueOnce({ donnees: { attempts: [{ ...TENTATIVE, statut: "abandonnee" }], exercises: [EXERCICE_REEL] } });
+    expect((await POST(requete({ attemptId: "att-1", mode: "evaluation" }))).status).toBe(400);
+    expect(corrigerReponse).not.toHaveBeenCalled();
+  });
+
+  it("ne dévoile pas de feedback différé sur une tentative encore ouverte", async () => {
+    expect((await POST(requete({ attemptId: "att-1", mode: "feedback" }))).status).toBe(400);
+    expect(corrigerReponse).not.toHaveBeenCalled();
+  });
+
+  it("transmet uniquement le fournisseur explicitement demandé au résolveur commun", async () => {
+    const config = { fournisseur: "groq", cle: "gsk_factice" };
+    await POST(requete({ attemptId: "att-1", config }));
+    expect(resoudreMoteur).toHaveBeenCalledTimes(1);
+    expect(resoudreMoteur).toHaveBeenCalledWith(config, expect.any(Object));
+  });
+
+  it.each([null, [], { attemptId: 42 }, { attemptId: "att-1", mode: "autre" }])("refuse un corps invalide %j", async (corps) => {
+    expect((await POST(requete(corps))).status).toBe(400);
+    expect(corrigerReponse).not.toHaveBeenCalled();
+  });
   it("refuse un corps sans attemptId", async () => {
     const reponse = await POST(requete({}));
     expect(reponse.status).toBe(400);

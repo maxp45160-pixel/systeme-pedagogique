@@ -202,6 +202,14 @@ export function PanneauCompte({
                     : undefined
                 }
               />
+              <details className="mt-5 rounded-md border border-bordure p-3">
+                <summary className="cursor-pointer text-sm font-medium">Fournisseur de secours</summary>
+                <p className="my-3 text-xs text-texte-attenue">
+                  Une seconde clé pour les corrections indisponibles. Chaque envoi à ce fournisseur
+                  demandera votre confirmation depuis l&apos;exercice.
+                </p>
+                <ReglagesTuteur compteId={compteId} usage="secours" compact />
+              </details>
             </div>
           </div>
         )}

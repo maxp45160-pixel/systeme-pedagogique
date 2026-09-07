@@ -141,8 +141,9 @@ function messageErreurHttp(statut: number, corps: string): string {
   const detail = corps.slice(0, 300).trim();
   switch (statut) {
     case 401:
-    case 403:
       return "Clé refusée par le fournisseur. Vérifie la clé API enregistrée dans les réglages du tuteur.";
+    case 403:
+      return "Accès refusé par le fournisseur (HTTP 403). La clé n'est pas nécessairement invalide : vérifiez les droits du modèle et la disponibilité de votre offre, ou utilisez un fournisseur de secours.";
     case 404:
       return "Modèle ou URL introuvable. Vérifie le modèle et l'URL du fournisseur dans les réglages du tuteur.";
     case 413:

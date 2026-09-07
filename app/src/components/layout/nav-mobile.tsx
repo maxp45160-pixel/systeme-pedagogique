@@ -2,19 +2,22 @@
 
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { estActif, NAV_MOBILE } from "./navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { hrefNavigation, estActif, NAV_MOBILE } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BoutonIntentionMobile } from "@/components/intention/bouton-intention";
 
 /** Barre inférieure sur mobile : les mêmes destinations que le rail desktop. */
 export function NavMobile({
   pastilles,
+  piloteDepot = false,
 }: {
   /** Compteurs par `href`, rendus côté serveur — voir `Sidebar`. */
   pastilles?: Partial<Record<string, ReactNode>>;
+  piloteDepot?: boolean;
 }) {
   const pathname = usePathname();
+  const recherche = useSearchParams();
 
   return (
     <nav
@@ -38,7 +41,7 @@ export function NavMobile({
             elles, se cherchent.
           */
           const centre = Math.floor(NAV_MOBILE.length / 2);
-          const actif = estActif(pathname, e.href);
+          const actif = estActif(pathname, e.href, piloteDepot && recherche.get("classique") !== "1");
           const Icone = e.icone;
           const pastille = pastilles?.[e.href];
           return (
@@ -55,7 +58,7 @@ export function NavMobile({
               */}
               <li className="relative">
               <Link
-                href={e.href}
+                href={hrefNavigation(e.href, piloteDepot)}
                 aria-current={actif ? "page" : undefined}
                 className={cx(
                   "relative flex flex-col items-center gap-0.5 py-2 text-[0.625rem] transition-colors",

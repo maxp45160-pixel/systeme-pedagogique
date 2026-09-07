@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { urlExercice } from "@/lib/domain/navigation-exercice";
 import { Bouton, Carte, CodeCompetence, EnTeteCarte, EtatVide, Etiquette, classesLienBouton } from "@/components/ui/primitives";
 import { RappelNouveauBesoin } from "@/components/intention/bouton-intention";
 import { IconeMinuteur } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree, cleJour } from "@/lib/engine/dates";
 import {
   avancementSeance,
+  resumeClotureSeance,
   estModeEpreuve,
   peutReprendreSeance,
   statutSeance,
@@ -235,7 +237,7 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
       <div className="space-y-4 px-5 py-4">
         {seance.resultat && (
           <p className="text-xs text-texte-attenue">
-            {seance.resultat}
+            {resumeClotureSeance(seance, donnees.tentatives)}
           </p>
         )}
 
@@ -247,6 +249,7 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
             <div className="space-y-1.5">
               {activites.map((activite) => (
                 <TraceExercice
+                  seanceId={seance.id}
                   key={activite.ref}
                   exercice={exercicesParId.get(activite.ref)}
                   libelle={activite.libelle}
@@ -291,10 +294,12 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
 }
 
 function TraceExercice({
+  seanceId,
   exercice,
   libelle,
   tentative,
 }: {
+  seanceId: string;
   exercice?: Exercise;
   libelle: string;
   tentative?: ExerciseAttempt;
@@ -305,7 +310,12 @@ function TraceExercice({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-bordure-controle/40 bg-surface-2/50 px-3 py-2">
-      <span className="min-w-0 text-xs font-medium">{exercice?.titre ?? libelle}</span>
+      {exercice && tentative ? (
+        <Link href={urlExercice(exercice.id, { seanceId })} className="min-w-0 text-xs font-medium text-primaire hover:underline">
+          {exercice.titre}
+          <span className="block text-xs font-normal">{tentative.statut === "abandonnee" ? "Relire et obtenir un feedback" : "Relire mon travail"}</span>
+        </Link>
+      ) : <span className="min-w-0 text-xs font-medium">{exercice?.titre ?? libelle}</span>}
       <Etiquette ton={resultat.ton}>
         {resultat.texte}
       </Etiquette>
@@ -317,7 +327,7 @@ function libelleResultat(tentative: ExerciseAttempt): {
   texte: string;
   ton: "succes" | "alerte" | "danger" | "primaire" | "neutre";
 } {
-  if (tentative.statut === "abandonnee") return { texte: "Abandonné", ton: "danger" };
+  if (tentative.statut === "abandonnee") return { texte: "Clos sans mesure", ton: "neutre" };
   if (tentative.statut === "en-cours") return { texte: "En cours", ton: "primaire" };
   if (tentative.resultat === "reussi") return { texte: "Réussi", ton: "succes" };
   if (tentative.resultat === "partiel") return { texte: "Partiel", ton: "alerte" };

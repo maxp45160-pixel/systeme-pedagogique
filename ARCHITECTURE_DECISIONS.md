@@ -2694,7 +2694,7 @@ existe pour empêcher.
 | 3 | `outilCorrection` **n'entre pas** dans `outilsTuteur` — testé | `outils.ts` |
 | 4 | Aucun historique : un seul message construit côté serveur | la route n'accepte pas de `messages` |
 | 5 | La sortie ne peut pas contenir la correction : `JUSTIFICATION_MAX = 400` la borne, et le validateur rejette au-delà | `outils.ts` |
-| 6 | Ne sert qu'une tentative **ouverte, du compte, avec une réponse écrite** | gardes de la route |
+| 6 | Ne sert qu'une tentative **du compte, avec une réponse écrite** : ouverte pour l'évaluation, close sans mesure pour le feedback consultatif explicite (ADR-136) | gardes de la route |
 
 Le verrou 6 mérite un mot de plus. **Le corps de la requête ne porte qu'un
 `attemptId`** — ni exercice, ni correction, ni réponse. Le serveur relit tout
@@ -10933,14 +10933,15 @@ fortement la friction du geste qui produit une observation.
    l'action serveur, rafraîchit explicitement l'écran, affiche une attente
    nommée et propose un repli manuel (`<form action>`) si elle échoue.
    L'invariant ADR-030 reste entier : l'automatisme n'écrit toujours rien.
-2. **Deux horloges bornent la correction.** À 10 s, la sortie « Terminer sans
-   mesure » devient disponible ; à 25 s, le flux est interrompu, ce qui coupe
+2. **La correction ne bloque pas la clôture.** Depuis la saisie et pendant
+   l'attente, « Terminer et consulter le corrigé » reste disponible ;
+   à 25 s, le flux est interrompu, ce qui coupe
    aussi la génération côté serveur via `request.signal`. La route passe de
    300 à 60 s de plafond et journalise TTFT, durée totale, fournisseur et
    issue. Une seule demande est active à la fois ; aucune relance automatique
    n'existe. Un verdict déjà reçu est conservé dans le `sessionStorage` isolé
    du compte et retrouvé au rechargement. Une expiration, une erreur ou un
-   rechargement expose une relance explicite et « Terminer sans mesure » ; ce
+   rechargement expose une relance explicite et la clôture sans mesure ; ce
    dernier réutilise `abandonnerExercice`, n'écrit ni résultat ni observation,
    et rend la réponse attendue consultable. Une relance explicitement demandée
    constitue une nouvelle génération ; ni double-clic ni rechargement ne peut
@@ -10949,6 +10950,25 @@ fortement la friction du geste qui produit une observation.
    cachée pendant la recherche. Le formulaire de bilan n'est rendu
    qu'après une correction recevable : aucune auto-évaluation de secours n'est
    imposée, et aucune observation ne peut être produite sans cette correction.
+   Complément du 06/09/2026 : la clôture attend la sauvegarde de la réponse,
+   puis présente l'original avec le corrigé disponible et les critères.
+   La sauvegarde conditionne son écriture au statut `en-cours` pour refuser
+   une écriture tardive. Un fournisseur de secours se configure dans un
+   emplacement navigateur distinct, isolé par compte ; chaque envoi demande
+   un clic explicite après présentation des données et du fournisseur.
+   Le mode `feedback` de la même route accepte une tentative `abandonnee`
+   et relit sa réponse d'origine sous RLS. Son rendu est consultatif : aucun
+   formulaire de bilan, aucune réouverture ni observation. Son cache d'onglet
+   est séparé du mode évaluation ; aucun feedback différé n'est archivé en
+   base. Aucun réessai payant ni basculement de fournisseur n'est automatique.
+   Ce complément ne change ni le schéma ni le statut de cet ADR.
+   Correctif de relecture du 06/09/2026 : le cahier et le détail des séances
+   closes donnent accès au même feedback différé, avec la tentative retrouvée
+   par `tentativeDeSeance`. Le lien conserve la séance et l'exercice. Le
+   libellé visible devient « Clos sans mesure », sans prétendre distinguer
+   rétrospectivement les motifs du statut technique `abandonnee`. Le résumé
+   de clôture affiché est dérivé des traces ; les textes historiques stockés
+   et les observations ne sont pas réécrits.
 3. **Une inscription ambiguë reste ambiguë.** La classification vit dans
    `lib/auth/inscription.ts` (testée) : erreur explicite de doublon → bascule
    vers la connexion avec l'e-mail conservé ; succès sans identités (le
@@ -11826,6 +11846,27 @@ Le bouton technique d'actualisation est remplacé par une lecture périodique
 de l'état en cours ; aucun appel fournisseur n'est réessayé automatiquement.
 Le geste de lecture et reformulation est présenté comme « Travailler ce passage »
 avec sa consigne, et reste accessible directement sur l'original sans IA.
+
+Révision demandée le 07/09 : l'accueil sans lien documentaire explicite
+retrouve le dernier dépôt du jour local du navigateur. Il n'affiche la saisie
+vide que sans dépôt du jour, ou via « Ajouter à ma journée » (`nouveau=1`).
+Ce choix se dérive des dates de création des dépôts du compte : pas de drapeau
+quotidien, cookie ou table supplémentaire. Supprimer tous les dépôts du jour
+fait donc revenir la saisie. Un lien explicite vers un dépôt reste prioritaire.
+La suppression depuis les dépôts récents vérifie le compte pilote et la nature
+du dépôt puis réutilise `supprimerDocument`, avec confirmation explicite.
+La protection des snapshots, les autorisations existantes et les cascades
+documentaires sont inchangées. Les séances, leur rédaction et le budget
+consommé ne sont pas supprimés ; les originaux retirés ne sont plus consultables.
+
+Précision de navigation du 07/09 demandée par Maxime : le clic « Tableau de
+bord » depuis le rail ou la barre mobile utilise `/app?classique=1` pour le
+pilote, et ne mène plus à Ma journée. `NAVIGATION` reste la source commune
+des destinations ; `hrefNavigation` adapte son lien pour le pilote. Ma journée
+ne marque plus cette entrée comme active. Le bouton de retour « Tableau de
+bord » remplace le lien d'ajout en haut de Ma journée et l'ancien lien
+« Autres propositions de travail » disparaît. L'ajout de journée devient un
+geste global dans le rail et l'en-tête mobile, sans nouvelle destination métier.
 
 La personne prépare puis confirme l'analyse après avoir vu les fichiers,
 les pages traitées, Mistral et le coût maximal. Les fichiers sélectionnés

@@ -196,13 +196,14 @@ export function navigationPour(administrateur: boolean): GroupeNav[] {
   );
 }
 
-/**
- * Une destination est « active » si l'URL courante l'égale ou en descend —
- * une route enfant active son entrée parente. Partagée entre le rail (desktop)
- * et la barre basse (mobile) : les deux doivent s'accorder sur la même page
- * courante, pas chacune sa propre règle.
- */
-export function estActif(pathname: string, href: string): boolean {
+/** Le clic de navigation demande le tableau de bord, même pendant le pilote. */
+export function hrefNavigation(href: string, piloteDepot: boolean): string {
+  return piloteDepot && href === "/app" ? "/app?classique=1" : href;
+}
+
+/** L'état actif est partagé par le rail et la barre mobile ; Ma journée se distingue du tableau de bord. */
+export function estActif(pathname: string, href: string, journee = false): boolean {
+  if (journee && pathname === "/app" && href === "/app") return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

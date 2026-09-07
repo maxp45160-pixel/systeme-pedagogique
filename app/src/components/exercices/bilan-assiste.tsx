@@ -14,12 +14,11 @@ import { useEffect, useRef, useState } from "react";
 import type { Exercise } from "@/lib/domain/types";
 import {
   DELAI_INTERRUPTION_CORRECTION_MS,
-  DELAI_SORTIE_CORRECTION_MS,
   reprendreCorrection,
   type CauseCorrectionIndisponible,
   type EtatCorrectionPersiste,
 } from "@/lib/domain/correction-exercice";
-import { lireConfigTuteur } from "@/lib/tutor/cle-client";
+import { lireConfigTuteur, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { convertirCorrection } from "@/lib/tutor/conversion-correction";
 import type { PropositionCorrection } from "@/lib/tutor/outils";
 import { BandeauInfo, Bouton, PointActif } from "@/components/ui/primitives";
@@ -33,8 +32,11 @@ import {
 } from "@/lib/ui/stockage-session";
 import type { PropositionBilan } from "./formulaire-bilan";
 import { FormulaireBilan } from "./formulaire-bilan";
+import { BilanRedigeVue } from "./bilan-redige";
+import { SecoursCorrection } from "./secours-correction";
 
 type Etat =
+  | { phase: "attente" }
   | { phase: "correction" }
   | { phase: "prete"; proposition: PropositionBilan }
   | {
@@ -57,6 +59,7 @@ export function BilanAssiste({
   indicesUtilises,
   compteId,
   navigation,
+  feedbackDiffere = false,
 }: {
   exercice: Exercise;
   attemptId: string;
@@ -64,15 +67,18 @@ export function BilanAssiste({
   indicesUtilises: number;
   compteId: string;
   navigation?: ContexteNavigationExercice;
+  /** Relecture de la réponse figée : aucun formulaire d'observation. */
+  feedbackDiffere?: boolean;
 }) {
-  const cleEtat = cleParCompte(`correction:exercice:${attemptId}`, compteId);
-  const [etat, setEtat] = useState<Etat>({ phase: "correction" });
+  const cleEtat = cleParCompte(`correction:exercice:${attemptId}${feedbackDiffere ? ":feedback" : ""}`, compteId);
+  const [etat, setEtat] = useState<Etat>({ phase: feedbackDiffere ? "attente" : "correction" });
   const [hydrate, setHydrate] = useState(false);
   const [progression, setProgression] = useState<string | null>(null);
   const [secondes, setSecondes] = useState(0);
   const abandonRef = useRef<AbortController | null>(null);
   /** Une seule requête active : protège les doubles clics et le mode strict. */
   const lanceRef = useRef(false);
+  const configDemande = useRef<ConfigTuteurClient | undefined>(undefined);
 
   useEffect(() => {
     let actif = true;
@@ -137,7 +143,8 @@ export function BilanAssiste({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             attemptId,
-            config: lireConfigTuteur(compteId) ?? undefined,
+            config: configDemande.current ?? lireConfigTuteur(compteId) ?? undefined,
+            mode: feedbackDiffere ? "feedback" : "evaluation",
           }),
           signal: abandon.signal,
         });
@@ -246,6 +253,7 @@ export function BilanAssiste({
     exercice.criteres.length,
     etat.phase,
     hydrate,
+    feedbackDiffere,
   ]);
 
   useEffect(() => {
@@ -281,8 +289,10 @@ export function BilanAssiste({
     setEtat({ phase: "indisponible", cause: "erreur", raison });
   }
 
-  function relancer() {
+  function relancer(config?: ConfigTuteurClient) {
+    if (etat.phase === "correction" || lanceRef.current && abandonRef.current && !abandonRef.current.signal.aborted) return;
     abandonRef.current?.abort();
+    configDemande.current = config;
     effacerSession(cleEtat);
     lanceRef.current = false;
     setProgression(null);
@@ -290,7 +300,7 @@ export function BilanAssiste({
     setEtat({ phase: "correction" });
   }
 
-  const sortieSansMesure = (
+  const sortieSansMesure = !feedbackDiffere && (
     <BoutonAbandon
       attemptId={attemptId}
       exerciceId={exercice.id}
@@ -304,8 +314,22 @@ export function BilanAssiste({
     />
   );
 
+  if (etat.phase === "attente") {
+    return (
+      <div className="space-y-3">
+        <p className="text-xs text-texte-attenue">
+          Vous pouvez demander un feedback sur votre réponse enregistrée avant consultation du corrigé.
+          Il vous aidera à comprendre votre travail, sans modifier votre progression.
+        </p>
+        <Bouton taille="petite" onClick={() => relancer()} disabled={!hydrate}>
+          Obtenir un feedback sur ma réponse d&apos;origine
+        </Bouton>
+        {hydrate && <SecoursCorrection compteId={compteId} onDemander={relancer} />}
+      </div>
+    );
+  }
+
   if (etat.phase === "correction") {
-    const attenteLongue = secondes * 1000 >= DELAI_SORTIE_CORRECTION_MS;
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center" aria-live="polite">
         <PointActif />
@@ -315,11 +339,11 @@ export function BilanAssiste({
         <p className="mt-1 text-[0.6875rem] text-texte-discret">
           {secondes} s — aucune observation n&apos;est encore écrite.
         </p>
-        {attenteLongue && (
+        {!feedbackDiffere && (
           <div className="mt-4 space-y-2">
             <p className="max-w-sm text-[0.6875rem] text-texte-discret">
-              La correction prend plus longtemps que prévu. Vous pouvez attendre, ou terminer
-              sans mesure ; votre réponse restera conservée.
+              Vous pouvez terminer et consulter le corrigé sans attendre.
+              Votre réponse restera conservée pour un feedback ultérieur.
             </p>
             {sortieSansMesure}
           </div>
@@ -341,16 +365,39 @@ export function BilanAssiste({
           </p>
         </BandeauInfo>
         <div className="flex flex-wrap items-center gap-2">
-          <Bouton onClick={relancer} variante="principal" taille="petite">
-            Réessayer la correction
+          <Bouton onClick={() => relancer()} variante="principal" taille="petite">
+            Réessayer avec le fournisseur principal
           </Bouton>
           {sortieSansMesure}
         </div>
+        {hydrate && <SecoursCorrection compteId={compteId} onDemander={relancer} />}
         <p className="text-[0.6875rem] text-texte-discret">
           Une nouvelle demande est toujours explicite. Si la clé du service est partagée, elle
           peut consommer une génération ; aucun nouvel appel n&apos;est lancé au rechargement.
-          Après la clôture sans mesure, la réponse attendue restera consultable.
+          Votre réponse d&apos;origine reste conservée.
         </p>
+      </div>
+    );
+  }
+
+  if (feedbackDiffere) {
+    return (
+      <div className="space-y-3">
+        {etat.proposition.bilan && (
+          <BilanRedigeVue
+            bilan={etat.proposition.bilan}
+            titre="Feedback sur votre réponse d'origine"
+            legende="Relecture après clôture : aucune observation ni modification de votre progression."
+          />
+        )}
+        <ul className="space-y-2 text-xs">
+          {exercice.criteres.map((critere, index) => (
+            <li key={index}>
+              <p className="font-medium">{critere.libelle}</p>
+              <p className="text-texte-attenue">{etat.proposition.justifications[index]}</p>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }

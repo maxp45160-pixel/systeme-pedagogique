@@ -584,6 +584,15 @@ export function resumeSeance(avancement: AvancementSeance): string {
     : base;
 }
 
+/** Relecture actuelle des faits : ne recopie pas l'ancien libellé stocké d'abandon. */
+export function resumeClotureSeance(seance: LearningSession, tentatives: ExerciseAttempt[]): string {
+  const ids = exercicesDeLaSeance(seance);
+  const traces = ids.map((id) => tentativeDeSeance(seance, id, tentatives));
+  const evalues = traces.filter((t) => t?.statut === "terminee").length;
+  const sansMesure = traces.filter((t) => t?.statut === "abandonnee").length;
+  return `${evalues + sansMesure} exercice(s) clos sur ${ids.length} — ${evalues} avec bilan, ${sansMesure} sans mesure`;
+}
+
 /**
  * La phrase écrite quand une séance est abandonnée.
  *

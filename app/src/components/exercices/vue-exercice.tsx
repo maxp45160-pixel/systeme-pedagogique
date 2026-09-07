@@ -13,7 +13,6 @@ import {
   Carte,
   classesLienBouton,
   CodeCompetence,
-  cx,
   EnTeteCarte,
   Etiquette,
   JaugeNiveau,
@@ -28,8 +27,9 @@ import { BoutonRetirerExercice } from "@/components/exercices/bouton-retirer";
 import { ZoneReponse } from "@/components/exercices/zone-reponse";
 import { FocusActe } from "@/components/exercices/focus-acte";
 import { ReponseAttendue } from "@/components/exercices/reponse-attendue";
+import { RetourSansCorrection } from "@/components/exercices/retour-sans-correction";
 import { motifBlocageBilan, reponseSuffisante } from "@/lib/domain/tentative";
-import { indicesMasquesEnEpreuve } from "@/lib/domain/seance";
+import { indicesMasquesEnEpreuve, tentativeDeSeance } from "@/lib/domain/seance";
 import { IconeFleche } from "@/components/ui/icones";
 import { formatDateCourte, formatDuree } from "@/lib/engine/dates";
 import { CarteImpact, LienApresImpact } from "@/components/exercices/carte-impact";
@@ -102,7 +102,12 @@ export async function VueExercice(props: {
     { libelle: "Poser une question", amorce: "" },
   ].filter((action) => !(aidesMasquees && /indice/i.test(action.libelle)));
   const tentatives = ctx.donnees.attempts.filter((a) => a.exerciseId === exercice.id);
-  const tentativesDeCetteSeance = sessionNavigation
+  const tentativeRelue = props.lectureSeule && sessionNavigation
+    ? tentativeDeSeance(sessionNavigation, exercice.id, tentatives)
+    : undefined;
+  const tentativesDeCetteSeance = props.lectureSeule && sessionNavigation
+    ? tentativeRelue ? [tentativeRelue] : []
+    : sessionNavigation
     ? tentatives.filter((a) => a.debut >= sessionNavigation.date)
     : tentatives;
   // Le cahier relit une séance : une tentative éventuellement ouverte ailleurs
@@ -134,7 +139,7 @@ export async function VueExercice(props: {
    * pour savoir laquelle des deux phrases est vraie.
    */
   const derniereAbandonnee =
-    [...tentatives]
+    [...tentativesDeCetteSeance]
       .filter((a) => a.statut === "abandonnee")
       .sort((a, b) => (b.fin ?? b.debut).localeCompare(a.fin ?? a.debut))[0] ?? null;
   const abandonDelibere = derniereAbandonnee
@@ -257,9 +262,11 @@ export async function VueExercice(props: {
         <BandeauInfo ton="info" className="mb-4">
         <div>
           <FocusActe cle={`abandon-${derniereAbandonnee?.id ?? exercice.id}`} cible="titre-abandon-exercice" />
-          <p id="titre-abandon-exercice" tabIndex={-1} className="text-sm font-medium text-info outline-none">Cet exercice ne compte pas</p>
+          <p id="titre-abandon-exercice" tabIndex={-1} className="text-sm font-medium text-info outline-none">Tentative close sans mesure</p>
           <p className="mt-1 text-xs text-texte-attenue">
-            {abandonDelibere ? (
+            {reponseSuffisante(derniereAbandonnee?.reponse) ? (
+              <>Votre réponse est conservée. Vous pouvez consulter le corrigé et demander un feedback ultérieurement. Votre progression reste inchangée.</>
+            ) : abandonDelibere ? (
               <>
                 Vous avez clos cette tentative sans la mener à son terme : elle est marquée
                 comme abandonnée. Un abandon n&apos;est pas un échec — un échec est une
@@ -607,7 +614,9 @@ export async function VueExercice(props: {
           c'est un document de comparaison, pas un contenu qui s'offre au regard
           de qui rouvre l'exercice pour le refaire.
         */}
-        {!enCours && derniereCloturee && (
+        {!enCours && derniereCloturee?.statut === "abandonnee" && reponseSuffisante(derniereCloturee.reponse) ? (
+          <RetourSansCorrection exercice={exercice} tentative={derniereCloturee} compteId={ctx.donnees.user.id} />
+        ) : !enCours && derniereCloturee && (
           <ReponseAttendue
             correction={exercice.correction}
             legende={
@@ -618,7 +627,7 @@ export async function VueExercice(props: {
           />
         )}
 
-        {props.lectureSeule && !enCours && derniereCloturee?.reponse.trim() && (
+        {props.lectureSeule && !enCours && derniereCloturee?.statut === "terminee" && derniereCloturee.reponse.trim() && (
           <Carte>
             <EnTeteCarte titre="Votre réponse" />
             <div className="prose-exo px-4 py-3.5 text-sm">
@@ -672,12 +681,15 @@ export async function VueExercice(props: {
               }
             >
               <div className="px-4 py-3.5">
-                <ZoneReponse
+                {enMesure && reponseSuffisante(enCours.reponse) ? (
+                  <Markdown contenu={enCours.reponse} />
+                ) : <ZoneReponse
                   attemptId={enCours.id}
                   valeur={enCours.reponse}
                   compteId={ctx.donnees.user.id}
                   urlCorrection={urlExercice(exercice.id, navigation, "evaluer")}
-                />
+                  cloture={{ exerciceId: exercice.id, codes: exercice.competences, dureeMin: dureeSuggeree, navigation }}
+                />}
                 {/*
                   Le tiroir porte l'identifiant de l'exercice : le tuteur reçoit
                   l'énoncé et le brouillon enregistré. Les déclencheurs contextuels
@@ -702,23 +714,6 @@ export async function VueExercice(props: {
             </PanneauPliable>
 
             {/* ---------------- Acte : demander la correction au tuteur ------ */}
-            {!enMesure && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure px-1 py-2">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium">Correction par le tuteur</p>
-                  <p className="text-micro text-texte-attenue">
-                    Le tuteur relira votre réponse et vous proposera un bilan.
-                  </p>
-                </div>
-                <Link
-                  href={urlExercice(exercice.id, navigation, "evaluer")}
-                  className={cx(classesLienBouton("principal", "petite"))}
-                >
-                  Demander la correction
-                  <IconeFleche className="size-4" />
-                </Link>
-              </div>
-            )}
 
             {/*
               Pendant le travail, la correction de référence reste côté serveur.

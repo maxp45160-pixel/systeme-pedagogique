@@ -46,6 +46,7 @@ interface CorpsCorriger {
   attemptId?: string;
   /** Config saisie côté client (réglages). Prime sur les variables serveur. */
   config?: ConfigTuteurClient;
+  mode?: "evaluation" | "feedback";
 }
 
 export async function POST(request: Request) {
@@ -56,7 +57,12 @@ export async function POST(request: Request) {
     return Response.json({ erreur: "corps-invalide" }, { status: 400 });
   }
 
-  const attemptId = (corps.attemptId ?? "").trim();
+  if (!corps || typeof corps !== "object" || Array.isArray(corps) ||
+      (corps.mode !== undefined && corps.mode !== "evaluation" && corps.mode !== "feedback")) {
+    return Response.json({ erreur: "corps-invalide" }, { status: 400 });
+  }
+  const feedbackDiffere = corps.mode === "feedback";
+  const attemptId = typeof corps.attemptId === "string" ? corps.attemptId.trim() : "";
   if (!attemptId) {
     return Response.json({ erreur: "tentative-absente" }, { status: 400 });
   }
@@ -74,13 +80,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // Une tentative close a déjà produit sa observation — ou son abandon. La corriger
-  // n'aurait aucun effet sur ce qui est écrit, et ferait croire l'inverse.
-  if (tentative.statut !== "en-cours") {
+  // Le feedback après clôture est une lecture de la réponse stockée. Il n'ouvre
+  // jamais le chemin d'acceptation d'une observation sur une tentative abandonnée.
+  if (feedbackDiffere ? tentative.statut !== "abandonnee" : tentative.statut !== "en-cours") {
     return Response.json(
       {
         erreur: "tentative-close",
-        message: "Cet exercice est déjà terminé. Refaites-en un pour progresser dessus.",
+        message: feedbackDiffere
+          ? "Le feedback différé concerne une tentative close sans mesure."
+          : "Cet exercice est terminé. Vous pouvez relire votre réponse et demander un feedback après clôture.",
       },
       { status: 400 },
     );

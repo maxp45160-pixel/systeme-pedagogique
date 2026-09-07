@@ -32,6 +32,9 @@ export function BoutonAbandon({
   navigation,
   mode = "abandon",
   avantConfirmation,
+  avantCloture,
+  surClotureEnCours,
+  disabled = false,
 }: {
   attemptId: string;
   exerciceId: string;
@@ -44,6 +47,10 @@ export function BoutonAbandon({
   mode?: "abandon" | "sans-mesure";
   /** Coupe une demande en cours avant d'afficher la confirmation. */
   avantConfirmation?: () => void;
+  /** Attend la dernière saisie avant que la réponse ne devienne consultable. */
+  avantCloture?: () => Promise<void>;
+  surClotureEnCours?: (enCours: boolean) => void;
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [confirme, setConfirme] = useState(false);
@@ -52,11 +59,13 @@ export function BoutonAbandon({
   const actionLancee = useRef(false);
 
   function abandonner() {
-    if (actionLancee.current) return;
+    if (actionLancee.current || disabled) return;
     actionLancee.current = true;
+    surClotureEnCours?.(true);
     setErreur(null);
     demarrer(async () => {
       try {
+        await avantCloture?.();
         const destination = await abandonnerExercice(
           attemptId,
           exerciceId,
@@ -68,6 +77,7 @@ export function BoutonAbandon({
         router.refresh();
       } catch (e) {
         actionLancee.current = false;
+        surClotureEnCours?.(false);
         setErreur(e instanceof Error ? e.message : "Impossible de clore la tentative.");
       }
     });
@@ -80,11 +90,11 @@ export function BoutonAbandon({
           avantConfirmation?.();
           setConfirme(true);
         }}
-        disabled={enCours}
+        disabled={enCours || disabled}
         variante="secondaire"
         taille="petite"
       >
-        {mode === "sans-mesure" ? "Terminer sans mesure" : "Abandonner cette tentative"}
+        {mode === "sans-mesure" ? "Terminer et consulter le corrigé" : "Abandonner cette tentative"}
       </Bouton>
     );
   }
@@ -98,17 +108,16 @@ export function BoutonAbandon({
             {mode === "sans-mesure" ? "Aucune mesure ne sera enregistrée." : "Cet exercice ne comptera pas."}
           </span>{" "}
           {mode === "sans-mesure"
-            ? "La correction n'est pas disponible : la tentative sera close sans résultat, sans observation et sans score."
+            ? "Votre réponse sera conservée avant de dévoiler le corrigé. Vous pourrez demander un feedback personnalisé plus tard sur cette réponse d'origine."
             : "Un abandon n'est pas un échec : un échec est une mesure, il suppose qu'on ait essayé. Votre niveau sur "}
           {mode === "abandon" && `${codes.join(", ")} restera inchangé.`}
           <br />
-          La tentative passe en abandonnée et reste au journal — elle explique pourquoi
-          aucune difficulté n{"'"}est conseillée pour le prochain exercice.
+          {mode === "abandon" && "La tentative passe en abandonnée et reste au journal — aucune difficulté n'est conseillée pour le prochain exercice."}
           {mode === "sans-mesure" && (
             <>
               <br />
-              La réponse attendue sera consultable après cette sortie, sans vous demander de
-              fabriquer une autoévaluation.
+              La comparaison avec le corrigé ne constitue pas une correction personnalisée
+              et ne modifie pas votre progression.
             </>
           )}
         </p>
@@ -121,11 +130,11 @@ export function BoutonAbandon({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Bouton onClick={abandonner} disabled={enCours} variante="secondaire" taille="petite">
+        <Bouton onClick={abandonner} disabled={enCours || disabled} variante="secondaire" taille="petite">
           {enCours
             ? "Clôture…"
             : mode === "sans-mesure"
-              ? "Confirmer : terminer sans mesure"
+              ? "Terminer et afficher le corrigé"
               : "Confirmer l'abandon"}
         </Bouton>
         <button

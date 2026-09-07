@@ -16,6 +16,8 @@ import { FournisseurIntention } from "@/components/intention/fournisseur-intenti
 import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 import { chargerDomaines } from "@/lib/store/referentiel";
+import { estPiloteDepot } from "@/lib/store/depot-budget";
+import { classesLienBouton } from "@/components/ui/primitives";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -49,6 +51,7 @@ export default async function AppLayout({
   */
   const domaines = await chargerDomaines();
   const administrateur = acces?.role === "admin";
+  const piloteDepot = administrateur && await estPiloteDepot();
 
   /*
     Les propositions de référentiel, comptées sur « Tableau de bord ».
@@ -107,7 +110,7 @@ export default async function AppLayout({
           .map(({ id, nom, prefixe }) => ({ id, nom, prefixe }))}
       >
         <div className="flex min-h-screen">
-          <Sidebar session={session} administrateur={administrateur} pastilles={pastilles} />
+          <Sidebar session={session} administrateur={administrateur} pastilles={pastilles} piloteDepot={piloteDepot} />
 
           <div className="flex min-w-0 flex-1 flex-col">
             {/*
@@ -126,6 +129,7 @@ export default async function AppLayout({
               </div>
               <CompteMobile session={session} />
             </div>
+            {piloteDepot && <div className="border-b border-bordure bg-surface px-4 py-2 lg:hidden"><a href="/app?nouveau=1" className={classesLienBouton("secondaire", "petite")}>Ajouter à ma journée</a></div>}
 
             {/*
               Marge de carnet : filet discret courant sur toute la hauteur de la
@@ -144,7 +148,7 @@ export default async function AppLayout({
             </main>
           </div>
 
-          <NavMobile pastilles={pastillesMobile} />
+          <NavMobile pastilles={pastillesMobile} piloteDepot={piloteDepot} />
           <ProfilFlottant compteId={compte.id} />
           <TuteurGlobal />
         </div>

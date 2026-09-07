@@ -2,18 +2,20 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { estActif, navigationPour } from "./navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { hrefNavigation, estActif, navigationPour } from "./navigation";
 import { cx } from "@/components/ui/primitives";
 import { BasculeRail } from "./bascule-rail";
 import { Compte, type EtatSession } from "./compte";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 import { BoutonIntentionRail } from "@/components/intention/bouton-intention";
+import { IconePlus } from "@/components/ui/icones";
 
 export function Sidebar({
   session,
   administrateur = false,
   pastilles,
+  piloteDepot = false,
 }: {
   session: EtatSession;
   /** Ajoute l'entrée « Comptes et accès ». Affichage seulement — voir `navigationPour`. */
@@ -27,8 +29,10 @@ export function Sidebar({
    * sans que le rail ait à connaître ce qu'elle compte.
    */
   pastilles?: Partial<Record<string, ReactNode>>;
+  piloteDepot?: boolean;
 }) {
   const pathname = usePathname();
+  const recherche = useSearchParams();
   const groupes = navigationPour(administrateur);
 
   return (
@@ -62,6 +66,7 @@ export function Sidebar({
         */}
         <div className="mb-6">
           <BoutonIntentionRail />
+          {piloteDepot && <a href="/app?nouveau=1" aria-label="Ajouter à ma journée" title="Ajouter à ma journée" className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--rail-bordure)] px-3 py-2 text-sm font-medium hover:bg-white/10 rail-reduit:justify-center rail-reduit:px-0"><IconePlus className="size-4 shrink-0"/><span className="rail-reduit:hidden">Ajouter à ma journée</span></a>}
         </div>
 
         {groupes.map((groupe) => (
@@ -85,7 +90,7 @@ export function Sidebar({
             </div>
             <ul className={groupe.primaire ? "space-y-1" : "space-y-0.5"}>
               {groupe.entrees.map((e) => {
-                const actif = estActif(pathname, e.href);
+                const actif = estActif(pathname, e.href, piloteDepot && recherche.get("classique") !== "1");
                 const Icone = e.icone;
                 const pastille = pastilles?.[e.href];
                 return (
@@ -97,7 +102,7 @@ export function Sidebar({
                   */
                   <li key={e.href} className="relative">
                     <Link
-                      href={e.href}
+                      href={hrefNavigation(e.href, piloteDepot)}
                       aria-current={actif ? "page" : undefined}
                       // Le nom accessible ne doit jamais dépendre du CSS : en
                       // rail réduit le libellé visible disparaît, `aria-label`

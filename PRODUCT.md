@@ -19,6 +19,25 @@ analyser » envoie à Mistral. Le suivi en cours s'actualise automatiquement,
 sans réessai IA. « Travailler ce passage » explique le geste de lecture et
 d'écriture ; le travail manuel reste accessible sans analyse.
 
+Révision du 07/09 : après un dépôt enregistré dans la journée, l'accueil
+rouvre le dernier dépôt de ce jour plutôt que la saisie vide. Le jour est
+celui du navigateur ; aucune préférence ni compteur quotidien n'est stocké.
+« Ajouter à ma journée » permet une nouvelle saisie à tout moment. Sans
+dépôt du jour (y compris après leur suppression), la saisie est proposée.
+Dans les dépôts récents, « Supprimer » demande confirmation puis réutilise
+la suppression documentaire : originaux, note, analyses et corrections sont
+retirés ; séances, rédaction et consommation IA restent conservées. Les liens
+vers les originaux supprimés ne sont plus disponibles. Une version figée
+continue d'interdire la suppression.
+
+Navigation précisée le 07/09 : « Tableau de bord » dans le rail et la barre
+mobile mène toujours aux propositions de travail, même pour le pilote.
+La page Ma journée porte en haut un bouton « Tableau de bord » ; le lien
+« Autres propositions de travail » en bas est retiré. « Ajouter à ma journée »
+est un bouton global du rail et de l'en-tête mobile, réservé au pilote.
+L'arrivée directe sur `/app` garde le comportement quotidien décrit ci-dessus ;
+le clic Tableau de bord demande explicitement `/app?classique=1`.
+
 **Version précédente : 4.22 — 04/09/2026.** Le graphe de Mes cours regroupe désormais les
 compétences depuis leurs rattachements vivants (`competence_domaines`), jamais
 depuis leur namespace de création. Un module académique reste un contexte : il
@@ -193,8 +212,22 @@ tuteur : l'état « correction en cours » est lisible, la relance est explicite
 et sérialisée, et un résultat déjà reçu est retrouvé au rechargement sans
 nouvel appel. Une relance explicitement demandée est une nouvelle génération
 assumée ; aucun double-clic ni rechargement ne la déclenche en douce. Après
-expiration ou erreur, « Terminer sans mesure » clôt la tentative sans résultat
-ni observation ; la réponse attendue devient alors consultable. Une correction
+la saisie, pendant l'attente ou après une erreur, « Terminer et consulter le
+corrigé » attend l'enregistrement de la réponse puis clôt la tentative sans
+résultat ni observation. La réponse d'origine apparaît à côté du corrigé
+disponible et des critères ; les sauvegardes ultérieures sont refusées pour
+cette tentative close. Un fournisseur de secours se configure séparément,
+sans remplacer la clé principale, et ne reçoit le travail qu'après un clic
+explicite présentant les données transmises et la destination. Après clôture,
+un feedback différé peut être demandé sur la réponse d'origine : il reste
+consultatif, sans rouvrir la tentative ni modifier la progression. Le feedback
+reste accessible depuis une séance terminée : chaque exercice du cahier
+possède un lien de relecture, et la fiche historique propose le même retour.
+Les tentatives closes sans observation sont affichées « Clos sans mesure » ;
+le résumé historique se dérive des tentatives plutôt que de recopier l'ancien
+texte d'abandon. Le statut technique reste inchangé. Le feedback
+reçu reste dans le cache de l'onglet, isolé par compte ; il n'est pas archivé
+en base. Une correction
 recevable est aussi affichée dans le bilan, à côté du feedback, avant son
 acceptation ; elle reste cachée pendant la recherche. Une observation ne peut
 donc naître qu'après une correction recevable puis l'acceptation du bilan.
