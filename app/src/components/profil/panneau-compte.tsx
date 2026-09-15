@@ -163,9 +163,9 @@ export function PanneauCompte({
               <h3 className="text-sm font-semibold text-texte">Configuration du Tuteur IA</h3>
               <p className="text-xs text-texte-attenue mt-0.5">
                 Le tuteur fonctionne sans réglage : chaque compte dispose de
-                générations offertes. Renseigner votre propre clé lève cette
-                limite — elle est stockée dans votre navigateur et n&apos;est
-                jamais partagée.
+                générations offertes. Avec votre propre clé, les appels sont
+                facturés par votre fournisseur ; l’essai Qwen reste plafonné à 5 $.
+                La clé est conservée dans votre navigateur et transmise lors des appels.
               </p>
             </div>
 

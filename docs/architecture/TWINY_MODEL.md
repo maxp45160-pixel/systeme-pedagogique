@@ -1,11 +1,28 @@
 # Twiny — modèle métier cible
 
+**État local du 11/09/2026.** Le lot 1 de l'entrée conversationnelle est raccordé
+au pilote : déclaration d'examen, écriture par les commandes existantes et reçu
+vérifiable. Il ne raccorde ni le plan global ni l'organisation autonome du
+référentiel. L'essai réel reste en cours, sans promotion de statut. Voir ADR-145
+et [le registre du lot](../design/ASSISTANT_ENTREE_REFERENCE.md).
+
 > Architecture métier cible en cours de conception. Ce document fixe un
 > vocabulaire et des frontières ; ce n'est ni un schéma SQL, ni une liste de
 > services, ni une stratégie de migration.
 >
 > Le code reste la vérité de ce qui est construit. Aucun concept présenté ici
 > ne devient automatiquement une table ou une entité persistée.
+
+**Direction du 10/09/2026.** L'entrée conversationnelle et l'administration
+autonome des éléments clairement justifiés sont désormais la cible exprimée
+par Maxime, y compris la programmation dans les disponibilités données.
+Voir [la référence et le diagnostic](../design/ASSISTANT_ENTREE_REFERENCE.md)
+et ADR-145. La traduction des échanges en faits sourcés et la délégation
+applicative restent à concevoir ; le plan reste dérivé, `LearningSession`
+reste l'épisode de travail. Les formulations historiques ci-dessous sur
+l'absence d'extraction automatique et la confirmation décrivent les contrats
+à amender explicitement, pas une obligation de multiplier les écrans. Aucun
+statut ni comportement implémenté ne change dans ce lot documentaire.
 
 **Révision du 27/08/2026.** La carte globale partagée, les objectifs structurés
 et le parcours persistant des premières versions de ce document ne sont plus
@@ -217,14 +234,21 @@ Le contexte permanent du tuteur ne contient aucun corpus documentaire. Un
 document ne lui parvient que par un geste explicite, composé côté client et
 relu avant l'envoi. Rien de ce qui vient d'un document ne devient une mesure.
 
-Le pilote documentaire ADR-143 ajoute une entrée sans domaine ni compétence :
-les fichiers et une note facultative forment une fiche support existante. Son
-analyse séparée est consentie après présentation des fichiers, pages à traiter,
-fournisseur et coût maximal ; l'OCR précède nécessairement la relecture de sa
-transcription. Le compte rendu IA daté est un contenu documentaire historique,
-pas une décision pédagogique persistée ni une déclaration de l'apprenant.
-Les corrections humaines restent des déclarations séparées. Ni les extraits
-ni ce compte rendu ne sont consommés par le moteur ou le contexte permanent.
+Le pilote documentaire ADR-143, amendé par ADR-144, ajoute une entrée sans
+domaine ni compétence : chaque fichier et chaque texte libre forme désormais
+une fiche support indépendante. La vue quotidienne se dérive de leur date de
+création ; aucun lot ni dossier n'entre dans le modèle. Les dépôts V1
+multifichiers restent des faits historiques lisibles.
+
+L'analyse séparée est consentie après présentation de la ressource, des pages
+à traiter, du fournisseur et du coût maximal ; l'OCR précède nécessairement la
+relecture de sa transcription. Le compte rendu IA daté et ses propositions
+d'organisation sont du contenu documentaire historique, pas une décision
+pédagogique persistée ni une déclaration de l'apprenant. Les corrections et
+validations humaines restent séparées. Une ressource porte au plus un domaine
+principal facultatif et plusieurs liens vers des compétences explicitement
+confirmés. Ces liens seuls alimentent `document_links` et le graphe. Ni les
+extraits, ni les propositions, ni leur acceptation ne deviennent une mesure.
 
 Le protocole d'analyse d'un cours produit des informations et des séances
 candidates pour le plan global. Il ne crée pas un second plan autonome. Les
@@ -267,11 +291,13 @@ d'une vérification de la base réelle avant implémentation.
 
 Le modèle ci-dessus décrit une direction validée, pas un état construit.
 
-Le pilote documentaire du 06/09/2026 est implémenté derrière une activation
-explicite par compte. Il réutilise les documents et `LearningSession`, avec
-`read` et `explain` de préparation, pièce/page facultatives, écriture humaine
-sauvegardée et aucune Observation. Les essais de fidélité manuscrite et
-l'ouverture générale restent en attente ; voir le protocole du pilote.
+Le pilote documentaire du 06/09/2026 et son parcours V2 du 09/09/2026 sont
+construits derrière une activation explicite par compte. Ils réutilisent les
+documents, le référentiel, `document_links` et `LearningSession`, avec `read`
+et `explain` de préparation, pièce/page facultatives, validations distinctes,
+écriture humaine sauvegardée et aucune Observation. Les essais de fidélité
+manuscrite, le parcours visuel authentifié et l'ouverture générale restent en
+attente ; voir le protocole du pilote. Aucun statut d'architecture n'est promu.
 
 - Le référentiel par compte, les preuves, observations, états dérivés et la
   recommandation immédiate existent en partie dans le code courant.

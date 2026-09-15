@@ -63,6 +63,7 @@ export function messageQuotaEpuise(plafond: number): string {
  * c'est une réserve mensuelle consommée), ni `503` (le moteur va très bien).
  */
 export interface OperationDocumentaire {
+  fournisseur?: "qwen";
   operation: string;
   pages: number;
   entreeOctets: number;
@@ -70,6 +71,16 @@ export interface OperationDocumentaire {
 }
 
 export async function envTuteur(config?: ConfigTuteurClient, documentaire?: OperationDocumentaire): Promise<EnvTuteur> {
+  if (documentaire?.fournisseur === "qwen") {
+    if (!config) return { ok: false, reponse: Response.json({ message: "Saisissez la clé Qwen dans les réglages." }, { status: 400 }) };
+    const conversion = configVersEnv(config);
+    if (!conversion.ok) return { ok: false, reponse: Response.json({ message: conversion.motif }, { status: 400 }) };
+    try {
+      const { reserverQwen } = await import("@/lib/store/qwen-budget");
+      await reserverQwen(documentaire.operation, documentaire.entreeOctets, documentaire.sortieMax);
+    } catch (e) { return { ok: false, reponse: Response.json({ message: e instanceof Error ? e.message : "Budget Qwen indisponible." }, { status: 402 }) }; }
+    return { ok: true, env: { ...process.env, ...conversion.env } };
+  }
   if (documentaire) {
     if (config) return { ok: false, reponse: Response.json({ message: "Le pilote utilise son fournisseur documentaire dédié." }, { status: 400 }) };
     const { configurationDepotDisponible, reserverCoutDepot } = await import("@/lib/store/depot-budget");

@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DepotDocumentaire, PageExtraiteDepot } from "@/lib/documents/depot";
-const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn()}));
+const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn(),referentiel:vi.fn()}));
 vi.mock("./depot-budget",()=>({budgetRestantDepot:m.budget,configurationDepotDisponible:m.configuration}));
 vi.mock("./depot-documents",()=>({lireDepotDocumentaire:m.lire,lireSourceDepot:m.source,commencerAnalyseDepot:m.claim,modifierAnalyseDepot:m.modifier}));
 vi.mock("@/lib/tutor/depot-mistral",()=>({lireOcrDepot:m.ocr,restituerDepot:m.restituer}));
+vi.mock("./referentiel",()=>({lireReferentiel:m.referentiel}));
 vi.mock("unpdf",()=>({getDocumentProxy:m.pdf}));
 import { analyserDepot, preparerAnalyseDepot } from "./depot-analyse";
 let depot: DepotDocumentaire;
@@ -13,7 +14,7 @@ const empreinteSource=createHash("sha256").update(octets).digest("hex");
 const page: PageExtraiteDepot={pieceId:"p",page:1,texte:"Notes de physique",incertain:false,empreinteSource};
 beforeEach(()=>{
   vi.resetAllMocks();
-  depot={id:"d",titre:"Notes",note:"Question sur le cours",creeLe:"2026-09-06",pieces:[],analyses:[],corrections:[]};
+  depot={id:"d",version:1,titre:"Notes",note:"Question sur le cours",creeLe:"2026-09-06",modifieLe:"2026-09-06",type:"note",competencesLiees:[],pieces:[],analyses:[],corrections:[]};
   m.lire.mockImplementation(async()=>depot);
   m.budget.mockResolvedValue(5_000_000);m.configuration.mockReturnValue(true);
   m.claim.mockResolvedValue({analyse:{id:"a"},tentative:"t",nouvelle:true});
@@ -21,6 +22,7 @@ beforeEach(()=>{
   m.pdf.mockResolvedValue({numPages:2,cleanup:vi.fn()});
   m.ocr.mockResolvedValue([page,{...page,page:2}]);
   m.restituer.mockResolvedValue({elements:[{nature:"sujet",texte:"Question sur le cours",sources:[{citation:"Question sur le cours"}]}]});
+  m.referentiel.mockResolvedValue({domaines:[{id:"physique",nom:"Physique",description:"Sciences",archive:false}],actifs:[{code:"PHY-01",intitule:"Analyser une situation physique",domaine:"physique"}]});
 });
 function ajouterPdf(){depot.pieces=[{id:"p",nom:"Notes.pdf",mimeType:"application/pdf",tailleOctets:3} as DepotDocumentaire["pieces"][number]];}
 describe("orchestration documentaire persistante",()=>{
@@ -82,5 +84,19 @@ describe("orchestration documentaire persistante",()=>{
     const p=await preparerAnalyseDepot("d");await analyserDepot("d",p.empreinte,20,false);
     expect(m.modifier).toHaveBeenLastCalledWith("a","t",expect.objectContaining({statut:"echec"}));
     expect(m.modifier.mock.calls.some(c=>c[2].restitution)).toBe(false);
+  });
+  it("une ressource V2 transmet l'enum actif puis persiste une proposition validée sans code nouveau",async()=>{
+    depot={...depot,version:2,note:"Analyser une situation physique"};
+    const preuve={citation:"Analyser une situation physique"};
+    m.restituer.mockResolvedValue({elements:[{nature:"sujet",texte:"Situation physique",sources:[preuve]}],organisation:{
+      titreSuggere:"Note de physique",typeSuggere:"note",
+      domaine:{mode:"existant",id:"physique",justification:"Le domaine est explicite.",sources:[preuve]},
+      competences:[{mode:"existante",code:"PHY-01",justification:"Le geste est explicite.",sources:[preuve]}],
+      justification:"Il s'agit d'une note.",sources:[preuve],
+    }});
+    const p=await preparerAnalyseDepot("d");
+    await analyserDepot("d",p.empreinte,20,false);
+    expect(m.restituer.mock.calls[0][3]).toEqual({domaines:[{id:"physique",nom:"Physique",description:"Sciences"}],competences:[{code:"PHY-01",intitule:"Analyser une situation physique",domaine:"physique"}]});
+    expect(m.modifier).toHaveBeenCalledWith("a","t",expect.objectContaining({statut:"terminee",restitution:expect.objectContaining({version:2,organisation:expect.objectContaining({typeSuggere:"note"})})}));
   });
 });

@@ -268,6 +268,15 @@ export async function creerDocument(
   revalidatePath("/atelier");
 }
 
+/** Répare l'index si la réponse ou sa synchronisation a échoué après l'écriture du Markdown. */
+export async function resynchroniserLiensDocument(id: string): Promise<void> {
+  const dorsale = await dorsaleCompte();
+  const identifiant = verifierIdentifiant(id);
+  const documents = await lireDocumentsDepuisDorsale(dorsale);
+  if (!documents.some((document) => document.id === identifiant)) throw new Error("Document introuvable.");
+  await synchroniserLiens(documents, dorsale, [identifiant]);
+}
+
 export async function modifierDocument(
   id: string,
   contenuMd: string,

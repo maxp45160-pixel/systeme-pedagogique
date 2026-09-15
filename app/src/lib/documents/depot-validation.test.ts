@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coutDepotMicroEuros, prochainesTranchesDepot, validerCouverturesDepot, validerElementsDepot, validerSourceDepot } from "./depot-validation";
+import { coutDepotMicroEuros, prochainesTranchesDepot, validerCouverturesDepot, validerElementsDepot, validerOrganisationDepot, validerSourceDepot } from "./depot-validation";
 import { pagesDepuisOcr } from "@/lib/tutor/depot-mistral";
 import { parseInterventionSeance, interventionPeutProduireObservation } from "@/lib/domain/intervention-seance";
 import { renduPourIntervention } from "@/lib/domain/intervention-rendus";
@@ -53,5 +53,37 @@ describe("travail documentaire sans classement",()=>{
     const i={id:"i",type:"read",label:"Lire",expectedEffect:"preparation"};
     expect(()=>parseInterventionSeance({...i,source:{kind:"document",ref:"d",pieceId:"p",page:0}})).toThrow();
     expect(()=>parseInterventionSeance({...i,source:{kind:"exercise",ref:"d",pieceId:"p",page:2}})).toThrow();
+  });
+});
+
+describe("organisation V2 strictement proposée",()=>{
+  const preuve={pieceId:null,page:null,citation:"Analyser un argument philosophique"};
+  const base={
+    titreSuggere:"Cours de philosophie",
+    typeSuggere:"cours",
+    domaine:{mode:"existant",id:"philo",justification:"Le passage traite de philosophie.",sources:[preuve]},
+    competences:[{mode:"existante",code:"PHI-01",justification:"La compétence est explicite.",sources:[preuve]}],
+    justification:"Le contenu est un cours structuré.",
+    sources:[preuve],
+  };
+  const referentiel={domaines:[{id:"philo",nom:"Philosophie"}],competences:[{code:"PHI-01",intitule:"Analyser un argument philosophique"}]};
+
+  it("accepte uniquement les identifiants et codes fournis par le serveur",()=>{
+    const resultat=validerOrganisationDepot({organisation:base},"doc","Analyser un argument philosophique",[],referentiel);
+    expect(resultat.competences[0]).toMatchObject({mode:"existante",code:"PHI-01"});
+    expect(()=>validerOrganisationDepot({organisation:{...base,domaine:{...base.domaine,id:"inconnu"}}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
+    expect(()=>validerOrganisationDepot({organisation:{...base,competences:[{...base.competences[0],code:"IA-99"}]}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
+  });
+
+  it("construit l'intitulé d'une compétence nouvelle sans accepter de code modèle",()=>{
+    const nouvelle={mode:"nouvelle",verbeAction:"analyser",objet:"un argument philosophique nouveau",palier:"fondamentaux",importance:0.7,domaine:{mode:"existant",id:"philo"},justification:"Le geste est demandé.",sources:[preuve]};
+    const resultat=validerOrganisationDepot({organisation:{...base,competences:[nouvelle]}},"doc","Analyser un argument philosophique",[],referentiel);
+    expect(resultat.competences[0]).toMatchObject({mode:"nouvelle",intitule:"Analyser un argument philosophique nouveau"});
+    expect(resultat.competences[0]).not.toHaveProperty("code");
+    expect(()=>validerOrganisationDepot({organisation:{...base,competences:[{...nouvelle,code:"MOD-01"}]}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("aucun code");
+  });
+
+  it("refuse une proposition ou une justification sans citation réelle",()=>{
+    expect(()=>validerOrganisationDepot({organisation:{...base,sources:[{...preuve,citation:"citation inventée"}]}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("citation");
   });
 });

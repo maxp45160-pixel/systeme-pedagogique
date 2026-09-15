@@ -135,7 +135,7 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
    * sans compétence propre reste réservé au module déclaré en amont.
    */
   const resultat = commande
-    ? await executerCommande(commande, referentiel, origine, "Branche relue et validée")
+    ? await executerCommande(commande, referentiel, origine, "Branche demandée")
     : null;
   const domaineId =
     resultat?.domaineId ??

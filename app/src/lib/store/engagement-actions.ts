@@ -24,7 +24,8 @@ import {
   type Engagement,
   type EntreeEngagement,
 } from "@/lib/domain/engagement";
-import { ajouter, dorsaleCompte, lire, modifier, nouvelId } from "./db";
+import { ajouter, dorsaleCompte, lire, lireParId, modifier, nouvelId } from "./db";
+import { idEngagementEnvoi } from "./engagement-cle";
 import { lireReferentiel } from "./referentiel";
 
 /**
@@ -38,7 +39,7 @@ import { lireReferentiel } from "./referentiel";
  * du compte : lier une échéance à un domaine mis de côté serait écrire un lien
  * vers un cadre qui ne porte plus rien.
  */
-export async function creerEngagement(entree: EntreeEngagement): Promise<Engagement> {
+export async function creerEngagement(entree: EntreeEngagement, cleEnvoi?: string): Promise<Engagement> {
   const dorsale = await dorsaleCompte();
   const referentiel = await lireReferentiel(dorsale);
 
@@ -46,9 +47,23 @@ export async function creerEngagement(entree: EntreeEngagement): Promise<Engagem
     referentiel.domaines.filter((domaine) => !domaine.archive).map((domaine) => domaine.id),
   );
   const valide = validerNouvelEngagement(entree, referentiel.codesActifs, domainesActifs);
-  const engagement: Engagement = { id: nouvelId("eng"), ...valide };
+  const id = cleEnvoi ? idEngagementEnvoi(dorsale.userId, cleEnvoi) : nouvelId("eng");
+  if (cleEnvoi) {
+    const existant = await lireParId("engagements", id, dorsale);
+    if (existant) return existant;
+  }
+  const engagement: Engagement = { id, ...valide };
 
-  await ajouter("engagements", engagement, dorsale);
+  try {
+    await ajouter("engagements", engagement, dorsale);
+  } catch (erreur) {
+    // La PK (user_id, id) arbitre aussi deux requêtes concurrentes. Relire
+    // permet de récupérer une écriture réussie dont la réponse a été perdue.
+    const existant = cleEnvoi ? await lireParId("engagements", id, dorsale) : null;
+    if (!existant) throw erreur;
+    revalidatePath("/", "layout");
+    return existant;
+  }
   revalidatePath("/", "layout");
   return engagement;
 }

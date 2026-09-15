@@ -4,14 +4,15 @@ import { useRouter } from "next/navigation";
 import { Bouton } from "@/components/ui/primitives";
 import { IconeDocuments, IconeDossier, IconePlus, IconeFermer, IconeValide, IconeFleche } from "@/components/ui/icones";
 import { depuisDepotGlisse, depuisSelection, fusionnerImports, identiteImport, nomImport, type FichierImport } from "@/lib/documents/import-depot";
-import { creerDepotAction, lireDepotAction, corrigerDepotAction } from "@/lib/store/depot-actions";
+import { creerRessourceDepotAction, lireDepotAction, corrigerDepotAction } from "@/lib/store/depot-actions";
 import { preparerTeleversementPieceAction, enregistrerPieceJointeAction } from "@/lib/store/document-actions";
 import { demarrerLectureDepot } from "@/lib/store/depot-seance-actions";
 import { createNavigateurClient } from "@/lib/supabase/client";
 import { BUCKET_PIECES_JOINTES, mimeDepuisNomFichier } from "@/lib/documents/pieces-jointes";
 import { MAX_NOTE_DEPOT, type DepotDocumentaire, type PreparationAnalyseDepot, type SourceDepot } from "@/lib/documents/depot";
+import { recevoirFichierDepot, type ReceptionFichierDepot } from "@/lib/documents/recevoir-fichier-depot";
 
-interface FichierReception extends FichierImport { etat:"attente"|"recu"|"echec"; erreur?:string; chemin?:string; envoye?:boolean }
+type FichierReception = ReceptionFichierDepot;
 const euros = (micro:number) => (micro/1_000_000).toLocaleString("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const champ = "mt-2 w-full rounded-xl border border-bordure bg-surface p-3 text-sm text-texte";
 const messageErreur = (e:unknown) => e instanceof Error ? e.message : "L'opération n'a pas abouti.";
@@ -19,7 +20,6 @@ const messageErreur = (e:unknown) => e instanceof Error ? e.message : "L'opérat
 export function VueDepot({ documentInitial }: {documentInitial?:string}) {
   const router=useRouter();
   const [note,setNote]=useState("");
-  const [noteConservee,setNoteConservee]=useState(false);
   const [chargementInitial,setChargementInitial]=useState(Boolean(documentInitial));
   const [fichiers,setFichiers]=useState<FichierReception[]>([]);
   const [depot,setDepot]=useState<DepotDocumentaire|null>(null);
@@ -30,14 +30,15 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
   const [refuses,setRefuses]=useState<string[]>([]);
   const [survol,setSurvol]=useState(false);
   const [correction,setCorrection]=useState<{elementId:string|null;texte:string;cle:string}|null>(null);
-  const reception=useRef({cle:"",id:""});
+  const [messageReception,setMessageReception]=useState("");
+  const clesRessources=useRef(new Map<string,string>());
   const verrou=useRef(false);
   const fichierInput=useRef<HTMLInputElement>(null);
   const dossierInput=useRef<HTMLInputElement>(null);
   const clesTravail=useRef(new Map<string,string>());
   useEffect(()=>{
     let actif=true;
-    if(documentInitial) lireDepotAction(documentInitial).then(d=>{if(actif){setDepot(d);reception.current.id=d.id;}}).catch(e=>{if(actif)setErreur(messageErreur(e));}).finally(()=>{if(actif)setChargementInitial(false);});
+    if(documentInitial) lireDepotAction(documentInitial).then(d=>{if(actif)setDepot(d);}).catch(e=>{if(actif)setErreur(messageErreur(e));}).finally(()=>{if(actif)setChargementInitial(false);});
     return()=>{actif=false;};
   },[documentInitial]);
   async function executer(libelle:string, action:()=>Promise<void>) {
@@ -54,31 +55,61 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
   }
   async function recevoir() {
     await executer("Conservation du dépôt…",async()=>{
-      reception.current.cle ||= crypto.randomUUID();
-      reception.current.id ||= await creerDepotAction(note,reception.current.cle);
-      setNoteConservee(true);
-      const id=reception.current.id;
+      setMessageReception("");
+      if (depot?.version === 1) {
+        const id=depot.id;
+        for(const entree of fichiers){
+          if(entree.etat==="recu")continue;
+          try{
+            const client=createNavigateurClient();
+            if(!client)throw new Error("Connexion au stockage indisponible.");
+            const mime=mimeDepuisNomFichier(entree.fichier.name);
+            if(!mime)throw new Error("Format de fichier non reconnu.");
+            if(!entree.envoye){
+              const upload=await preparerTeleversementPieceAction(id,entree.fichier.name,mime);
+              entree.chemin=upload.chemin;
+              const resultat=await client.storage.from(BUCKET_PIECES_JOINTES).uploadToSignedUrl(upload.chemin,upload.token,entree.fichier,{contentType:mime});
+              if(resultat.error)throw new Error("Le transfert du fichier a échoué.");
+              entree.envoye=true;
+            }
+            await enregistrerPieceJointeAction(id,entree.chemin!,nomImport(entree),entree.fichier.size,mime);
+            entree.etat="recu";entree.erreur=undefined;
+          }catch(e){entree.etat="echec";entree.erreur=messageErreur(e);}
+          setFichiers([...fichiers]);
+        }
+        setDepot(await lireDepotAction(id));setPreparation(null);
+        return;
+      }
+
+      let conservees=0;
+      const echecs:string[]=[];
+      const noteAConserver=note.trim();
+      if(noteAConserver){
+        const identite="note";
+        if(!clesRessources.current.has(identite))clesRessources.current.set(identite,crypto.randomUUID());
+        try {
+          const premiereLigne=noteAConserver.split(/\r?\n/,1)[0]?.trim();
+          const titre=(premiereLigne||"Note libre").slice(0,200);
+          await creerRessourceDepotAction({nature:"note",titre,note:noteAConserver},clesRessources.current.get(identite)!);
+          conservees++;
+          setNote("");
+          clesRessources.current.delete(identite);
+        } catch(e) {
+          echecs.push("Note : "+messageErreur(e));
+        }
+      }
       for(const entree of fichiers){
         if(entree.etat==="recu")continue;
         try{
-          const client=createNavigateurClient();
-          if(!client)throw new Error("Connexion au stockage indisponible.");
-          const mime=mimeDepuisNomFichier(entree.fichier.name);
-          if(!mime)throw new Error("Format de fichier non reconnu.");
-          if(!entree.envoye){
-            const upload=await preparerTeleversementPieceAction(id,entree.fichier.name,mime);
-            entree.chemin=upload.chemin;
-            const resultat=await client.storage.from(BUCKET_PIECES_JOINTES).uploadToSignedUrl(upload.chemin,upload.token,entree.fichier,{contentType:mime});
-            if(resultat.error)throw new Error("Le transfert du fichier a échoué.");
-            entree.envoye=true;
-          }
-          await enregistrerPieceJointeAction(id,entree.chemin!,nomImport(entree),entree.fichier.size,mime);
-          entree.etat="recu";entree.erreur=undefined;
-        }catch(e){entree.etat="echec";entree.erreur=messageErreur(e);}
+          await recevoirFichierDepot(entree);
+          conservees++;
+        }catch(e){entree.etat="echec";entree.erreur=messageErreur(e);echecs.push(entree.relatif+" : "+entree.erreur);}
         setFichiers([...fichiers]);
       }
-      setDepot(await lireDepotAction(id));setPreparation(null);
-      window.history.replaceState(null,"",`/app?depot=${encodeURIComponent(id)}`);
+      if(conservees)setMessageReception(`${conservees} ressource${conservees>1?"s":""} conservée${conservees>1?"s":""}.`);
+      if(echecs.length)setErreur(echecs.join(" "));
+      setFichiers(fichiers.filter((fichier)=>fichier.etat!=="recu"));
+      router.refresh();
     });
   }
   async function preparer() {
@@ -143,26 +174,26 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-bordure px-6 py-5 md:px-10">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primaire/10 text-primaire"><IconeValide className="size-4"/></span>
-                <div><h2 className="font-semibold">Vos documents sont là.</h2><p className="mt-1 text-xs text-texte-attenue">{depot.pieces.length} fichier{depot.pieces.length>1?"s":""} conservé{depot.pieces.length>1?"s":""}{depot.note?" et votre note":""}</p></div>
+                <div><h2 className="font-semibold">{depot.version===2?"Votre ressource est là.":"Vos documents sont là."}</h2><p className="mt-1 text-xs text-texte-attenue">{depot.pieces.length} fichier{depot.pieces.length>1?"s":""} conservé{depot.pieces.length>1?"s":""}{depot.note?" et votre note":""}</p></div>
               </div>
             </div>
           )}
 
           {!depot && <div className="px-6 pt-6 md:px-10">
             <label className="text-sm font-medium">Une pensée à garder ? <span className="font-normal text-texte-attenue">Facultatif</span>
-              <textarea className={champ+" resize-y bg-fond/40"} rows={3} maxLength={MAX_NOTE_DEPOT} value={note} disabled={bloque||noteConservee} onChange={e=>setNote(e.target.value)} placeholder="Ce que je n’ai pas compris aujourd’hui, ce que je veux creuser…"/>
+              <textarea className={champ+" resize-y bg-fond/40"} rows={3} maxLength={MAX_NOTE_DEPOT} value={note} disabled={bloque} onChange={e=>setNote(e.target.value)} placeholder="Ce que je n’ai pas compris aujourd’hui, ce que je veux creuser…"/>
             </label>
           </div>}
 
           {depot && <div className="px-6 pt-7 md:px-10">
             {!aUnRetour && <div className="mb-6">
               <p className="text-xs font-medium uppercase tracking-widest text-primaire">La suite</p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight">Faisons le point sur vos documents.</h3>
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight">Faisons le point sur {depot.version===2?"cette ressource":"vos documents"}.</h3>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-texte-attenue">Retrouvez les sujets abordés, les annotations importantes et ce qui mérite d’être éclairci. Vous pourrez corriger le retour, puis choisir un passage à travailler.</p>
             </div>}
             {!preparation && !analyseEnCours && <div className="mb-6">
               <Bouton variante="principal" disabled={bloque||attente.length>0} onClick={()=>void preparer()}>
-                {aUnRetour?"Comprendre les pages suivantes":"Comprendre mes documents"} <IconeFleche className="ml-2 size-4"/>
+                {aUnRetour?"Comprendre les pages suivantes":depot.version===2?"Comprendre cette ressource":"Comprendre mes documents"} <IconeFleche className="ml-2 size-4"/>
               </Bouton>
               <p className="mt-2 text-xs text-texte-attenue">Vous verrez ce qui sera envoyé à Mistral avant de confirmer.</p>
             </div>}
@@ -190,7 +221,7 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
               <ul className="mt-3 divide-y divide-bordure">{depot.pieces.map(p=><li key={p.id} className="flex items-center gap-3 py-3"><IconeDocuments className="size-4 shrink-0 text-primaire"/><a className="min-w-0 break-words text-primaire hover:underline" href={hrefSource({documentId:depot.id,pieceId:p.id,page:1,citation:""})} target="_blank" rel="noreferrer">{p.nom}</a></li>)}</ul>
               {depot.note&&<p className="mt-3 whitespace-pre-wrap rounded-xl bg-fond/50 p-4 text-texte-attenue">{depot.note}</p>}
             </details>}
-            <div
+            {(!depot||depot.version===1)&&<div
               className={"rounded-2xl border border-dashed p-6 text-center transition-colors "+(survol?"border-primaire bg-primaire/10":"border-primaire/30 bg-primaire/[0.03]")}
               onDragOver={e=>{e.preventDefault();if(!bloque)setSurvol(true);}}
               onDragLeave={e=>{if(!(e.relatedTarget instanceof Node)||!e.currentTarget.contains(e.relatedTarget))setSurvol(false);}}
@@ -204,8 +235,8 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
               </div>
               <input ref={fichierInput} hidden type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e=>{if(e.target.files)selection(depuisSelection(e.target.files));e.target.value="";}}/>
               <input ref={dossierInput} hidden type="file" multiple {...{webkitdirectory:""}} onChange={e=>{if(e.target.files)selection(depuisSelection(e.target.files));e.target.value="";}}/>
-              <p className="mt-4 text-xs leading-relaxed text-texte-attenue">PDF et images · sous-dossiers inclus · 10 Mio par fichier<br/>Jusqu’à 100 fichiers et 100 Mio par dépôt. reMarkable : exportez en PDF.</p>
-            </div>
+              <p className="mt-4 text-xs leading-relaxed text-texte-attenue">PDF et images · sous-dossiers inclus · 10 Mio par fichier<br/>{depot?"Jusqu’à 100 fichiers et 100 Mio par dépôt.":"Chaque fichier deviendra une ressource indépendante."} reMarkable : exportez en PDF.</p>
+            </div>}
             {fichiers.length>0&&<ul className="mt-4 max-h-64 divide-y divide-bordure overflow-y-auto text-sm" aria-label="Fichiers sélectionnés">
               {fichiers.map((f,i)=><li key={identiteImport(f)} className="flex items-center gap-3 py-3">
                 <IconeDocuments className="size-4 shrink-0 text-texte-attenue"/>
@@ -215,13 +246,14 @@ export function VueDepot({ documentInitial }: {documentInitial?:string}) {
             </ul>}
             {refuses.length>0&&<details className="mt-4 rounded-xl border border-bordure p-3 text-sm"><summary className="cursor-pointer">{refuses.length} fichier{refuses.length>1?"s":""} non ajouté{refuses.length>1?"s":""} — voir pourquoi</summary><ul className="mt-2 max-h-48 space-y-2 overflow-auto text-xs text-texte-attenue">{refuses.map((r,i)=><li key={i}>{r}</li>)}</ul></details>}
             {(!depot||attente.length>0)&&<div className="mt-6 flex flex-wrap items-center gap-4">
-              <Bouton variante="principal" disabled={bloque||(!note.trim()&&!attente.length)} onClick={()=>void recevoir()}>{depot?"Enregistrer les fichiers ajoutés":"Déposer"+(fichiers.length?" "+fichiers.length+" fichier"+(fichiers.length>1?"s":""):" ma note")}</Bouton>
+              <Bouton variante="principal" disabled={bloque||(!note.trim()&&!attente.length)} onClick={()=>void recevoir()}>{depot?"Enregistrer les fichiers ajoutés":"Déposer "+(attente.length+(note.trim()?1:0))+" ressource"+(attente.length+(note.trim()?1:0)>1?"s":"")}</Bouton>
               <span className="text-xs text-texte-attenue">Conservé dans votre espace privé. Aucun envoi à l’IA à cette étape.</span>
             </div>}
           </div>
         </div>
       )}
       {occupe&&<p role="status" className="flex items-center gap-3 text-sm text-primaire"><span className="size-2 rounded-full bg-primaire motion-safe:animate-pulse"/>{occupe}</p>}
+      {messageReception&&<p role="status" className="rounded-xl bg-primaire/5 p-4 text-sm text-primaire">{messageReception}</p>}
       {erreur&&<p role="alert" className="rounded-xl border border-bordure bg-surface p-4 text-sm">{erreur}</p>}
 
       {depot?.analyses.map(a=><section key={a.id} className="rounded-3xl border border-bordure bg-surface p-6 md:p-10">

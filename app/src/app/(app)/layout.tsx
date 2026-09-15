@@ -129,7 +129,7 @@ export default async function AppLayout({
               </div>
               <CompteMobile session={session} />
             </div>
-            {piloteDepot && <div className="border-b border-bordure bg-surface px-4 py-2 lg:hidden"><a href="/app?nouveau=1" className={classesLienBouton("secondaire", "petite")}>Ajouter à ma journée</a></div>}
+            {piloteDepot && <div className="border-b border-bordure bg-surface px-4 py-2 lg:hidden"><a href="/app" className={classesLienBouton("secondaire", "petite")}>Ouvrir l’assistant</a></div>}
 
             {/*
               Marge de carnet : filet discret courant sur toute la hauteur de la

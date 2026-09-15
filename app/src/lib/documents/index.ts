@@ -1,5 +1,7 @@
-import { analyserDocumentMarkdown, type DocumentMarkdown, type LienMarkdown } from "./markdown";
+import { analyserDocumentMarkdown, extraireLiensMarkdown, type DocumentMarkdown, type LienMarkdown } from "./markdown";
 import { definitionTypeDocument, type ApercuDocument, type LigneDocument, type TypeDocument } from "./types-documents";
+import { estRessourceDepot, SECTION_COMPETENCES_RESSOURCE } from "./depot";
+import { lireValeursSections } from "./sections-markdown";
 
 export type { LigneDocument } from "./types-documents";
 
@@ -22,8 +24,12 @@ export function reconstruireIndexDocumentaire(
 ): IndexDocumentaire {
   const documents = lignes.map((ligne) => {
     const document = analyserDocumentMarkdown(ligne.id, ligne.contenuMd);
+    const liens = estRessourceDepot(document.frontMatter)
+      ? extraireLiensMarkdown(lireValeursSections(ligne.contenuMd, [SECTION_COMPETENCES_RESSOURCE])[SECTION_COMPETENCES_RESSOURCE] ?? "")
+      : document.liens;
     return {
       ...document,
+      liens,
       createdAt: ligne.createdAt,
       updatedAt: ligne.updatedAt,
     };

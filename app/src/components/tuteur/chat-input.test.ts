@@ -4,6 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 import { ChatInput } from "./chat-input";
 
 describe("ChatInput", () => {
+  it("présente les pièces jointes et le texte dans la même saisie, sans destination de dépôt", () => {
+    const html = renderToStaticMarkup(createElement(ChatInput, {
+      onEnvoyer: vi.fn(), onDepotConserve: vi.fn(), onArreter: vi.fn(),
+      enCours: false, cleAbsente: true, usage: null, saisieInitiale: "",
+    }));
+    expect(html).toContain("Joindre");
+    expect(html).toContain("Joindre un dossier");
+    expect(html).toContain('type="file"');
+    expect(html).toContain("glissez vos cours");
+    expect(html).not.toContain("nouveau=1");
+  });
   it("édite les formules dans une zone composée et accessible", () => {
     const html = renderToStaticMarkup(
       createElement(ChatInput, {

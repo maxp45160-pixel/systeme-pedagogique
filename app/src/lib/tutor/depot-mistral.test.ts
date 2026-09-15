@@ -29,4 +29,10 @@ describe("Mistral documentaire",()=>{
     expect(corps.messages[1].content).toContain('"note":');
     expect(corps.messages).toHaveLength(2);expect(corps.max_tokens).toBe(2500);
   });
+  it("fournit le référentiel actif à la V2 sans demander de code pour une nouveauté",()=>{
+    const corps=corpsRestitutionDepot("Analyser un argument",[],{domaines:[{id:"philo",nom:"Philosophie",description:"Idées"}],competences:[{code:"PHI-01",intitule:"Analyser un argument",domaine:"philo"}]});
+    expect(corps.messages[0].content).toContain("Elle ne contient JAMAIS de code");
+    expect(corps.messages[1].content).toContain('"code":"PHI-01"');
+    expect(corps.messages[1].content).toContain('"formatsSupport"');
+  });
 });

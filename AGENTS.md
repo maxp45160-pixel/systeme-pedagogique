@@ -276,3 +276,36 @@ npm install --workspaces
 npm run dev
 npm run test
 npm run build
+```
+
+## Organisation interne — AI Company
+
+Maxime veut des collègues IA exécutants, critiques et autonomes sur mission.
+Les cinq profils natifs sont dans `.codex/agents/` ; leur routage et les contrats
+vivent dans `ai-company/agents/README.md`. Utiliser les vrais sous-agents Codex
+pour les rôles demandés et les sous-missions indépendantes utiles, avec une
+mission bornée, un livrable et un périmètre d'écriture. Ne pas simuler plusieurs
+agents par une succession de voix dans la même réponse.
+
+Si l'outil de délégation ne propose pas de sélection de profil, lancer un
+sous-agent natif avec instruction explicite de lire le fichier TOML du rôle
+et ses contrats. Vérifier son résultat avant de le restituer. Une indisponibilité
+des sous-agents doit être signalée ; aucun résultat délégué ne s'invente.
+
+Le Chief of Staff coordonne ; une tâche simple reste simple. Pour un bilan,
+suivre `ai-company/workflows/situation.md`. Les autres procédures sont dans
+`ai-company/workflows/README.md`. Les agents enquêtent, prennent position et
+terminent le travail confié sans attendre une instruction à chaque étape.
+
+Cette organisation reste séparée du produit ; PRODUCT et les ADR gardent leur
+autorité. Une idée n'autorise pas de code ; une mission de réalisation explicite
+autorise les modifications et vérifications nécessaires. Aucun statut humain
+n'est promu par les agents. Charger seulement rôle, sources et décisions utiles.
+
+Pour les cinq prochaines missions après mise en place, appliquer l'essai manuel
+`ai-company/decisions/DEC-0002-essai-manuel-compute.md` et consigner les résultats
+dans `ai-company/operations/metrics.md`. Le coordinateur est autorisé à choisir
+explicitement modèle et effort des sous-agents selon ce protocole et les options
+réellement exposées ; aucune modification des réglages de la tâche utilisateur.
+L'héritage reste le choix par défaut. Faire le bilan à la cinquième clôture,
+sans création automatique de routeur ni prolongation tacite.

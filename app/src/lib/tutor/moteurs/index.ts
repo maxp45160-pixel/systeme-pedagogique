@@ -1,3 +1,5 @@
+import { moteurQwen } from "./qwen";
+import { estUrlQwen } from "../qwen-config";
 /**
  * Sélection du moteur du tuteur (ADR-007).
  *
@@ -151,7 +153,7 @@ export function creerMoteur(choix: ChoixMoteur): MoteurTuteur | null {
     case "anthropic":
       return moteurAnthropic(choix.cle, choix.modele);
     case "compatible-openai":
-      return moteurCompatibleOpenAI(choix.cle, choix.urlBase, choix.modele);
+      return estUrlQwen(choix.urlBase) ? moteurQwen(choix.cle) : moteurCompatibleOpenAI(choix.cle, choix.urlBase, choix.modele);
     case "aucun":
       return null;
   }

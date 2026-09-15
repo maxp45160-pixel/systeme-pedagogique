@@ -66,7 +66,7 @@ export function Sidebar({
         */}
         <div className="mb-6">
           <BoutonIntentionRail />
-          {piloteDepot && <a href="/app?nouveau=1" aria-label="Ajouter à ma journée" title="Ajouter à ma journée" className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--rail-bordure)] px-3 py-2 text-sm font-medium hover:bg-white/10 rail-reduit:justify-center rail-reduit:px-0"><IconePlus className="size-4 shrink-0"/><span className="rail-reduit:hidden">Ajouter à ma journée</span></a>}
+          {piloteDepot && <a href="/app" aria-label="Ouvrir l’assistant" title="Ouvrir l’assistant" className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--rail-bordure)] px-3 py-2 text-sm font-medium hover:bg-white/10 rail-reduit:justify-center rail-reduit:px-0"><IconePlus className="size-4 shrink-0"/><span className="rail-reduit:hidden">Ouvrir l’assistant</span></a>}
         </div>
 
         {groupes.map((groupe) => (

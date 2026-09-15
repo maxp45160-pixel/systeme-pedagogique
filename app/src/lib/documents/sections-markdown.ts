@@ -59,6 +59,15 @@ export function lireValeursSections(
   return resultat;
 }
 
+/** Exclut les sections gérées d'une vue de lecture, sans modifier le document stocké. */
+export function sansSections(contenuMd: string, sections: readonly string[]): string {
+  const lignes = enLignes(contenuMd);
+  for (const section of indicesSections(lignes, sections).reverse()) {
+    lignes.splice(section.debut, section.fin - section.debut);
+  }
+  return lignes.join("\n").trimEnd();
+}
+
 export function mettreAJourSections(
   contenuMd: string,
   sections: readonly string[],

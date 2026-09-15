@@ -81,6 +81,9 @@ import {
 /* Noms d'outils et description neutre d'un schéma                     */
 /* ------------------------------------------------------------------ */
 
+import { OUTIL_ACCUEIL, validerRetourAccueil, type RetourAccueil } from "./accueil";
+import { OUTIL_RESSOURCE, validerChoixRessource, type ChoixRessource } from "./dialogue-ressource";
+
 export const OUTIL_EXERCICE = "proposer_exercice";
 export const OUTIL_REFERENTIEL = "proposer_referentiel";
 
@@ -1750,6 +1753,8 @@ export interface PropositionEvaluationExplication {
 }
 
 export type PropositionRecue =
+  | { genre: "accueil"; accueil: RetourAccueil }
+  | { genre: "ressource"; ressource: ChoixRessource }
   | { genre: "exercice"; exercice: PropositionExercice }
   | { genre: "coherence-exercice"; coherence: PropositionCoherenceExercice }
   | { genre: "reparation-correction-exercice"; correction: PropositionReparationCorrectionExercice }
@@ -3007,6 +3012,16 @@ export function validerAppelOutil(
   if (!donnees) return null;
 
   switch (nom) {
+    case OUTIL_ACCUEIL: {
+      if (!outils.some((outil) => outil.nom === OUTIL_ACCUEIL)) return null;
+      const accueil = validerRetourAccueil(donnees);
+      return accueil ? { genre: "accueil", accueil } : null;
+    }
+    case OUTIL_RESSOURCE: {
+      if (!outils.some((outil) => outil.nom === OUTIL_RESSOURCE)) return null;
+      const ressource = validerChoixRessource(donnees);
+      return ressource ? { genre: "ressource", ressource } : null;
+    }
     case OUTIL_EXERCICE:
       return validerExercice(donnees);
     case OUTIL_COHERENCE_EXERCICE:

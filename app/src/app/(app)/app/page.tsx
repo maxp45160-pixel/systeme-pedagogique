@@ -26,12 +26,16 @@ import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import { estPiloteDepot } from "@/lib/store/depot-budget";
 import { AccueilDepot } from "@/components/depot/accueil-depot";
+import { AccueilAssistant } from "@/components/tuteur/accueil-assistant";
 
 export default async function TableauDeBord(props: {
   searchParams: Promise<{ temps?: string; capacite?: string; explication?: string; depot?: string; nouveau?: string; classique?: string }>;
 }) {
   const recherche = await props.searchParams;
   if (recherche.classique !== "1" && await estPiloteDepot()) {
+    if (!recherche.depot) {
+      return <Suspense fallback={<SquelettePage />}><AccueilAssistant /></Suspense>;
+    }
     return <Suspense fallback={<SquelettePage />}><AccueilDepot documentId={recherche.depot} nouveau={recherche.nouveau === "1"}/></Suspense>;
   }
   const instant = lireContexteInstant(recherche);

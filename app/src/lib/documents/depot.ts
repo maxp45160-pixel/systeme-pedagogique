@@ -1,7 +1,11 @@
 import type { PieceJointeDocument } from "./types-documents";
+import type { Palier } from "@/lib/domain/types";
+import type { VerbeAction } from "@/lib/domain/atomicite";
 
 /** Contrats documentaires du pilote. Aucun de ces contenus ne mesure l'apprenant. */
 export const VERSION_DEPOT = 1;
+export const VERSION_RESSOURCE_DEPOT = 2;
+export const SECTION_COMPETENCES_RESSOURCE = "Compétences liées";
 export const MODELE_OCR_DEPOT = "mistral-ocr-4-1";
 export const MODELE_RESTITUTION_DEPOT = "mistral-medium-3-5";
 export const MAX_PAGES_ANALYSE_DEPOT = 20;
@@ -44,13 +48,62 @@ export interface ElementRestitutionDepot {
 }
 
 /** Message effectivement présenté, attribué à l'IA ; jamais une vérité métier. */
-export interface RestitutionDepot {
+export interface RestitutionDepotV1 {
   version: 1;
   modele: string;
   creeLe: string;
   elements: ElementRestitutionDepot[];
   couvertures: CouvertureDepot[];
 }
+
+export interface PropositionSourceeDepot {
+  justification: string;
+  sources: SourceDepot[];
+}
+
+export type DomaineReferenceDepot =
+  | { mode: "existant"; id: string }
+  | { mode: "nouveau"; nom: string };
+
+export type DomaineProposeDepot =
+  | ({ mode: "existant"; id: string } & PropositionSourceeDepot)
+  | ({ mode: "nouveau"; nom: string; description: string } & PropositionSourceeDepot);
+
+export type CompetenceProposeeDepot =
+  | ({ mode: "existante"; code: string } & PropositionSourceeDepot)
+  | ({
+      mode: "nouvelle";
+      intitule: string;
+      verbeAction: VerbeAction;
+      objet: string;
+      precision?: string;
+      palier: Palier;
+      importance: number;
+      domaine: DomaineReferenceDepot;
+    } & PropositionSourceeDepot);
+
+export interface PropositionOrganisationRessource extends PropositionSourceeDepot {
+  titreSuggere: string;
+  typeSuggere: string;
+  domaine: DomaineProposeDepot | null;
+  competences: CompetenceProposeeDepot[];
+}
+
+export interface ReferentielDepotPourModele {
+  domaines: Array<{ id: string; nom: string; description: string }>;
+  competences: Array<{ code: string; intitule: string; domaine: string }>;
+}
+
+export interface RestitutionDepotV2 {
+  version: 2;
+  modele: string;
+  creeLe: string;
+  elements: ElementRestitutionDepot[];
+  couvertures: CouvertureDepot[];
+  organisation: PropositionOrganisationRessource;
+}
+
+export type RestitutionDepot = RestitutionDepotV1 | RestitutionDepotV2;
 
 export interface CorrectionDepot {
   id: string;
@@ -74,12 +127,36 @@ export interface AnalyseDepot {
 
 export interface DepotDocumentaire {
   id: string;
+  version: 1 | 2;
   titre: string;
   note: string;
   creeLe: string;
+  modifieLe: string;
+  type: string;
+  domaineId?: string;
+  sourceRelativePath?: string;
+  referentielRevuLe?: string;
+  referentielAnalyseId?: string;
+  rangementRevuLe?: string;
+  rangementAnalyseId?: string;
+  rangementStatut?: "rangee" | "a-trier";
+  rangementOrigine?: "assistant" | "personne";
+  competencesLiees: string[];
   pieces: PieceJointeDocument[];
   analyses: AnalyseDepot[];
   corrections: CorrectionDepot[];
+}
+
+export interface ResumeDepotDocumentaire {
+  id: string;
+  version: 1 | 2;
+  titre: string;
+  type: string;
+  creeLe: string;
+  analyseStatut?: AnalyseDepot["statut"];
+  referentielRevuLe?: string;
+  rangementRevuLe?: string;
+  rangementStatut?: "rangee" | "a-trier";
 }
 
 export interface TrancheDepot {
@@ -90,6 +167,9 @@ export interface TrancheDepot {
 }
 
 export interface PreparationAnalyseDepot {
+  fournisseur?: "qwen";
+  coutMaximumMicroDollars?: number;
+  budgetRestantMicroDollars?: number;
   documentId: string;
   empreinte: string;
   tranches: TrancheDepot[];
@@ -107,5 +187,9 @@ export function urlSourceDepot(url: string, page?: number): string {
 }
 
 export function estDepotDocumentaire(frontmatter: Record<string, unknown>): boolean {
-  return frontmatter.depot_version === VERSION_DEPOT || frontmatter.depot_version === String(VERSION_DEPOT);
+  return [VERSION_DEPOT, VERSION_RESSOURCE_DEPOT].includes(Number(frontmatter.depot_version));
+}
+
+export function estRessourceDepot(frontmatter: Record<string, unknown>): boolean {
+  return Number(frontmatter.depot_version) === VERSION_RESSOURCE_DEPOT;
 }

@@ -315,7 +315,6 @@ silencieusement une règle permanente.
 | planification autonome de `ProtocoleCours` | retirer | quand ses candidats alimentent le plan global |
 | analyse PDF, ancrage, Feynman, rappel | conserver | aucune |
 | calendrier du cahier | conserver pour l'historique seulement | aucune |
-| document `ORCHESTRATION_NOUVEAU_BESOIN.md` | archiver comme exploration remplacée | après validation du présent plan |
 | promesse publique « rien à planifier » | remplacer | dans le même changement que la fonctionnalité construite |
 
 Aucun retrait ne précède sa relève fonctionnelle. Les composants et règles
@@ -382,9 +381,7 @@ Les nouvelles vues n'ajoutent pas de classes de bouton ad hoc.
 
 ## 13. Plan d'implémentation vertical
 
-Les prompts exécutables, critères de passage et gates de qualité sont détaillés
-dans
-[`PLAN_IMPLEMENTATION_ORCHESTRATION_PROMPTS.md`](./PLAN_IMPLEMENTATION_ORCHESTRATION_PROMPTS.md).
+Ce séquencement est historique : sa reprise doit tenir compte du retrait de la composition et de l'entrée conversationnelle ADR-145. Les anciens prompts ne constituent plus des instructions à exécuter.
 
 ### Lot 0 — contrats et documentation
 
@@ -461,3 +458,25 @@ qui touche des séances déjà acceptées reste séparée et non branchée.
 
 Ce scénario doit être vérifié par tests métier, tests d'intégration, parcours
 clavier et contrôle visuel mobile/bureau avant tout retrait de l'ancien flux.
+
+## Points à vérifier avant une reprise de la composition
+
+L'audit du 29/08 portait sur une interface retirée le lendemain. Ses captures,
+verdicts visuels et inventaires de composants ne décrivent pas l'état courant.
+Les constats suivants restent à revérifier dans le code avant réactivation ;
+leur résolution n'est pas démontrée par ce nettoyage documentaire :
+
+- `replanifierSession` dans `lib/engine/revision-plan.ts` : un plan sans slot
+  ne doit pas provoquer l'annulation des séances acceptées simplement exclues
+  des créneaux candidats. Résoudre cette sémantique dans le moteur, sans masque UI.
+- Vérifier le comportement réel de « Modifier » et « Garder mon plan » ; fermer
+  une modale ne démontre pas l'application de ces actions.
+- Établir la parité des actions d'échéance (ajouter, passer, reporter), des
+  recommandations et de la reprise de séance avant de retirer les anciens chemins.
+- Afficher une séance dans la journée seulement après acceptation, avec son
+  identité persistée ; borner les compteurs à la période annoncée et masquer
+  les contrôles sans contenu.
+
+La reprise reste incrémentale : comparaison au code réel, tranche testable,
+validation des parcours et des droits, puis retrait après parité. Le calendrier
+et les hypothèses transversales ne sont pas des prérequis d'une première tranche.

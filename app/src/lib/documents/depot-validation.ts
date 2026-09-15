@@ -1,4 +1,7 @@
-import { MAX_PAGES_ANALYSE_DEPOT, type CouvertureDepot, type ElementRestitutionDepot, type PageExtraiteDepot, type SourceDepot, type TrancheDepot } from "./depot";
+import { MAX_PAGES_ANALYSE_DEPOT, type CompetenceProposeeDepot, type CouvertureDepot, type DomaineProposeDepot, type DomaineReferenceDepot, type ElementRestitutionDepot, type PageExtraiteDepot, type PropositionOrganisationRessource, type SourceDepot, type TrancheDepot } from "./depot";
+import { FORMATS_PAR_ROLE, formatAutorise } from "./roles-note";
+import { composerIntitule, motifsRefusStructure, VERBES_ACTION, type IntituleStructure } from "@/lib/domain/atomicite";
+import type { Palier } from "@/lib/domain/types";
 
 export function objetDepot(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Réponse documentaire invalide.");
@@ -62,6 +65,109 @@ export function validerElementsDepot(value: unknown, documentId: string, note: s
     return { id: `${prefixe}-${index}`, nature: e.nature, texte: texteDepot(e.texte, 700), sources };
   });
 }
+
+export interface ReferentielValidationDepot {
+  domaines: readonly { id: string; nom: string }[];
+  competences: readonly { code: string; intitule: string }[];
+}
+
+function validerSourcesProposition(value: Record<string, unknown>, documentId: string, note: string, pages: PageExtraiteDepot[]): Pick<PropositionOrganisationRessource, "justification" | "sources"> {
+  const sources = listeDepot(value.sources).map((source) => validerSourceDepot(source, documentId, note, pages));
+  if (sources.length < 1 || sources.length > 3) throw new Error("Chaque proposition doit citer une à trois sources.");
+  return { justification: texteDepot(value.justification, 700), sources };
+}
+
+const nomComparable = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+
+function validerReferenceDomaine(value: unknown, referentiel?: ReferentielValidationDepot): DomaineReferenceDepot {
+  const domaine = objetDepot(value);
+  if (domaine.mode === "existant") {
+    const id = texteDepot(domaine.id, 120);
+    if (referentiel && !referentiel.domaines.some((item) => item.id === id)) throw new Error("Domaine proposé hors du référentiel actif.");
+    return { mode: "existant", id };
+  }
+  if (domaine.mode !== "nouveau") throw new Error("Référence de domaine invalide.");
+  if (domaine.id !== undefined || domaine.prefixe !== undefined) throw new Error("Un nouveau domaine ne reçoit ni identifiant ni préfixe du modèle.");
+  return { mode: "nouveau", nom: texteDepot(domaine.nom, 120).trim() };
+}
+
+function validerDomainePropose(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot): DomaineProposeDepot | null {
+  if (value === null || value === undefined) return null;
+  const domaine = objetDepot(value);
+  const sourcee = validerSourcesProposition(domaine, documentId, note, pages);
+  const reference = validerReferenceDomaine(domaine, referentiel);
+  if (reference.mode === "existant") return { ...reference, ...sourcee };
+  if (referentiel?.domaines.some((item) => nomComparable(item.nom) === nomComparable(reference.nom))) {
+    throw new Error("Un domaine existant a été présenté comme nouveau.");
+  }
+  return { ...reference, description: texteDepot(domaine.description, 700).trim(), ...sourcee };
+}
+
+const PALIERS: readonly Palier[] = ["fondamentaux", "intermediaire", "avance"];
+
+function validerCompetenceProposee(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot): CompetenceProposeeDepot {
+  const competence = objetDepot(value);
+  const sourcee = validerSourcesProposition(competence, documentId, note, pages);
+  if (competence.mode === "existante") {
+    const code = texteDepot(competence.code, 100);
+    if (referentiel && !referentiel.competences.some((item) => item.code === code)) throw new Error("Compétence proposée hors du référentiel actif.");
+    return { mode: "existante", code, ...sourcee };
+  }
+  if (competence.mode !== "nouvelle") throw new Error("Proposition de compétence invalide.");
+  if (competence.code !== undefined) throw new Error("Une nouvelle compétence ne reçoit aucun code du modèle.");
+  const structure: IntituleStructure = {
+    verbeAction: texteDepot(competence.verbeAction, 40),
+    objet: texteDepot(competence.objet, 100),
+    ...(competence.precision === undefined || competence.precision === null || competence.precision === "" ? {} : { precision: texteDepot(competence.precision, 80) }),
+  };
+  const refus = motifsRefusStructure(structure);
+  if (refus.length > 0 || !VERBES_ACTION.includes(structure.verbeAction as (typeof VERBES_ACTION)[number])) throw new Error(refus[0] ?? "Verbe d'action inconnu.");
+  const intitule = composerIntitule(structure);
+  if (competence.intitule !== undefined && competence.intitule !== intitule) throw new Error("Intitulé de compétence incohérent.");
+  if (referentiel?.competences.some((item) => nomComparable(item.intitule) === nomComparable(intitule))) {
+    throw new Error("Une compétence existante a été présentée comme nouvelle.");
+  }
+  if (!PALIERS.includes(competence.palier as Palier)) throw new Error("Palier de compétence invalide.");
+  if (typeof competence.importance !== "number" || !Number.isFinite(competence.importance) || competence.importance < 0 || competence.importance > 1) throw new Error("Importance de compétence invalide.");
+  return {
+    mode: "nouvelle",
+    intitule,
+    verbeAction: structure.verbeAction as (typeof VERBES_ACTION)[number],
+    objet: structure.objet.trim(),
+    ...(structure.precision ? { precision: structure.precision.trim() } : {}),
+    palier: competence.palier as Palier,
+    importance: competence.importance,
+    domaine: validerReferenceDomaine(competence.domaine, referentiel),
+    ...sourcee,
+  };
+}
+
+/** Convertit la sortie du modèle en propositions historiques strictement sourcées. */
+export function validerOrganisationDepot(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot): PropositionOrganisationRessource {
+  const organisation = objetDepot(objetDepot(value).organisation);
+  const typeSuggere = texteDepot(organisation.typeSuggere, 60);
+  if (!formatAutorise("support", typeSuggere)) throw new Error("Type de ressource proposé hors de la liste autorisée.");
+  const competences = listeDepot(organisation.competences);
+  if (competences.length > 6) throw new Error("Trop de compétences proposées pour une ressource.");
+  const domaine = validerDomainePropose(organisation.domaine, documentId, note, pages, referentiel);
+  const competencesValidees = competences.map((item) => validerCompetenceProposee(item, documentId, note, pages, referentiel));
+  const domainesNouveaux = new Set(competencesValidees.flatMap((competence) => competence.mode === "nouvelle" && competence.domaine.mode === "nouveau" ? [nomComparable(competence.domaine.nom)] : []));
+  if (domainesNouveaux.size > 1 || (domainesNouveaux.size === 1 && (domaine?.mode !== "nouveau" || !domainesNouveaux.has(nomComparable(domaine.nom))))) {
+    throw new Error("Une ressource ne peut proposer qu'un nouveau domaine principal.");
+  }
+  if (domaine?.mode === "nouveau" && !competencesValidees.some((competence) => competence.mode === "nouvelle" && competence.domaine.mode === "nouveau" && nomComparable(competence.domaine.nom) === nomComparable(domaine.nom))) {
+    throw new Error("Un nouveau domaine doit être accompagné d'au moins une compétence nouvelle.");
+  }
+  return {
+    titreSuggere: texteDepot(organisation.titreSuggere, 200).trim(),
+    typeSuggere,
+    domaine,
+    competences: competencesValidees,
+    ...validerSourcesProposition(organisation, documentId, note, pages),
+  };
+}
+
+export const TYPES_SUPPORT_DEPOT = FORMATS_PAR_ROLE.support.map(({ valeur }) => valeur);
 export function prochainesTranchesDepot(fichiers: { pieceId: string; nom: string; totalPages: number }[], pagesDejaLues: PageExtraiteDepot[], maximum = MAX_PAGES_ANALYSE_DEPOT): { tranches: TrancheDepot[]; pagesRestantes: number } {
   entierDepot(maximum);
   if (maximum > MAX_PAGES_ANALYSE_DEPOT) throw new Error("Tranche trop grande.");

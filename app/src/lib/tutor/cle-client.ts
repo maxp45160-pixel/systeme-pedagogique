@@ -1,3 +1,4 @@
+import { QWEN_MODELE, QWEN_URL, estUrlQwen } from "./qwen-config";
 /**
  * Configuration du moteur du tuteur saisie côté client — stockage navigateur.
  *
@@ -20,6 +21,7 @@ import { lireLocal, ecrireLocal, effacerLocal } from "@/lib/ui/stockage-local";
 import { validerUrlFournisseur } from "./url-fournisseur";
 
 export type FournisseurTuteur =
+  | "qwen"
   | "anthropic"
   | "mistral"
   | "groq"
@@ -66,6 +68,7 @@ export interface PresetFournisseur {
  * changer l'URL de base et le modèle. Anthropic a son propre moteur (ADR-007).
  */
 export const FOURNISSEURS: PresetFournisseur[] = [
+  { cle: "qwen", libelle: "Qwen · essai 5 $", urlBase: QWEN_URL, modeleParDefaut: QWEN_MODELE, modeleRapideParDefaut: QWEN_MODELE, anthropic: false, aide: "Clé Pay-As-You-Go QwenCloud internationale" },
   {
     cle: "mistral",
     libelle: "Mistral AI",
@@ -279,6 +282,10 @@ export type ConversionEnv =
  * ne peuvent plus se séparer.
  */
 export function configVersEnv(config: ConfigTuteurClient): ConversionEnv {
+  if (config.fournisseur === "qwen" || estUrlQwen(config.urlBase)) {
+    if ((config.urlBase && config.urlBase.replace(/\/+$/, "") !== QWEN_URL) || (config.modele && config.modele !== QWEN_MODELE) || (config.modeleRapide && config.modeleRapide !== QWEN_MODELE)) return { ok: false, motif: "L’essai Qwen utilise uniquement l’API internationale et le modèle Qwen3-VL-Plus configuré." };
+    config = { ...config, fournisseur: "qwen", urlBase: QWEN_URL, modele: QWEN_MODELE, modeleRapide: QWEN_MODELE };
+  }
   const validationCle = validerCleFournisseur(config.fournisseur, config.cle);
   if (!validationCle.ok) {
     return { ok: false, motif: validationCle.motif };

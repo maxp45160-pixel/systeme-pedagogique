@@ -1,295 +1,50 @@
 # PRODUCT.md — Système pédagogique
 
-**Version 4.23 — 06/09/2026.** Twiny V1 ajoute un pilote documentaire dans
-l'application existante : conserver un dépôt, demander une analyse explicite,
-se reconnaître dans un retour bref et sourcé, puis lire et reformuler un passage.
-L'accueil du compte administrateur explicitement activé présente ce parcours ;
-les autres comptes conservent leur accueil. Aucun domaine, titre ou objectif
-n'est obligatoire. La qualité sur les manuscrits et l'ouverture générale
-restent à valider par Maxime : aucun statut de brique n'est promu.
-Contrat : ADR-143 ; préparation et résultats du pilote :
-[`docs/pilotes/DEPOT_DOCUMENTAIRE.md`](docs/pilotes/DEPOT_DOCUMENTAIRE.md).
+## État courant — 15/09/2026
 
-Révision du retour pilote du 06/09 : la sélection est cumulative et accepte
-les dossiers avec leurs sous-dossiers, par choix ou glisser-déposer. Le parcours
-borne un dépôt à 100 fichiers et 100 Mio au total, avec 10 Mio par fichier.
-Les chemins servent de libellés, sans créer de classement. L'action principale
-« Comprendre mes documents » prépare une confirmation ; seul « Autoriser et
-analyser » envoie à Mistral. Le suivi en cours s'actualise automatiquement,
-sans réessai IA. « Travailler ce passage » explique le geste de lecture et
-d'écriture ; le travail manuel reste accessible sans analyse.
+Le noyau relie exercices, tentatives, observations sourcées et recommandations.
+L'expérience vise d'abord les étudiants, avec un référentiel durable par compte,
+des modules académiques et des échéances déclarées. Les contrats et retraits
+figurent dans les sections ci-dessous ; leur historique technique reste dans
+[les ADR](ARCHITECTURE_DECISIONS.md).
 
-Révision du 07/09 : après un dépôt enregistré dans la journée, l'accueil
-rouvre le dernier dépôt de ce jour plutôt que la saisie vide. Le jour est
-celui du navigateur ; aucune préférence ni compteur quotidien n'est stocké.
-« Ajouter à ma journée » permet une nouvelle saisie à tout moment. Sans
-dépôt du jour (y compris après leur suppression), la saisie est proposée.
-Dans les dépôts récents, « Supprimer » demande confirmation puis réutilise
-la suppression documentaire : originaux, note, analyses et corrections sont
-retirés ; séances, rédaction et consommation IA restent conservées. Les liens
-vers les originaux supprimés ne sont plus disponibles. Une version figée
-continue d'interdire la suppression.
+- **Entrée conversationnelle en pilote.** Une même saisie accueille texte,
+  fichiers et dossiers ; chaque ressource conserve son original. Le dépôt
+  n'appelle pas l'IA. L'analyse demande une autorisation présentant sources,
+  pages, fournisseur et coût maximal ; elle s'arrête au premier échec, sans
+  réessai payant automatique. Les retours documentaires ne rejoignent pas le
+  contexte permanent du chat et ne produisent aucune mesure.
+- **Organisation corrigeable.** L'assistant range les éléments non ambigus dans
+  le référentiel vivant et rend compte des écritures réelles. Une ambiguïté ou
+  une archive bloque la création ; un nouveau domaine demande de préciser son
+  usage. Les codes viennent des commandes applicatives. Une ressource déjà
+  rangée n'est pas réécrite par une nouvelle analyse ; les corrections passent
+  par un geste distinct. Les anciens dépôts restent lisibles et leurs vues
+  conservent les revues historiques (ADR-143 à 145).
+- **Contexte encore partiel.** La conversation peut enregistrer un examen avec
+  une date absolue complète ; une date relative appelle une précision. Son fil
+  reste en session navigateur, isolé par compte. La conservation durable de
+  toute conversation n'est pas décidée. Le parcours complet et la fidélité de
+  l'analyse sur corpus réel restent à éprouver.
+- **Planification globale non raccordée.** La composition expérimentale a été
+  retirée le 30/08. Ses fondations restent gelées ; la programmation déléguée et
+  le calendrier externe ne sont pas construits. Les séances acceptées du jour
+  et en cours restent visibles. Le tableau de bord porte le choix immédiat,
+  Séances les échéances « À venir », Mes cours le contexte et Progression le
+  long terme (ADR-139, 145).
+- **Correction et mesure.** Une correction douteuse suspend la mesure ; une
+  observation existante se rectifie sans réécriture historique (ADR-141).
+  Terminer sans correction recevable clôt la tentative sans mesure ; un
+  feedback ultérieur reste consultatif (ADR-136).
+- **Essai Qwen borné.** La clé personnelle sélectionnée alimente le chat et
+  l'analyse documentaire avec une enveloppe cumulée de 5 USD, sans renouvellement
+  automatique. Mistral reste disponible. Les budgets, limites et migrations
+  appliquées sont décrits dans l'ADR-145 ; les essais et réserves sont suivis
+  dans [le registre pilote](docs/pilotes/DEPOT_DOCUMENTAIRE.md#essai-qwen).
 
-Navigation précisée le 07/09 : « Tableau de bord » dans le rail et la barre
-mobile mène toujours aux propositions de travail, même pour le pilote.
-La page Ma journée porte en haut un bouton « Tableau de bord » ; le lien
-« Autres propositions de travail » en bas est retiré. « Ajouter à ma journée »
-est un bouton global du rail et de l'en-tête mobile, réservé au pilote.
-L'arrivée directe sur `/app` garde le comportement quotidien décrit ci-dessus ;
-le clic Tableau de bord demande explicitement `/app?classique=1`.
-
-**Version précédente : 4.22 — 04/09/2026.** Le graphe de Mes cours regroupe désormais les
-compétences depuis leurs rattachements vivants (`competence_domaines`), jamais
-depuis leur namespace de création. Un module académique reste un contexte : il
-ne dessine plus un halo propriétaire autour des compétences créées depuis sa
-fiche. Les rattachements multiples vers des domaines non modules restent
-représentables sans copier la compétence ni choisir un propriétaire.
-
-Correction du 05/09/2026 : « Séance douce de 15 minutes », dans l'accueil
-après interruption, ouvre le compositeur de Séances avec une durée cible de
-15 minutes et la compétence suggérée si elle est disponible. L'ancien lien
-ne faisait que recalculer le tableau de bord. La séance reste à confirmer
-dans le compositeur.
-
-**Version précédente : 4.21 — 04/09/2026.** « Mes cours > Domaines » retrouve un geste
-permanent « Ajouter », avec deux choix explicites : module de cours ou domaine
-à long terme. Le choix ouvre une saisie déterministe sans appel au tuteur ;
-l'état vide montre les mêmes deux entrées. Le tableau de bord reste consacré
-au choix immédiat. La suppression définitive d'un domaine archivé appelle
-désormais une commande distincte de l'archivage : elle n'est admise qu'en
-l'absence d'historique ou de dépendance, conserve le registre des codes et
-journalise le retrait (ADR-142).
-
-**Version précédente : 4.20 — 03/09/2026.** La lecture de Progression remplit désormais ses
-deux colonnes indépendamment : le bilan récent suit la trajectoire à droite au
-lieu d'attendre la fin de l'inventaire à gauche. « À venir » quitte Mes cours
-et rejoint le flux de la page du jour dans Séances, après le travail immédiat.
-Les trois actions de la priorité partagent la même hauteur et la même taille de
-texte. Aucun fait, calcul ni arbitrage n'est modifié.
-
-**Version précédente : 4.19 — 03/09/2026.** Le choix immédiat reste le seul contenu du
-tableau de bord, mais ses deux voies retrouvent des limites visuelles : une
-carte accentuée pour la priorité et une carte secondaire pour les alternatives.
-« Organiser dans Mes cours » remonte dans l'en-tête. La continuité rejoint
-Progression, où elle décrit le rythme passé ; « À venir » rejoint Mes cours,
-où les échéances déclarées gardent leur contexte. Ces déplacements ne changent
-aucune donnée, mesure ni décision du moteur.
-
-**Version précédente : 4.18 — 01/09/2026.** Le tableau de bord donne désormais tout son
-premier écran au choix immédiat : la priorité du jour occupe la surface
-principale et les deux recommandations suivantes restent directement
-actionnables à côté. En l'absence de séance acceptée aujourd'hui, le grand
-état vide « Aujourd'hui » est remplacé par une ligne discrète ; une séance
-réelle continue de remonter avant la recommandation. La saisie libre, ses
-suggestions, le résumé chiffré et les deux cartes d'organisation quittent ce
-premier écran. « Mes cours » devient l'entrée explicite pour organiser, tandis
-que les échéances, propositions et repères de continuité restent disponibles
-après le choix immédiat. Cette recomposition ne change aucune donnée, aucune
-mesure ni aucun arbitrage du moteur.
-
-**Version précédente : 4.17 — 01/09/2026.** Une correction assistée s'abstient désormais
-quand l'énoncé, la référence ou les critères peuvent exclure une réponse
-valide. Sans document source, la génération refuse les listes factuelles
-présentées comme officielles et exhaustives ; elle doit demander des éléments
-applicables sans fermer artificiellement le référentiel. Une Observation déjà
-écrite mais issue d'un instrument reconnu défectueux reste dans l'historique :
-un journal append-only d'invalidation ou de restauration détermine seulement
-si elle entre dans les calculs. Aucune rectification ne fabrique de nouvelle
-mesure (ADR-141).
-
-**Version précédente : 4.16 — 31/08/2026.** Le rangement vers les domaines long terme est
-désormais présenté comme un geste de fin de semestre, disponible plus tôt
-uniquement pour le préparer. Le compteur reste neutre tant que le module est
-actif et ne devient une alerte qu'après sa clôture. La création
-refuse explicitement le nom du module temporaire et explique qu'un domaine
-plus général est attendu ; si le nom désigne déjà un domaine continu, celui-ci
-est réutilisé au lieu d'être recréé. Aucune compétence n'est présélectionnée :
-le rattachement reste un geste explicite (ADR-138).
-
-**Version précédente : 4.15 — 31/08/2026.** La fiche d'un module distingue désormais les
-compétences qui alimentent déjà un ou plusieurs domaines continus de celles
-qui restent à organiser. La personne peut rattacher une sélection à plusieurs
-domaines durables, ou créer sur place un domaine continu alimenté par ces
-compétences. Les rattachements réutilisent les codes existants : identité,
-observations et état dérivé ne sont jamais copiés. Le compteur rouge du
-classement est intégré à cette section ; l'écran global « À classer » reste le
-parcours des compétences sans aucun domaine. Les formulaires de saisie rapide
-d'un module sont spécialisés par geste : cours, note, définition, exercice
-donné et devoir ont chacun leur champ principal, tandis que les précisions
-facultatives restent repliées (ADR-138).
-
-**Version précédente : 4.14 — 31/08/2026.** Depuis un module académique, « Ajouter » donne
-accès aux cinq familles de contenus de cours : cours (saisie ou PDF), note,
-définition, exercice donné et devoir. Une date facultative sur un devoir crée
-une échéance de rendu liée au module ; si cette seconde écriture échoue, le
-devoir reste enregistré et l'interface permet de réessayer la date sans le
-dupliquer. Le même cockpit permet de déclarer un contrôle, sous forme
-d'échéance d'examen liée au module. Ces contenus et échéances sont des faits
-déclarés : leur création ne produit aucune observation ni mesure (ADR-138).
-
-**Version précédente : 4.13 — 31/08/2026.** Le graphe de Mes cours ne montre plus les
-documents de preuve : il reste centré sur le référentiel, les exercices et les
-ressources reliées. Les preuves restent accessibles depuis les surfaces
-d'activité. La fiche domaine/module répertorie désormais les travaux observés,
-regroupés par production pour qu'un même travail mobilisant plusieurs
-compétences n'apparaisse qu'une fois. Cette chronologie est dérivée à la
-lecture des observations et de leurs sources ; elle n'ajoute aucun historique
-persisté ni aucune mesure.
-
-**Version précédente : 4.12 — 31/08/2026.** La fiche module/domaine devient un espace de
-travail unique : « Maintenant », contenus et séances, échéances, puis
-compétences repliables. Les modes « Fiches », « Arbre » et « Progression », les
-indicateurs de maintenance et le volet de contexte droit sont retirés de cette
-fiche. La Progression reste la lecture longitudinale globale et comparative ;
-elle ne se duplique plus dans chaque domaine. Le classement automatique reste
-accessible depuis le module lorsque des compétences n'ont pas encore de
-destination durable (ADR-138).
-
-**Version précédente : 4.11 — 30/08/2026.** Le premier lot de l'espace module académique
-rend le cadre utilisable avant que son référentiel soit connu : un module peut
-désormais être créé sans compétence initiale, reste visible dans « Mes cours »
-par son usage déclaré et ouvre un cockpit qui mène aux gestes existants de
-dépôt de cours et d'ajout de compétence. Aucun domaine durable vide n'est
-autorisé par le parcours applicatif, aucune entité `module` n'est ajoutée et
-aucune donnée pédagogique n'est fabriquée pour rendre le module visible
-(ADR-138).
-
-**Version précédente : 4.10 — 30/08/2026.** La vision d'orchestration pédagogique reste
-validée comme direction (ADR-139), mais sa composition d'interface expérimentale
-a été retirée le 30/08 après retour arrière. Le tableau de bord visible est
-revenu à sa composition précédente ; les fondations de planification,
-d'acceptation, de revue et de chronologie restent dans le dépôt comme code
-expérimental non raccordé et gelé. Cette itération ajoute seulement la lecture
-réelle des `LearningSession` acceptées du jour : les séances `planifiee` du jour
-civil et toutes les séances `en-cours`, séparées de la recommandation. La boucle
-complète `contexte réel → plan → travail → observations → estimation →
-replanification` reste à valider en conditions réelles. L'acceptation distante
-est prouvée pour les séances ordinaires ; la conservation de l'origine d'un
-candidat de cours dans cette même RPC est désormais déployée et vérifiée dans
-la définition distante via la migration additive
-`20260829190000_plan_acceptation_origine_cours.sql` (version Supabase
-`20260829174131`). Le plan est une hypothèse
-dérivée ; seules les séances acceptées deviennent des `LearningSession`. La
-direction validée remplace les refus
-de calendrier et de plan jour-par-jour d'ADR-096 et ADR-109 sans réintroduire
-d'objectif structuré ni d'état dérivé persistant.
-
-La recommandation globale ne repropose plus un exercice déjà tenté sans
-réussite ultérieure (`partiel` ou `echec`), même lorsqu'il s'agit du seul
-exercice disponible. Quand aucun candidat honnête ne reste, elle laisse le
-repli de génération ou de préparation répondre sans inventer de contenu.
-
-Quand la file ne contient plus d'exercice recommandable pour une compétence,
-« Générer puis commencer » ouvre désormais la génération ciblée dans le
-tableau de bord. La proposition reste relue et acceptée explicitement ; après
-acceptation, une `LearningSession` unitaire est créée et le travail s'ouvre
-directement. Un échec de création de séance revient au compositeur sans
-réémettre la génération.
-
-Séances garde une seule surface de référence pour les échéances : « À venir ».
-Le tableau de bord n'en répète ni la liste ni un résumé prioritaire ; son moteur
-peut toujours utiliser la proximité d'une échéance déclarée pour expliquer une
-recommandation. Le bloc conserve la liste et ses actions sans changer les faits
-persistés.
-
-La frontière distante d'acceptation atomique est désormais fonctionnelle et
-prouvée côté PostgreSQL. La reproduction du 29/08/2026 avait montré que `sum(integer)`
-renvoie `bigint`, que `coalesce` conserve ce type et que
-`make_interval(mins => ...)` attend `integer`. Les définitions distantes
-contiennent désormais le cast explicite du résultat de `sum`, et les cas NULL,
-individuel et agrégé passent. La même exécution distante avait ensuite révélé
-que le rejeu idempotent était filtré par RLS : le `FOR UPDATE` porté par la
-lecture du reçu append-only n'avait aucune politique UPDATE, donc un second
-appel retombait sur une collision d'insertion. La correction locale
-`20260829072035_corriger_somme_intervalle_acceptation_plan.sql` est enregistrée
-à distance sous `20260829075048` dans
-`supabase_migrations.schema_migrations`. Le correctif additif
-`20260829101500_corriger_idempotence_acceptation_plan.sql` retire uniquement ce
-verrou de ligne ; il est enregistré à distance sous `20260829145745`.
-
-Le parcours de correction d'un exercice ne bloque plus sur une panne du
-tuteur : l'état « correction en cours » est lisible, la relance est explicite
-et sérialisée, et un résultat déjà reçu est retrouvé au rechargement sans
-nouvel appel. Une relance explicitement demandée est une nouvelle génération
-assumée ; aucun double-clic ni rechargement ne la déclenche en douce. Après
-la saisie, pendant l'attente ou après une erreur, « Terminer et consulter le
-corrigé » attend l'enregistrement de la réponse puis clôt la tentative sans
-résultat ni observation. La réponse d'origine apparaît à côté du corrigé
-disponible et des critères ; les sauvegardes ultérieures sont refusées pour
-cette tentative close. Un fournisseur de secours se configure séparément,
-sans remplacer la clé principale, et ne reçoit le travail qu'après un clic
-explicite présentant les données transmises et la destination. Après clôture,
-un feedback différé peut être demandé sur la réponse d'origine : il reste
-consultatif, sans rouvrir la tentative ni modifier la progression. Le feedback
-reste accessible depuis une séance terminée : chaque exercice du cahier
-possède un lien de relecture, et la fiche historique propose le même retour.
-Les tentatives closes sans observation sont affichées « Clos sans mesure » ;
-le résumé historique se dérive des tentatives plutôt que de recopier l'ancien
-texte d'abandon. Le statut technique reste inchangé. Le feedback
-reçu reste dans le cache de l'onglet, isolé par compte ; il n'est pas archivé
-en base. Une correction
-recevable est aussi affichée dans le bilan, à côté du feedback, avant son
-acceptation ; elle reste cachée pendant la recherche. Une observation ne peut
-donc naître qu'après une correction recevable puis l'acceptation du bilan.
-Pendant une séance ouverte, le menu des exercices permet aussi de relire une
-activité déjà menée en lecture seule : aucune nouvelle tentative ni observation
-n'est créée, et le retour au déroulé reste explicite.
-L'exercice diagnostic qui vient d'être mené est aussi exclu de
-l'enchaînement immédiat du même parcours, sans modifier la calibration.
-
-**Version précédente : 4.1 — 28/08/2026.** La nature d'un domaine se déclare désormais :
-module académique, progression continue, ou à préciser (ADR-138). Le cœur
-longitudinal ne bouge pas — aucune entité nouvelle, aucune mesure venue du
-cadre ; le parcours canonique (§4) dit la déclaration au lieu de la taire.
-
-**Version précédente : 3.2 — 25/08/2026.** Positionnement court/moyen terme inscrit : les
-étudiants du supérieur (ADR-135). Le cœur longitudinal est inchangé ;
-l'expérience, la vitrine et les priorités s'alignent sur le parcours étudiant
-(cours structurés, échéances, exercices, projets). Aucune branche généraliste,
-aucun modèle persistant de persona, aucun changement d'entité ou de contrat du
-moteur.
-
-**Version précédente : 3.1 — 20/08/2026.** Les contrats de la refonte Twiny
-ont été validés explicitement par Maxime le 20/08/2026 et sont consignés par
-ADR-089 à ADR-095. Ils remplacent uniquement les contrats courants qu'ils
-contredisent ; les observations, métriques et récits historiques restent
-inchangés.
-
-**Version précédente : 3.0 — 13/08/2026.** Fusion de `PRODUCT_VISION.md` et
-`PRODUCT_PRINCIPLES.md` (v1.0, 27/07), dont les démonstrations détaillées
-restent dans l'historique git. Document vivant : toute modification doit
-préciser ce qui passe d'une catégorie à l'autre.
-
-**Mouvement de la version 4.0.** La promesse passe de « mesurer et recommander
-maintenant » à « comprendre le contexte, planifier, observer et replanifier ».
-Le tableau de bord reste le lieu de pilotage, `LearningSession` reste l'épisode
-de travail unique et le module reste un `Domaine` à usage académique. Le
-changement porte sur l'orchestration au-dessus du moteur existant : contexte
-académique et temporel déclaré, préparation dérivée aux échéances, plan global
-recalculable, synchronisation calendaire consentie et interventions plus
-variées. Aucun de ces éléments n'est déclaré construit par cette version.
-
-**Mouvement de la version 3.2.** Le §4 distingue le cœur permanent du
-positionnement prioritaire et porte la promesse déclinée pour ce public ainsi
-que le parcours canonique. Le §7 gagne quatre questions de filtrage et la
-classification des fonctionnalités. Rien du noyau ne bouge : aucune entité,
-aucun statut de mesure, aucun contrat du moteur ne changent.
-
-**Mouvement de la version 3.1.** La carte de référence devient un catalogue
-global partagé assorti d'un overlay privé par compte. Le vocabulaire courant
-distingue désormais Activité, Preuve, Observation et État ; l'actuelle table
-`evidence` porte sémantiquement des Observations et sera renommée au lot 1.
-
-**Mouvement de la version 3.0.** Décision humaine : la boucle centrée sur
-l'exercice devient un moteur d'actions d'apprentissage adaptatif (ADR-066).
-Trois familles avaient été retenues en v1 — Explorer, S'entraîner, Produire.
-🔄 **Explorer a été retirée le 15/08/2026 (ADR-070)** ; **Produire a changé de
-support le même jour** : un projet est une note opérationnelle, plus une entité
-à sept tables. Le contexte déclaré léger et le profil entièrement dérivé
-restent. La question ouverte
-d'ADR-051 est ainsi tranchée. L'efficacité du classement, l'ergonomie des
-surfaces proposées et les nouveaux barèmes de qualité restent 🔬 : décider de
-les construire ne démontre pas qu'ils sont efficaces.
+Le parcours et les points de reprise de l'assistant restent dans
+[sa référence active](docs/design/ASSISTANT_ENTREE_REFERENCE.md). Ce résumé ne
+promeut aucun statut et ne remplace pas la vérification du code et des données.
 
 > **Les quatre statuts**, au sens strict, employés dans tout le dépôt :
 >
@@ -367,6 +122,30 @@ en dérive un plan sans stocker un score de préparation ni fabriquer
 d'intention. Un événement de calendrier ne mesure rien et une séance manquée ne
 produit aucune preuve de compétence.
 
+### Une mémoire réutilisable au service du prochain apprentissage
+
+**Direction produit précisée par Maxime les 14–15/09/2026 ; réalisation à
+éprouver.** Ce qui est appris aujourd'hui doit pouvoir être retrouvé, relié
+et réutilisé pour mieux travailler demain. Face à un besoin actuel, Twiny doit
+aider à retrouver les passages, notes, productions et questions pertinents de
+l'histoire personnelle, avec leurs sources, et à relier les nouveaux apports
+à cette histoire. Une ressource peut être utile sans mesurer une compétence.
+L'organisation de cette mémoire doit accompagner le travail sans imposer un
+entretien proportionnel au volume accumulé.
+
+Les exercices visent des **erreurs instructives** : solliciter une difficulté
+encore incertaine sur des acquis suffisamment étayés, pour aider à progresser
+et préciser ce qui bloque. Il faut distinguer une faiblesse démontrée d'un
+manque de preuves. Cette direction ne fixe aucun taux d'échec ni nouveau seuil
+de calibration ; la politique de sélection reste à éprouver.
+
+La croissance de la bibliothèque doit rester compatible avec un contexte IA
+borné : sélectionner la matière utile à la tâche, sans relire tout l'historique
+à chaque apport. La recherche et les relations personnalisées restent à
+concevoir dans les contrats existants de consentement, de délégation et de
+mesure. Leur valeur se juge à ce qu'elles permettent de retrouver, de reprendre
+ou de mieux choisir comme travail.
+
 ### Glossaire courant
 
 **Activité → Preuve → Observation → État** : l'Activité est le geste réalisé ;
@@ -422,11 +201,6 @@ de bord est à `/app`, derrière authentification. L'acquisition par
 moteur de recherche passe par ces pages publiques ; aucune donnée
 pédagogique n'y circule.
 
-**Aujourd'hui, factuellement (31/07) :** 3 comptes en production. Un
-utilisateur actif (26 preuves sur 22 compétences, 20 tentatives terminées), un
-**compte tiers réellement actif** (3 preuves, 5 tentatives), un compte sans
-aucune activité pédagogique.
-
 **Cœur permanent :** le suivi longitudinal — observations sourcées, état
 recalculé, recommandation explicable. Il appartient à quiconque travaille des
 compétences dans la durée, et ne se spécialise pas.
@@ -459,9 +233,11 @@ cible et ne doit pas atteindre la vitrine avant que le plan soit construit.
 
 **Parcours canonique :**
 
-Le pilote documentaire ADR-143 précède ce parcours sur les seuls comptes
-activés : **déposer → analyser explicitement → lire et corriger le retour →
-lire et reformuler**. Il permet de travailler sans référentiel constitué.
+Le pilote documentaire ADR-143, amendé par ADR-144, précède ce parcours sur
+les seuls comptes activés : **déposer → analyser explicitement → relire le
+référentiel → ranger chaque ressource → travailler**. Une ressource peut aussi
+rester volontairement « À trier ». Il permet de travailler sans référentiel
+constitué et ne transforme jamais un dépôt en mesure.
 Les étapes ci-dessous restent la direction d'orchestration et le parcours
 historique ; leur diagnostic initial n'est pas un prérequis du pilote.
 
@@ -504,6 +280,29 @@ exercice probant avant tout le reste.
 auteur. *Test de réfutation inchangé : un compte tiers atteint 10 preuves sans
 assistance.* Le compte tiers en est à 3 — et il les a produites sur un
 référentiel écrit pour quelqu'un d'autre, ce qu'ADR-026 corrige.
+
+### Besoins distinctifs à éprouver
+
+Les anciens personas sont des scénarios fictifs, pas des résultats de recherche
+ni des fonctionnalités validées. Ils conservent ces questions d'usage :
+
+| Contexte | Besoin à vérifier |
+|---|---|
+| Études multi-cours | Relier supports, TD et échéances à plusieurs modules, puis arbitrer le travail. |
+| Reconversion autonome | Avancer vers une capacité professionnelle avec des ressources dispersées et un temps variable, sans examen imposé. |
+| Concours daté | Prioriser le travail sous une échéance réelle et s'entraîner dans des conditions déclarées d'épreuve. |
+| Parent en soutien | Aider un apprenant sans mélanger leurs données ; les comptes restent distincts, sans partage implicite (ADR-109 à 113). |
+| Loisir | Progresser sans échéance ni institution, avec un rythme irrégulier et des exemples adaptés au domaine. |
+
+**Essai loisir toujours ouvert, non exécuté dans la simulation du 22/08.**
+Sur un compte de test, amorcer « comprendre la théorie musicale pour la guitare »
+puis essayer « accords de ce morceau », « lecture rythmique en 6/8 » et
+« entendre les intervalles ». Répéter sur deux autres domaines non scolaires
+(par exemple œnologie et astronomie). Vérifier crédibilité et granularité du
+référentiel, pertinence et ancrage des exercices. Une bonne restitution ne
+justifie aucun chantier ; un écart doit être constaté avant modification des
+protocoles. L'ancrage à des partitions ou enregistrements propriétaires reste
+hors périmètre tant qu'un besoin réel ne justifie pas de le rouvrir.
 
 ### Comptes et accès
 
@@ -632,26 +431,7 @@ pur, la frontière d'acceptation, la revue groupée locale et la lecture
 opérationnelle des séances acceptées. Leur branchement dans la composition
 visible a été retiré lors du retour arrière du 30/08 ; aucune proposition de
 plan globale, revue ou vue `/seances` expérimentale n'est activée par cette
-version. La vérification Supabase réelle du 28/08/2026 confirme
-que les colonnes `interventions`, `origine_proposition` et
-`duree_planifiee_min`, le reçu d'idempotence et les fonctions
-`accepter_plan(text,jsonb)`/`accepter_plan_lot3_legacy(text,jsonb)` sont
-présents, avec RLS actif. Les versions locales
-`20260828110000_interventions_seance.sql`,
-`20260828120000_lot_3_acceptation_plan.sql` et
-`20260828150000_lot_5_revision_plan.sql` n'y sont pas enregistrées. Une
-migration corrective `20260828212629` (`corriger_intervalle_acceptation_plan`)
-a été appliquée, mais sa correction était incomplète : les casts des opérandes
-avaient été ramenés à `INTEGER` sans convertir le résultat `BIGINT` de `sum`
-avant `make_interval`. La correction additive
-`20260829072035_corriger_somme_intervalle_acceptation_plan.sql` a ensuite
-produit les définitions distantes corrigées ; elle est enregistrée sous la
-version distante `20260829075048`. La migration additive
-`20260829101500_corriger_idempotence_acceptation_plan.sql`, enregistrée sous la
-version distante `20260829145745`, supprime le verrou RLS incompatible. La
-preuve distante transactionnelle de sélection, d'idempotence, de tout-ou-rien,
-d'absence de plan dérivé et d'absence d'observation passe désormais. Aucun
-statut de construction n'est promu avant un scénario réel de bout en bout.
+version. Les versions et réserves de migration sont conservées dans [les repères de migration](docs/architecture/TWINY_MIGRATION.md). Aucun statut n'est promu avant validation du parcours réel.
 
 ✅ **Le contenu vient du tuteur**, pas de fichiers écrits à la main (ADR-004).
 🔬 **Une proposition d'exercice est contrôlée avant d'être présentée comme
@@ -1087,128 +867,32 @@ Tout le reste relève du refus ci-dessus. Un outil intéressant, visible par
 défaut, hors du chemin d'une preuve, est la définition de la dérive de
 périmètre.
 
-### Lot 7 — exécution multi-interventions
+### Travail et planification : capacités et limites
 
-🔬 Une `LearningSession` peut exécuter plusieurs interventions dans une même
-coquille. Le registre canonique réutilise les chemins Résoudre/Diagnostiquer,
-Feynman, rappel, lecture, écriture et tiroir du tuteur. Chaque geste expose sa
-source, sa durée et son effet ; terminer une préparation ou un soutien dit
-explicitement qu'aucune nouvelle mesure n'a été produite. Les tentatives restent
-la source de vérité des exercices et le contrat de preuve est le seul chemin
-vers une Observation. Le statut facultatif du geste est conservé dans le JSONB
-déjà porté par la séance : il ne crée ni entité ni score dérivé. Les séances
-historiques sont adaptées sans réécriture.
+🔬 Une même `LearningSession` peut faire résoudre, diagnostiquer, expliquer,
+rappeler, lire, synthétiser, produire et demander de l'aide. Les gestes de
+préparation ou de soutien terminés ne produisent pas de mesure. Les contrats
+sont dans [la matrice des interventions](docs/architecture/INTERVENTIONS_LEARNING_SESSION.md).
 
-### Lot 8 — cours et plan global (fondations expérimentales gelées)
+❓ Le plan global, sa revue et les candidats de cours restent des fondations
+expérimentales non raccordées. Leur présence dans le dépôt ne valide pas la
+boucle complète. Le protocole de cours historique reste en place jusqu'à la
+preuve de parité ; aucune source documentaire manquante n'est remplacée par
+un autre PDF. L'ADR-139 et [les contrats moteur](ENGINE_CONTRACTS.md) portent
+les règles d'identité, de sélection, de refus et d'acceptation atomique.
 
-❓ Le protocole d'un cours possède désormais un adaptateur pur vers les actions
-candidates du plan global. L'identité de chaque candidate distingue la fiche et
-le PDF effectivement analysé ; ce PDF précis voyage dans l'origine des nouvelles
-séances du chemin historique et reste le seul que la génération différée puisse
-relire. Une séance historique sans cette origine reste lisible, mais ne choisit
-aucun PDF de substitution. Un document archivé, un domaine orphelin ou un code
-hors référentiel est refusé ou mis en réserve, jamais remplacé par un exercice
-générique.
+Une recommandation portant un exercice disponible peut devenir, sur choix
+explicite d'une date et d'une heure, une séance planifiée. Dans un module actif,
+un support peut aussi devenir une séance immédiate ou planifiée de préparation.
+Résoudre un exercice fourni sans corrigé reste un travail sans Observation.
+Ces chemins ne valident pas le plan global.
 
-La fiche d'un module dérive « Cette semaine » des `LearningSession` acceptées et
-« Échéances » des engagements et preuves disponibles. Ces lectures ne stockent
-ni échéance recopiée, ni plan, ni préparation. Sans preuve, la préparation est
-« Non estimable » ; le besoin de diagnostic reste une raison d'action, pas une
-mesure.
-
-La proposition du tableau de bord reste dérivée et porte une référence opaque
-et stable pour les mêmes entrées matérielles. Elle réunit les recommandations
-historiques, les besoins déclarés, les échéances ouvertes et, lorsqu'il est
-fourni par le parcours de cours, les candidates du protocole. Les codes passent
-par le référentiel actif à la frontière d'adaptation. Une séance active ou un
-diagnostic déjà terminé dans le parcours est écarté ; les candidates
-équivalentes sont fusionnées par codes, intervention et durée, en conservant
-la provenance de priorité et les raisons réunies. La personne peut sélectionner
-une partie, tout sélectionner, tout désélectionner ou ignorer toute la
-proposition. Ignorer écrit seulement ce fait dans `refus_recommandations` ;
-aucune `LearningSession`, observation, dette ou pénalité n'en découle. Une
-proposition ignorée ne revient pas tant que ses échéances, créneaux, travaux
-disponibles ou séances acceptées n'ont pas changé. Les états sans séance
-expliquent la cause en langage courant ; les identifiants et détails techniques
-restent dans les journaux.
-
-La proposition de plan global, sa revue et son acceptation appartiennent encore
-aux fondations non raccordées de l'itération du 26–30/08. Le tableau de bord
-visible ne les affiche pas : il conserve sa recommandation historique et le bloc
-« Aujourd'hui » ne contient que des séances persistées `planifiee` ou
-`en-cours`.
-
-Lorsqu'une recommandation désigne un exercice déjà disponible, la carte propose
-aussi une planification explicite : la personne choisit une date et une heure,
-puis le chemin canonique de création écrit une seule `LearningSession`
-`planifiee`. Ce geste n'enregistre ni la recommandation ni un plan global ;
-après actualisation, la séance rejoint « Aujourd'hui » seulement si son jour
-civil local correspond. Les recommandations qui ne désignent pas un exercice
-conservent leurs actions existantes.
-
-L'arbitrage est déterministe et ne modifie aucun seuil de calibration : les
-séances actives sont exclues, les codes inactifs sont mis en réserve, puis une
-seule candidate est conservée par besoin équivalent. À égalité, la provenance
-de cours précède le besoin déclaré, les activités durables, puis l'exercice
-historique ; l'échéance et l'ordre temporel restent ensuite ceux du
-planificateur existant. Seules les séances acceptées sont matérialisées. Pour
-une candidate de cours acceptée par le plan global, la commande locale porte
-également le blueprint documentaire ; la migration
-`20260829190000_plan_acceptation_origine_cours.sql` est appliquée à distance
-sous `20260829174131` et sa définition est vérifiée. Le chemin direct historique du protocole reste donc
-en place jusqu'à la preuve de parité globale ; il ne doit pas être retiré avant.
-Le statut d'ADR-139 reste ❓.
-
-La revue d'un plan accepte maintenant les déclencheurs déjà portés par les
-faits relus : modification d'une échéance ou d'une disponibilité, séance
-annulée, déplacée, manquée ou abandonnée, et nouvelle observation recevable.
-`calculerDiffPlan` reste pur : il distingue ce qui reste, se déplace, ne figure
-plus ou apparaît, sans persister le nouveau plan. L'action « Déplacer » relit
-le créneau et la séance au moment du clic, conserve l'identité et l'origine de
-la `LearningSession`, puis transmet un ajustement atomique à la RPC existante.
-Un conflit ou une donnée devenue obsolète bloque l'écriture entière ; aucun de
-ces gestes ne crée de compétence, d'observation, de dette ou de pénalité.
-
-Les huit interventions (`resoudre`, `expliquer`, `rappeler`, `lire`,
-`synthetiser`, `produire`, `diagnostiquer`, `demander-aide`) restent des gestes
-de la même `LearningSession`. Leurs entrées, interfaces, sorties, provenances
-et contrats de preuve sont décrits dans la
-[matrice des interventions](docs/architecture/INTERVENTIONS_LEARNING_SESSION.md).
-Les parcours exercice réutilisent `VueExercice` ; Feynman revient à la séance
-au lieu d'en créer une seconde ; rappel, lecture, synthèse et production
-restent respectivement dans leur carte, l'Atelier ou le tuteur existant. Une
-intervention de préparation ou de soutien terminée sans contrat reste une
-séance terminée sans observation.
-
-Dans un module académique actif, un cours, une note, une définition, un
-exercice donné ou un devoir peut désormais devenir explicitement une séance
-immédiate ou planifiée. Le menu propose seulement les gestes cohérents avec le
-contenu ; la `LearningSession` conserve le module et le document source dans
-son intervention. Tous ces chemins annoncent un effet de préparation. En
-particulier, « résoudre » un exercice donné sans corrigé ouvre un travail écrit
-sans contrat de preuve : le terminer ne crée aucune Observation. Cette
-intégration visible ne valide pas le plan global d'ADR-139.
-
-### Lot 9 — créneaux et échéances concrètes
-
-🔬 Les créneaux et échéances restent des faits déclarés, mais leur configuration
-permanente a quitté le tableau de bord : elle mettait l'administration du cadre
-avant le travail immédiat. Séances relit les échéances ouvertes dans son bloc
-« À venir », après le travail immédiat ; les modules de Mes cours conservent les
-gestes de déclaration cohérents avec leur contexte.
-Les créneaux sont conservés dans le tableau déclaré du profil et
-validés ensemble ; une plage inversée ou un chevauchement est refusé. Une
-absence de créneau demeure une absence de fait, jamais une faiblesse ou une
-indisponibilité fabriquée. Aucun parcours local à acquitter, calendrier externe,
-plan, score ou nouvelle entité de travail n'est créé.
-
-La migration additive `20260828201530` (`lot_9_contexte_declare`) a été
-appliquée et vérifiée dans Supabase le 28/08/2026. Le code n'utilise plus la
-colonne historique `profiles.periode_declaree`, qui n'alimentait aucune
-décision ; la migration de retrait `20260829155409_retirer_periode_declaree_inutile.sql`
-est préparée localement mais reste à appliquer. La base distante contient
-encore cette colonne et une valeur sur un profil jusqu'à autorisation de ce
-retrait. `profiles.disponibilites_declarees` reste la seule donnée de créneaux.
+🔬 Les échéances « À venir » vivent dans Séances, les déclarations de module
+dans Mes cours. Les créneaux restent déclarés ; chevauchements et plages
+inversées sont refusés. Leur absence ne vaut ni faiblesse ni indisponibilité.
+Le retrait de `profiles.periode_declaree` était encore **non appliqué** lors
+du relevé du 29/08 ; les correspondances et réserves de migration sont dans
+[les repères de migration](docs/architecture/TWINY_MIGRATION.md).
 
 ### Contenus scientifiques et figures
 

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { BandeauInfo, cx, Etiquette, PointActif } from "@/components/ui/primitives";
+import { BandeauInfo, Bouton, cx, Etiquette, PointActif } from "@/components/ui/primitives";
 import { Depliant } from "@/components/ui/explication";
 import { preparerPromptComplet } from "@/lib/tutor/actions";
 import { MAX_MESSAGES_FENETRE } from "@/lib/tutor/fenetre";
 import { useEstHydrate } from "@/lib/ui/hydratation";
 import {
   cleConversationTuteur,
+  cleParCompte,
   ecrireSession,
   effacerSession,
   lireSession,
@@ -52,6 +53,8 @@ const LIBELLE_OUTIL: Record<string, string> = {
 };
 
 import { ChatInput } from "./chat-input";
+import { RessourcesConversation } from "./ressources-conversation";
+import { lireRessourceAssistantAction } from "@/lib/store/ressource-assistant-actions";
 import { MessageBulle, type Message } from "./message-bulle";
 
 /* ------------------------------------------------------------------ */
@@ -59,6 +62,7 @@ import { MessageBulle, type Message } from "./message-bulle";
 /* ------------------------------------------------------------------ */
 
 export interface ProprietesChat {
+  modeAccueil?: boolean;
   /** Manifeste et moteur, calculés côté serveur au rendu du tiroir. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -122,10 +126,11 @@ export function ChatTuteur(props: ProprietesChat) {
       </div>
     );
   }
-  return <ChatHydrate {...props} />;
+  return <ChatHydrate key={`${props.compteId}:${props.modeAccueil ? "accueil" : "tuteur"}:${props.exerciceCible ?? ""}`} {...props} />;
 }
 
 function ChatHydrate({
+  modeAccueil = false,
   etatInitial,
   competenceCiblee,
   amorce,
@@ -137,6 +142,7 @@ function ChatHydrate({
   calibragesModale,
   surEnCoursChange,
 }: {
+  modeAccueil?: boolean;
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -193,7 +199,20 @@ function ChatHydrate({
   };
 
   /** Un fil par exercice, un fil général hors exercice — voir la fonction. */
-  const cleConversation = cleConversationTuteur(compteId, exerciceCible);
+  const cleConversation = modeAccueil ? cleParCompte("conversation-accueil", compteId) : cleConversationTuteur(compteId, exerciceCible);
+  const cleEnvoi = cleParCompte("accueil-envoi", compteId);
+  const router = useRouter();
+  const [envoiEnAttente, setEnvoiEnAttente] = useState<{ tourId: string; messages: Message[]; ressource?: { id: string; version: string; titre: string } } | null>(() => modeAccueil ? lireSession(cleEnvoi) : null);
+  const [ressourceCible, setRessourceCible] = useState<{ id: string; version: string; titre: string } | null>(() => envoiEnAttente?.ressource ?? null);
+  const [revisionRessources, setRevisionRessources] = useState(0);
+  const actualiserRessourceCible = useCallback(async (id: string) => {
+    try {
+      const { depot } = await lireRessourceAssistantAction(id);
+      setRessourceCible((cible) => cible?.id === id ? { id, version: depot.modifieLe, titre: depot.titre } : cible);
+      setRevisionRessources((r) => r + 1);
+    } catch { /* La prochaine sélection relira le serveur ; aucun reçu d'écriture inventé. */ }
+  }, []);
+  const [verificationEnCours, setVerificationEnCours] = useState(false);
 
   /**
    * La conversation reprend là où elle s'était arrêtée.
@@ -426,18 +445,32 @@ function ChatHydrate({
     ]);
   }, []);
 
-  const envoyer = useCallback(async (texte: string) => {
+  const envoyer = useCallback(async (texte: string, reprise = false) => {
     const contenu = texte.trim();
-    if (!contenu || enCoursRef.current) return;
+    if (!contenu || enCoursRef.current) return false;
+    if (modeAccueil && envoiEnAttente && !reprise) {
+      setAvis({ ton: "alerte", texte: "Vérifiez d'abord l'envoi précédent, ou abandonnez sa reprise." });
+      return false;
+    }
 
     setAvis(null);
     setUsage(null);
     setOutilEnCours(null);
-    const historique: Message[] = [...messagesRef.current, { role: "user", content: contenu }];
+    const historique: Message[] = reprise && envoiEnAttente ? envoiEnAttente.messages : [...messagesRef.current, { role: "user", content: contenu }];
+    const envoi = modeAccueil ? (reprise && envoiEnAttente ? envoiEnAttente : { tourId: crypto.randomUUID(), messages: historique, ...(ressourceCible ? { ressource: ressourceCible } : {}) }) : null;
+    if (envoi) {
+      ecrireSession(cleEnvoi, envoi);
+      if (lireSession<{ tourId: string }>(cleEnvoi)?.tourId !== envoi.tourId) {
+        setAvis({ ton: "danger", texte: "Le navigateur ne permet pas de conserver cet envoi pour sa reprise. Aucune demande n'a été envoyée." });
+        return false;
+      }
+      setEnvoiEnAttente(envoi);
+    }
     historiqueRef.current = historique;
     accumuleRef.current = "";
     propositionsRef.current = [];
     setMessages([...historique, { role: "assistant", content: "" }]);
+    enCoursRef.current = true;
     setEnCours(true);
 
     /*
@@ -468,11 +501,13 @@ function ChatHydrate({
       // La config client (clé saisie dans les réglages) est lue à l'envoi plutôt
       // qu'au montage : si l'utilisateur configure sa clé pendant que le chat
       // est ouvert, le prochain message part avec — sans rechargement.
-      const reponse = await fetch("/api/tutor", {
+      const reponse = await fetch(modeAccueil ? "/api/assistant" : "/api/tutor", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           messages: historique,
+          tourId: envoi?.tourId,
+          ressource: envoi?.ressource,
           config: lireConfigTuteur(compteId) ?? undefined,
           // Met l'énoncé de l'exercice ouvert dans le contexte, plutôt que
           // d'obliger à le recoller à la main.
@@ -558,6 +593,13 @@ function ChatHydrate({
             // pannes silencieuses, pas une correction.
             setAvis({ ton: "alerte", texte: String(donnees.message ?? "") });
           } else if (type === "fin") {
+            if (modeAccueil) {
+              effacerSession(cleEnvoi);
+              setEnvoiEnAttente(null);
+              setAvis(null);
+              if (envoi?.ressource) void actualiserRessourceCible(envoi.ressource.id);
+              router.refresh();
+            }
             const u = donnees.usage as Record<string, number | null> | undefined;
             const compte = (donnees.outils as { appels?: number } | undefined)?.appels;
             if (u) {
@@ -635,6 +677,7 @@ function ChatHydrate({
       }
     } finally {
       abandonRef.current = null;
+      enCoursRef.current = false;
       setEnCours(false);
       // Y compris à l'interruption et à l'erreur : un tour clos ne rédige plus
       // rien, et laisser le statut allumé afficherait un travail qui n'a pas
@@ -645,6 +688,7 @@ function ChatHydrate({
     annulerFlush,
     planifierFlush,
     publierReponse,
+    modeAccueil, envoiEnAttente, cleEnvoi, router, ressourceCible, actualiserRessourceCible,
     // `compteId` était lu dans le corps (clé du fournisseur, clé de session) sans
     // figurer ici : changer de compte sans démonter le chat aurait envoyé la clé
     // du précédent. `cleConversation` et `exerciceCible` entrent pour la même
@@ -677,7 +721,6 @@ function ChatHydrate({
   const saisieInitiale =
     amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
-  const router = useRouter();
   const cheminCourant = usePathname();
   const [demarrageDirect, setDemarrageDirect] = useState(false);
 
@@ -690,6 +733,27 @@ function ChatHydrate({
       competences: b.competences,
     });
   }, []);
+
+  const verifierEnvoi = async () => {
+    if (!envoiEnAttente || verificationEnCours) return;
+    setVerificationEnCours(true);
+    try {
+      const reponse = await fetch("/api/assistant", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...envoiEnAttente, verifier: true }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const resultat = await reponse.json();
+      if (!reponse.ok) throw new Error(resultat.message ?? "Vérification indisponible.");
+      if (typeof resultat.message === "string") {
+        setMessages([...envoiEnAttente.messages, { role: "assistant", content: resultat.message }]);
+        if (envoiEnAttente.ressource) void actualiserRessourceCible(envoiEnAttente.ressource.id);
+        effacerSession(cleEnvoi); setEnvoiEnAttente(null); setAvis(null); router.refresh();
+      } else setAvis({ ton: "info", texte: "Aucun résultat complet retrouvé pour cet envoi à cet instant. Une commande peut être partiellement appliquée ; réessayez le même envoi pour reprendre ses étapes restantes." });
+    } catch {
+      setAvis({ ton: "danger", texte: "Impossible de vérifier l'enregistrement. L'envoi reste disponible pour une nouvelle vérification." });
+    } finally { setVerificationEnCours(false); }
+  };
 
   const ouvrirExercice = useCallback((e: PropositionExercice) => {
     setExerciceEnAttente(e);
@@ -737,24 +801,27 @@ function ChatHydrate({
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
+      {modeAccueil && messages.length > 0 && <div className="flex justify-end">
+        <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente)} onClick={() => { setMessages([]); setRessourceCible(null); effacerSession(cleConversation); setAvis(null); }}>Nouvel échange</Bouton>
+      </div>}
       <div>
         <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure-controle bg-surface">
           {/* Conversation */}
           <div ref={zoneRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
             {messages.length === 0 && (
               <div className="py-6 text-center">
-                <p className="text-sm font-medium">Le tuteur connaît votre profil</p>
+                <p className="text-sm font-medium">{modeAccueil ? "Qu'avez-vous en tête ?" : "Le tuteur connaît votre profil"}</p>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-texte-attenue">
-                  Il reçoit les protocoles du système et l{"'"}état réel de tes{" "}
+                  {modeAccueil ? "Racontez votre journée, posez une question ou joignez vos cours, notes et exercices dans la saisie ci-dessous." : <>Il reçoit les protocoles du système et l{"'"}état réel de tes{" "}
                   {codesCompetences.length} compétences, calculé depuis vos observations. Il ne peut
-                  pas modifier votre profil : il propose des mises à jour que vous validez.
+                  pas modifier votre profil : il propose des mises à jour que vous validez.</>}
                 </p>
               </div>
             )}
 
             {messages.map((m, i) => (
+              <div key={i}>
               <MessageBulle
-                key={i}
                 message={m}
                 // Seul le dernier message peut être en cours de rédaction. Le
                 // passer aux autres les ferait tous re-rendre au démarrage et à
@@ -764,6 +831,8 @@ function ChatHydrate({
                 onOuvrirExercice={ouvrirExercice}
                 onDemarrerExerciceDirect={demarrerExerciceDirect}
               />
+              {modeAccueil && m.ressources && <RessourcesConversation compteId={compteId} revision={m.ressources.includes(ressourceCible?.id ?? "") ? revisionRessources : 0} references={m.ressources} onCorriger={(cible) => { if (!enCours && !envoiEnAttente) setRessourceCible(cible); }} />}
+              </div>
             ))}
 
             {/*
@@ -800,8 +869,29 @@ function ChatHydrate({
             </div>
           )}
 
+          {modeAccueil && envoiEnAttente && !enCours && <div className="space-y-2 border-t border-bordure p-4" role="status">
+            <p className="text-sm">La réponse de cet envoi n’est pas confirmée. Vérifiez son enregistrement avant de réessayer.</p>
+            <div className="flex flex-wrap gap-2">
+              <Bouton taille="petite" disabled={verificationEnCours} onClick={() => void verifierEnvoi()}>Vérifier l’enregistrement</Bouton>
+              <Bouton taille="petite" variante="discret" disabled={verificationEnCours} onClick={() => void envoyer(envoiEnAttente.messages.at(-1)?.content ?? "", true)}>Réessayer cet envoi</Bouton>
+              <Bouton taille="petite" variante="discret" disabled={verificationEnCours} onClick={() => { effacerSession(cleEnvoi); setEnvoiEnAttente(null); setAvis({ ton: "info", texte: "Reprise abandonnée. Les actions déjà enregistrées sont conservées. Actualisez la ressource ou consultez Séances pour retrouver leur résultat." }); }}>Abandonner la reprise</Bouton>
+            </div>
+          </div>}
           {/* Saisie — composant isolé (Fix 1) */}
+          {modeAccueil && ressourceCible && <div className="border-t border-bordure px-4 py-2 text-sm">
+            <p>Votre prochain message concerne « {ressourceCible.titre} ». Décrivez la correction ou les compétences proposées à ajouter. Seuls le classement et les intitulés proposés sont transmis au modèle, pas le document.</p>
+            <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente)} onClick={() => setRessourceCible(null)}>Revenir à la discussion générale</Bouton>
+          </div>}
           <ChatInput
+            focusSignal={ressourceCible ? `${ressourceCible.id}:${ressourceCible.version}` : undefined}
+            depotBloque={Boolean(envoiEnAttente) || Boolean(ressourceCible)}
+            onDepotConserve={modeAccueil ? (texte, recu, ressources) => {
+              setMessages((precedents) => [...precedents,
+                { role: "user", content: texte || "Pièces jointes partagées" },
+                { role: "assistant", content: recu, ressources },
+              ]);
+              router.refresh();
+            } : undefined}
             onEnvoyer={envoyer}
             onArreter={arreter}
             /*
@@ -835,7 +925,7 @@ function ChatHydrate({
         actionnable, le masquer transformerait une panne explicable en panne
         muette.
       */}
-      <Depliant
+      {!modeAccueil && <Depliant
         resume={`Contexte transmis — ${(etat.caracteresTotal / 1000).toFixed(1)} k caractères · ${etat.modele}`}
       >
         <div className="space-y-4">
@@ -899,7 +989,7 @@ function ChatHydrate({
             </ul>
           </div>
         </div>
-      </Depliant>
+      </Depliant>}
 
       {cleAbsente && (
         <BandeauInfo ton="alerte">

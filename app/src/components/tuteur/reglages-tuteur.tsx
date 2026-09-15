@@ -1,5 +1,7 @@
 "use client";
 
+import { BudgetQwen } from "./budget-qwen";
+import { configVersEnv } from "@/lib/tutor/cle-client";
 import { useState } from "react";
 import { Bouton, cx } from "@/components/ui/primitives";
 import { Champ, ChampSelect, classesChamp } from "@/components/ui/champ";
@@ -83,6 +85,8 @@ export function ReglagesTuteur({
       };
     }
 
+    const valide = configVersEnv(nouvelleConfig);
+    if (!valide.ok) { setMessage(valide.motif); return; }
     ecrireConfigTuteur(compteId, nouvelleConfig, usage);
     setConfig(lireConfigTuteur(compteId, usage));
     setMessage("Clé enregistrée avec succès.");
@@ -141,7 +145,7 @@ export function ReglagesTuteur({
         </div>
       </div>
 
-      {!estAnthropic && (
+      {!estAnthropic && fournisseur !== "qwen" && (
         <Champ
           label="URL de base"
           taille="compacte"
@@ -153,7 +157,7 @@ export function ReglagesTuteur({
         />
       )}
 
-      <Champ
+      {fournisseur !== "qwen" && <Champ
         label={preset?.modeleParDefaut ? `Modèle (défaut : ${preset.modeleParDefaut})` : "Modèle"}
         taille="compacte"
         type="text"
@@ -161,8 +165,9 @@ export function ReglagesTuteur({
         onChange={(e) => setModele(e.target.value)}
         placeholder={preset?.modeleParDefaut ?? "nom-du-modele"}
         spellCheck={false}
-      />
+      />}
 
+      {fournisseur === "qwen" && <BudgetQwen />}
       {preset?.aide && (
         <p className="text-[0.6875rem] leading-relaxed text-texte-discret">{preset.aide}</p>
       )}

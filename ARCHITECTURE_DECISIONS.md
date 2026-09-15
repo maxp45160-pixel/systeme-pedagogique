@@ -136,6 +136,7 @@ personne**. Une analyse, même convaincante, reste 🔬 ou ❓.
 | [141](#adr-141) | Une référence contestable suspend la mesure sans réécrire l'Observation | 🔬 Construite (01/09/2026), à réfuter en usage |
 | [142](#adr-142) | Mes cours crée directement ses domaines ; la suppression définitive reste sûre | ✅ Acceptée et construite (04/09/2026) |
 | [143](#adr-143) | Dépôt documentaire consenti, retour sourcé et reformulation sans mesure | ❓ Pilote implémenté le 06/09/2026 ; fidélité et ouverture à valider par Maxime |
+| [144](#adr-144) | Une réception devient des ressources indépendantes, organisées en deux validations | ❓ Construite le 09/09/2026 à la demande de Maxime ; usage réel et décision d'architecture encore ouverts — amende [143](#adr-143) |
 
 *(037 à 039 avaient été omises de ce tableau ; rattrapées le 07/08. 045 à 047
 l'étaient aussi ; rattrapées le 10/08. 051 et 052 ont été écrites en parallèle du
@@ -9958,8 +9959,9 @@ inexistante. Le retour sourcé est ensuite relu et corrigé librement. Les
 contraintes de composition/relecture du message ci-dessous restent celles du
 chat historique, sans autoriser l'envoi automatique d'un corpus.
 
-**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Tranche Q1 et Q2
-de `docs/audit/CHARGE-MES-COURS.md`. Ne fait monter aucune brique en ✅.
+**Statut :** 🔬 construit le 24/08/2026, hypothèse non réfutée. Le corpus reste
+un espace personnel ; sa transmission passe par un geste explicite, pas par
+le contexte permanent. Ne fait monter aucune brique en ✅.
 
 ### Le manque
 
@@ -10083,7 +10085,8 @@ Cette décision est réfutée si l'une de ces trois choses se produit :
 - elle **ne câble pas le moteur**. `lib/engine/` ne connaît toujours pas le
   corpus documentaire, et reçoit toujours les compétences en paramètre ;
 - elle **ne justifie pas le WYSIWYG**. Le geste ne lit que du Markdown, quel
-  que soit l'éditeur qui l'a produit. Q3 du relevé reste ouverte ;
+  que soit l'éditeur qui l'a produit. Son utilité reste à établir sur l'usage
+  réel du corpus ;
 - elle **n'envoie rien automatiquement**. Un message composé mais non envoyé
   n'atteint aucun fournisseur et ne coûte aucun quota.
 
@@ -11336,6 +11339,11 @@ violée.
 <a name="adr-139"></a>
 ## ADR-139 — Le plan est une hypothèse dérivée ; seules les séances acceptées deviennent du travail ❓
 
+**Direction précisée le 10/09/2026, ADR-145.** Maxime autorise la programmation
+et la reprogrammation sous délégation dans les disponibilités déclarées. La
+relecture manuelle systématique décrite ci-dessous reste le contrat implémenté,
+pas une exigence de la nouvelle cible. Sa traduction technique reste à définir.
+
 **Complément du 06/09/2026, ADR-143.** Le pilote documentaire ne construit
 pas de planification supplémentaire. Il démarre directement une séance
 documentaire acceptée, sans module ; le compte rendu IA historique et son
@@ -11823,6 +11831,11 @@ effacée par cascade, ou si le chemin direct consomme un appel au tuteur.
 <a name="adr-143"></a>
 ## ADR-143 — Déposer, relire un retour sourcé, travailler sans mesure ❓
 
+**Amendée le 09/09/2026 par [ADR-144](#adr-144).** Les contrats de consentement,
+coût, conservation et absence de mesure demeurent ; la granularité V1 du dépôt
+et l'absence de propositions d'organisation sont remplacées pour les nouvelles
+ressources.
+
 **Date :** 06/09/2026. **Direction explicitement demandée par Maxime** dans
 le plan Twiny V1. L'implémentation pilote est construite ; Maxime doit encore
 éprouver la fidélité sur ses manuscrits et décider de l'ouverture générale.
@@ -11963,6 +11976,282 @@ et revoir la lecture. Ces résultats ne sont pas encore acquis.
 
 Synchronisation reMarkable, tri interjournées, priorisation globale,
 planification et correction IA de la reformulation restent hors V1.
+
+---
+
+<a name="adr-144"></a>
+## ADR-144 — Une réception devient des ressources indépendantes, organisées en deux validations ❓
+
+**Direction remplacée le 10/09/2026, ADR-145.** Les deux validations humaines
+obligatoires ne sont plus l'expérience cible retenue par Maxime. Le parcours et
+les contrôles V2 décrits ci-dessous restent dans le code local jusqu'à leur
+remplacement progressif ; aucun contournement serveur n'est introduit ici.
+
+**Date :** 09/09/2026. **Statut :** ❓ proposition construite à la demande de
+Maxime, sans validation d'architecture ni ouverture générale. Amende ADR-143
+pour les ressources V2 ; les dépôts V1 restent lisibles sans migration.
+
+### Problème
+
+Le dépôt V1 conservait un texte et plusieurs fichiers dans une seule fiche.
+Cette unité convenait à une restitution ponctuelle, mais empêchait le rangement
+indépendant, rendait le graphe ambigu et aurait forcé une validation globale.
+Demander au modèle de créer des codes aurait aussi déplacé une décision du
+référentiel vers le tuteur, contre ADR-026 et le garde-fou serveur.
+
+### Décision proposée et construite
+
+1. **Une entrée, une ressource.** Un fichier produit un document support avec
+   une pièce jointe ; le texte libre produit une ressource `note` séparée. Le
+   chemin relatif d'origine est conservé comme métadonnée, sans créer de lot ni
+   dossier. Le jour se dérive de `created_at`.
+2. **Compatibilité historique.** `RestitutionDepot` distingue V1 et V2. Les
+   fiches V1 multifichiers ne sont ni migrées ni réécrites. Les tables
+   `documents`, `document_attachments`, `document_depot_analyses` et
+   `document_links` suffisent ; aucune migration SQL n'est introduite.
+3. **Une proposition n'est pas un fait.** Après consentement, Mistral reçoit
+   une seule ressource et le référentiel actif complet. Il peut référencer un
+   identifiant de domaine ou un code fourni, ou proposer un nom de domaine et
+   la structure atomique d'une compétence nouvelle. Il ne propose aucun code
+   ni préfixe. Le serveur rejette type, identifiant, code et citation absents
+   des valeurs autorisées ou des sources.
+4. **Deux validations humaines.** La personne relit d'abord les propositions
+   de référentiel. Les commandes existantes contrôlent les homonymes, demandent
+   l'usage `module` ou `continu`, exigent l'année académique du module et
+   attribuent les codes. Le référentiel est rechargé avant le rangement. Chaque
+   ressource est ensuite rangée indépendamment ou laissée explicitement « À
+   trier ». Aucune commande unique ne combine ces deux étapes.
+5. **Liens explicites seulement.** Le domaine principal facultatif reste une
+   métadonnée de regroupement. Les compétences confirmées sont écrites dans la
+   section Markdown gérée `Compétences liées`; `modifierDocument` les répercute
+   dans `document_links`. Le graphe V2 ignore les wikiliens libres hors de cette
+   section. Aucun lien de similarité, prérequis ou score n'est produit.
+6. **Historique non destructif.** Les identifiants d'analyse et dates de revue
+   du référentiel et du rangement sont conservés dans le frontmatter. Une
+   analyse plus récente rouvre les deux revues sans écraser le domaine ou les
+   liens acceptés. Une proposition antérieure refusée n'est pas ressuscitée.
+7. **Frontière de mesure inchangée.** Sujet, annotation, incertitude et
+   proposition d'organisation restent du contenu sourcé. Il n'existe aucun
+   champ `incomprehensions`; dépôt, refus, classement et travail documentaire
+   ne créent ni Observation, ni niveau, ni pénalité, ni échéance.
+
+### Infrastructure, concurrence et reprise
+
+Chaque ressource possède une clé idempotente distincte. La fiche est créée
+avant son transfert ; un échec individuel laisse les autres ressources
+utilisables et peut être repris sans doubler la fiche. Le rangement vérifie la
+dernière analyse, la revue préalable du référentiel et la version attendue du
+document. Répéter exactement un rangement déjà appliqué est sans effet. Les
+originaux restent accessibles si l'IA est absente, en panne ou hors budget.
+
+### Vérification et réfutation
+
+Les tests automatisés couvrent la validation V2, les références inconnues,
+l'absence de code sur une nouveauté, les citations exactes, la déduplication,
+la conservation des liens acceptés, le rejet des anciennes propositions et
+la séparation du chemin V1. Les contrôles TypeScript, lint, Vitest et build
+doivent passer avant livraison.
+
+La proposition reste réfutée en usage si un lot de trois fichiers et un texte
+ne produit pas exactement quatre ressources, si le rangement crée des
+doublons, si une correction courante dépasse une minute ou si moins de neuf
+restitutions sur dix sont reconnues fidèles. Le corpus réel, la vérification
+authentifiée desktop/mobile et le zoom à 200 % restent des preuves humaines à
+réaliser ; aucun statut ne monte avant cette décision.
+
+---
+
+## ADR-145 — Une entrée conversationnelle administre progressivement le système ❓
+
+**Essai Qwen — décision du 14/09/2026, corrigée le 15/09.** La clé personnelle
+sélectionnée utilise l'endpoint international fourni par Maxime et le modèle
+figé `qwen3-vl-plus-2025-12-19`, pour le chat et les documents. Elle reste isolée
+par compte dans le navigateur et transite seulement pour les appels nécessaires.
+L'enveloppe cumulée est de **5 USD hors taxes sans renouvellement automatique**.
+`qwen_usage` réserve une borne majorée avant appel ; une réservation échouée
+reste consommée. Il s'agit d'un budget engagé, pas d'une facture fournisseur.
+Le compteur survit au reset pédagogique ; aucun réessai payant n'est automatique.
+
+Réservation, démarrage et sauvegarde utilisent la session du compte pilote et
+les contrôles serveur, sans clé Supabase privilégiée. Les transcriptions restent
+à relire, ne deviennent pas des mesures et ne rejoignent pas le chat permanent.
+Mistral reste disponible. Le rendu PDF local avec `@napi-rs/canvas` a été autorisé.
+
+Les trois migrations Qwen/réservation/analyse sont rapportées comme appliquées
+les 14–15/09 dans [le registre pilote](docs/pilotes/DEPOT_DOCUMENTAIRE.md#essai-qwen),
+qui conserve leurs versions exactes, les bornes tarifaires datées, les limites
+techniques et les résultats de vérification. Les réponses réelles du fournisseur
+restent à valider ; aucun statut n'est promu.
+
+**Suite explicitement demandée le 13/09/2026 — tranche documentaire limitée.**
+Cette demande autorise la poursuite locale malgré l'essai fournisseur du lot 1
+encore non concluant ; elle ne transforme pas cet essai en succès. Le fil porte
+les identifiants des ressources reçues et un panneau de préparation/retour par
+échange. Le compte et les documents sont relus côté serveur sous les contrôles
+du pilote. Aucune commande n'est extraite des liens Markdown d'une réponse IA.
+
+Le consentement ADR-143 est présenté dans le fil pour la sélection entière :
+sources, tranche de vingt pages au maximum par ressource, pages restantes,
+fournisseur, coût maximal cumulé et budget commun. Le budget documentaire et
+`envTuteur` restent ceux du pilote. La route documentaire existante accepte le
+mode `organiser` : après une restitution terminée correspondant à l'empreinte
+demandée et toujours la plus récente, elle appelle une commande qui dérive le
+rangement du référentiel serveur. Aucun choix arbitraire du navigateur n'entre
+dans cette commande autonome. La validation des types, codes actifs et versions
+est partagée avec le rangement manuel. Les deux revues humaines d'ADR-144
+restent dans les vues historiques, mais ne sont plus imposées à ce chemin.
+
+Depuis la suite du 14/09, les compétences nouvelles sourcées sont créées dans
+les domaines existants via les commandes du référentiel, qui attribuent les
+codes. Un homonyme unique est réutilisé ; une ambiguïté ou une archive bloque
+la création. Un domaine inconnu laisse un rangement partiel et demande son
+usage explicite dans la conversation avant création. Les choix
+déjà appliqués ne sont pas écrasés. `rangement_origine` distingue l'assistant
+de la personne ; le champ historique `rangement_revu_le` désigne ici la date
+d'application, sans prétendre à une revue humaine du référentiel.
+
+Une reprise sans IA resynchronise les liens depuis le Markdown réel. La lecture
+du résultat vérifie la présence des liens attendus dans `document_links` et ne
+les annonce pas comme établis s'ils manquent. Markdown et index restent deux
+écritures existantes, pas une nouvelle transaction atomique. La section de liens
+générée est exclue de la note source afin de ne pas réinjecter le rangement dans
+l'analyse suivante. Les comptes rendus restent visibles localement dans le fil,
+jamais dans le contexte permanent ni les messages envoyés au chat (ADR-124/125).
+
+Arrêt utilisateur ou premier échec interrompt la séquence ; les résultats acquis
+restent lisibles et la reprise payante demeure explicite. Aucune migration ni
+dépendance ajoutée. Les tests automatisés et contrôles RLS ne valident ni la
+fidélité du fournisseur sur corpus réel. Aucun statut n'est promu.
+
+**Suite du 14/09 — commandes documentaires dans la saisie commune.**
+« Corriger ou compléter » sélectionne la ressource sans ouvrir de formulaire.
+L'outil borné corrige un champ (titre, type, domaine ou liens), ou crée des
+compétences parmi les propositions sourcées de la dernière analyse. Le titre
+exact et l'usage d'un nouveau domaine doivent provenir des mots de la personne.
+Le dialogue ciblé reçoit uniquement les métadonnées et intitulés proposés,
+jamais les documents ni leurs transcriptions. Une clarification indique
+explicitement qu'aucune modification n'a été effectuée.
+
+Le frontmatter `assistant_operation` conserve une trace technique de commande
+(clé, analyse, empreinte des métadonnées, paramètres vérifiés, état et reçu).
+Elle précède les effets et permet leur reprise sans nouvelle interprétation IA.
+Ce n'est ni une observation ni un plan pédagogique stocké. Les écritures restent
+conditionnées à la version de la fiche ; les créations déjà réussies sont relues
+et réutilisées après interruption. La vérification d'un reçu reste sans écriture ;
+la reprise explicite peut réparer les liens. Ces étapes ne constituent pas une
+transaction atomique entre référentiel, Markdown et index. Aucune suppression de
+compétence, mesure, séance, migration ni dépendance n'est ajoutée.
+
+**Correction d'interface explicitement demandée le 11/09/2026.** Maxime refuse
+deux interfaces, l'une pour parler et l'autre pour déposer. L'accueil intègre
+donc la capture documentaire dans `ChatInput` : texte et/ou fichiers partagent
+le même envoi. Le chemin `?nouveau=1` aboutit à cette même interface ; les liens
+`?depot=…` restent des accès aux ressources historiques, pas la porte d'entrée
+d'une nouvelle capture. Le transfert V2 est partagé avec ces anciens dépôts
+par `recevoirFichierDepot` ; les commandes et contrôles serveur restent ceux
+du pilote documentaire. Les confirmations dans le fil proviennent des écritures
+réussies. Une reprise garde les identités et étapes achevées tant que la page
+reste ouverte ; les fichiers en attente ne deviennent pas une nouvelle
+persistance navigateur. Après rechargement, les originaux réussis restent dans
+Mes cours, mais les fichiers non terminés doivent être resélectionnés.
+
+Un texte joint aux fichiers produit la note distincte du contrat V2 ; un texte
+seul conserve le comportement conversationnel du lot 1. L'envoi de pièces
+jointes est une conservation sans appel au modèle, disponible même sans clé IA.
+L'analyse et le traitement IA du texte joint ne sont pas déclenchés par ce
+geste. Aucun contenu documentaire n'est ajouté au contexte permanent, aucun
+consentement d'analyse n'est contourné, aucun nouveau schéma n'est nécessaire.
+Ce correctif ne valide pas l'organisation autonome du lot 2.
+
+**Lot 1 implémenté localement le 11/09/2026 ; usage non validé.** Le pilote
+dispose d'un accueil conversationnel qui réutilise `ChatTuteur`. La route
+`/api/assistant` arme un seul outil de réponse/déclaration d'examen, passe par
+`resoudreMoteur` donc `envTuteur`, et borne l'interprétation à 45 secondes.
+Le contexte de ce premier chemin est limité aux 12 derniers messages et aux
+consignes d'accueil : aucun corpus ni niveau supposé n'y est ajouté. Le plafond
+historique d'ADR-125 n'est pas relevé et les autres chemins tuteur restent inchangés.
+
+L'autorisation donnée par Maxime permet cette écriture sans seconde validation
+de formulaire sur le seul compte pilote activé. Le modèle ne fournit ni code,
+ni module, ni identifiant. Le serveur valide la date de calendrier, sa présence
+explicite dans le dernier message et la provenance du libellé dans les mots
+de la personne, puis appelle `creerEngagement`. Le plan, les compétences et les
+mesures ne sont pas écrits. Questions, hypothèses et négations doivent rester
+sans écriture ; leur reconnaissance sémantique par le modèle reste à éprouver
+sur le fournisseur réel avant extension des pouvoirs.
+
+Une clé d'envoi aléatoire et l'empreinte des messages déterminent l'identité
+technique de l'échéance, isolée par compte. La PK réelle `(user_id, id)` arbitre
+les requêtes concurrentes ; une lecture après erreur retrouve le gagnant.
+Un nouvel envoi a une autre identité : cette protection ne constitue pas une
+déduplication sémantique de deux déclarations distinctes. Le reçu de reprise
+est une lecture sous RLS, sans quota IA. Les échanges et l'envoi en attente
+restent dans `sessionStorage`, sans décider d'une conservation durable des
+conversations. Le serveur ne transmet pas la prose du modèle comme reçu
+d'écriture. Une erreur fournisseur reçoit un message contrôlé ; une erreur
+d'écriture incertaine invite à vérifier. Aucun réessai de l'envoi n'est automatique.
+
+Aucune migration ni dépendance ajoutée. Le schéma réel, la PK et RLS ont été
+inspectés ; écriture, relecture, unicité et refus d'écriture hors compte ont
+été éprouvés sous `authenticated` dans une transaction annulée. Le script
+`app/supabase/tests/assistant_echeance_idempotence.sql`, exécuté le 11/09, vérifie
+aussi le refus de lecture hors compte. L'essai navigateur a révélé une limitation
+fournisseur ; l'enregistrement conversationnel réel reste à valider. Aucun
+statut n'est promu. Le verrou de progression a été remplacé par la demande
+explicite de poursuivre le 13/09 ci-dessus ; la preuve fournisseur reste absente.
+
+**Date :** 10/09/2026. **Statut :** direction produit explicitée par Maxime ;
+architecture technique ouverte, capacité non démontrée. Le cadrage du 10/09
+était documentaire ; le lot local décrit ci-dessus est sa première réalisation.
+Référence : [`Assistant d'entrée`](docs/design/ASSISTANT_ENTREE_REFERENCE.md).
+
+### Direction humaine
+
+L'entrée accepte récit de journée, demande de travail, question d'organisation
+et ressources facultatives. L'assistant sollicite les documents utiles, réutilise
+le référentiel, organise les éléments clairement justifiés et rend compte des
+actions réellement effectuées. Les corrections passent prioritairement par la
+conversation ; une généralisation ambiguë demande une précision.
+
+Maxime autorise programmation et reprogrammation automatiques dans les
+disponibilités données, avec modification libre des séances sans justification.
+Les activités restent dans leurs espaces adaptés ; leurs résultats alimentent
+le contexte de l'assistant. Sans preuve de niveau, proposer un point de départ
+est permis, fabriquer un niveau ne l'est pas.
+
+### Portée et amendements à implémenter
+
+La direction remplace les revues humaines systématiques d'ADR-144 et fait
+évoluer la relecture manuelle de chaque programmation/révision d'ADR-139 vers
+une délégation. Elle ne décide ni de stocker le plan dérivé, ni de créer une
+entité remplaçant `LearningSession`. L'accord de cette conversation n'est pas
+une autorisation applicable à tous les comptes : portée, représentation et
+suspension de la délégation doivent être définies avant le lot calendrier.
+
+L'extraction de faits déclarés, leur source et leur correction demandent un
+contrat précis avant écriture autonome. Les mots de la personne ne deviennent
+pas une mesure ; déplacement, refus et abandon restent des faits d'organisation.
+Les interprétations et priorités restent dérivées et recalculables.
+
+Le contexte documentaire d'ADR-124, le consentement fournisseur d'ADR-143 et
+le budget de contexte d'ADR-125 ne sont pas levés par cette direction. La
+sélection de ressources pertinentes et le consentement associé restent à
+concevoir, sans injecter tout le corpus dans le prompt permanent.
+
+### État réel et découpage proposé
+
+Au cadrage du 10/09, le code conservait le pilote V2 et le tuteur existant,
+sans modification de schéma, prompt, quota ou parcours. Le lot 1 ci-dessus
+décrit les changements ultérieurs. Le diagnostic local distingue composants
+existants et capacités encore non prouvées, notamment le plan global dont
+l'intégration visible a été retirée le 30/08.
+
+Première tranche proposée : une déclaration claire de contrôle produit une
+échéance réelle via les commandes existantes, un bilan vérifiable et un accès
+au travail. Tester clarification, rejeu, échec et récupération avant de passer
+à l'organisation documentaire puis au plan et au calendrier délégué. Ce
+découpage est une proposition de mise en œuvre, pas une validation utilisateur
+de l'architecture. Aucun test applicatif ni vérification distante dans ce lot.
 
 ---
 

@@ -25,6 +25,7 @@ import { EditeurDirect } from "@/components/atelier/editeur-document";
 import { Bouton } from "@/components/ui/primitives";
 import { PaletteFormules } from "@/components/ui/palette-formules";
 import { insererFormuleDansEditeur } from "@/lib/documents/insertion-formule-editeur";
+import { usePiecesConversation } from "./pieces-conversation";
 
 export const ChatInput = memo(function ChatInput({
   onEnvoyer,
@@ -35,8 +36,14 @@ export const ChatInput = memo(function ChatInput({
   cleAbsente,
   usage,
   saisieInitiale,
+  onDepotConserve,
+  depotBloque = false,
+  focusSignal,
 }: {
-  onEnvoyer: (texte: string) => void;
+  onEnvoyer: (texte: string) => void | boolean | Promise<void | boolean>;
+  onDepotConserve?: (texte: string, recu: string, ressources: string[]) => void;
+  depotBloque?: boolean;
+  focusSignal?: string;
   /** Présent seulement en secours sans clé (`copieSecours`). */
   onCopier?: (texte: string) => void;
   /** Vrai quand aucun moteur n'est configuré : la copie de secours s'affiche. */
@@ -50,6 +57,22 @@ export const ChatInput = memo(function ChatInput({
   const [saisie, setSaisie] = useState(saisieInitiale);
   const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
   const champRef = useRef<HTMLDivElement>(null);
+  const pieces = usePiecesConversation(onDepotConserve);
+  const verrouEnvoi = useRef(false);
+  const bloque = enCours || pieces.occupe;
+  useEffect(() => { if (focusSignal) champRef.current?.focus(); }, [focusSignal]);
+  async function soumettre() {
+    if (bloque || verrouEnvoi.current) return;
+    const texte = saisie.trim();
+    const avecFichiers = Boolean(onDepotConserve && pieces.fichiers.length);
+    if (avecFichiers && depotBloque) return;
+    if (!avecFichiers && (!texte || cleAbsente)) return;
+    verrouEnvoi.current = true;
+    try {
+      const accepte = avecFichiers ? await pieces.envoyer(texte) : await onEnvoyer(texte);
+      if (accepte !== false) setSaisie("");
+    } finally { verrouEnvoi.current = false; }
+  }
 
   if (saisieInitiale !== saisieInitialePrecedente) {
     setSaisieInitialePrecedente(saisieInitiale);
@@ -63,17 +86,22 @@ export const ChatInput = memo(function ChatInput({
   }, [saisieInitiale]);
 
   return (
-    <div className="border-t border-bordure px-3 py-3">
+    <div className={`border-t border-bordure px-3 py-3 ${pieces.survol ? "ring-2 ring-inset ring-primaire" : ""}`}
+      onDragOver={onDepotConserve ? (e) => { if (Array.from(e.dataTransfer.types).includes("Files")) { e.preventDefault(); if (!bloque && !depotBloque) pieces.setSurvol(true); } } : undefined}
+      onDragLeave={() => pieces.setSurvol(false)}
+      onDrop={onDepotConserve ? (e) => { if (bloque || depotBloque) { e.preventDefault(); return; } void pieces.deposer(e); } : undefined}>
       {/*
         On pose des questions de mathématiques au tuteur : la palette doit être
         là, sinon il faut taper le LaTeX de mémoire.
       */}
-      <div className="mb-2 flex justify-end">
+      <div className="mb-2 flex items-center justify-between">
+        {onDepotConserve ? pieces.interfacePieces(bloque || depotBloque) : <span/>}
         <PaletteFormules
           onInserer={(latex, recul) => insererFormuleDansEditeur(champRef.current, latex, recul)}
-          desactivee={enCours}
+          desactivee={bloque}
         />
       </div>
+      {onDepotConserve && pieces.liste}
 
       {/*
         Point d'entrée du focus quand le chat est monté dans une modale.
@@ -86,7 +114,7 @@ export const ChatInput = memo(function ChatInput({
         documentId="tuteur-chat"
         contenuInitialMd={saisie}
         contenuCharge
-        lectureSeule={enCours}
+        lectureSeule={bloque}
         onSynchroniser={setSaisie}
         onRaccourci={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -103,16 +131,11 @@ export const ChatInput = memo(function ChatInput({
              * Le bouton, lui, est remplacé par « Arrêter » dans cet état : le
              * chemin clavier était le seul trou.
              */
-            if (enCours) return;
-            const texte = saisie.trim();
-            if (texte) {
-              onEnvoyer(texte);
-              setSaisie("");
-            }
+            void soumettre();
           }
         }}
         ariaLabel="Message à envoyer au tuteur"
-        placeholder="Posez votre question, collez votre raisonnement, demandez un exercice…"
+        placeholder={onDepotConserve ? "Écrivez votre message ou glissez vos cours, notes et exercices ici…" : "Posez votre question, collez votre raisonnement, demandez un exercice…"}
         focusInitial
         hauteurPleine={false}
         recomposerFormulesSurSaisie
@@ -133,20 +156,14 @@ export const ChatInput = memo(function ChatInput({
           )}
           {/* Pendant la rédaction, le bouton devient la seule action utile.
               « En cours… » désactivé n'offrait aucune sortie. */}
-          {enCours ? (
+          {pieces.occupe ? <Bouton disabled taille="petite">Conservation des ressources…</Bouton> : enCours ? (
             <Bouton onClick={onArreter} variante="secondaire" taille="petite">
               Arrêter
             </Bouton>
           ) : (
             <Bouton
-              onClick={() => {
-                const texte = saisie.trim();
-                if (texte) {
-                  onEnvoyer(texte);
-                  setSaisie("");
-                }
-              }}
-              disabled={!saisie.trim() || cleAbsente}
+              onClick={() => void soumettre()}
+              disabled={pieces.fichiers.length ? depotBloque : !saisie.trim() || cleAbsente}
               variante="principal"
               taille="petite"
             >

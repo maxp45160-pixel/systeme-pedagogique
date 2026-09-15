@@ -24,6 +24,8 @@ import type { PropositionExercice } from "@/lib/tutor/proposition";
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  /** Références locales de pièces partagées ; aucun contenu documentaire envoyé au chat. */
+  ressources?: string[];
   /**
    * Propositions reçues en sortie structurée (lot 3.2).
    *

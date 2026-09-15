@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["@napi-rs/canvas"],
   /*
     L'indicateur Next.js DevTools (« N ») n'est rendu qu'en `next dev`, jamais
     en production (`next start`) — doc embarquée

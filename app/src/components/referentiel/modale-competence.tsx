@@ -79,6 +79,7 @@ export function ModaleCompetence({
   descriptionInitiale = "",
   suggestionAutomatique = false,
   usageInitial,
+  usageRequis = false,
   surEnregistre,
 }: {
   onFermer: () => void;
@@ -98,6 +99,8 @@ export function ModaleCompetence({
   suggestionAutomatique?: boolean;
   /** Usage choisi depuis l'entrée unique de déclaration. */
   usageInitial?: Exclude<TypeUsage, "indetermine">;
+  /** Un flux de rangement doit faire déclarer module ou continu avant création. */
+  usageRequis?: boolean;
   /** Permet à l'appelant de reprendre son flux après la création. */
   surEnregistre?: () => void;
 }) {
@@ -191,6 +194,9 @@ export function ModaleCompetence({
     periode: usagePeriode,
   };
   const refusUsageManuel = motifRefusUsageDomaine(usageManuel);
+  const erreurUsageAffichee = usageRequis && !estDomaineExistant && !competenceSeule && usageChoisi === "indetermine"
+    ? "Choisissez module académique ou progression continue."
+    : refusUsageManuel;
   const [manuelLignes, setManuelLignes] = useState<LigneCompetenceManuelle[]>([
     { intitule: "", palier: "fondamentaux", importance: "0.5" },
   ]);
@@ -411,7 +417,7 @@ export function ModaleCompetence({
   const pretManuel =
     domaineManuelFinal.trim().length > 2 &&
     (retenuesManuelles.length > 0 || autoriseModuleVide);
-  const pretUsageManuel = !refusUsageManuel;
+  const pretUsageManuel = !erreurUsageAffichee;
 
   function enregistrerManuel() {
     if (!pretManuel || !pretUsageManuel) return;
@@ -668,7 +674,7 @@ export function ModaleCompetence({
                 onAnneeChange={setUsageAnnee}
                 usagePeriode={usagePeriode}
                 onPeriodeChange={setUsagePeriode}
-                erreur={refusUsageManuel}
+                erreur={erreurUsageAffichee}
               />
             )}
 
@@ -844,7 +850,7 @@ export function ModaleCompetence({
                   onAnneeChange={setUsageAnnee}
                   usagePeriode={usagePeriode}
                   onPeriodeChange={setUsagePeriode}
-                  erreur={refusUsageManuel}
+                  erreur={erreurUsageAffichee}
                 />
               </div>
             )}
