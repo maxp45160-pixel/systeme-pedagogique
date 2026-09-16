@@ -14,7 +14,8 @@
     "agents:check": "node ai-company/scripts/check.mjs && node ai-company/scripts/missions.mjs check",
     "agents:test": "node --test ai-company/scripts/*.test.mjs",
     "agents:next": "node ai-company/scripts/missions.mjs next",
-    "agents:resume": "node ai-company/scripts/context.mjs --resume"
+    "agents:resume": "node ai-company/scripts/context.mjs --resume",
+    "agents:graph": "node ai-company/scripts/graph.mjs"
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",

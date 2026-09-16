@@ -32,6 +32,13 @@ nécessaires pour comprendre, vérifier ou modifier. Ne pas charger tous les rô
 ni tout ai-company. Un audit en lecture seule peut examiner la logique ciblée.
 Limiter les résultats aux preuves nécessaires et aux désaccords qui changent l'action.
 
+Pour une question de parcours ou de dépendances, consulter les
+[graphes locaux](../workflows/graphes.md) avec `npm run agents:graph -- ...` :
+scanners réexécutés ou index technique reconstruit à chaque consultation.
+Choisir une vue et une racine ciblées ; conserver conditions, incertitudes et
+troncature. Vérifier les sources avant une conclusion décisive. Aucun appel
+automatique à toutes les vues ni nouveau service nécessaire.
+
 ## Délégation
 
 Une tâche simple reste dans la session. Un changement de modèle de compétence

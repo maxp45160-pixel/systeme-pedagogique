@@ -3,6 +3,16 @@
 Ce journal suit l'AI Company. Les changements produit restent dans leurs registres
 actifs et Git ; ils ne sont pas attribués à ce chantier.
 
+## 16/09/2026 — Graphes consultables par les agents
+
+[GRAPH-0001](runs/2026-09-16-graphes-raccordement.md) expose les scanners existants
+et le binaire codebase-memory installé via `agents:graph`. Chaque consultation
+recalcule sa vue ; l'index technique utilise une copie temporaire et refuse
+les changements de sources détectés pendant la requête. Sorties bornées,
+heuristiques explicites, [guide](../workflows/graphes.md) dans le contrat commun.
+Aucune installation, API payante, configuration globale ou modification produit.
+Les preuves de livraison et limites restent dans le rapport et la fiche.
+
 ## 16/09/2026 — Direction critique et reprise contrôlée
 
 Mandat [DIR-0001](runs/2026-09-16-direction-mandat.md) : consolider l'équipe

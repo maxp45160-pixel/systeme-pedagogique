@@ -33,3 +33,14 @@ La synthèse de l'existant et le premier lot ont été présentés dans la tâch
 avant les modifications fonctionnelles. La première délégation Product et
 l'audit QA sont en lecture seule. Le coordinateur est l'unique écrivain.
 La spécification est un document de mission ; aucune copie globale dans AGENTS.
+
+## Reprise de cadrage du 16/09/2026
+
+Dans son message « Active le copil de Twiny en t'appuyant sur l'équipe et la
+mémoire existantes », Maxime demande de reprendre DIR-0001 sans nouvel audit de
+l'organisation. Autorisation actuelle : cadrage critique, spécialistes apportant
+une enquête distincte, mise à jour du dossier et mémoire sourcée des arbitrages.
+Exclusions explicites : implémentation produit, dépense, changement de permissions.
+Le dossier antérieur doit être challengé comme le produit construit. La clôture
+technique historique de DIR-0001 ne signifie pas que ce cadrage est arbitré.
+Point de discussion : [reprise Copil](../../product/cadrage-direction.md#reprise-copil--question-de-valeur).

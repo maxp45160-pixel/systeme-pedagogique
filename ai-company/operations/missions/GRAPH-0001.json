@@ -1,0 +1,375 @@
+{
+  "id": "GRAPH-0001",
+  "title": "Raccorder les graphes frais aux agents",
+  "objective": "Consultation locale bornée des parcours et des appels techniques, rafraîchie à chaque demande et vérifiée sans API payante.",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+    "summary": "Maxime demande explicitement de réaliser le raccordement proposé si les graphes se mettent à jour, sinon de les rendre fonctionnels. Extension locale réversible ; aucune installation, service permanent, changement produit ou configuration globale."
+  },
+  "status": "done",
+  "scope": [
+    "ai-company/scripts/graph-workflow.mjs",
+    "ai-company/scripts/graph-workflow.test.mjs",
+    "ai-company/scripts/graph-code.mjs",
+    "ai-company/scripts/graph-code.test.mjs",
+    "ai-company/scripts/graph.mjs",
+    "ai-company/scripts/graph.test.mjs",
+    "ai-company/workflows/graphes.md",
+    "ai-company/workflows/README.md",
+    "ai-company/agents/common.md",
+    "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+    "ai-company/operations/changelog.md",
+    "package.json"
+  ],
+  "inputs": [
+    "app/src/lib/dev/workflow-scanner.ts",
+    "app/src/lib/dev/workflow-ux-scanner.ts",
+    "app/src/lib/dev/workflow-ast-parser.ts",
+    "app/src/lib/dev/workflow-scan-partage.ts",
+    "app/src/lib/domain/workflow-graphe.ts"
+  ],
+  "owner": "01a0aad3-5b31-73f3-9ca8-29b9a398b49c",
+  "baseCommit": "ee021996692a29e042a25a328319003b4c3bb18e",
+  "acceptance": [
+    "Les graphes de parcours relisent les sources à chaque appel et exposent leurs limites",
+    "Les requêtes techniques utilisent uniquement un instantané courant isolé et refusent une modification concurrente détectée",
+    "Sorties bornées avec conditions, incertitudes et troncature visibles",
+    "Tests locaux sans API payante, revue indépendante et commandes documentées"
+  ],
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run agents:test",
+    "npm run agents:check",
+    "node ai-company/scripts/graph.mjs ux page:/seances --depth 1",
+    "node ai-company/scripts/graph.mjs code callers envTuteur"
+  ],
+  "checks": [
+    {
+      "command": "npm run agents:test",
+      "result": "passed",
+      "at": "2026-09-16T16:17:11.471Z",
+      "revision": "ee021996692a29e042a25a328319003b4c3bb18e + GRAPH-0001 local",
+      "snapshot": {
+        "contractSha256": "7e5e9bb4b179e66702e9251b909cb02c301ad1efe58a1bb48941ff70291d8eba",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "2f46e9eeb6960b7c1deae21be2f49414ea8f83211bd377d6632275159f2f6826"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "1051e8a535fdfdbb3408456aa60383df6a0585e963203e81e9f8ea84624b873e"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+            "3988735ec52c63473b0e274f325d2ef43f3c0bd6168afa22ab1277fcb90286fc"
+          ],
+          [
+            "ai-company/scripts/graph-code.mjs",
+            "99fb53012a5a24655edf804c22da97a074c87fad9ed06bc54ed97164a81b73c6"
+          ],
+          [
+            "ai-company/scripts/graph-code.test.mjs",
+            "303d691cf035cf3e5e11c8cd14a3b060ebe411de7ab323b01ca9bb9071ec3bd8"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.mjs",
+            "5484e3631d33355ddff81fdf014d3f3819b1877c881cb4cd4beb291794927281"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.test.mjs",
+            "efd8b1549879c4375f47db18c6308984b21fa8025d17dafdfc64c0ce59a8872e"
+          ],
+          [
+            "ai-company/scripts/graph.mjs",
+            "372c2bdcfbc619df0decc88734cc14bf2b2504b3d5b0ee447c2bc594745a66c2"
+          ],
+          [
+            "ai-company/scripts/graph.test.mjs",
+            "9d4d30e2b764c7f80a225e694ad90b41a092404a796f1e626441a6ebc775d696"
+          ],
+          [
+            "ai-company/workflows/graphes.md",
+            "65827b6cc287c0215e31ac225ab50c061b142a8d91797063c1c9be90ca0a2cda"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "dfc3bfad279adb58e0673cf7b1660fb3dec02df56278c01a5c7a4bcb6679baae"
+          ],
+          [
+            "app/src/lib/dev/workflow-ast-parser.ts",
+            "ebd313a776cd48a3f98bb1f82a03a9fa46ad042ba795214fdb2456275101bfba"
+          ],
+          [
+            "app/src/lib/dev/workflow-scan-partage.ts",
+            "f0c4379779e23137cad54c0f2df75fbf075d787381f9e884b6a1fed31db37745"
+          ],
+          [
+            "app/src/lib/dev/workflow-scanner.ts",
+            "5a3e448b550700fb0bfd90f3aba3fccdc70645376a70880e6f3972188c9dd2dd"
+          ],
+          [
+            "app/src/lib/dev/workflow-ux-scanner.ts",
+            "fa149da8f422e25ee0cfb093a52cd3cddfb310cda375c3aecc5439804eb96485"
+          ],
+          [
+            "app/src/lib/domain/workflow-graphe.ts",
+            "d75103263a1237d9151311db95f612f9df57cc86c9c73e664d2cf0b8c4c399d7"
+          ],
+          [
+            "package.json",
+            "1e39d8f0ea4f2da8deeea3dded9d619a699b9efe17cc0e15b569b5aa9545799a"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-16T16:17:12.324Z",
+      "revision": "ee021996692a29e042a25a328319003b4c3bb18e + GRAPH-0001 local",
+      "snapshot": {
+        "contractSha256": "7e5e9bb4b179e66702e9251b909cb02c301ad1efe58a1bb48941ff70291d8eba",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "2f46e9eeb6960b7c1deae21be2f49414ea8f83211bd377d6632275159f2f6826"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "1051e8a535fdfdbb3408456aa60383df6a0585e963203e81e9f8ea84624b873e"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+            "3988735ec52c63473b0e274f325d2ef43f3c0bd6168afa22ab1277fcb90286fc"
+          ],
+          [
+            "ai-company/scripts/graph-code.mjs",
+            "99fb53012a5a24655edf804c22da97a074c87fad9ed06bc54ed97164a81b73c6"
+          ],
+          [
+            "ai-company/scripts/graph-code.test.mjs",
+            "303d691cf035cf3e5e11c8cd14a3b060ebe411de7ab323b01ca9bb9071ec3bd8"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.mjs",
+            "5484e3631d33355ddff81fdf014d3f3819b1877c881cb4cd4beb291794927281"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.test.mjs",
+            "efd8b1549879c4375f47db18c6308984b21fa8025d17dafdfc64c0ce59a8872e"
+          ],
+          [
+            "ai-company/scripts/graph.mjs",
+            "372c2bdcfbc619df0decc88734cc14bf2b2504b3d5b0ee447c2bc594745a66c2"
+          ],
+          [
+            "ai-company/scripts/graph.test.mjs",
+            "9d4d30e2b764c7f80a225e694ad90b41a092404a796f1e626441a6ebc775d696"
+          ],
+          [
+            "ai-company/workflows/graphes.md",
+            "65827b6cc287c0215e31ac225ab50c061b142a8d91797063c1c9be90ca0a2cda"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "dfc3bfad279adb58e0673cf7b1660fb3dec02df56278c01a5c7a4bcb6679baae"
+          ],
+          [
+            "app/src/lib/dev/workflow-ast-parser.ts",
+            "ebd313a776cd48a3f98bb1f82a03a9fa46ad042ba795214fdb2456275101bfba"
+          ],
+          [
+            "app/src/lib/dev/workflow-scan-partage.ts",
+            "f0c4379779e23137cad54c0f2df75fbf075d787381f9e884b6a1fed31db37745"
+          ],
+          [
+            "app/src/lib/dev/workflow-scanner.ts",
+            "5a3e448b550700fb0bfd90f3aba3fccdc70645376a70880e6f3972188c9dd2dd"
+          ],
+          [
+            "app/src/lib/dev/workflow-ux-scanner.ts",
+            "fa149da8f422e25ee0cfb093a52cd3cddfb310cda375c3aecc5439804eb96485"
+          ],
+          [
+            "app/src/lib/domain/workflow-graphe.ts",
+            "d75103263a1237d9151311db95f612f9df57cc86c9c73e664d2cf0b8c4c399d7"
+          ],
+          [
+            "package.json",
+            "1e39d8f0ea4f2da8deeea3dded9d619a699b9efe17cc0e15b569b5aa9545799a"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "node ai-company/scripts/graph.mjs ux page:/seances --depth 1",
+      "result": "passed",
+      "at": "2026-09-16T16:17:13.887Z",
+      "revision": "ee021996692a29e042a25a328319003b4c3bb18e + GRAPH-0001 local",
+      "snapshot": {
+        "contractSha256": "7e5e9bb4b179e66702e9251b909cb02c301ad1efe58a1bb48941ff70291d8eba",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "2f46e9eeb6960b7c1deae21be2f49414ea8f83211bd377d6632275159f2f6826"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "1051e8a535fdfdbb3408456aa60383df6a0585e963203e81e9f8ea84624b873e"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+            "3988735ec52c63473b0e274f325d2ef43f3c0bd6168afa22ab1277fcb90286fc"
+          ],
+          [
+            "ai-company/scripts/graph-code.mjs",
+            "99fb53012a5a24655edf804c22da97a074c87fad9ed06bc54ed97164a81b73c6"
+          ],
+          [
+            "ai-company/scripts/graph-code.test.mjs",
+            "303d691cf035cf3e5e11c8cd14a3b060ebe411de7ab323b01ca9bb9071ec3bd8"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.mjs",
+            "5484e3631d33355ddff81fdf014d3f3819b1877c881cb4cd4beb291794927281"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.test.mjs",
+            "efd8b1549879c4375f47db18c6308984b21fa8025d17dafdfc64c0ce59a8872e"
+          ],
+          [
+            "ai-company/scripts/graph.mjs",
+            "372c2bdcfbc619df0decc88734cc14bf2b2504b3d5b0ee447c2bc594745a66c2"
+          ],
+          [
+            "ai-company/scripts/graph.test.mjs",
+            "9d4d30e2b764c7f80a225e694ad90b41a092404a796f1e626441a6ebc775d696"
+          ],
+          [
+            "ai-company/workflows/graphes.md",
+            "65827b6cc287c0215e31ac225ab50c061b142a8d91797063c1c9be90ca0a2cda"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "dfc3bfad279adb58e0673cf7b1660fb3dec02df56278c01a5c7a4bcb6679baae"
+          ],
+          [
+            "app/src/lib/dev/workflow-ast-parser.ts",
+            "ebd313a776cd48a3f98bb1f82a03a9fa46ad042ba795214fdb2456275101bfba"
+          ],
+          [
+            "app/src/lib/dev/workflow-scan-partage.ts",
+            "f0c4379779e23137cad54c0f2df75fbf075d787381f9e884b6a1fed31db37745"
+          ],
+          [
+            "app/src/lib/dev/workflow-scanner.ts",
+            "5a3e448b550700fb0bfd90f3aba3fccdc70645376a70880e6f3972188c9dd2dd"
+          ],
+          [
+            "app/src/lib/dev/workflow-ux-scanner.ts",
+            "fa149da8f422e25ee0cfb093a52cd3cddfb310cda375c3aecc5439804eb96485"
+          ],
+          [
+            "app/src/lib/domain/workflow-graphe.ts",
+            "d75103263a1237d9151311db95f612f9df57cc86c9c73e664d2cf0b8c4c399d7"
+          ],
+          [
+            "package.json",
+            "1e39d8f0ea4f2da8deeea3dded9d619a699b9efe17cc0e15b569b5aa9545799a"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "node ai-company/scripts/graph.mjs code callers envTuteur",
+      "result": "passed",
+      "at": "2026-09-16T16:17:18.011Z",
+      "revision": "ee021996692a29e042a25a328319003b4c3bb18e + GRAPH-0001 local",
+      "snapshot": {
+        "contractSha256": "7e5e9bb4b179e66702e9251b909cb02c301ad1efe58a1bb48941ff70291d8eba",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "2f46e9eeb6960b7c1deae21be2f49414ea8f83211bd377d6632275159f2f6826"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "1051e8a535fdfdbb3408456aa60383df6a0585e963203e81e9f8ea84624b873e"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-graphes-raccordement.md",
+            "3988735ec52c63473b0e274f325d2ef43f3c0bd6168afa22ab1277fcb90286fc"
+          ],
+          [
+            "ai-company/scripts/graph-code.mjs",
+            "99fb53012a5a24655edf804c22da97a074c87fad9ed06bc54ed97164a81b73c6"
+          ],
+          [
+            "ai-company/scripts/graph-code.test.mjs",
+            "303d691cf035cf3e5e11c8cd14a3b060ebe411de7ab323b01ca9bb9071ec3bd8"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.mjs",
+            "5484e3631d33355ddff81fdf014d3f3819b1877c881cb4cd4beb291794927281"
+          ],
+          [
+            "ai-company/scripts/graph-workflow.test.mjs",
+            "efd8b1549879c4375f47db18c6308984b21fa8025d17dafdfc64c0ce59a8872e"
+          ],
+          [
+            "ai-company/scripts/graph.mjs",
+            "372c2bdcfbc619df0decc88734cc14bf2b2504b3d5b0ee447c2bc594745a66c2"
+          ],
+          [
+            "ai-company/scripts/graph.test.mjs",
+            "9d4d30e2b764c7f80a225e694ad90b41a092404a796f1e626441a6ebc775d696"
+          ],
+          [
+            "ai-company/workflows/graphes.md",
+            "65827b6cc287c0215e31ac225ab50c061b142a8d91797063c1c9be90ca0a2cda"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "dfc3bfad279adb58e0673cf7b1660fb3dec02df56278c01a5c7a4bcb6679baae"
+          ],
+          [
+            "app/src/lib/dev/workflow-ast-parser.ts",
+            "ebd313a776cd48a3f98bb1f82a03a9fa46ad042ba795214fdb2456275101bfba"
+          ],
+          [
+            "app/src/lib/dev/workflow-scan-partage.ts",
+            "f0c4379779e23137cad54c0f2df75fbf075d787381f9e884b6a1fed31db37745"
+          ],
+          [
+            "app/src/lib/dev/workflow-scanner.ts",
+            "5a3e448b550700fb0bfd90f3aba3fccdc70645376a70880e6f3972188c9dd2dd"
+          ],
+          [
+            "app/src/lib/dev/workflow-ux-scanner.ts",
+            "fa149da8f422e25ee0cfb093a52cd3cddfb310cda375c3aecc5439804eb96485"
+          ],
+          [
+            "app/src/lib/domain/workflow-graphe.ts",
+            "d75103263a1237d9151311db95f612f9df57cc86c9c73e664d2cf0b8c4c399d7"
+          ],
+          [
+            "package.json",
+            "1e39d8f0ea4f2da8deeea3dded9d619a699b9efe17cc0e15b569b5aa9545799a"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [],
+  "nextAction": "Consultation à la demande via agents:graph ; lire workflows/graphes.md. Aucun autre chantier ni activation permanente requis.",
+  "blocker": null,
+  "completion": {
+    "summary": "Raccordement local livré : 48 tests passés, graphes rescannés et index technique frais vérifiés en CLI, revue QA indépendante. Aucune installation, configuration globale, API payante ou modification produit.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-16-graphes-raccordement.md"
+    ],
+    "at": "2026-09-16T16:17:18.012Z"
+  },
+  "updatedAt": "2026-09-16T16:17:18.012Z"
+}
