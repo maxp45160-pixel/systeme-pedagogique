@@ -6334,6 +6334,9 @@ Trois conséquences assumées :
   transactionnelle l'exige, et un domaine qui n'emprunterait que des
   compétences d'ailleurs n'aurait pas de quoi former son propre code. Le refus
   nomme les existantes et dit quoi faire.
+  Cette garde historique a été amendée par ADR-138 pour les modules, puis par
+  l'accord P01-0002 du 16/09 pour les domaines d'organisation sans usage déclaré.
+  Ce dernier amendement est préparé localement ; sa migration reste en attente.
 * **L'écran le dit.** Le bandeau annonce le rattachement et affiche les codes
   d'origine — sans quoi un `STA-01` apparaissant dans un domaine préfixé `LOG`
   passerait pour un bug.
@@ -11161,7 +11164,11 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
    `20260830203001_creer_module_vide_atomique`, resserre le contrat : une
    création vide n'est recevable que si la même commande porte l'usage
    `module`, son année académique et sa période facultative. Les domaines
-   continus ou indéterminés vides restent refusés.
+   continus ou indéterminés vides restent refusés par cette version distante.
+   **Amendement humain P01-0002 du 16/09 :** le domaine d'organisation à usage
+   indéterminé peut aussi naître vide. Code et schéma locaux adaptés ; migration
+   `20260916183000_domaines_organisation_vides.sql` en attente d'application.
+   Le domaine continu vide reste refusé ; aucun usage académique n'est déduit.
 3. **L'usage est atomique à la création, puis possède sa commande dédiée.**
    `creer_domaine` écrit l'usage déclaré dans la même transaction que le
    domaine : une panne ne peut donc pas laisser un module vide sous l'usage
@@ -12441,6 +12448,44 @@ L'analyse fournisseur et son consentement ne changent pas ; aucune ouverture ne
 déclenche de classement ni de traitement payant. Aucun schéma, migration, permission,
 seuil de mesure ou contexte du tuteur n'est modifié. La validation sur corpus réel
 reste à faire ; aucun statut de capacité ne monte par les tests locaux.
+
+### Amendement du 16/09/2026 — P01-0002, domaines d'organisation sans compétence
+
+Autorité : à la proposition de déléguer la création des nouveaux domaines avec
+contrôle des ambiguïtés/doublons, et de permettre un domaine d'organisation sans
+compétence obligatoire, Maxime répond « go là dessus, je suis d'accord avec toi ».
+Source et périmètre dans le [mandat P01-0002](ai-company/operations/runs/2026-09-16-p01-domaines.md).
+
+Le domaine existant reste la seule brique de classement. L'absence d'usage est
+déjà représentée par `indetermine` côté domaine et NULL en SQL ; aucun type, colonne
+ou table n'est ajouté. Le contrôle humain propose ce cadre sans compétence obligatoire.
+Un module reste déclaré avec son année ; un usage continu ne se déduit jamais d'un
+document. La création du domaine d'organisation omet `usage` de la commande SQL.
+
+La délégation P01-0001 est étendue aux propositions de domaine nouveau de la première
+analyse : sources, justification, absence d'incertitude signalée et de choix/correction
+antérieurs. Les collisions connues (nom, identifiant, préfixe, archives comprises)
+appellent un contrôle ; aucune fusion sémantique ni réutilisation par homonymie seule.
+La commande du référentiel attribue l'origine `tuteur` et ne crée aucune compétence.
+
+Le frontmatter `classement_creation_deleguee` conserve la demande, liée au compte,
+document, analyse et domaine. Une réservation de version précède la création ; la
+clé déterministe et le journal `referentiel_changes` permettent de retrouver la
+création après une réponse perdue. Une création non achevée est relisible et se
+reprend explicitement sans appel fournisseur. Référentiel et document ne constituent
+pas une transaction globale ; un domaine créé peut subsister sans rattachement après
+un incident ou un changement humain. Le retrait supprime le lien, jamais le domaine
+ni l'original ; les commandes existantes permettent ensuite de renommer/déplacer
+le domaine. Le refus humain continue à primer sur les nouvelles analyses.
+
+**Migration préparée, non appliquée :** `20260916183000_domaines_organisation_vides.sql`.
+Lecture distante le 16/09 : RPC `appliquer_commande_referentiel(text,integer,text,text,jsonb)`,
+MD5 du corps `85ff24629e3d0f8966fcbecdaf98d336`. La migration remplace uniquement la
+garde interdisant les domaines vides hors module par celle du domaine continu vide.
+Elle vérifie la présence exacte de la garde, préserve signature, sécurité et
+permissions ; aucune modification distante ni publication n'est autorisée ici.
+Tests locaux et limites restent dans la fiche de mission. La pertinence sur corpus
+réel n'est pas prouvée ; aucun statut humain ne monte.
 
 ## Comment modifier ce registre
 

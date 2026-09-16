@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 const FUNCTION = "public.appliquer_commande_referentiel";
 const INSERT_TAG = "INSERT INTO public.competence_domaines";
 const MIGRATION = "20260831105740_creer_domaine_continu_depuis_competences_existantes.sql";
+const AMENDEMENT = "20260916183000_domaines_organisation_vides.sql";
 
 function corpsFonction(contenu: string): string {
   const debut = contenu.indexOf(`FUNCTION ${FUNCTION}(`);
@@ -43,7 +44,16 @@ describe("appliquer_commande_referentiel — la dernière migration reste align�
     const schema = corpsFonction(
       readFileSync(join(racine, "schema.sql"), "utf8"),
     );
-    const migration = readFileSync(join(racine, "migrations", MIGRATION), "utf8");
+    const precedente = readFileSync(join(racine, "migrations", MIGRATION), "utf8").replace(/\r/g, "");
+    const amendement = readFileSync(join(racine, "migrations", AMENDEMENT), "utf8").replace(/\r/g, "");
+    const ancienneGarde = amendement.match(/\$ancien\$([\s\S]*?)\$ancien\$/)?.[1];
+    const nouvelleGarde = amendement.match(/\$nouveau\$([\s\S]*?)\$nouveau\$/)?.[1];
+    expect(ancienneGarde).toBeTruthy();
+    expect(nouvelleGarde).toBeTruthy();
+    expect(precedente.split(ancienneGarde!)).toHaveLength(2);
+    // Reconstitue la RPC après le patch ciblé : le reste du contrat SQL
+    // doit toujours coïncider avec le schéma de référence.
+    const migration = precedente.replace(ancienneGarde!, nouvelleGarde!);
     expect(corpsFonction(migration)).toContain(INSERT_TAG);
 
     // Les deux sources décrivent la même fonction : à espacement près, les

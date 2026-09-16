@@ -1,4 +1,5 @@
 import "server-only";
+import { lireCreationDomaineDeleguee } from "@/lib/documents/creation-domaine-deleguee";
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { lireDocument, creerDocument } from "./documents";
@@ -133,6 +134,7 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
     ...(champ("rangement_statut") === "rangee" || champ("rangement_statut") === "a-trier" ? { rangementStatut: champ("rangement_statut") as "rangee"|"a-trier" } : {}),
     ...(champ("rangement_origine") === "assistant" || champ("rangement_origine") === "personne" ? { rangementOrigine: champ("rangement_origine") as "assistant" | "personne" } : {}),
     ...(brouillonClassement ? { brouillonClassement } : {}),
+    creationDomaineDeleguee: lireCreationDomaineDeleguee(frontmatter.classement_creation_deleguee),
     competencesLiees: extraireLiensMarkdown(sectionCompetences).map(({ cible }) => cible), pieces,
     analyses: (analyses.data ?? []).map(analyseDepuisLigne),
     corrections: (corrections.data ?? []).map((c) => ({ id: texteDepot(c.id,100), elementId: c.element_id === null ? null : texteDepot(c.element_id,120), texte: texteDepot(c.texte), creeLe: texteDepot(c.created_at,50) })),

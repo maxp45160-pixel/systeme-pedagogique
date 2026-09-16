@@ -3,6 +3,16 @@
 Ce journal suit l'AI Company. Les changements produit restent dans leurs registres
 actifs et Git ; ils ne sont pas attribués à ce chantier.
 
+## 16/09/2026 — Continuité direction-terrain
+
+[CONT-0001](runs/2026-09-16-continuite.md) relie les exigences existantes aux
+contributions des missions. `agents:progress` dérive la vue depuis les sources
+et les fiches ; `agents:resume` expose aussi les livraisons closes. Les nouvelles
+missions liées préparent une transmission bornée, preuves et déploiement distinct.
+Les [consignes](../workflows/continuity.md) précisent quoi chercher et actualiser.
+Aucune validation produit, écriture dans les chantiers concurrents ou surveillance
+permanente n'est déduite de ce raccordement.
+
 ## 16/09/2026 — Graphes consultables par les agents
 
 [GRAPH-0001](runs/2026-09-16-graphes-raccordement.md) expose les scanners existants

@@ -272,15 +272,14 @@ export function preparerCreationDomaine(
     referentiel,
     domaineId,
     entree.origine,
-    entree.usage?.type === "module"
+    entree.usage === undefined || entree.usage.type === "module"
       || (entree.usage?.type === "continu" && rattachementsExistants.length > 0),
   );
   /*
-   * Un domaine ordinaire naît avec au moins une compétence à lui. Le seul cas
-   * vide autorisé est le module académique explicitement déclaré : il peut
-   * précéder le premier cours et la première compétence. Un domaine qui ne
-   * ferait qu'emprunter des compétences existantes reste refusé ici ; ce geste
-   * sera traité par le rangement multi-domaines, pas comme une création vide.
+   * Un domaine sans usage déclaré peut organiser des ressources avant toute
+   * compétence. Le module déclaré peut aussi naître vide ; le continu exige
+   * une compétence ou un rattachement explicite. La proposition de compétences
+   * toutes homonymes reste distincte de la création d'un domaine vide.
    */
   if (ajouts.length === 0 && dejaAuReferentiel.length > 0 && rattachementsExistants.length === 0) {
     const liste = dejaAuReferentiel.map(({ code, domaineNom }) => `${code} (${domaineNom})`).join(", ");

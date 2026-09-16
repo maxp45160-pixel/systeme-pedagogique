@@ -111,14 +111,18 @@ describe("gouvernance du référentiel", () => {
     expect(dejaAuReferentiel).toEqual([]);
   });
 
-  it("refuse toujours un domaine vide hors du parcours module", () => {
-    expect(() => preparerCreationDomaine({
+  it.each(["manuel", "tuteur"] as const)("crée un domaine d'organisation vide sans inventer son usage (%s)", (origine) => {
+    const { commande, dejaAuReferentiel } = preparerCreationDomaine({
       domaine: "Macroéconomie L2",
       prefixe: "MAC",
       description: "Cours du premier semestre.",
-      origine: "manuel",
+      origine,
       competences: [],
-    }, assemblerReferentiel([], []))).toThrow("au moins une compétence");
+    }, assemblerReferentiel([], []));
+    expect(commande).toMatchObject({ type: "creer_domaine", domaine: { id: "macroeconomie-l2", origine }, competences: [] });
+    expect(commande).not.toHaveProperty("usage");
+    expect(commande).not.toHaveProperty("rattachementsExistants");
+    expect(dejaAuReferentiel).toEqual([]);
   });
 
   it("refuse aussi un domaine continu vide", () => {

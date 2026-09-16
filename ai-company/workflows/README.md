@@ -6,6 +6,7 @@ attend et vérifie les résultats ; aucune ronde systématique des cinq agents.
 
 - [Situation](situation.md) : bilan et prochaine action par le Chief of Staff.
 - [Copil](copil.md) : critique de la direction, arbitrages et cahier des charges détaillé.
+- [Continuité direction-terrain](continuity.md) : où chercher, quoi actualiser, transmission des livraisons et bilan à la reprise pour chaque tâche.
 - [Graphes locaux](graphes.md) : parcours et appels techniques recalculés à la demande, contexte borné et vérification des sources.
 - [A — Nouvelle idée](new-idea.md) : analyse, spécialistes utiles, synthèse et décision du fondateur.
 - [B — Feature approuvée](approved-feature.md) : spec, plan, réalisation, vérification et documentation.

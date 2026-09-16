@@ -56,7 +56,7 @@ function preparerDomaineConfirme(choix: ChoixClassementRessource, nouvelles: Nou
     domaine: d.nom, prefixe: prefixeDisponible(d.nom, r), description: d.nom,
     competences: nouvelles.map((p) => ({ intitule: p.intitule, palier: p.palier, importance: p.importance })),
     origine: "utilisateur",
-    usage: d.usage.type === "module" ? { type: "module", module: { anneeAcademique: d.usage.anneeAcademique!, ...(d.usage.periode ? { periode: d.usage.periode } : {}) } } : { type: "continu" },
+    ...(d.usage.type === "module" ? { usage: { type: "module" as const, module: { anneeAcademique: d.usage.anneeAcademique!, ...(d.usage.periode ? { periode: d.usage.periode } : {}) } } } : d.usage.type === "continu" ? { usage: { type: "continu" as const } } : {}),
     ...(d.usage.type === "continu" ? { rattachementsExistants: [...new Set([...choix.codes, ...dejaConnues])] } : {}),
   }, r);
 }

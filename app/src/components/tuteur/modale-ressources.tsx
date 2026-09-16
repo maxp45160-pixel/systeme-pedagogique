@@ -8,7 +8,7 @@ import type { ContexteOrganisationDepot } from "@/lib/documents/organisation-dep
 import type { ChoixClassementRessource } from "@/lib/documents/classement-ressources";
 import { cheminDomaineClassement as cheminDomaine } from "@/lib/documents/classement-ressources";
 import { evaluerDelegationClassement } from "@/lib/documents/delegation-classement";
-import { annulerRattachementDelegueAction } from "@/lib/store/delegation-classement-actions";
+import { annulerRattachementDelegueAction, rattacherDomaineDelegueAction } from "@/lib/store/delegation-classement-actions";
 import { lireClassementRessourcesAction, confirmerClassementRessourcesAction } from "@/lib/store/classement-ressources-actions";
 import { motifRefusUsageDomaine } from "@/lib/domain/usage-domaine";
 import { enregistrerBrouillonClassementAction } from "@/lib/store/brouillon-classement-actions";
@@ -29,7 +29,7 @@ export function choixInitial(depot: DepotDocumentaire, referentiel: ContexteOrga
     const domaine = brouillon.domaine;
     return { analyseId, version: depot.modifieLe, destination: domaine?.mode === "existant" ? domaine.id : domaine?.mode === "nouveau" ? "nouveau" : "",
       nom: domaine?.mode === "nouveau" ? domaine.nom : "", parentId: domaine?.mode === "nouveau" ? domaine.parentId ?? "" : "",
-      usage: domaine?.mode === "nouveau" ? domaine.usage?.type ?? "" : "", annee: domaine?.mode === "nouveau" ? domaine.usage?.anneeAcademique ?? "" : "",
+      usage: domaine?.mode === "nouveau" ? domaine.usage?.type ?? "indetermine" : "", annee: domaine?.mode === "nouveau" ? domaine.usage?.anneeAcademique ?? "" : "",
       codes: brouillon.codes, propositions: brouillon.propositions };
   }
   const retour = derniereAnalyse(depot)?.restitution;
@@ -39,13 +39,13 @@ export function choixInitial(depot: DepotDocumentaire, referentiel: ContexteOrga
   const destination = brouillon ? brouillon.domaine?.mode === "existant" ? brouillon.domaine.id : brouillon.domaine?.mode === "nouveau" ? "nouveau" : "" : retraitConserve ? "" : depot.domaineId ?? (domaine?.mode === "existant" ? domaine.id : domaine?.mode === "nouveau" ? "nouveau" : "");
   // Le rattachement délégué ne valide aucune proposition de compétence.
   const classementDeCetteAnalyse = depot.rangementAnalyseId === analyseId && depot.rangementOrigine !== "assistant";
-  const garderLiensActuels = classementDeCetteAnalyse || depot.rangementOrigine === "assistant" || retraitConserve;
+  const garderLiensActuels = classementDeCetteAnalyse || depot.rangementOrigine === "assistant" || Boolean(depot.creationDomaineDeleguee) || retraitConserve;
   const codes = garderLiensActuels ? depot.competencesLiees : [...depot.competencesLiees, ...(organisation?.competences.flatMap((c) => c.mode === "existante" ? [c.code] : []) ?? [])];
   const nouveauDomaineHumain = brouillon?.domaine?.mode === "nouveau" ? brouillon.domaine : undefined;
   return {
     analyseId, version: depot.modifieLe,
     destination: destination === "nouveau" || referentiel.domaines.some((d) => d.id === destination) ? destination : "",
-    nom: nouveauDomaineHumain?.nom ?? (domaine?.mode === "nouveau" ? domaine.nom : ""), parentId: nouveauDomaineHumain?.parentId ?? "", usage: nouveauDomaineHumain?.usage?.type ?? "", annee: nouveauDomaineHumain?.usage?.anneeAcademique ?? "",
+    nom: nouveauDomaineHumain?.nom ?? (domaine?.mode === "nouveau" ? domaine.nom : ""), parentId: nouveauDomaineHumain?.parentId ?? "", usage: nouveauDomaineHumain?.usage?.type ?? "indetermine", annee: nouveauDomaineHumain?.usage?.anneeAcademique ?? "",
     codes: [...new Set(codes)].filter((code) => referentiel.competences.some((c) => c.code === code)),
     propositions: garderLiensActuels ? [] : organisation?.competences.flatMap((c, i) => c.mode === "nouvelle" ? [i] : []) ?? [],
   };
@@ -60,6 +60,7 @@ export function RelectureRessources({ depots, chargement, occupe, formulaireId, 
   const [erreur, setErreur] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const ids = depots.filter((d) => derniereAnalyse(d)).map((d) => d.id).join(",");
+  const versions = depots.map((d) => `${d.id}:${d.modifieLe}`).join(",");
   useEffect(() => {
     if (!ids) return;
     let actif = true;
@@ -67,7 +68,7 @@ export function RelectureRessources({ depots, chargement, occupe, formulaireId, 
       if (actif) { setContexte(resultat.referentiel); setErreur(null); }
     }).catch(() => { if (actif) setErreur("Le classement n’a pas pu être chargé. Vos ressources sont conservées."); });
     return () => { actif = false; };
-  }, [ids, revision]);
+  }, [ids, versions, revision]);
   const pretes = depots.filter((d) => derniereAnalyse(d));
   if (!pretes.length) return <p className="text-sm leading-relaxed text-texte-attenue">{chargement ? "Nous retrouvons vos ressources et les lectures déjà enregistrées…" : "Vos originaux sont conservés. Après la lecture, vous pourrez vérifier la synthèse et choisir leur classement ici."}</p>;
   if (!contexte) return <div className="space-y-2"><p role={erreur ? "alert" : "status"} className="text-sm">{erreur ?? "Préparation du classement…"}</p>{erreur && <Bouton variante="secondaire" onClick={() => setRevision((r) => r + 1)}>Réessayer sans relancer l’IA</Bouton>}</div>;
@@ -156,8 +157,24 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
       setErreurs({ [depot.id]: incident instanceof Error ? incident.message : "Le retrait n’est pas confirmé. Relisez l’état enregistré." });
     } finally { verrou.current = false; setEnregistrement(false); }
   }
+  async function reprendreCreation(depot: DepotDocumentaire) {
+    if (verrou.current || disabled || !depot.creationDomaineDeleguee) return;
+    verrou.current = true; setEnregistrement(true); setErreurs({});
+    try {
+      const resultat = await rattacherDomaineDelegueAction(depot.id, depot.creationDomaineDeleguee.analyseId, depot.modifieLe);
+      const ressource = resultat.ressource;
+      setRessourcesEnregistrees((avant) => ({ ...avant, [depot.id]: { versionSource: depots.find((d) => d.id === depot.id)!.modifieLe, ressource } }));
+      setChoix((avant) => { const suivant = { ...avant }; delete suivant[depot.id]; return suivant; });
+      if (resultat.statut !== "rattache") setErreurs({ [depot.id]: resultat.raison ?? "Ce rangement reste à contrôler." });
+      const relu = await lireClassementRessourcesAction([depot.id]);
+      onReferentielActualise?.(relu.referentiel);
+      router.refresh();
+    } catch (incident) {
+      setErreurs({ [depot.id]: incident instanceof Error ? incident.message : "La création reste à vérifier. Relisez le rangement enregistré ; aucun appel IA n’a été relancé." });
+    } finally { verrou.current = false; setEnregistrement(false); }
+  }
   return <form id={formulaireId} className="space-y-6" onSubmit={(event) => { event.preventDefault(); }}>
-    <p className="text-sm text-texte-attenue">Les nouveaux documents sont rattachés aux domaines existants lorsque leur analyse le permet. Contrôlez seulement les points à préciser ; vous pouvez fermer et retrouver vos originaux sans tout valider.</p>
+    <p className="text-sm text-texte-attenue">Lorsque leur analyse le permet, les nouveaux documents sont rattachés à un domaine adapté, créé si nécessaire sans compétence obligatoire. Contrôlez seulement les points à préciser ; vous pouvez fermer et retrouver vos originaux sans tout valider.</p>
     {depotsCourants.map((depot) => {
       const analyse = derniereAnalyse(depot)!;
       const retour = analyse.restitution!;
@@ -179,6 +196,7 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
       const sourcesId = `${formulaireId}-sources-${depot.id}`;
       const incertitudes = retour.elements.filter((e) => e.nature === "incertitude");
       const delegation = evaluerDelegationClassement(depot, analyse.id, referentiel);
+      const creationEnAttente = depot.creationDomaineDeleguee && !depot.domaineId && !depot.rangementRevuLe && !depot.brouillonClassement && depot.rangementOrigine !== "personne";
       const pagesSource = (sources: { page?: number }[]) => {
         const pages = [...new Set(sources.flatMap((s) => s.page === undefined ? [] : [s.page]))].sort((a, b) => a - b);
         return pages.length ? `${pages.length > 1 ? "Pages" : "Page"} ${pages.join(", ")}` : "";
@@ -202,7 +220,10 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
           {enEdition
             ? <EditeurClassementRessource choix={c} domaines={domaines} bloque={bloque} onChanger={(saisie) => modifier(depot.id, saisie)} onReduire={() => setEditions((avant) => ({ ...avant, [depot.id]: false }))} />
             : <CarteClassementRessource choix={c} domaines={domaines} bloque={bloque} provenance={brouillonConserve ? "Votre choix est conservé. Il reste à confirmer." : delegue ? "Rattaché par Twiny · vous pouvez corriger ce choix." : depot.domaineId ? "Classement actuel conservé." : suggestionRetenue ? "Suggestion de l’IA · à vérifier" : "Votre choix · à confirmer"} onModifier={() => setEditions((avant) => ({ ...avant, [depot.id]: true }))} />}
+          {delegue && depot.creationDomaineDeleguee?.statut === "cree" && <p className="text-xs text-texte-attenue">Twiny a créé ce domaine pour organiser le document. Son contexte d’études reste à votre choix.</p>}
           {delegue && !depot.competencesLiees.length && <p className="text-xs text-texte-attenue">Ce rattachement n’a créé ni associé aucune compétence.</p>}
+          {creationEnAttente && <div className="space-y-2"><p role="status" className="text-sm">{depot.creationDomaineDeleguee!.statut === "cree" ? `La création du domaine « ${depot.creationDomaineDeleguee!.nom} » est enregistrée ; le rattachement reste à terminer.` : `La création du domaine « ${depot.creationDomaineDeleguee!.nom} » reste à vérifier.`}</p><Bouton type="button" variante="secondaire" disabled={bloque} onClick={() => void reprendreCreation(depot)}>Reprendre le rangement sans relancer l’IA</Bouton></div>}
+          {!creationEnAttente && depot.creationDomaineDeleguee?.statut === "reservee" && <p role="status" className="text-sm">Une création du domaine « {depot.creationDomaineDeleguee.nom} » a été engagée avant votre choix actuel. Celui-ci est conservé. Consultez Mes cours pour vérifier si ce domaine a été créé sans rattachement.</p>}
           {delegue && competences.length > 0 && <p className="text-xs text-texte-attenue">Les compétences ci-dessous restent facultatives : sélectionnez celles que vous souhaitez associer.</p>}
           {depot.rangementOrigine === "assistant" && depot.domaineId && <Bouton type="button" variante="discret" disabled={bloque} onClick={() => void retirerRattachement(depot)}>Retirer ce rattachement</Bouton>}
           {depot.rangementOrigine === "personne" && depot.rangementStatut === "a-trier" && !depot.domaineId && <p className="text-xs text-texte-attenue">Votre retrait est conservé. Le document reste disponible sans domaine.</p>}

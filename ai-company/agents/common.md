@@ -26,6 +26,13 @@ d'agir ; un statut déclaré ou une empreinte ne prouve ni accord humain ni test
 exécuté. Pour la direction et le cahier des charges, appliquer le
 [workflow copil](../workflows/copil.md), sans changer de rôle ou de modèle.
 
+Chaque tâche applique la [continuité direction-terrain](../workflows/continuity.md) :
+la reprise inclut `closedMissions` et `progress`, pas seulement les travaux ouverts.
+Avant réalisation produit, lier sa tranche aux exigences via `planLinks` ; après
+avancée, mettre à jour sa fiche ; à la livraison, consigner `handoff` (contribution,
+reste, preuves, déploiement distinct). Le copil relit ces contributions et leurs
+limites avant de réviser son bilan. Une mission terminée ne valide pas une exigence.
+
 Lire instructions du rôle, état utile, fichiers concernés et décisions pertinentes.
 Commencer par fichiers/types/imports/signatures ; charger seulement les corps
 nécessaires pour comprendre, vérifier ou modifier. Ne pas charger tous les rôles

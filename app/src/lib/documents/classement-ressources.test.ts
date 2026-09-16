@@ -6,9 +6,13 @@ const choix = { documentId: "doc", analyseId: "a", updatedAtAttendu: "v1", domai
 it("valide la frontière réseau et refuse codes répétés, indices fabriqués et documents doublés", () => {
   for (const brut of [null, [], [choix, choix], [{ ...choix, codes: ["X", "X"] }], [{ ...choix, propositions: [-1] }], [{ ...choix, domaine: null }]]) expect(() => validerChoixClassementRessources(brut)).toThrow();
 });
-it("exige un usage réellement déclaré et l'année d'un module", () => {
-  for (const usage of [{ type: "indetermine" }, { type: "module" }, { type: "module", anneeAcademique: {} }]) expect(() => validerChoixClassementRessources([{ ...choix, domaine: { mode: "nouveau", nom: "Calcul", usage } }])).toThrow();
+it("exige un choix d'usage explicite et l'année d'un module", () => {
+  for (const usage of [undefined, { type: "invente" }, { type: "indetermine", anneeAcademique: "2026" }, { type: "module" }, { type: "module", anneeAcademique: {} }]) expect(() => validerChoixClassementRessources([{ ...choix, domaine: { mode: "nouveau", nom: "Calcul", usage } }])).toThrow();
   expect(() => validerChoixClassementRessources([{ ...choix, domaine: { mode: "nouveau", nom: "Calcul", usage: { type: "continu" } } }])).toThrow("compétence");
+});
+it("accepte un domaine d'organisation sans compétence ni usage académique", () => {
+  const entree = { ...choix, domaine: { mode: "nouveau", nom: "Calcul", usage: { type: "indetermine" } } };
+  expect(validerChoixClassementRessources([entree])).toEqual([entree]);
 });
 it("accepte le volume maximal de réception et refuse le dépassement", () => {
   expect(validerChoixClassementRessources(Array.from({ length: 101 }, (_, i) => ({ ...choix, documentId: `d${i}` })))).toHaveLength(101);

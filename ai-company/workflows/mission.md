@@ -8,10 +8,14 @@ Une réponse simple garde une trace proportionnée et n'exige pas de créer un d
 1. Lire la demande active puis le mandat, la fiche de mission et les seules
    sources utiles. Relever Git ; garder les changements préexistants.
    `npm run agents:resume -- ID` rassemble les références sans les approuver.
+   Lire aussi `progress` et `closedMissions` : une livraison antérieure peut
+   changer la prochaine action. Appliquer le [contrat de continuité](continuity.md).
 2. Pour une nouvelle demande, créer une fiche selon le
    [contrat des missions](../operations/missions/README.md), avec la source exacte
    de l'accord et des critères observables. Une découverte hors mandat reste
    proposée dans le backlog, jamais `ready` par simple recommandation.
+   Pour une nouvelle réalisation produit, enregistrer les `planLinks` vers les
+   exigences existantes et la contribution bornée avant de commencer.
 3. Pour reprendre une file, exécuter `npm run agents:next`. Lire l'accord
    référencé ; la sélection ne valide pas son sens et ne réserve pas le travail.
 4. Le coordinateur unique du checkout se désigne `owner`, passe la fiche en
@@ -39,6 +43,9 @@ invalide leurs conclusions et exige les vérifications concernées.
 Après un résultat significatif, avant transfert ou interruption prévisible,
 actualiser la fiche : dernière preuve, prochaine action, blocage éventuel,
 fichiers possédés et effets externes accomplis ou de résultat incertain.
+Préparer la transmission `handoff` quand des résultats existent : livré, reste,
+preuves et état de déploiement distinct. Le coordinateur écrit sa fiche, les
+sous-agents lui transmettent les preuves ; pas d'écriture concurrente du suivi.
 La fiche conserve les accords déjà donnés ; ne pas les redemander à la reprise.
 Vérifier un effet externe incertain avant de tenter de nouveau l'opération.
 
@@ -57,6 +64,9 @@ jusqu'à un transfert explicite ou une clôture.
    Pour une nouvelle réalisation, fixer `verificationVersion: 1` et
    `requiredChecks`, capturer le snapshot avant vérification et comparer après.
    Clore avec `missions.mjs update`, qui refuse une empreinte périmée.
+   Renseigner `handoff` avant ces contrôles pour les missions liées au plan.
+   `agents:check` vérifie aussi les références d'exigences ; une transmission
+   manquante interdit leur clôture, sans promouvoir de statut produit.
 2. Mettre à jour documentation, preuve et index touchés. Les index renvoient
    aux sources ; ils ne maintiennent pas un deuxième état détaillé de mission.
 3. Inscrire le résultat et ses preuves dans `completion`, mettre `done` pour

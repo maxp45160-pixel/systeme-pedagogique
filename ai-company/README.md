@@ -14,6 +14,9 @@ Dans une tâche Codex ouverte sur ce dépôt, demander par exemple :
   [direction critique](workflows/copil.md), [dossier en cours](product/cadrage-direction.md).
 - Nouvelle session : `npm run agents:resume` ; reprendre ce chantier :
   `npm run agents:resume -- DIR-0001`. [Guide et limites](operations/automation.md).
+- Après des travaux dans d'autres tâches : `npm run agents:progress` confronte
+  les exigences aux contributions enregistrées. La reprise inclut les missions
+  terminées. Chaque tâche suit la [transmission direction-terrain](workflows/continuity.md).
 - « Analyse cette idée : … » — [nouvelle idée](workflows/new-idea.md), sans code automatique.
 - « CTO, analyse ce choix technique : … » — [contrat CTO](agents/cto.md).
 - « QA, attaque cette proposition : … » — [contrat QA](agents/qa.md).

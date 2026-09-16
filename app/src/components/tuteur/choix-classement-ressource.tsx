@@ -10,7 +10,7 @@ type Domaines = ContexteOrganisationDepot["domaines"];
 const champ = "min-h-11 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2 text-sm text-texte focus-visible:outline-2 focus-visible:outline-primaire";
 
 export function CarteClassementRessource({ choix, domaines, bloque, provenance, onModifier }: { choix: ClassementSaisi; domaines: Domaines; bloque: boolean; provenance: string; onModifier: () => void }) {
-  const aPreciser = choix.destination === "nouveau" && (!choix.usage || (choix.usage === "module" && !choix.annee));
+  const aPreciser = choix.destination === "nouveau" && choix.usage === "module" && !choix.annee;
   const chemin = choix.destination === "nouveau"
     ? [...(choix.parentId ? cheminDomaineClassement(choix.parentId, domaines).split(" › ") : []), choix.nom || "À nommer"]
     : choix.destination ? cheminDomaineClassement(choix.destination, domaines).split(" › ") : [];
@@ -20,7 +20,7 @@ export function CarteClassementRessource({ choix, domaines, bloque, provenance, 
       <Bouton type="button" variante="secondaire" taille="petite" disabled={bloque} onClick={onModifier}>{aPreciser ? "Choisir le type de matière" : chemin.length ? "Modifier" : "Choisir"}</Bouton>
     </div>
     <p className="text-xs text-texte-attenue">{provenance}</p>
-    {choix.destination === "nouveau" && <p className="text-xs text-texte-attenue">{choix.usage === "continu" ? "Matière suivie dans la durée" : choix.usage === "module" ? `Cours d’une année${choix.annee ? ` · ${choix.annee}` : " · année à préciser avant de confirmer"}` : "Précisez le type de matière avant de confirmer."}</p>}
+    {choix.destination === "nouveau" && <p className="text-xs text-texte-attenue">{choix.usage === "continu" ? "Matière suivie dans la durée" : choix.usage === "module" ? `Cours d’une année${choix.annee ? ` · ${choix.annee}` : " · année à préciser avant de confirmer"}` : "Organisation de documents · aucune compétence obligatoire."}</p>}
   </div>;
 }
 
@@ -34,7 +34,7 @@ export function EditeurClassementRessource({ choix, domaines, bloque, onChanger,
   const attente = bloque;
   function changerMode(suivant: "existant" | "nouveau" | "enfant") {
     setMode(suivant); setRecherche("");
-    setSaisie((avant) => ({ ...avant, destination: suivant === "existant" ? choix.destination === "nouveau" ? "" : choix.destination : "nouveau", parentId: suivant === "enfant" ? avant.parentId : "", sousDomaine: suivant === "enfant" }));
+    setSaisie((avant) => ({ ...avant, destination: suivant === "existant" ? choix.destination === "nouveau" ? "" : choix.destination : "nouveau", usage: avant.usage || "indetermine", parentId: suivant === "enfant" ? avant.parentId : "", sousDomaine: suivant === "enfant" }));
   }
   return <div className="space-y-4">
     <div className="flex flex-wrap gap-2">
@@ -52,6 +52,7 @@ export function EditeurClassementRessource({ choix, domaines, bloque, onChanger,
       </div>
     </fieldset>}
     {mode !== "existant" && <fieldset disabled={attente} className="space-y-2"><legend className="mb-2 text-sm font-medium">Quel type de matière ?</legend>
+      <label className="flex min-h-11 cursor-pointer gap-3 rounded-lg border border-bordure p-3 text-sm"><input type="radio" name={`${groupe}-usage`} className="mt-0.5 size-4 shrink-0 accent-primaire" checked={!saisie.usage || saisie.usage === "indetermine"} onChange={() => setSaisie((avant) => ({ ...avant, usage: "indetermine", annee: "" }))} /><span><strong className="block font-medium">Organisation de documents</strong><span className="text-xs text-texte-attenue">Sans compétence obligatoire. Vous pourrez préciser le contexte d’études plus tard.</span></span></label>
       <label className="flex min-h-11 cursor-pointer gap-3 rounded-lg border border-bordure p-3 text-sm"><input type="radio" name={`${groupe}-usage`} className="mt-0.5 size-4 shrink-0 accent-primaire" checked={saisie.usage === "continu"} onChange={() => setSaisie((avant) => ({ ...avant, usage: "continu", annee: "" }))} /><span><strong className="block font-medium">Matière suivie dans la durée</strong><span className="text-xs text-texte-attenue">Pour progresser au fil du temps, sans année de fin.</span></span></label>
       <label className="flex min-h-11 cursor-pointer gap-3 rounded-lg border border-bordure p-3 text-sm"><input type="radio" name={`${groupe}-usage`} className="mt-0.5 size-4 shrink-0 accent-primaire" checked={saisie.usage === "module"} onChange={() => setSaisie((avant) => ({ ...avant, usage: "module" }))} /><span><strong className="block font-medium">Cours d’une année</strong><span className="text-xs text-texte-attenue">Pour une matière rattachée à votre année d’études.</span></span></label>
       {saisie.usage === "module" && <label className="block space-y-1.5 text-sm"><span>Année d’études</span><input className={champ} value={saisie.annee} maxLength={100} placeholder="Ex. 2026–2027" onChange={(e) => setSaisie((avant) => ({ ...avant, annee: e.target.value }))} /></label>}

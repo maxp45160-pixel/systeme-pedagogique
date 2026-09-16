@@ -35,7 +35,7 @@ export function validerChoixClassementRessources(brut: unknown): ChoixClassement
     const d = v.domaine;
     let domaine: ChoixClassementRessource["domaine"];
     if (objet(d) && d.mode === "existant" && texte(d.id)) domaine = { mode: "existant", id: d.id };
-    else if (objet(d) && d.mode === "nouveau" && texte(d.nom, 80) && (d.parentId === undefined || texte(d.parentId)) && objet(d.usage) && (d.usage.type === "continu" || d.usage.type === "module")) {
+    else if (objet(d) && d.mode === "nouveau" && texte(d.nom, 80) && (d.parentId === undefined || texte(d.parentId)) && objet(d.usage) && (d.usage.type === "indetermine" || d.usage.type === "continu" || d.usage.type === "module")) {
       if ((d.usage.anneeAcademique !== undefined && !texte(d.usage.anneeAcademique, 100)) || (d.usage.periode !== undefined && !texte(d.usage.periode, 100))) throw new Error("Usage déclaré invalide.");
       const usage: EntreeUsageDomaine = { type: d.usage.type, ...(typeof d.usage.anneeAcademique === "string" ? { anneeAcademique: d.usage.anneeAcademique } : {}), ...(typeof d.usage.periode === "string" ? { periode: d.usage.periode } : {}) };
       validerNouvelUsage(usage);

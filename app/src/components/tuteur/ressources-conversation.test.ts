@@ -22,10 +22,25 @@ it("une réponse de classement perdue garde la lecture et ne relance pas l'IA", 
   const avant = { id: "doc", selectionnee: false, ressource: { depot: { analyses: [] } } } as unknown as Ligne;
   const apres = { ...avant, ressource: { depot: { analyses: [{ id: "a" }], modifieLe: "v2" } } } as unknown as Ligne;
   m.rattacher.mockRejectedValue(new Error("Réponse perdue"));
+  m.lire.mockRejectedValueOnce(new Error("Lecture indisponible"));
   const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
   const resultat = await rattacherApresPremiereLecture(avant, apres, "a");
   expect(resultat.ressource).toBe(apres.ressource);
   expect(resultat.erreurClassement).toContain("Relisez l’état enregistré");
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("relit la réservation après une réponse perdue sans relancer l’analyse", async () => {
+  type Ligne = Parameters<typeof rattacherApresPremiereLecture>[0];
+  const avant = { id: "doc", selectionnee: false, ressource: { depot: { analyses: [] } } } as unknown as Ligne;
+  const apres = { ...avant, ressource: { depot: { analyses: [{ id: "a" }], modifieLe: "v2" } } } as unknown as Ligne;
+  const enregistree = { depot: { ...apres.ressource!.depot, creationDomaineDeleguee: { statut: "reservee", nom: "Science" } } };
+  m.rattacher.mockRejectedValueOnce(new Error("Réponse perdue"));
+  m.lire.mockResolvedValueOnce(enregistree);
+  const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+  const resultat = await rattacherApresPremiereLecture(avant, apres, "a");
+  expect(resultat.ressource).toBe(enregistree);
+  expect(m.lire).toHaveBeenCalledWith("doc");
   expect(fetch).not.toHaveBeenCalled();
 });
 

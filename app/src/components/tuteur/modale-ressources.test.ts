@@ -98,7 +98,8 @@ describe("relecture documentaire dans l’assistant", () => {
     expect(html).toContain("Matière suivie dans la durée");
     expect(html).toContain("Cours d’une année");
     expect(html).not.toContain("Garder ce choix");
-    expect(html).not.toContain('checked=""');
+    expect(html).toContain("Organisation de documents");
+    expect(html).toContain('checked=""');
     expect(html).not.toContain("<select");
   });
   it("permet de classer une restitution historique sans fausses compétences proposées", () => {
@@ -133,6 +134,23 @@ describe("relecture documentaire dans l’assistant", () => {
     expect(rendu(ressource)).toContain("Votre retrait est conservé");
     expect(rendu(ressource)).not.toContain("Rattachement effectué");
   });
+  it("un nouveau sujet se contrôle sans usage académique ni compétence obligatoire", () => {
+    const ressource = structuredClone(depot);
+    if (ressource.analyses[0].restitution?.version === 2) ressource.analyses[0].restitution.organisation.domaine = { mode: "nouveau", nom: "Géologie", description: "Étude des roches", justification: "", sources: [] };
+    const vide = { ...referentiel, domaines: [] };
+    expect(choixInitial(ressource, vide)).toMatchObject({ destination: "nouveau", usage: "indetermine", codes: [], propositions: [] });
+    const html = renderToStaticMarkup(createElement(FormulaireRelectureRessources, { depots: [ressource], referentiel: vide, occupe: false, autres: 0, formulaireId: "nouveau", onEtatActions: () => undefined }));
+    expect(html).toContain("aucune compétence obligatoire");
+    expect(html.match(/<button[^>]*>Appliquer ce choix<\/button>/)?.[0]).not.toContain('disabled=""');
+  });
+  it("distingue une création à vérifier d'un domaine effectivement créé et rattaché", () => {
+    const ressource: DepotDocumentaire = { ...depot, creationDomaineDeleguee: { version: 1, cle: "a".repeat(64), compteId: "compte", documentId: depot.id, analyseId: "analyse", domaineId: "calcul", nom: "Calcul", statut: "reservee" } };
+    const html = rendu(ressource);
+    expect(html).toContain("reste à vérifier");
+    expect(html).toContain("Reprendre le rangement sans relancer l’IA");
+    expect(html).not.toContain("Twiny a créé ce domaine");
+    expect(rendu({ ...ressource, domaineId: "calc", rangementOrigine: "assistant", rangementStatut: "rangee", rangementRevuLe: "2026-09-16", rangementAnalyseId: "analyse", creationDomaineDeleguee: { ...ressource.creationDomaineDeleguee!, statut: "cree" } })).toContain("Twiny a créé ce domaine");
+  });
   it("garde les compétences proposées contrôlables après un rattachement de domaine seul", () => {
     const ressource = structuredClone(depot);
     Object.assign(ressource, { domaineId: "calc", rangementAnalyseId: "analyse", rangementRevuLe: "2026-09-16", rangementOrigine: "assistant", rangementStatut: "rangee" });
@@ -155,11 +173,11 @@ describe("relecture documentaire dans l’assistant", () => {
   });
   it("retrouve le choix humain sauvegardé avant la suggestion IA sans inventer son usage", () => {
     const ressource: DepotDocumentaire = { ...depot, brouillonClassement: { analyseId: "analyse", domaine: { mode: "nouveau", nom: "Mathématiques" }, codes: [], propositions: [], modifieLe: "2026-09-15T13:00:00Z", origine: "personne" } };
-    expect(choixInitial(ressource, referentiel)).toMatchObject({ destination: "nouveau", nom: "Mathématiques", usage: "" });
+    expect(choixInitial(ressource, referentiel)).toMatchObject({ destination: "nouveau", nom: "Mathématiques", usage: "indetermine" });
     const visible = rendu(ressource).split('<section id="relecture-sources-livret"')[0];
     expect(visible).toContain("Votre choix est conservé");
-    expect(visible).toContain("Précisez le type de matière avant de confirmer.");
-    expect(visible).toContain(">Choisir le type de matière</button>");
+    expect(visible).toContain("aucune compétence obligatoire");
+    expect(visible).not.toContain("Choisir le type de matière");
     expect(visible).not.toContain("Suggestion de l’IA");
   });
   it("respecte le retrait explicite du choix dans le brouillon", () => {

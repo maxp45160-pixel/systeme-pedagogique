@@ -60,6 +60,30 @@ it("la lecture propose sans créer ni taguer et expose les parents", async () =>
   expect((await lireClassementRessourcesAction(["doc"])).referentiel.domaines[1].parentId).toBe("math");
   expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled(); expect(m.rpc).not.toHaveBeenCalled();
 });
+it("confirme un premier domaine d'organisation sans compétence ni usage fabriqué", async () => {
+  domaines = [];
+  const c: ChoixClassementRessource = { ...choix(), propositions: [], domaine: { mode: "nouveau", nom: "Calcul", usage: { type: "indetermine" } } };
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  const commande = m.rpc.mock.calls[0][1].p_commande;
+  expect(commande).toMatchObject({ type: "creer_domaine", domaine: { origine: "utilisateur" }, competences: [] });
+  expect(commande).not.toHaveProperty("usage");
+  expect(commande).not.toHaveProperty("rattachementsExistants");
+  expect(domaines).toHaveLength(1);
+  expect(skills).toHaveLength(0);
+  expect(m.taguer).not.toHaveBeenCalled();
+  expect(parserFrontMatter(docs.get("doc")!.md).frontMatter.domaine).toBe("calcul");
+  expect(docs.get("doc")!.md).toContain("Original conservé.");
+});
+it("retrouve un domaine d'organisation vide après perte de réponse sans le recréer", async () => {
+  domaines = [];
+  const c: ChoixClassementRessource = { ...choix(), propositions: [], domaine: { mode: "nouveau", nom: "Calcul", usage: { type: "indetermine" } } };
+  panneApresCreation = true;
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(m.rpc).toHaveBeenCalledTimes(1);
+  expect(domaines).toHaveLength(1);
+  expect(skills).toHaveLength(0);
+});
 it("prévalide tout le lot : un code absent dans la seconde ressource bloque tout effet", async () => {
   await expect(confirmerClassementRessourcesAction([choix(), { ...choix("doc2"), codes: ["FAUX"] }])).rejects.toThrow("absente");
   expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled();

@@ -243,6 +243,15 @@ ou le coût de correction compromettent le bénéfice attendu. Seuils à éprouv
 
 ## Existant et écart
 
+**P01-0002 — accord humain suivant du 16/09 :** création déléguée de domaines
+d'organisation sans compétence obligatoire, contexte académique précisé plus tard.
+[Mandat et confrontation](../operations/runs/2026-09-16-p01-domaines.md).
+Le domaine et son usage indéterminé existaient déjà ; seule la garde de création
+vide est élargie. Collisions/ambiguïtés à contrôler, origine explicite, reprise
+de création partielle sans doublon et retrait durable restent exigés. Le code est
+préparé localement ; migration distante en attente. Les autres exigences proposées
+de P-01 ne deviennent pas validées par cette extension.
+
 **Réalisation locale du 16/09 — P01-0001 :**
 [mandat, confrontation et preuves](../operations/runs/2026-09-16-p01-classification.md).
 Première analyse déclenchée d'une nouvelle ressource → domaine existant explicitement

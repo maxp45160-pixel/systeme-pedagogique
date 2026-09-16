@@ -57,3 +57,20 @@ it("reconnaît un reçu sans rétablir le domaine après un choix humain ultéri
   expect(evaluerDelegationClassement({ ...depot, rangementOrigine: "personne" }, "a", contexte).statut).toBe("preserve");
   expect(evaluerDelegationClassement(depot, "a", contexte, { classement_confirmation: "en cours" }).statut).toBe("preserve");
 });
+
+it("propose de créer un sujet explicite sourcé dans un référentiel vide", () => {
+  const depot = ressource(); const restitution = depot.analyses[0].restitution!;
+  if (restitution.version !== 2) throw new Error();
+  restitution.organisation.domaine = { mode: "nouveau", nom: "Astronomie", description: "Les étoiles", justification: "Étoiles", sources: [{ documentId: "doc", citation: "Étoiles" }] };
+  expect(evaluerDelegationClassement(depot, "a", { ...contexte, domaines: [] })).toEqual({ statut: "a-creer", nom: "Astronomie", description: "Les étoiles" });
+  restitution.organisation.domaine.sources = [];
+  expect(evaluerDelegationClassement(depot, "a", contexte).statut).toBe("a-controler");
+});
+it("ne rattache jamais par nom une nouvelle proposition homonyme et préserve un reçu d'un autre compte", () => {
+  const depot = ressource(); const restitution = depot.analyses[0].restitution!;
+  if (restitution.version !== 2) throw new Error();
+  restitution.organisation.domaine = { mode: "nouveau", nom: "Mathématiques", description: "", justification: "Équation", sources: [{ documentId: "doc", citation: "Équation" }] };
+  expect(evaluerDelegationClassement(depot, "a", contexte).statut).toBe("a-controler");
+  depot.creationDomaineDeleguee = { version: 1, cle: "a".repeat(64), compteId: "autre", documentId: "doc", analyseId: "a", domaineId: "mathematiques", nom: "Mathématiques", statut: "reservee" };
+  expect(evaluerDelegationClassement(depot, "a", contexte).statut).toBe("preserve");
+});

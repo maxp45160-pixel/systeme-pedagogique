@@ -1,3 +1,4 @@
+import type { CreationDomaineDeleguee } from "./creation-domaine-deleguee";
 import type { PieceJointeDocument } from "./types-documents";
 import type { Palier } from "@/lib/domain/types";
 import type { BrouillonClassementRessource } from "./brouillon-classement";
@@ -149,6 +150,7 @@ export interface DepotDocumentaire {
   rangementStatut?: "rangee" | "a-trier";
   rangementOrigine?: "assistant" | "personne";
   brouillonClassement?: BrouillonClassementRessource;
+  creationDomaineDeleguee?: CreationDomaineDeleguee;
   competencesLiees: string[];
   pieces: PieceJointeDocument[];
   analyses: AnalyseDepot[];

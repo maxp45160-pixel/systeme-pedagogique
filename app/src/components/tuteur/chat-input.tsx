@@ -108,7 +108,7 @@ export const ChatInput = memo(function ChatInput({
         />
       </div>
       {onDepotConserve && pieces.liste}
-      {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">Après lecture, Twiny peut rattacher chaque nouveau document à un domaine existant. Les cas à préciser et les compétences restent à votre choix ; le rangement effectué reste corrigeable.</p>}
+      {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">Après lecture, Twiny peut rattacher chaque nouveau document à un domaine adapté, créé si nécessaire sans compétence obligatoire. Les cas à préciser et les compétences restent à votre choix ; le rangement effectué reste corrigeable.</p>}
       {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">En préparant votre proposition, vous envoyez ces fichiers (jusqu’aux 20 premières pages de chacun) et votre texte à {fournisseurDocumentaire === "qwen" ? "Qwen (Alibaba Cloud)" : "Mistral"}. Coût maximal : {fournisseurDocumentaire === "qwen" ? (autorisation.coutMaximum/1_000_000).toLocaleString("fr-FR",{style:"currency",currency:"USD",maximumFractionDigits:3}) : eurosDocumentaires(autorisation.coutMaximum)}.</p>}
 
       {/*

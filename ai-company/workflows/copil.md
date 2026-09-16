@@ -12,6 +12,9 @@ distincte. Le [mandat](../operations/autonomy.md) et le
    `npm run agents:resume -- DIR-0001`. Lire le mandat référencé, la fiche et sa
    prochaine action. La commande charge les décisions déclarées, travaux ouverts,
    inconnues, effets externes incertains et fraîcheur des preuves ; elle n'agit pas.
+   Lire également `closedMissions` et `progress`, conformément à la
+   [continuité direction-terrain](continuity.md). `npm run agents:progress`
+   restitue les exigences, contributions et travaux sans rattachement.
 2. Lire PRODUCT, les corps des décisions pertinentes et leurs amendements. Un
    statut retourné est déclaré, pas authentifié. Une ancienne décision remplacée
    reste dans l'historique ; une proposition n'a aucune autorité supplémentaire.
@@ -22,6 +25,11 @@ distincte. Le [mandat](../operations/autonomy.md) et le
 4. Pour DIR-0001, ouvrir le [dossier critique](../product/cadrage-direction.md)
    puis le [rapport](../operations/runs/2026-09-16-direction.md). Ce sont des
    analyses et des preuves datées, pas une nouvelle vision approuvée.
+5. Avant de proposer la suite, dresser le bilan face aux exigences : lire les
+   rapports des missions closes, les transmissions et les réserves ; confronter
+   les preuves au checkout et distinguer réalisation locale, tests, usage et
+   déploiement. Une exigence sans lien signifie couverture non documentée.
+   Ne pas redemander à Maxime l'historique accessible dans ces sources.
 
 ## Prendre position
 

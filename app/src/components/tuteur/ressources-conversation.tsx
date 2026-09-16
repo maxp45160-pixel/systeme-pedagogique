@@ -19,9 +19,13 @@ export async function rattacherApresPremiereLecture(avant: Ligne, suivante: Lign
   if (!avant.ressource || avant.ressource.depot.analyses.length || !suivante.ressource) return suivante;
   try {
     const resultat = await rattacherDomaineDelegueAction(suivante.id, analyseId, suivante.ressource.depot.modifieLe);
-    return { ...suivante, ressource: { ...suivante.ressource, depot: resultat.ressource } };
+    return { ...suivante, ressource: { ...suivante.ressource, depot: resultat.ressource }, ...(resultat.statut !== "rattache" && resultat.ressource.creationDomaineDeleguee ? { erreurClassement: resultat.raison } : {}) };
   } catch {
-    return { ...suivante, erreurClassement: "Le rattachement n’est pas confirmé. Relisez l’état enregistré avant de corriger ; l’analyse reste conservée." };
+    // La réservation ou la création peut avoir réussi avant la réponse perdue.
+    // Une simple lecture rend ce point de reprise visible, sans nouvel effet.
+    let ressource = suivante.ressource;
+    try { ressource = await lireRessourceAssistantAction(suivante.id); } catch { /* conserver la dernière lecture */ }
+    return { ...suivante, ressource, erreurClassement: "Le rattachement n’est pas confirmé. Relisez l’état enregistré avant de corriger ; l’analyse reste conservée." };
   }
 }
 

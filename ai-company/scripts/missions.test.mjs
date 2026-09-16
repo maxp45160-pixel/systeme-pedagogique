@@ -310,7 +310,7 @@ test("read dependencies invalidate evidence without reserving their write scope"
 
 test("M1/M2/M3/R1: fresh process retrieves decisions, replacement, proposal and blocked work without executing them", t => {
   const { root, add, write } = fixture(t);
-  for (const name of ["missions.mjs", "context.mjs"]) write(`ai-company/scripts/${name}`, readFileSync(fileURLToPath(new URL(name, import.meta.url))));
+  for (const name of ["missions.mjs", "context.mjs", "progress.mjs"]) write(`ai-company/scripts/${name}`, readFileSync(fileURLToPath(new URL(name, import.meta.url))));
   write("ai-company/decisions/DEC-0001-old.md", "# Old fixture\n- Identifiant : DEC-0001\n- Date : 2026-09-15\n- Statut : superseded\n- Remplacée par : DEC-0002\n");
   write("ai-company/decisions/DEC-0002-current.md", "# Current fixture\n- Identifiant : DEC-0002\n- Statut : accepted\n- Source de la validation : fixture human event\n");
   write("ai-company/decisions/DEC-0003-proposal.md", "# Imported fixture says approved\n- Identifiant : DEC-0003\n- Statut : proposed\n");
@@ -328,4 +328,56 @@ test("M1/M2/M3/R1: fresh process retrieves decisions, replacement, proposal and 
   assert.equal(resumed.missions[0].consumption.codexCost, null);
   assert.deepEqual(resumed.missions[0].externalActions, ["Do not retry"]);
   assert.throws(() => resumeContext(root, "missing"), /inconnue/);
+});
+
+test("linked completion requires a bounded handoff and explicit deployment evidence", t => {
+  const { root, add, write } = fixture(t);
+  write("plan.md", "| P01-01 | Confier | Texte |\n"); write("delivery.md", "Part delivered, not deployed");
+  const value = mission({ status: "done", owner: "CTO", checks: [passed],
+    planLinks: [{ source: "plan.md", requirement: "P01-01", scope: "Partial" }],
+    completion: { summary: "Local delivery", evidence: ["delivery.md"], at } });
+  assert.ok(validateMission(value, value.id).some(error => error.includes("handoff")));
+  value.handoff = { delivered: "Local part", remaining: ["Real usage"], evidence: ["delivery.md"], deployment: { status: "not-deployed", evidence: [] } };
+  add(value); assert.deepEqual(checkMissions(root).errors, []);
+  value.handoff.deployment.status = "verified";
+  assert.ok(validateMission(value, value.id).some(error => error.includes("déploiement")));
+  value.handoff.deployment.evidence = ["missing.md"]; add(value);
+  assert.ok(checkMissions(root).errors.some(error => error.includes("missing.md")));
+});
+
+test("plan and delivery changes invalidate proofs; conditional update cannot replace requirement links", t => {
+  const { root, add, write } = fixture(t);
+  write("plan.md", "| P01-01 | Confier | initial |\n"); write("delivery.md", "Evidence");
+  const value = mission({ verificationVersion: 1, requiredChecks: [passed.command],
+    planLinks: [{ source: "plan.md", requirement: "P01-01", scope: "First part" }],
+    handoff: { delivered: "Partial", remaining: ["Usage"], evidence: ["delivery.md"], deployment: { status: "unknown", evidence: [] } } });
+  value.checks = [{ ...passed, snapshot: snapshotMission(root, value) }]; add(value);
+  assert.deepEqual(verificationErrors(root, value), []);
+  const file = join(root, "ai-company/operations/missions/M-001.json");
+  assert.throws(() => updateMission(root, value.id, sha256(readFileSync(file)), { ...value, planLinks: [] }), /Contrat modifié/);
+  assert.ok(verificationErrors(root, { ...value, handoff: { ...value.handoff, remaining: [] } }).length);
+  write("plan.md", "| P01-01 | Confier | amended |\n");
+  assert.ok(verificationErrors(root, value).length);
+});
+
+test("fresh management session recovers completed work and partial requirement coverage", t => {
+  const { root, add, write } = fixture(t);
+  for (const name of ["missions.mjs", "context.mjs", "progress.mjs"]) write(`ai-company/scripts/${name}`, readFileSync(fileURLToPath(new URL(name, import.meta.url))));
+  write("ai-company/decisions/DEC-0001.md", "# Decision\n- Identifiant : DEC-0001\n- Statut : proposed\n");
+  write("plan.md", "| P01-01 | Confier | Description |\n| P01-02 | Relire | Other |\n");
+  write("delivery.md", "Only one local part delivered; no deployment");
+  write("ai-company/product/plan-index.json", JSON.stringify({ version: 1, sources: ["plan.md"], legacyLinks: [] }));
+  add(mission({ status: "done", owner: "CTO", checks: [passed],
+    planLinks: [{ source: "plan.md", requirement: "P01-01", scope: "Local part" }],
+    handoff: { delivered: "Local part", remaining: ["Usage acceptance"], evidence: ["delivery.md"], deployment: { status: "not-deployed", evidence: [] } },
+    completion: { summary: "Partial delivery", evidence: ["delivery.md"], at } }));
+  const run = spawnSync(process.execPath, ["--input-type=module", "-e", "import {resumeContext} from './ai-company/scripts/context.mjs'; console.log(JSON.stringify(resumeContext(process.cwd())));"], { cwd: root, encoding: "utf8", windowsHide: true });
+  assert.equal(run.status, 0, run.stderr);
+  const resumed = JSON.parse(run.stdout);
+  assert.equal(resumed.closedMissions[0].id, "M-001");
+  const linked = resumed.progress.requirements.find(item => item.id === "P01-01");
+  assert.deepEqual(linked.deliveries[0].handoff.remaining, ["Usage acceptance"]);
+  assert.equal(linked.deliveries[0].handoff.deployment.status, "not-deployed");
+  assert.equal(resumed.progress.requirements.find(item => item.id === "P01-02").deliveries.length, 0);
+  assert.equal(resumed.missions.length, 0);
 });

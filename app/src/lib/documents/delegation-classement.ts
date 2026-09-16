@@ -1,9 +1,11 @@
 import { analysePourClassement } from "./classement-ressources";
 import type { DepotDocumentaire } from "./depot";
 import type { ContexteOrganisationDepot } from "./organisation-depot";
+import { slugifier } from "@/lib/domain/referentiel-compte";
 
 export type DecisionDelegationClassement =
   | { statut: "eligible"; domaineId: string }
+  | { statut: "a-creer"; nom: string; description: string }
   | { statut: "rattache" | "preserve" | "a-controler"; raison: string };
 
 /** La délégation porte uniquement sur le domaine explicitement identifié.
@@ -25,9 +27,15 @@ export function evaluerDelegationClassement(
   // Il ne permet jamais de rétablir un domaine que la personne a ensuite changé.
   const proposition = depot.analyses.find((a) => a.id === analyseId)?.restitution;
   const domaine = proposition?.version === 2 ? proposition.organisation.domaine : null;
+  const creation = depot.creationDomaineDeleguee;
+  const creationCorrespond = creation && creation.compteId === contexte.compteId && creation.documentId === depot.id
+    && creation.analyseId === analyseId && domaine?.mode === "nouveau"
+    && creation.nom === domaine.nom.trim() && creation.domaineId === slugifier(domaine.nom);
+  if (creation && !creationCorrespond) return { statut: "preserve", raison: "La création réservée appartient à un autre classement. Contrôlez la ressource." };
   if (depot.version === 2 && depot.rangementOrigine === "assistant"
     && depot.rangementAnalyseId === analyseId && depot.rangementStatut === "rangee"
-    && depot.rangementRevuLe && domaine?.mode === "existant" && depot.domaineId === domaine.id) {
+    && depot.rangementRevuLe && ((domaine?.mode === "existant" && depot.domaineId === domaine.id)
+      || (creationCorrespond && creation.statut === "cree" && depot.domaineId === creation.domaineId))) {
     return { statut: "rattache", raison: "Ce rattachement délégué est déjà enregistré." };
   }
   if (depot.domaineId || depot.rangementOrigine || depot.rangementAnalyseId || depot.rangementRevuLe || depot.rangementStatut
@@ -47,15 +55,27 @@ export function evaluerDelegationClassement(
     return { statut: "a-controler", raison: "L'analyse signale une incertitude à vérifier avant le rattachement." };
   }
   const propose = analyse.restitution.organisation.domaine;
-  if (propose?.mode !== "existant") {
+  if (!propose) {
     return { statut: "a-controler", raison: "Le choix ou la création d'un domaine demande votre contrôle." };
   }
-  if (!contexte.domaines.some((d) => d.id === propose.id)) {
+  if (propose.mode === "existant" && !contexte.domaines.some((d) => d.id === propose.id)) {
     return { statut: "a-controler", raison: "Le domaine proposé est absent ou archivé." };
   }
   if (!propose.justification.trim() || !propose.sources.length
     || propose.sources.some((source) => source.documentId !== depot.id || !source.citation.trim())) {
     return { statut: "a-controler", raison: "Le rattachement doit être justifié par des sources de cette ressource." };
+  }
+  if (propose.mode === "nouveau") {
+    const nom = propose.nom.trim();
+    if (nom.length < 3 || nom.length > 80 || /[\r\n]/.test(nom) || !slugifier(nom)) {
+      return { statut: "a-controler", raison: "Le nom du domaine proposé demande votre contrôle." };
+    }
+    const comparable = (s: string) => s.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+    if (contexte.domaines.some((d) => (d.id === slugifier(nom) || comparable(d.nom) === comparable(nom))
+      && !(creationCorrespond && d.id === creation.domaineId))) {
+      return { statut: "a-controler", raison: "Un domaine de ce nom ou de cet identifiant existe déjà. Contrôlez le rangement." };
+    }
+    return { statut: "a-creer", nom, description: propose.description };
   }
   return { statut: "eligible", domaineId: propose.id };
 }

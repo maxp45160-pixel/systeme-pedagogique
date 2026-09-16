@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "sources": [
+    "ai-company/product/parcours-depot-memoire.md",
+    "ai-company/product/parcours-memoire-travail.md"
+  ],
+  "legacyLinks": [
+    {
+      "mission": "P01-0001",
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirements": ["P01-05", "P01-06"],
+      "scope": "Contribution partielle : domaine existant explicitement identifié, contrôle par ressource, correction et refus. Ne couvre pas toute l'organisation, les liens notionnels ni la recette d'usage réelle.",
+      "evidence": ["ai-company/operations/runs/2026-09-16-p01-classification.md", "ai-company/operations/runs/2026-09-16-p01-verification.md"]
+    },
+    {
+      "mission": "P01-0002",
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirements": ["P01-05", "P01-06"],
+      "scope": "Contribution en cours lors du raccordement : création de domaine d'organisation et contrôle ciblé. Le mandat ne prouve ni achèvement, ni application distante de la migration. Lire l'état actuel de la mission.",
+      "evidence": ["ai-company/operations/runs/2026-09-16-p01-domaines.md"]
+    }
+  ]
+}

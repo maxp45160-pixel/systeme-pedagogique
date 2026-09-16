@@ -944,8 +944,8 @@ BEGIN
     END IF;
     IF jsonb_array_length(coalesce(p_commande -> 'competences', '[]'::JSONB)) = 0
        AND jsonb_array_length(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB)) = 0
-       AND v_usage_type IS DISTINCT FROM 'module' THEN
-      RAISE EXCEPTION 'Seul un module académique peut naître sans compétence ni rattachement.';
+       AND v_usage_type = 'continu' THEN
+      RAISE EXCEPTION 'Un domaine continu exige au moins une compétence ou un rattachement.';
     END IF;
     IF jsonb_array_length(coalesce(p_commande -> 'rattachementsExistants', '[]'::JSONB)) > 0
        AND v_usage_type IS DISTINCT FROM 'continu' THEN

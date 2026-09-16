@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkMissions, inspectPath, sha256, verificationErrors } from "./missions.mjs";
+import { planProgress } from "./progress.mjs";
 
 // Fixed local reads, no shell, network, execution or automatic report write.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -11,6 +12,8 @@ export function resumeContext(repoRoot, id = null) {
   const { missions, errors } = checkMissions(repoRoot);
   if (errors.length) throw new Error(errors.join("\n"));
   if (id && !missions.some(mission => mission.id === id)) throw new Error("Mission inconnue : " + id);
+  const progress = planProgress(repoRoot, missions);
+  if (progress.errors.length) throw new Error(progress.errors.join("\n"));
   const decisionFolder = "ai-company/decisions";
   const folderError = inspectPath(repoRoot, decisionFolder, false, true);
   if (folderError) throw new Error(folderError);
@@ -29,14 +32,22 @@ export function resumeContext(repoRoot, id = null) {
   });
   return {
     limitation: "Vue dérivée. Statuts et accords déclarés à confronter aux sources humaines ; aucune autorisation créée. Aucun test relancé. Aucun effet externe rejoué.",
-    sources: ["AGENTS.md", "PRODUCT.md", "ARCHITECTURE_DECISIONS.md", "ai-company/company/current-state.md", "ai-company/company/priorities.md", "ai-company/operations/autonomy.md", "ai-company/workflows/copil.md"],
+    sources: ["AGENTS.md", "PRODUCT.md", "ARCHITECTURE_DECISIONS.md", "ai-company/company/current-state.md", "ai-company/company/priorities.md", "ai-company/operations/autonomy.md", "ai-company/workflows/copil.md", "ai-company/workflows/continuity.md"],
     decisions,
+    progress,
+    closedMissions: missions.filter(mission => ["done", "cancelled"].includes(mission.status)).map(mission => ({
+      id: mission.id, title: mission.title, status: mission.status, file: mission.file,
+      updatedAt: mission.updatedAt, completion: mission.completion, nextAction: mission.nextAction,
+      planLinks: mission.planLinks ?? [], handoff: mission.handoff ?? null,
+      verification: verificationErrors(repoRoot, mission),
+    })),
     missions: missions.filter(mission => !["done", "cancelled"].includes(mission.status) || mission.id === id).map(mission => ({
       id: mission.id, title: mission.title, status: mission.status, owner: mission.owner,
       file: mission.file, fileSha256: sha256(readFileSync(resolve(repoRoot, mission.file))),
       objective: mission.objective, authorization: mission.authorization,
       scope: mission.scope, nextAction: mission.nextAction, blocker: mission.blocker,
       externalActions: mission.externalActions, completion: mission.completion,
+      planLinks: mission.planLinks ?? [], handoff: mission.handoff ?? null,
       verification: verificationErrors(repoRoot, mission),
       checks: mission.checks.map(({ snapshot, ...check }) => ({ ...check, snapshotPresent: Boolean(snapshot) })),
       consumption: mission.consumption ?? { codexTokens: null, codexCost: null, apiCost: null, note: "Usage attribuable non disponible" },

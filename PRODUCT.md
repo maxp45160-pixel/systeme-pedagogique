@@ -25,6 +25,16 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   Twiny et reste corrigeable. « Retirer ce rattachement » conserve un refus humain
   et laisse l'original sans domaine ; une réanalyse ne rétablit pas ce lien.
   Les réouvertures ne classent ni n'analysent automatiquement.
+  **Extension P01-0002 approuvée le 16/09, préparée localement :** si la première
+  analyse propose un nouveau domaine sourcé sans incertitude ni collision connue,
+  Twiny peut le créer comme domaine d'organisation sans compétence, puis rattacher
+  le document. Aucun usage académique ou continu n'est déduit ; le contexte peut
+  être précisé plus tard. La trace distingue création à vérifier et rattachement
+  effectué ; une reprise explicite retrouve le reçu sans doublon ni réanalyse.
+  Cette création vide nécessite la migration
+  `20260916183000_domaines_organisation_vides.sql`, **en attente d'application**.
+  La base distante conserve donc encore le refus historique ; ne pas présenter
+  l'extension comme activée avant cette application.
   Après ce rattachement, les compétences proposées ne sont pas précochées :
   une correction du domaine seul ne les associe pas implicitement.
   Après l'analyse, une fenêtre
@@ -32,8 +42,9 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   en domaines et sous-domaines. La personne applique les choix restant à contrôler
   par document, ou ferme sans les appliquer. Un point incomplet ne bloque pas
   les choix des autres documents ; aucun passage par les priorités n'est imposé.
-  Une ambiguïté ou une archive bloque la création ; un nouveau domaine demande
-  son usage explicite. Les codes viennent des commandes applicatives. Une
+  Une ambiguïté, une collision ou une archive bloque la création. Le nouveau domaine
+  d'organisation ne demande aucune compétence ni contexte académique ; déclarer un
+  module demande toujours son année. Les codes viennent des commandes applicatives. Une
   nouvelle analyse n'écrase pas le classement déjà accepté. Les liens de dépôt
   rouvrent cette fenêtre dans l'assistant, sans deuxième page de revue
   (amendement du 15/09 à ADR-145).
@@ -704,6 +715,11 @@ Le module académique peut être créé vide : l'année et la période déclaren
 cadre, puis le cockpit de « Mes cours » permet de déposer le premier cours ou
 d'ajouter la première compétence. Cette exception ne s'étend pas aux domaines
 continus ; elle ne crée ni compétence sentinelle, ni score, ni contenu implicite.
+L'accord humain P01-0002 du 16/09 autorise aussi le domaine d'organisation vide,
+dont l'usage reste indéterminé. Le code local et le schéma de référence sont adaptés ;
+la migration correspondante reste en attente sur la base distante. Le domaine continu
+explicitement déclaré conserve son contrat. Cette ouverture n'ajoute ni table ni
+notion de compétence factice.
 
 Un domaine mis de côté peut être supprimé définitivement par un geste séparé.
 La base refuse ce retrait dès qu'un sous-domaine, une compétence active, un

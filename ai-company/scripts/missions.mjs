@@ -45,6 +45,28 @@ export function validateMission(mission, expectedId) {
   require(object(mission.authorization) && text(mission.authorization.summary) && normalizeRepoPath(mission.authorization.source), "authorization : source locale et résumé requis");
   require(texts(mission.scope, true) && mission.scope.every(normalizeRepoPath), "scope : chemins relatifs bornés requis (.git, .env, chemins absolus et traversées interdits)");
   if (mission.inputs !== undefined) require(texts(mission.inputs) && mission.inputs.every(normalizeRepoPath), "inputs : dépendances de lecture relatives bornées requises");
+  if (mission.planLinks !== undefined) {
+    require(Array.isArray(mission.planLinks), "planLinks : liste requise");
+    if (Array.isArray(mission.planLinks)) {
+      const keys = new Set();
+      for (const link of mission.planLinks) {
+        require(object(link) && normalizeRepoPath(link.source) && /^P\d+-\d+$/.test(link.requirement ?? "") && text(link.scope), "planLinks : source locale, identifiant Pxx-xx et contribution bornée requis");
+        const key = `${link?.source}#${link?.requirement}`;
+        require(!keys.has(key), "planLinks : lien dupliqué"); keys.add(key);
+      }
+    }
+  }
+  if (mission.handoff !== undefined) {
+    const handoff = mission.handoff;
+    require(object(handoff) && text(handoff.delivered) && texts(handoff.remaining) && texts(handoff.evidence, true)
+      && handoff.evidence.every(normalizeRepoPath), "handoff : contribution, reste et preuves locales requis");
+    require(object(handoff?.deployment) && ["not-deployed", "unknown", "verified"].includes(handoff.deployment.status)
+      && texts(handoff.deployment.evidence) && handoff.deployment.evidence.every(normalizeRepoPath)
+      && (handoff.deployment.status !== "verified" || handoff.deployment.evidence.length > 0), "handoff : déploiement distinct et preuve obligatoire si déclaré verified");
+  }
+  if (mission.status === "done" && Array.isArray(mission.planLinks) && mission.planLinks.length > 0) {
+    require(object(mission.handoff), "done : transmission handoff requise pour une mission liée au plan");
+  }
   require(typeof mission.owner === "string" && (!["running", "blocked", "done"].includes(mission.status) || text(mission.owner)), "owner : responsable requis pour running, blocked et done");
   require(typeof mission.baseCommit === "string" && /^[a-f0-9]{7,40}$/i.test(mission.baseCommit), "baseCommit : hash Git de 7 à 40 caractères requis");
   require(texts(mission.acceptance, true), "acceptance : critères non vides requis");
@@ -124,7 +146,7 @@ export function checkMissions(repoRoot, replacement = null) {
       ids.add(id);
     }
     if (structural.length) continue;
-    for (const [path, mustBeFile, rejectAlias] of [[mission.authorization.source, true], ...mission.scope.map(path => [path, false, true]), ...(mission.inputs ?? []).map(path => [path, false, true]), ...(mission.completion?.evidence ?? []).map(path => [path, true])]) {
+    for (const [path, mustBeFile, rejectAlias] of [[mission.authorization.source, true], ...mission.scope.map(path => [path, false, true]), ...(mission.inputs ?? []).map(path => [path, false, true]), ...(mission.completion?.evidence ?? []).map(path => [path, true]), ...(mission.planLinks ?? []).map(link => [link.source, true, true]), ...(mission.handoff?.evidence ?? []).map(path => [path, true, true]), ...(mission.handoff?.deployment?.evidence ?? []).map(path => [path, true, true])]) {
       const error = inspectPath(root, path, mustBeFile, rejectAlias);
       if (error) issue(path + " : " + error);
     }
@@ -166,10 +188,12 @@ export function snapshotMission(repoRoot, mission) {
     } else if (stat.isFile()) files.set(normalized, sha256(readFileSync(target)));
     else throw new Error("Type de fichier interdit : " + path);
   }
-  for (const path of [...mission.scope, ...(mission.inputs ?? []), mission.authorization.source]) visit(path);
+  for (const path of [...mission.scope, ...(mission.inputs ?? []), mission.authorization.source,
+    ...(mission.planLinks ?? []).map(link => link.source), ...(mission.handoff?.evidence ?? []), ...(mission.handoff?.deployment?.evidence ?? [])]) visit(path);
   const contract = {
     id: mission.id, objective: mission.objective, authorization: mission.authorization,
     scope: mission.scope, inputs: mission.inputs, acceptance: mission.acceptance, requiredChecks: mission.requiredChecks,
+    planLinks: mission.planLinks, handoff: mission.handoff,
   };
   return { contractSha256: sha256(JSON.stringify(contract)), files: [...files].sort(([a], [b]) => a.localeCompare(b, "en")) };
 }
@@ -220,7 +244,7 @@ export function updateMission(repoRoot, id, expectedSha256, candidate) {
     if (candidate.id !== id) throw new Error("Identité de mission modifiée");
     if (previous.verificationVersion === 1 && candidate.verificationVersion !== 1) throw new Error("Retrait du contrôle de preuves interdit");
     // Authorizations/criteria are not granted by a candidate JSON, including imported text.
-    for (const key of ["authorization", "scope", "inputs", "acceptance", "requiredChecks", "objective"]) {
+    for (const key of ["authorization", "scope", "inputs", "acceptance", "requiredChecks", "objective", "planLinks"]) {
       if (JSON.stringify(candidate[key]) !== JSON.stringify(previous[key])) throw new Error("Contrat modifié : réexaminer l'accord avant édition explicite de " + key);
     }
     const errors = validateMission(candidate, id);

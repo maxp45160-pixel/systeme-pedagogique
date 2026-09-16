@@ -7,6 +7,8 @@ et les décisions existantes ; ne pas demander une deuxième validation d'un acc
 Si un choix important manque, préparer ses options et poursuivre l'indépendant.
 Ouvrir ou reprendre la [fiche de mission](mission.md) ; elle conserve l'accord,
 les critères, les chemins possédés et la prochaine action.
+Suivre la [continuité](continuity.md) : déclarer `planLinks` vers les exigences
+concernées ; décrire la tranche exacte, sans prétendre couvrir tout le parcours.
 
 ## Déroulement
 
@@ -30,6 +32,9 @@ les critères, les chemins possédés et la prochaine action.
    cohérence avec `npm run agents:check`, puis poursuivre seulement si le mandat
    couvre une autre mission admissible. Une vérification indispensable bloquée
    ne devient pas une réussite.
+   Préparer `handoff` avant les contrôles finaux : contribution livrée, reste à
+   faire, rapports et déploiement distinct. Cette transmission permet au prochain
+   copil de reprendre le bilan sans lire la conversation de réalisation.
 
 Avant toute DB : inspection réelle Supabase, ADR, dépendances, migration adaptée
 et état d'application documenté. Jamais de rejeu déduit du seul fichier local.

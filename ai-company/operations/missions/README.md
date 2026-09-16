@@ -45,6 +45,29 @@ de reprendre leur code ou de les déclarer terminés.
 
 ## Mise à jour et preuves du checkout — extension DIR-0001
 
+### Transmission au copil — extension CONT-0001
+
+Pour une nouvelle mission produit liée au plan, appliquer la
+[continuité direction-terrain](../../workflows/continuity.md). `planLinks` contient
+des `{source, requirement, scope}` : document d'exigences, identifiant stable et
+contribution bornée. Les sources/identifiants sont contrôlés par `agents:check`.
+Les liens font partie du contrat protégé par `update`.
+
+`handoff` conserve `{delivered, remaining, evidence, deployment}` ; déploiement
+`{status, evidence}`, statut parmi `not-deployed`, `unknown`, `verified`.
+Une mission liée ne peut passer en `done` sans transmission ; `verified` exige
+une preuve locale pointant vers l'observation distante. La véracité de cette
+preuve n'est pas certifiée par le script. Préparer la transmission avant les
+tests finaux : son contenu et ses preuves participent au snapshot.
+
+Les anciennes missions restent compatibles. Les liens historiques dans
+`product/plan-index.json` n'altèrent ni leurs accords ni leurs preuves. La vue
+`agents:progress` et `agents:resume` les rendent visibles, même terminées, sans
+conclure que l'exigence entière est satisfaite. Les tâches non reliées restent
+visibles pour repérer un oubli de rattachement.
+
+### Empreintes et mises à jour conditionnelles
+
 Les nouvelles réalisations utilisent `verificationVersion: 1` et une liste
 `requiredChecks` de commandes requises, fixée avant leur exécution. Les anciennes
 fiches restent des archives déclaratives, sans promotion automatique.

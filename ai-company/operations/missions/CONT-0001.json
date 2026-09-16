@@ -1,0 +1,374 @@
+{
+  "id": "CONT-0001",
+  "title": "Relier les exigences aux livraisons et à la reprise du copil",
+  "objective": "Chaque tâche retrouve les sources du plan, documente sa contribution et expose les livraisons aux nouvelles sessions.",
+  "status": "done",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-16-continuite.md",
+    "summary": "Demande explicite de raccordement management-terrain ; outils et instructions locaux réversibles, aucun produit, permission, dépense ou effet distant."
+  },
+  "scope": [
+    "ai-company/scripts/progress.mjs",
+    "ai-company/scripts/progress.test.mjs",
+    "ai-company/scripts/context.mjs",
+    "ai-company/scripts/missions.mjs",
+    "ai-company/scripts/missions.test.mjs",
+    "ai-company/product/plan-index.json",
+    "ai-company/workflows/continuity.md",
+    "ai-company/workflows/mission.md",
+    "ai-company/workflows/copil.md",
+    "ai-company/workflows/approved-feature.md",
+    "ai-company/workflows/README.md",
+    "ai-company/agents/common.md",
+    "ai-company/operations/missions/README.md",
+    "ai-company/operations/changelog.md",
+    "ai-company/README.md",
+    "ai-company/operations/runs/2026-09-16-continuite.md",
+    "package.json"
+  ],
+  "owner": "01a0aad3-5b31-73f3-9ca8-29b9a398b49c",
+  "baseCommit": "bb5aaa7fe0af28cc6e0b8a14ef73ffd216aca61f",
+  "acceptance": [
+    "Reprise générale avec missions terminées et exigences non reliées visibles",
+    "Liens exigences/missions/preuves contrôlés sans promotion de statut produit",
+    "Transmission bornée avec contribution, reste et déploiement explicites",
+    "Tests synthétiques, revue indépendante et reprise réelle en processus neuf",
+    "Travail concurrent préservé"
+  ],
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run agents:test",
+    "npm run agents:check",
+    "npm run agents:progress",
+    "npm run agents:resume"
+  ],
+  "checks": [
+    {
+      "command": "npm run agents:test",
+      "result": "passed",
+      "at": "2026-09-16T18:20:26.784Z",
+      "revision": "bb5aaa7fe0af28cc6e0b8a14ef73ffd216aca61f + CONT-0001 local",
+      "snapshot": {
+        "contractSha256": "4228c9b9da4870478cd7c3dd5813cb5f8b4851822029890f531bc377b1d30074",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "ab8a50cc916869ad7266093774f75c4d4f8be9100a102655e7b8ab71e46a779c"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "13b62e35436f15d6fa6a6c4540a0eead62b934c9c34596384586b7fd83c1a8e9"
+          ],
+          [
+            "ai-company/operations/missions/README.md",
+            "638577024d9d6d5f2e2e0849318edb7f6a64da6ae7a4c9c7043fdf4920ce2791"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-continuite.md",
+            "5af158398aefd5c0865fc5aa7b3a057965e4fd45331806fd6d3e4ebf2d6be2ae"
+          ],
+          [
+            "ai-company/product/plan-index.json",
+            "05ea1ba8c4348b75c0e61ecb5861ba34e96f74a765de1bee0e2ec512d7597c86"
+          ],
+          [
+            "ai-company/README.md",
+            "48824d44bb20d79e0535368c592d722bf28526d899378d6aaeb253a9f131b0e0"
+          ],
+          [
+            "ai-company/scripts/context.mjs",
+            "4bfe73a8a6e8e6a67039d28773cf63673aa8eab5f5aa60562dfb33d087bb54f1"
+          ],
+          [
+            "ai-company/scripts/missions.mjs",
+            "83469375940c78b5bdc38999e8bc2312842ddebbcd8465e9d11d8b86427364bb"
+          ],
+          [
+            "ai-company/scripts/missions.test.mjs",
+            "03758b5455db8e4b800b218c1fcfe4a9c27faabc51bdf7ddd8bb9edeb25bd6fc"
+          ],
+          [
+            "ai-company/scripts/progress.mjs",
+            "04a0e9c56b13054b7e175b67a881588774c4f520646daec58c66ea9a9dd2b49f"
+          ],
+          [
+            "ai-company/scripts/progress.test.mjs",
+            "af563eccf169957afa26579bd9123308e3bc694ec71abecebcf8ea4d611e18ca"
+          ],
+          [
+            "ai-company/workflows/approved-feature.md",
+            "a49d572492382269f90303f8011b2b0c5be4d65417081957825fec045a8a7b43"
+          ],
+          [
+            "ai-company/workflows/continuity.md",
+            "0b9b94db8809b4531df653355b3034e9ae7148e984b54125a72c110cb9f59356"
+          ],
+          [
+            "ai-company/workflows/copil.md",
+            "1a515ec640f61a5964827c2bc734eb7262efb5988d0f94061908b59577806c79"
+          ],
+          [
+            "ai-company/workflows/mission.md",
+            "c0723cdb39941a5f526053e726aa69edef4d97c62bffd0ebbb0425625097457f"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "aecfeed04253e592300e2f59e339654a96604a90cef58c2b9e0e396489f99612"
+          ],
+          [
+            "package.json",
+            "772777e54b256648deb8bd82f30c7fe1d5e4d06c3591d0ef2c03bd5a4a7629b4"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-16T18:20:28.679Z",
+      "revision": "bb5aaa7fe0af28cc6e0b8a14ef73ffd216aca61f + CONT-0001 local",
+      "snapshot": {
+        "contractSha256": "4228c9b9da4870478cd7c3dd5813cb5f8b4851822029890f531bc377b1d30074",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "ab8a50cc916869ad7266093774f75c4d4f8be9100a102655e7b8ab71e46a779c"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "13b62e35436f15d6fa6a6c4540a0eead62b934c9c34596384586b7fd83c1a8e9"
+          ],
+          [
+            "ai-company/operations/missions/README.md",
+            "638577024d9d6d5f2e2e0849318edb7f6a64da6ae7a4c9c7043fdf4920ce2791"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-continuite.md",
+            "5af158398aefd5c0865fc5aa7b3a057965e4fd45331806fd6d3e4ebf2d6be2ae"
+          ],
+          [
+            "ai-company/product/plan-index.json",
+            "05ea1ba8c4348b75c0e61ecb5861ba34e96f74a765de1bee0e2ec512d7597c86"
+          ],
+          [
+            "ai-company/README.md",
+            "48824d44bb20d79e0535368c592d722bf28526d899378d6aaeb253a9f131b0e0"
+          ],
+          [
+            "ai-company/scripts/context.mjs",
+            "4bfe73a8a6e8e6a67039d28773cf63673aa8eab5f5aa60562dfb33d087bb54f1"
+          ],
+          [
+            "ai-company/scripts/missions.mjs",
+            "83469375940c78b5bdc38999e8bc2312842ddebbcd8465e9d11d8b86427364bb"
+          ],
+          [
+            "ai-company/scripts/missions.test.mjs",
+            "03758b5455db8e4b800b218c1fcfe4a9c27faabc51bdf7ddd8bb9edeb25bd6fc"
+          ],
+          [
+            "ai-company/scripts/progress.mjs",
+            "04a0e9c56b13054b7e175b67a881588774c4f520646daec58c66ea9a9dd2b49f"
+          ],
+          [
+            "ai-company/scripts/progress.test.mjs",
+            "af563eccf169957afa26579bd9123308e3bc694ec71abecebcf8ea4d611e18ca"
+          ],
+          [
+            "ai-company/workflows/approved-feature.md",
+            "a49d572492382269f90303f8011b2b0c5be4d65417081957825fec045a8a7b43"
+          ],
+          [
+            "ai-company/workflows/continuity.md",
+            "0b9b94db8809b4531df653355b3034e9ae7148e984b54125a72c110cb9f59356"
+          ],
+          [
+            "ai-company/workflows/copil.md",
+            "1a515ec640f61a5964827c2bc734eb7262efb5988d0f94061908b59577806c79"
+          ],
+          [
+            "ai-company/workflows/mission.md",
+            "c0723cdb39941a5f526053e726aa69edef4d97c62bffd0ebbb0425625097457f"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "aecfeed04253e592300e2f59e339654a96604a90cef58c2b9e0e396489f99612"
+          ],
+          [
+            "package.json",
+            "772777e54b256648deb8bd82f30c7fe1d5e4d06c3591d0ef2c03bd5a4a7629b4"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:progress",
+      "result": "passed",
+      "at": "2026-09-16T18:20:30.139Z",
+      "revision": "bb5aaa7fe0af28cc6e0b8a14ef73ffd216aca61f + CONT-0001 local",
+      "snapshot": {
+        "contractSha256": "4228c9b9da4870478cd7c3dd5813cb5f8b4851822029890f531bc377b1d30074",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "ab8a50cc916869ad7266093774f75c4d4f8be9100a102655e7b8ab71e46a779c"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "13b62e35436f15d6fa6a6c4540a0eead62b934c9c34596384586b7fd83c1a8e9"
+          ],
+          [
+            "ai-company/operations/missions/README.md",
+            "638577024d9d6d5f2e2e0849318edb7f6a64da6ae7a4c9c7043fdf4920ce2791"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-continuite.md",
+            "5af158398aefd5c0865fc5aa7b3a057965e4fd45331806fd6d3e4ebf2d6be2ae"
+          ],
+          [
+            "ai-company/product/plan-index.json",
+            "05ea1ba8c4348b75c0e61ecb5861ba34e96f74a765de1bee0e2ec512d7597c86"
+          ],
+          [
+            "ai-company/README.md",
+            "48824d44bb20d79e0535368c592d722bf28526d899378d6aaeb253a9f131b0e0"
+          ],
+          [
+            "ai-company/scripts/context.mjs",
+            "4bfe73a8a6e8e6a67039d28773cf63673aa8eab5f5aa60562dfb33d087bb54f1"
+          ],
+          [
+            "ai-company/scripts/missions.mjs",
+            "83469375940c78b5bdc38999e8bc2312842ddebbcd8465e9d11d8b86427364bb"
+          ],
+          [
+            "ai-company/scripts/missions.test.mjs",
+            "03758b5455db8e4b800b218c1fcfe4a9c27faabc51bdf7ddd8bb9edeb25bd6fc"
+          ],
+          [
+            "ai-company/scripts/progress.mjs",
+            "04a0e9c56b13054b7e175b67a881588774c4f520646daec58c66ea9a9dd2b49f"
+          ],
+          [
+            "ai-company/scripts/progress.test.mjs",
+            "af563eccf169957afa26579bd9123308e3bc694ec71abecebcf8ea4d611e18ca"
+          ],
+          [
+            "ai-company/workflows/approved-feature.md",
+            "a49d572492382269f90303f8011b2b0c5be4d65417081957825fec045a8a7b43"
+          ],
+          [
+            "ai-company/workflows/continuity.md",
+            "0b9b94db8809b4531df653355b3034e9ae7148e984b54125a72c110cb9f59356"
+          ],
+          [
+            "ai-company/workflows/copil.md",
+            "1a515ec640f61a5964827c2bc734eb7262efb5988d0f94061908b59577806c79"
+          ],
+          [
+            "ai-company/workflows/mission.md",
+            "c0723cdb39941a5f526053e726aa69edef4d97c62bffd0ebbb0425625097457f"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "aecfeed04253e592300e2f59e339654a96604a90cef58c2b9e0e396489f99612"
+          ],
+          [
+            "package.json",
+            "772777e54b256648deb8bd82f30c7fe1d5e4d06c3591d0ef2c03bd5a4a7629b4"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:resume",
+      "result": "passed",
+      "at": "2026-09-16T18:20:31.598Z",
+      "revision": "bb5aaa7fe0af28cc6e0b8a14ef73ffd216aca61f + CONT-0001 local",
+      "snapshot": {
+        "contractSha256": "4228c9b9da4870478cd7c3dd5813cb5f8b4851822029890f531bc377b1d30074",
+        "files": [
+          [
+            "ai-company/agents/common.md",
+            "ab8a50cc916869ad7266093774f75c4d4f8be9100a102655e7b8ab71e46a779c"
+          ],
+          [
+            "ai-company/operations/changelog.md",
+            "13b62e35436f15d6fa6a6c4540a0eead62b934c9c34596384586b7fd83c1a8e9"
+          ],
+          [
+            "ai-company/operations/missions/README.md",
+            "638577024d9d6d5f2e2e0849318edb7f6a64da6ae7a4c9c7043fdf4920ce2791"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-continuite.md",
+            "5af158398aefd5c0865fc5aa7b3a057965e4fd45331806fd6d3e4ebf2d6be2ae"
+          ],
+          [
+            "ai-company/product/plan-index.json",
+            "05ea1ba8c4348b75c0e61ecb5861ba34e96f74a765de1bee0e2ec512d7597c86"
+          ],
+          [
+            "ai-company/README.md",
+            "48824d44bb20d79e0535368c592d722bf28526d899378d6aaeb253a9f131b0e0"
+          ],
+          [
+            "ai-company/scripts/context.mjs",
+            "4bfe73a8a6e8e6a67039d28773cf63673aa8eab5f5aa60562dfb33d087bb54f1"
+          ],
+          [
+            "ai-company/scripts/missions.mjs",
+            "83469375940c78b5bdc38999e8bc2312842ddebbcd8465e9d11d8b86427364bb"
+          ],
+          [
+            "ai-company/scripts/missions.test.mjs",
+            "03758b5455db8e4b800b218c1fcfe4a9c27faabc51bdf7ddd8bb9edeb25bd6fc"
+          ],
+          [
+            "ai-company/scripts/progress.mjs",
+            "04a0e9c56b13054b7e175b67a881588774c4f520646daec58c66ea9a9dd2b49f"
+          ],
+          [
+            "ai-company/scripts/progress.test.mjs",
+            "af563eccf169957afa26579bd9123308e3bc694ec71abecebcf8ea4d611e18ca"
+          ],
+          [
+            "ai-company/workflows/approved-feature.md",
+            "a49d572492382269f90303f8011b2b0c5be4d65417081957825fec045a8a7b43"
+          ],
+          [
+            "ai-company/workflows/continuity.md",
+            "0b9b94db8809b4531df653355b3034e9ae7148e984b54125a72c110cb9f59356"
+          ],
+          [
+            "ai-company/workflows/copil.md",
+            "1a515ec640f61a5964827c2bc734eb7262efb5988d0f94061908b59577806c79"
+          ],
+          [
+            "ai-company/workflows/mission.md",
+            "c0723cdb39941a5f526053e726aa69edef4d97c62bffd0ebbb0425625097457f"
+          ],
+          [
+            "ai-company/workflows/README.md",
+            "aecfeed04253e592300e2f59e339654a96604a90cef58c2b9e0e396489f99612"
+          ],
+          [
+            "package.json",
+            "772777e54b256648deb8bd82f30c7fe1d5e4d06c3591d0ef2c03bd5a4a7629b4"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [],
+  "nextAction": "À chaque reprise, lire progress et closedMissions ; réalisations futures : planLinks et handoff selon workflows/continuity.md. Aucun chantier produit relancé.",
+  "blocker": null,
+  "completion": {
+    "summary": "Continuité locale raccordée : 61 tests passés, 14 exigences relues, missions terminées visibles en processus neuf, revue QA et correction des exemples Markdown. Aucun chantier produit modifié.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-16-continuite.md"
+    ],
+    "at": "2026-09-16T18:20:31.599Z"
+  },
+  "updatedAt": "2026-09-16T18:20:31.599Z"
+}

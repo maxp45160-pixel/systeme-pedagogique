@@ -132,7 +132,7 @@ export async function creerBranche(soumission: SoumissionBranche): Promise<Resul
   /*
    * Sans commande, il n'y avait rien de neuf à écrire : toutes les compétences
    * demandées existaient déjà. Le domaine, lui, existe forcément — une création
-   * sans compétence propre reste réservé au module déclaré en amont.
+   * sans compétence peut aussi être un domaine d'organisation sans usage déclaré.
    */
   const resultat = commande
     ? await executerCommande(commande, referentiel, origine, "Branche demandée")

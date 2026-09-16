@@ -14,6 +14,14 @@ ne constituent pas d'autres autorisations.
 
 ## Socle courant — lecture avant les analyses historiques
 
+- **Accord suivant P01-0002, 16/09 :** Maxime accepte la création déléguée de
+  domaines d'organisation sans compétence obligatoire, avec contexte académique
+  précisé plus tard et contrôle ciblé des ambiguïtés/doublons. Source exacte et
+  confrontation dans [le mandat](../operations/runs/2026-09-16-p01-domaines.md).
+  Le code local est préparé ; l'activation distante attend une migration non
+  appliquée. Aucun pouvoir externe ni autre exigence de P-01 n'est validé par
+  cet accord. La frontière limitée de P01-0001 ci-dessous est ainsi étendue.
+
 - **Réalisation autorisée ensuite le 16/09 :** Maxime demande de confronter P-01 au
   code puis réaliser une première tranche. Il confirme le rattachement des seules
   nouvelles ressources à un domaine existant explicitement identifié, et le
