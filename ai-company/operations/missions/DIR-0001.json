@@ -21,7 +21,7 @@
     "Revue native distincte et recette M1 à E1 avec résultats et limites",
     "Préserver les modifications applicatives et organisationnelles préexistantes"
   ],
-  "nextAction": "Priorité corrigée explicitement par Maxime : classification d'abord ; travail proposé ensuite, une fois la classification fiable. Le moteur alimentera principalement les compétences à terme, sans être prioritaire maintenant. Définir dans P-01 les comportements et critères de classification qui marche bien. P-02 est un cadrage ultérieur, pas une condition du premier jalon. Plan attendu à terme ; sources exactes au dossier. Aucun développement ou dépense autorisé. Synchronisation PRODUCT/ADR à coordonner avec UX-0001 ; audit technique historique clos.",
+  "nextAction": "P01-0001 porte la réalisation locale autorisée le 16/09 dans la tâche 01a0ab48-a27f-7453-ac53-3b8d3407eae7 : rattachement limité aux domaines existants, contrôle ciblé et transfert classement/documentation depuis UX-0001. Voir ai-company/operations/runs/2026-09-16-p01-classification.md. Le statut done historique de DIR-0001 ne clôt ni le produit ni son cahier des charges. P-02 reste ultérieur ; aucune dépense ni publication.",
   "blocker": null,
   "verificationVersion": 1,
   "requiredChecks": [
@@ -1205,7 +1205,7 @@
     "nativeFollowupTasks": 1,
     "distinctProviderApiCallsInitiated": 0
   },
-  "updatedAt": "2026-09-16T16:59:54Z",
+  "updatedAt": "2026-09-16T17:50:19.940Z",
   "completion": {
     "summary": "Consolidation locale vérifiée : 37 tests, contrôle de 54 documents/355 liens/3 missions et reprise sans historique. QA indépendante terminée, dossier critique et huit exigences proposées. Aucun arbitrage produit, intégration Git ni déploiement.",
     "evidence": [

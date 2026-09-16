@@ -12405,6 +12405,43 @@ pilote : elle élargit seulement la borne de sortie de `depot_reserver`, avec le
 mêmes tarifs, autorisations et budget. Vérifications et essai réel figurent dans
 le registre pilote ; aucun statut humain n'est promu par cet amendement.
 
+### Amendement du 16/09/2026 — P01-0001, rattachement délégué borné
+
+Autorité : Maxime choisit l'organisation déléguée avec contrôle ciblé puis autorise
+la réalisation locale de P-01. Il confirme explicitement la première frontière :
+nouvelle ressource vers domaine existant identifié ; compétences, nouveautés,
+ambiguïtés et choix antérieurs restent à contrôler. Il transfère le classement et
+sa documentation depuis UX-0001. Sources et critères dans le
+[mandat P01-0001](ai-company/operations/runs/2026-09-16-p01-classification.md).
+
+Cette tranche remplace la confirmation globale obligatoire dans l'assistant.
+Après le succès d'une première analyse déclenchée, une commande distincte rattache
+le seul domaine vivant explicitement proposé avec justification et sources. Une
+incertitude signalée, une analyse remplacée, un choix, brouillon ou correction
+antérieurs empêchent cet effet. Aucun appariement par nom, création de domaine,
+compétence ou association automatique de compétence. La présence de sources ne
+prouve toujours pas la justesse sémantique du classement.
+
+Les champs de rangement existants conservent domaine, analyse, date et origine
+`assistant`. `rangee` atteste le rattachement effectué ; les compétences de l'analyse
+restent des propositions indépendantes, sans présélection après délégation : une
+correction du domaine seul ne les applique pas. Le corps du document, son titre/type et ses
+liens ne sont pas réécrits par cette commande. Version attendue, relecture avant effet
+et reconnaissance d'un résultat déjà appliqué protègent concurrence et reprise.
+La personne retrouve la provenance, les sources et le correcteur du classement.
+« Retirer ce rattachement » vide le domaine avec la version attendue et conserve
+`personne` / `a-trier` : le refus reste distinct d'une absence de proposition,
+même après réanalyse. Aucun original ni lien de compétence n'est supprimé.
+Ses choix s'appliquent par document, sans validation du lot ni navigation forcée
+vers le travail proposé. Fermer reporte les points non appliqués.
+Une confirmation humaine qui crée un domaine ou une compétence rafraîchit le
+référentiel avant la suite du contrôle, sans effacer les saisies indépendantes.
+
+L'analyse fournisseur et son consentement ne changent pas ; aucune ouverture ne
+déclenche de classement ni de traitement payant. Aucun schéma, migration, permission,
+seuil de mesure ou contexte du tuteur n'est modifié. La validation sur corpus réel
+reste à faire ; aucun statut de capacité ne monte par les tests locaux.
+
 ## Comment modifier ce registre
 
 

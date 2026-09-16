@@ -8,9 +8,19 @@ leur autorité. Il est utilisable en nouvelle session via `npm run agents:resume
 **Reprise Copil du 16/09 :** l'avis initial et CDC-01 à CDC-08 ci-dessous restent
 des propositions historiques. La [discussion ouverte](#reprise-copil--question-de-valeur)
 réexamine leur point de départ. L'[arbitrage humain suivant](#arbitrage-humain--la-mémoire-et-le-suivi-longitudinal-dabord)
-prime sur la recommandation initiale du copil ; aucune tranche n'est autorisée à coder.
+prime sur la recommandation initiale du copil. La réalisation locale P01-0001 est
+autorisée ensuite le 16/09 dans le mandat lié ci-dessous ; les analyses historiques
+ne constituent pas d'autres autorisations.
 
 ## Socle courant — lecture avant les analyses historiques
+
+- **Réalisation autorisée ensuite le 16/09 :** Maxime demande de confronter P-01 au
+  code puis réaliser une première tranche. Il confirme le rattachement des seules
+  nouvelles ressources à un domaine existant explicitement identifié, et le
+  transfert ciblé du classement/documentation depuis UX-0001. Voir le
+  [mandat P01-0001](../operations/runs/2026-09-16-p01-classification.md).
+  Compétences, nouveautés, ambiguïtés et choix antérieurs restent à contrôler.
+  Aucune dépense, permission ni publication ; qualité réelle encore à éprouver.
 
 - Finalité arbitrée : mémoire personnelle et suivi longitudinal d'abord ; apprentissages
   réalisés dans et hors de Twiny, sans évaluation obligatoire.

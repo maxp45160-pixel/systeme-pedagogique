@@ -1,9 +1,33 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ lire: vi.fn() }));
+const m = vi.hoisted(() => ({ lire: vi.fn(), rattacher: vi.fn() }));
+vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDelegueAction: m.rattacher }));
 vi.mock("@/lib/store/ressource-assistant-actions", () => ({ lireRessourceAssistantAction: m.lire, identifierRessourcesAssistantAction: vi.fn() }));
 vi.mock("./modale-ressources", () => ({ ActionsRelectureRessources: () => null, RelectureRessources: () => null }));
-import { autorisationCorrespond, lectureAProposer, preparerLigne, preparationsChargees, selectionAnalyseAutomatique } from "./ressources-conversation";
+import { autorisationCorrespond, lectureAProposer, preparerLigne, preparationsChargees, selectionAnalyseAutomatique, rattacherApresPremiereLecture } from "./ressources-conversation";
+
+it("rattache après la première lecture seulement, jamais en réouvrant ou en reprenant une analyse historique", async () => {
+  type Ligne = Parameters<typeof rattacherApresPremiereLecture>[0];
+  const avant = { id: "doc", selectionnee: false, ressource: { depot: { analyses: [] } } } as unknown as Ligne;
+  const apres = { ...avant, ressource: { depot: { analyses: [{ id: "a" }], modifieLe: "v2" } } } as unknown as Ligne;
+  m.rattacher.mockResolvedValue({ statut: "rattache", ressource: { ...apres.ressource!.depot, domaineId: "math" } });
+  expect((await rattacherApresPremiereLecture(avant, apres, "a")).ressource?.depot.domaineId).toBe("math");
+  expect(m.rattacher).toHaveBeenCalledWith("doc", "a", "v2");
+  await rattacherApresPremiereLecture(apres, apres, "a");
+  expect(m.rattacher).toHaveBeenCalledTimes(1);
+});
+
+it("une réponse de classement perdue garde la lecture et ne relance pas l'IA", async () => {
+  type Ligne = Parameters<typeof rattacherApresPremiereLecture>[0];
+  const avant = { id: "doc", selectionnee: false, ressource: { depot: { analyses: [] } } } as unknown as Ligne;
+  const apres = { ...avant, ressource: { depot: { analyses: [{ id: "a" }], modifieLe: "v2" } } } as unknown as Ligne;
+  m.rattacher.mockRejectedValue(new Error("Réponse perdue"));
+  const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+  const resultat = await rattacherApresPremiereLecture(avant, apres, "a");
+  expect(resultat.ressource).toBe(apres.ressource);
+  expect(resultat.erreurClassement).toContain("Relisez l’état enregistré");
+  expect(fetch).not.toHaveBeenCalled();
+});
 
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 

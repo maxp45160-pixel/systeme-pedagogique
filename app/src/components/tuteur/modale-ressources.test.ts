@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 vi.mock("@/lib/store/classement-ressources-actions", () => ({ lireClassementRessourcesAction: vi.fn(), confirmerClassementRessourcesAction: vi.fn() }));
 vi.mock("@/lib/store/ressource-assistant-actions", () => ({ lireRessourceAssistantAction: vi.fn() }));
 vi.mock("@/lib/store/brouillon-classement-actions", () => ({ enregistrerBrouillonClassementAction: vi.fn() }));
+vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDelegueAction: vi.fn(), annulerRattachementDelegueAction: vi.fn() }));
 
 import { ActionsRelectureRessources, FormulaireRelectureRessources, choixInitial } from "./modale-ressources";
 import { EditeurClassementRessource } from "./choix-classement-ressource";
@@ -43,8 +44,9 @@ describe("relecture documentaire dans l’assistant", () => {
     expect(html).toContain("2 page(s) lue(s) sur 13");
     expect(html).toContain("Consulter les sources");
     expect(html).toContain("Développer et factoriser");
-    expect(html).toContain("Valider et voir mes priorités");
-    expect(html).toContain("Plus tard");
+    expect(html).toContain("Appliquer ce choix");
+    expect(html).toContain("Fermer");
+    expect(html).not.toContain("Valider et voir mes priorités");
     expect(html).toContain("Où ranger ce document ?");
     expect(html).toContain("Suggestion de l’IA · à vérifier");
     expect(html).toContain("Pourquoi ce classement a été proposé");
@@ -82,7 +84,7 @@ describe("relecture documentaire dans l’assistant", () => {
   });
   it("préserve le classement enregistré au lieu de sélectionner une autre proposition IA", () => {
     const html = rendu({ ...depot, domaineId: "math", rangementRevuLe: "2026-09-14" });
-    expect(html).toContain("Classement actuel, conservé jusqu’à votre confirmation.");
+    expect(html).toContain("Classement actuel conservé.");
     expect(html.split('<section id="relecture-sources-livret"')[0]).toContain("Mathématiques");
     expect(html.split('<section id="relecture-sources-livret"')[0]).not.toContain("Sous-domaine");
     expect(html).not.toContain("<select");
@@ -114,6 +116,42 @@ describe("relecture documentaire dans l’assistant", () => {
   });
   it("affiche la parenté réelle sans préfixes techniques", () => {
     expect(cheminDomaineClassement("calc", referentiel.domaines)).toBe("Mathématiques › Calcul");
+  });
+  it("montre le rattachement délégué sans exiger de le reconfirmer", () => {
+    const html = rendu({ ...depot, domaineId: "calc", rangementRevuLe: "2026-09-16", rangementAnalyseId: "analyse", rangementOrigine: "assistant", rangementStatut: "rangee" });
+    expect(html).toContain("Rattachement effectué");
+    expect(html).toContain("Rattaché par Twiny");
+    expect(html).toContain("n’a créé ni associé aucune compétence");
+    expect(html).not.toContain("Appliquer ce choix");
+    expect(html).toContain("Modifier");
+    expect(html).toContain("Retirer ce rattachement");
+    expect(html).toContain('/atelier?document=livret');
+  });
+  it("rouvrir un rattachement retiré ne réadopte pas la proposition du domaine", () => {
+    const ressource: DepotDocumentaire = { ...depot, domaineId: undefined, rangementRevuLe: "2026-09-16", rangementAnalyseId: "ancienne-analyse", rangementOrigine: "personne", rangementStatut: "a-trier" };
+    expect(choixInitial(ressource, referentiel).destination).toBe("");
+    expect(rendu(ressource)).toContain("Votre retrait est conservé");
+    expect(rendu(ressource)).not.toContain("Rattachement effectué");
+  });
+  it("garde les compétences proposées contrôlables après un rattachement de domaine seul", () => {
+    const ressource = structuredClone(depot);
+    Object.assign(ressource, { domaineId: "calc", rangementAnalyseId: "analyse", rangementRevuLe: "2026-09-16", rangementOrigine: "assistant", rangementStatut: "rangee" });
+    const retour = ressource.analyses[0].restitution!;
+    if (retour.version === 2) retour.organisation.competences = [{ mode: "nouvelle", intitule: "Développer une expression", verbeAction: "appliquer", objet: "une expression", palier: "fondamentaux", importance: 1, domaine: { mode: "existant", id: "calc" }, justification: "", sources: [] }];
+    expect(choixInitial(ressource, referentiel).propositions).toEqual([]);
+    expect(rendu(ressource)).toContain("sélectionnez celles que vous souhaitez associer");
+    expect(rendu(ressource)).toContain("Développer une expression");
+    expect(rendu(ressource)).not.toContain('checked=""');
+  });
+  it("une destination manquante ne désactive pas le choix d'un autre document", () => {
+    const sansDomaine = structuredClone(depot);
+    sansDomaine.id = "incertain";
+    if (sansDomaine.analyses[0].restitution?.version === 2) sansDomaine.analyses[0].restitution.organisation.domaine = null;
+    const html = renderToStaticMarkup(createElement(FormulaireRelectureRessources, { depots: [depot, sansDomaine], referentiel, occupe: false, autres: 0, formulaireId: "lot", onEtatActions: () => undefined }));
+    const boutons = [...html.matchAll(/<button[^>]*>Appliquer ce choix<\/button>/g)].map((m) => m[0]);
+    expect(boutons).toHaveLength(2);
+    expect(boutons[0]).not.toContain('disabled=""');
+    expect(boutons[1]).toContain('disabled=""');
   });
   it("retrouve le choix humain sauvegardé avant la suggestion IA sans inventer son usage", () => {
     const ressource: DepotDocumentaire = { ...depot, brouillonClassement: { analyseId: "analyse", domaine: { mode: "nouveau", nom: "Mathématiques" }, codes: [], propositions: [], modifieLe: "2026-09-15T13:00:00Z", origine: "personne" } };

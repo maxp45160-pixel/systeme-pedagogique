@@ -3,7 +3,7 @@
 Version de travail du 16/09/2026. Annexe d'exigences du
 [dossier canonique](cadrage-direction.md), qui conserve les sources humaines.
 **Cahier des charges en cours : délégation d'organisation arbitrée le 16/09,
-modalités détaillées proposées, aucune implémentation autorisée.** Les finalités
+modalités détaillées proposées ; première tranche locale autorisée dans P01-0001.** Les finalités
 arbitrées ne valident pas automatiquement les comportements ci-dessous.
 
 ## Besoin et résultat
@@ -54,8 +54,10 @@ proposés ; aucun questionnaire systématique ni notification n'est décidé.
   provenance, séparation déclaré/observé/dérivé,
   pas de retry payant implicite, plan dérivé et séances acceptées uniquement.
 - **Contrat cible amendé par Maxime :** la confirmation groupée systématique cède
-  la place à la délégation avec contrôle ciblé. Le code conserve encore la
-  confirmation historique ; cet écart n'est pas une capacité construite.
+  la place à la délégation avec contrôle ciblé. P01-0001 réalise localement le seul
+  rattachement d'une nouvelle ressource à un domaine existant, après accord explicite
+  sur cette frontière ; les autres effets restent à contrôler. La cible complète
+  n'est pas démontrée par cette tranche.
 - **Proposé dans cette annexe :** contenu de la restitution, granularité des gestes,
   traitement d'ambiguïtés, critères de recette et ordre des priorités.
   La confirmation existante concerne domaines/compétences ; l'extension aux relations
@@ -198,7 +200,7 @@ reporté avec le plan. Les modalités et l'ordre détaillé ci-dessus restent pr
 Le cahier des charges doit conserver un volet plan à terme ; ni date, ni moteur,
 ni automatisation ne sont approuvés. Source exacte au dossier canonique.
 
-À préciser avant réalisation : granularité des connaissances/liens, portée exacte
+À préciser avant les tranches suivantes : granularité des connaissances/liens, portée exacte
 de la confirmation, correction et invalidation des propositions dépendantes,
 effacement/archivage des supports et propagation aux références, repères de source
 disponibles, niveau de couverture attendu, transfert reMarkable et inclusion des photos.
@@ -207,8 +209,9 @@ Ne pas convertir ces inconnues en permissions, suppressions ou choix techniques 
 **Arbitrage rendu :** organisation déléguée avec contrôle ciblé, choisi explicitement
 par Maxime le 16/09. Restent à arbitrer les catégories précises d'effets autorisés,
 la création de notions/domaines/compétences et les corrections de relations existantes.
-Les écritures applicatives suivent encore leur contrat implémenté jusqu'à un
-chantier de réalisation autorisé et vérifié.
+P01-0001 borne ensuite un premier effet autorisé : rattachement de domaine existant
+seul, décrit ci-dessous. Les autres effets suivent leur contrat implémenté jusqu'à
+un chantier de réalisation autorisé et vérifié.
 
 ## Frontière de délégation proposée
 
@@ -239,6 +242,19 @@ l'absence d'erreur. Réduire les effets délégués concernés si les regroupeme
 ou le coût de correction compromettent le bénéfice attendu. Seuils à éprouver.
 
 ## Existant et écart
+
+**Réalisation locale du 16/09 — P01-0001 :**
+[mandat, confrontation et preuves](../operations/runs/2026-09-16-p01-classification.md).
+Première analyse déclenchée d'une nouvelle ressource → domaine existant explicitement
+identifié et sourcé, sans incertitude signalée → rattachement réversible attribué
+à Twiny. Compétences et nouveaux domaines gardent leur contrôle humain. Correction
+et confirmation par document ; fermeture possible sans validation globale.
+Un rattachement délégué se retire sans supprimer le support ; ce refus humain
+ne redevient pas une suggestion adoptée lors d'une réanalyse ou réouverture.
+Le contrat de départ protège aussi brouillon, correction, analyse remplacée et
+résultat d'écriture incertain. Les tests synthétiques ne valident pas la pertinence
+sur corpus réel. P01-07 notionnel, rapprochements et mémoire de compréhension restent
+à construire ; P-02 demeure ultérieur.
 
 Réemploi à instruire : dépôt d'originaux, OCR conservé, restitution sourcée,
 confirmation de classement et reprise existantes (ADR-143/145). Le graphe actuel

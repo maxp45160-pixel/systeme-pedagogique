@@ -5,10 +5,9 @@
   "status": "blocked",
   "authorization": {
     "source": "ai-company/operations/runs/2026-09-15-lisibilite-classement.md",
-    "summary": "Maxime demande le parcours fluide le 16/09 et autorise explicitement une reprise des 13 transcriptions Mistral à 0,423 EUR maximum. Cette tentative interrompue a réservé 0,299466 EUR ; accord supplémentaire demandé avant nouvel appel. Budget pilote 5 EUR inchangé. Le vas-y suivant autorise une tentative supplémentaire à 0,423 EUR : réalisée, coût rapproché 0,138984 EUR, rejet des citations. Aucune dépense supplémentaire implicite."
+    "summary": "Maxime demande le parcours fluide le 16/09 et autorise explicitement une reprise des 13 transcriptions Mistral à 0,423 EUR maximum. Cette tentative interrompue a réservé 0,299466 EUR ; accord supplémentaire demandé avant nouvel appel. Budget pilote 5 EUR inchangé. Le vas-y suivant autorise une tentative supplémentaire à 0,423 EUR : réalisée, coût rapproché 0,138984 EUR, rejet des citations. Aucune dépense supplémentaire implicite. Transfert humain du 16/09 dans P01-0001 : composants tuteur et PRODUCT/ADR repris pour classement ciblé ; analyse fournisseur et essai payant restent UX-0001. La référence active docs/design/ASSISTANT_ENTREE_REFERENCE.md suit ce même transfert documentaire."
   },
   "scope": [
-    "app/src/components/tuteur",
     "app/src/lib/store/ressource-assistant-actions.ts",
     "app/src/lib/store/brouillon-classement-actions.ts",
     "app/src/lib/store/brouillon-classement-actions.test.ts",
@@ -16,10 +15,7 @@
     "app/src/lib/documents/depot.ts",
     "app/src/lib/documents/brouillon-classement.ts",
     "app/src/lib/documents/brouillon-classement.test.ts",
-    "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
     "docs/pilotes/DEPOT_DOCUMENTAIRE.md",
-    "PRODUCT.md",
-    "ARCHITECTURE_DECISIONS.md",
     "app/src/lib/store/ressource-assistant-actions.test.ts",
     "app/src/lib/store/classement-ressources-actions.ts",
     "app/src/lib/store/classement-ressources-actions.test.ts",
@@ -105,6 +101,6 @@
     "Aucun nouvel OCR, aucune confirmation de classement ni création de compétences par Codex.",
     "Tentative Mistral fc20d333-7cdd-4161-8eba-ed117525a315 à 22:32 UTC : 138984 micro-EUR décomptés, citation invalide, aucun OCR ni classement confirmé."
   ],
-  "updatedAt": "2026-09-15T22:36:23Z",
+  "updatedAt": "2026-09-16T17:51:39.408Z",
   "completion": null
 }

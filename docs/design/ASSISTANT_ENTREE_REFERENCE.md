@@ -2,17 +2,29 @@
 
 ## Parcours courant — amendement demandé le 16/09/2026
 
-Maxime a approuvé : **assistant → fenêtre de compréhension et classement →
-tableau de bord**. La fenêtre présente la synthèse courte, la couverture réelle
-et les chemins de domaines proposés. Le classement reste modifiable avant
-« Valider et voir mes priorités ». « Plus tard » conserve les ressources ;
-fermer et rouvrir ne relance pas l'analyse payante.
+Le dernier accord humain borne P01-0001 : **nouvelle ressource → première analyse
+→ domaine existant rattaché si le cas est admissible → contrôle par document**.
+La fenêtre présente la synthèse courte, la couverture réelle, le rattachement
+effectué et les points à contrôler. « Appliquer ce choix » concerne seulement le
+document visé. « Fermer » conserve les ressources sans appliquer les points en
+attente ; fermer et rouvrir ne relance ni analyse payante ni rangement automatique.
+Les sources humaines et preuves locales sont dans le
+[mandat P01-0001](../../ai-company/operations/runs/2026-09-16-p01-classification.md).
 
-Cet accord remplace le classement automatique décrit dans les relevés
-historiques ci-dessous. Les liens de dépôt reviennent dans l'assistant, sans
+Cet accord remplace la confirmation globale et la navigation forcée vers le tableau
+de bord des relevés historiques ci-dessous. Le rattachement automatique porte
+uniquement sur un domaine vivant explicitement identifié et sourcé, sans incertitude
+signalée ni choix/correction/brouillon antérieurs. Il ne crée ni domaine ni compétence
+et n'associe aucun code. « Retirer ce rattachement » conserve un refus humain, même
+après réanalyse ; le support reste disponible sans domaine. Les compétences proposées
+restent consultables et non précochées après délégation. Les liens de dépôt reviennent dans l'assistant, sans
 imposer une page de revue distincte. La confirmation réutilise les commandes
 du référentiel et permet un nouveau domaine sous un parent existant ; son usage
 doit être déclaré. Les résultats partiels d'écriture restent visibles.
+Une création humaine actualise les domaines et compétences disponibles pour les
+documents suivants, sans effacer leurs saisies. Une ambiguïté ne bloque pas les
+documents indépendants. La pertinence sur corpus réel reste à éprouver ; P01-0001
+ne clôt pas le pilote fournisseur d'UX-0001.
 
 Le tableau de bord utilise son moteur immédiat. Sans observation, il indique
 que le niveau reste à observer ; aucun score ne provient du document importé.
@@ -31,7 +43,7 @@ réécrite par ce changement d'instruction.
 La reprise suivante du 15/09 remplace les menus déroulants par un chemin lisible
 et « Modifier » : domaine existant, nouveau domaine ou nouveau sous-domaine,
 avec choix expliqués du type de matière. Depuis le 16/09, les changements sont
-directs : le bouton final conserve le brouillon puis confirme, sans bouton
+directs : le bouton du document conserve le brouillon puis confirme, sans bouton
 intermédiaire « Garder ce choix ». Les noms des fichiers restent visibles en
 en-tête. Les anciens liens devenus inaccessibles sont signalés séparément et
 peuvent être retirés de l'échange sans supprimer un document.

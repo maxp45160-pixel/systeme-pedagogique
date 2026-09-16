@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Bouton } from "@/components/ui/primitives";
 import { Modale } from "@/components/ui/modale";
 import { identifierRessourcesAssistantAction, lireRessourceAssistantAction } from "@/lib/store/ressource-assistant-actions";
+import { rattacherDomaineDelegueAction } from "@/lib/store/delegation-classement-actions";
 import { ActionsRelectureRessources, RelectureRessources, type EtatActionsRelecture } from "./modale-ressources";
 import { bilanSelectionAnalyses, eurosDocumentaires, referencesRessourcesConversation, type AutorisationAnalyseDepot } from "@/lib/documents/conversation-ressources";
 import type { PreparationAnalyseDepot } from "@/lib/documents/depot";
@@ -11,7 +12,18 @@ import type { PreparationAnalyseDepot } from "@/lib/documents/depot";
 import { lireConfigTuteur, type ConfigTuteurClient } from "@/lib/tutor/cle-client";
 
 type Ressource = Awaited<ReturnType<typeof lireRessourceAssistantAction>>;
-type Ligne = { id: string; titre?: string; introuvable?: boolean; ressource?: Ressource; preparation?: PreparationAnalyseDepot; erreur?: string; selectionnee: boolean };
+type Ligne = { id: string; titre?: string; introuvable?: boolean; ressource?: Ressource; preparation?: PreparationAnalyseDepot; erreur?: string; erreurClassement?: string; selectionnee: boolean };
+
+/** Seulement après le succès d'une première lecture déclenchée dans ce parcours. */
+export async function rattacherApresPremiereLecture(avant: Ligne, suivante: Ligne, analyseId: string): Promise<Ligne> {
+  if (!avant.ressource || avant.ressource.depot.analyses.length || !suivante.ressource) return suivante;
+  try {
+    const resultat = await rattacherDomaineDelegueAction(suivante.id, analyseId, suivante.ressource.depot.modifieLe);
+    return { ...suivante, ressource: { ...suivante.ressource, depot: resultat.ressource } };
+  } catch {
+    return { ...suivante, erreurClassement: "Le rattachement n’est pas confirmé. Relisez l’état enregistré avant de corriger ; l’analyse reste conservée." };
+  }
+}
 
 /** Un dépôt neuf seulement : rouvrir un résultat ou une erreur ne relance jamais l’IA. */
 export function selectionAnalyseAutomatique(lignes: Ligne[]): Ligne[] {
@@ -151,6 +163,7 @@ function RessourcesChargees({ compteId, cle, ouverte, onFermer, onRetirerReferen
           remplacer(suivante);
           const analyse = suivante.ressource?.depot.analyses.find((a) => a.empreinte === preparation.empreinte);
           if (!reponse.ok || analyse?.statut !== "terminee") throw new Error("Analyse non confirmée");
+          remplacer(await rattacherApresPremiereLecture(ligne, suivante, analyse.id));
         } catch {
           if (monte.current) setErreur(controle.signal.aborted ? "La lecture est arrêtée. Vos documents sont conservés." : "La lecture n’a pas abouti. Vos documents et les résultats déjà obtenus sont conservés.");
           break;
@@ -208,7 +221,8 @@ function RessourcesChargees({ compteId, cle, ouverte, onFermer, onRetirerReferen
       {lignes.filter((l) => l.introuvable).map((ligne) => <div key={ligne.id} className="rounded-lg border border-bordure bg-surface p-3 text-sm"><p>Un ancien lien de cet échange ne correspond plus à un document accessible. Il n’est pas inclus dans le classement.</p>{onRetirerReference && <Bouton taille="petite" variante="discret" onClick={() => onRetirerReference(ligne.id)}>Retirer ce lien de l’échange</Bouton>}</div>)}
       {occupe && <div className="flex flex-wrap items-center gap-3 rounded-lg bg-primaire/5 p-3"><p role="status" className="text-sm">{occupe}</p>{analyseEnCours && <Bouton taille="petite" variante="discret" onClick={() => controleAnalyse.current?.abort()}>Arrêter</Bouton>}</div>}
       {!chargement && !occupe && anomalie && <div className="space-y-2"><p role="alert" className="text-sm text-danger">{anomalie}</p>{reprises.length > 0 && <p className="text-xs text-texte-attenue">{reprises[0].preparation?.fournisseur === "qwen" ? "Qwen" : "Mistral"} · {reprises.map((l) => l.ressource?.depot.titre).join(", ")} · {reprises.reduce((n, l) => n + (l.preparation?.tranches.reduce((s, t) => s + t.pages.length, 0) ?? 0), 0)} pages · au maximum {reprises[0].preparation?.fournisseur === "qwen" ? `${(coutReprise / 1_000_000).toFixed(3)} $` : eurosDocumentaires(coutReprise)}.</p>}<Bouton taille="petite" variante="secondaire" onClick={() => void reessayer()}>Réessayer</Bouton></div>}
-      {disponibles.length > 0 && <RelectureRessources depots={depots} chargement={chargement} occupe={Boolean(occupe) || chargement || analyseEnCours || Boolean(anomalie)} formulaireId={formulaireId} onEtatActions={setEtatActions} onActualiser={() => void relire()} afficherTitres={!uniques} />}
+      {lignes.filter((l) => l.erreurClassement).map((ligne) => <div key={`classement-${ligne.id}`} className="space-y-2"><p role="alert" className="text-sm text-danger">{ligne.ressource?.depot.titre} : {ligne.erreurClassement}</p><Bouton type="button" variante="secondaire" disabled={Boolean(occupe)} onClick={() => void relire()}>Relire l’état enregistré sans relancer l’IA</Bouton></div>)}
+      {disponibles.length > 0 && <RelectureRessources depots={depots} chargement={chargement} occupe={Boolean(occupe) || chargement || analyseEnCours} formulaireId={formulaireId} onEtatActions={setEtatActions} onActualiser={() => void relire()} afficherTitres={!uniques} />}
       {chargement && <p role="status" className="text-sm text-texte-attenue">Préparation de vos documents…</p>}
     </div>
   </Modale>;

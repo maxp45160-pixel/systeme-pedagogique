@@ -7,6 +7,8 @@ import type { DepotDocumentaire, AnalyseDepot } from "@/lib/documents/depot";
 import type { ContexteOrganisationDepot } from "@/lib/documents/organisation-depot";
 import type { ChoixClassementRessource } from "@/lib/documents/classement-ressources";
 import { cheminDomaineClassement as cheminDomaine } from "@/lib/documents/classement-ressources";
+import { evaluerDelegationClassement } from "@/lib/documents/delegation-classement";
+import { annulerRattachementDelegueAction } from "@/lib/store/delegation-classement-actions";
 import { lireClassementRessourcesAction, confirmerClassementRessourcesAction } from "@/lib/store/classement-ressources-actions";
 import { motifRefusUsageDomaine } from "@/lib/domain/usage-domaine";
 import { enregistrerBrouillonClassementAction } from "@/lib/store/brouillon-classement-actions";
@@ -33,21 +35,24 @@ export function choixInitial(depot: DepotDocumentaire, referentiel: ContexteOrga
   const retour = derniereAnalyse(depot)?.restitution;
   const organisation = retour?.version === 2 ? retour.organisation : undefined;
   const domaine = organisation?.domaine;
-  const destination = brouillon ? brouillon.domaine?.mode === "existant" ? brouillon.domaine.id : brouillon.domaine?.mode === "nouveau" ? "nouveau" : "" : depot.domaineId ?? (domaine?.mode === "existant" ? domaine.id : domaine?.mode === "nouveau" ? "nouveau" : "");
-  const classementDeCetteAnalyse = depot.rangementAnalyseId === analyseId;
-  const codes = classementDeCetteAnalyse ? depot.competencesLiees : [...depot.competencesLiees, ...(organisation?.competences.flatMap((c) => c.mode === "existante" ? [c.code] : []) ?? [])];
+  const retraitConserve = depot.rangementOrigine === "personne" && depot.rangementStatut === "a-trier" && !depot.domaineId;
+  const destination = brouillon ? brouillon.domaine?.mode === "existant" ? brouillon.domaine.id : brouillon.domaine?.mode === "nouveau" ? "nouveau" : "" : retraitConserve ? "" : depot.domaineId ?? (domaine?.mode === "existant" ? domaine.id : domaine?.mode === "nouveau" ? "nouveau" : "");
+  // Le rattachement délégué ne valide aucune proposition de compétence.
+  const classementDeCetteAnalyse = depot.rangementAnalyseId === analyseId && depot.rangementOrigine !== "assistant";
+  const garderLiensActuels = classementDeCetteAnalyse || depot.rangementOrigine === "assistant" || retraitConserve;
+  const codes = garderLiensActuels ? depot.competencesLiees : [...depot.competencesLiees, ...(organisation?.competences.flatMap((c) => c.mode === "existante" ? [c.code] : []) ?? [])];
   const nouveauDomaineHumain = brouillon?.domaine?.mode === "nouveau" ? brouillon.domaine : undefined;
   return {
     analyseId, version: depot.modifieLe,
     destination: destination === "nouveau" || referentiel.domaines.some((d) => d.id === destination) ? destination : "",
     nom: nouveauDomaineHumain?.nom ?? (domaine?.mode === "nouveau" ? domaine.nom : ""), parentId: nouveauDomaineHumain?.parentId ?? "", usage: nouveauDomaineHumain?.usage?.type ?? "", annee: nouveauDomaineHumain?.usage?.anneeAcademique ?? "",
     codes: [...new Set(codes)].filter((code) => referentiel.competences.some((c) => c.code === code)),
-    propositions: classementDeCetteAnalyse ? [] : organisation?.competences.flatMap((c, i) => c.mode === "nouvelle" ? [i] : []) ?? [],
+    propositions: garderLiensActuels ? [] : organisation?.competences.flatMap((c, i) => c.mode === "nouvelle" ? [i] : []) ?? [],
   };
 }
 
-export function ActionsRelectureRessources({ formulaireId, etat, avecResultats, onFermer }: { formulaireId: string; etat: EtatActionsRelecture; avecResultats: boolean; onFermer: () => void }) {
-  return <><Bouton variante="discret" onClick={onFermer}>Plus tard</Bouton>{avecResultats && <Bouton variante="principal" type="submit" form={formulaireId} disabled={etat.disabled}>{etat.enregistrement ? "Enregistrement…" : "Valider et voir mes priorités"}</Bouton>}</>;
+export function ActionsRelectureRessources({ etat, onFermer }: { formulaireId: string; etat: EtatActionsRelecture; avecResultats: boolean; onFermer: () => void }) {
+  return <Bouton variante="discret" disabled={etat.enregistrement} onClick={onFermer}>Fermer</Bouton>;
 }
 
 export function RelectureRessources({ depots, chargement, occupe, formulaireId, onEtatActions, onActualiser, afficherTitres }: Props) {
@@ -66,13 +71,13 @@ export function RelectureRessources({ depots, chargement, occupe, formulaireId, 
   const pretes = depots.filter((d) => derniereAnalyse(d));
   if (!pretes.length) return <p className="text-sm leading-relaxed text-texte-attenue">{chargement ? "Nous retrouvons vos ressources et les lectures déjà enregistrées…" : "Vos originaux sont conservés. Après la lecture, vous pourrez vérifier la synthèse et choisir leur classement ici."}</p>;
   if (!contexte) return <div className="space-y-2"><p role={erreur ? "alert" : "status"} className="text-sm">{erreur ?? "Préparation du classement…"}</p>{erreur && <Bouton variante="secondaire" onClick={() => setRevision((r) => r + 1)}>Réessayer sans relancer l’IA</Bouton>}</div>;
-  return <FormulaireRelectureRessources depots={pretes} referentiel={contexte} occupe={occupe || chargement} autres={depots.length - pretes.length} formulaireId={formulaireId} onEtatActions={onEtatActions} onActualiser={onActualiser} afficherTitres={afficherTitres} />;
+  return <FormulaireRelectureRessources depots={pretes} referentiel={contexte} onReferentielActualise={setContexte} occupe={occupe || chargement} autres={depots.length - pretes.length} formulaireId={formulaireId} onEtatActions={onEtatActions} onActualiser={onActualiser} afficherTitres={afficherTitres} />;
 }
 
-export function FormulaireRelectureRessources({ depots, referentiel, occupe, autres, formulaireId, onEtatActions, onActualiser, afficherTitres = true }: { depots: DepotDocumentaire[]; referentiel: ContexteOrganisationDepot; occupe: boolean; autres: number; formulaireId: string; onEtatActions: (etat: EtatActionsRelecture) => void; onActualiser?: (id: string) => void; afficherTitres?: boolean }) {
+export function FormulaireRelectureRessources({ depots, referentiel, onReferentielActualise, occupe, autres, formulaireId, onEtatActions, onActualiser, afficherTitres = true }: { depots: DepotDocumentaire[]; referentiel: ContexteOrganisationDepot; onReferentielActualise?: (contexte: ContexteOrganisationDepot) => void; occupe: boolean; autres: number; formulaireId: string; onEtatActions: (etat: EtatActionsRelecture) => void; onActualiser?: (id: string) => void; afficherTitres?: boolean }) {
   const router = useRouter();
   const [choix, setChoix] = useState<Record<string, Choix>>(() => Object.fromEntries(depots.map((d) => [d.id, choixInitial(d, referentiel)])));
-  const [confirmes, setConfirmes] = useState<string[]>([]);
+  const [modifies, setModifies] = useState<string[]>([]);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [enregistrement, setEnregistrement] = useState(false);
   const [synthesesOuvertes, setSynthesesOuvertes] = useState<Record<string, boolean>>({});
@@ -82,12 +87,11 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
   const verrou = useRef(false);
   const depotsCourants = depots.map((d) => ressourcesEnregistrees[d.id]?.versionSource === d.modifieLe ? ressourcesEnregistrees[d.id].ressource : d);
   const domaines = [...referentiel.domaines].sort((a, b) => cheminDomaine(a.id, referentiel.domaines).localeCompare(cheminDomaine(b.id, referentiel.domaines), "fr"));
-  const restants = depotsCourants.filter((d) => !confirmes.includes(d.id));
   const choixDepot = (depot: DepotDocumentaire) => choix[depot.id]?.analyseId === derniereAnalyse(depot)?.id && choix[depot.id]?.version === depot.modifieLe ? choix[depot.id] : choixInitial(depot, referentiel);
   const choixComplet = (c: Choix) => Boolean(c.destination && c.codes.length + c.propositions.length <= 30 && (c.destination !== "nouveau" || (c.nom.trim() && (!c.sousDomaine || c.parentId) && c.usage && (c.usage !== "continu" || c.codes.length + c.propositions.length > 0) && !motifRefusUsageDomaine({ type: c.usage, ...(c.usage === "module" ? { anneeAcademique: c.annee } : {}) }))));
-  const disabled = occupe || enregistrement || !restants.every((d) => choixComplet(choixDepot(d)));
+  const disabled = occupe || enregistrement;
   useEffect(() => { onEtatActions({ disabled, enregistrement }); }, [disabled, enregistrement, onEtatActions]);
-  function modifier(id: string, changement: Partial<Choix>) { const depot = depotsCourants.find((d) => d.id === id)!; setChoix((avant) => ({ ...avant, [id]: { ...choixDepot(depot), ...changement } })); }
+  function modifier(id: string, changement: Partial<Choix>) { const depot = depotsCourants.find((d) => d.id === id)!; setModifies((avant) => [...new Set([...avant, id])]); setChoix((avant) => ({ ...avant, [id]: { ...choixDepot(depot), ...changement } })); }
   async function sauvegarderChoix(depot: DepotDocumentaire, saisie: ClassementSaisi) {
     const c = { ...choixDepot(depot), ...saisie };
       const conserve = await enregistrerBrouillonClassementAction({ documentId: depot.id, updatedAtAttendu: depot.modifieLe, analyseId: c.analyseId,
@@ -97,12 +101,14 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
       setChoix((avant) => ({ ...avant, [depot.id]: choixInitial(conserve, referentiel) }));
       return conserve;
   }
-  async function confirmer() {
+  async function confirmer(documentId: string) {
     if (verrou.current || disabled) return;
+    const selection = depotsCourants.filter((d) => d.id === documentId);
+    if (!selection.length || !selection.every((d) => choixComplet(choixDepot(d)))) return;
     verrou.current = true; setEnregistrement(true); setErreurs({});
     try {
       const etapes = [];
-      for (const d of depotsCourants) etapes.push({ ressource: confirmes.includes(d.id) ? d : await sauvegarderChoix(d, choixDepot(d)), choix: choixDepot(d) });
+      for (const d of selection) etapes.push({ ressource: await sauvegarderChoix(d, choixDepot(d)), choix: choixDepot(d) });
       const demandes: ChoixClassementRessource[] = etapes.map(({ ressource: d, choix: c }) => {
         return { documentId: d.id, analyseId: derniereAnalyse(d)!.id, updatedAtAttendu: d.modifieLe,
           domaine: c.destination === "nouveau" ? { mode: "nouveau", nom: c.nom.trim(), ...(c.parentId ? { parentId: c.parentId } : {}), usage: { type: c.usage, ...(c.usage === "module" ? { anneeAcademique: c.annee.trim() } : {}) } } : { mode: "existant", id: c.destination },
@@ -110,23 +116,57 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
       });
       const resultat = await confirmerClassementRessourcesAction(demandes);
       const reussis = resultat.resultats.filter((r) => r.statut === "confirmee").map((r) => r.documentId);
-      const tous = [...new Set([...confirmes, ...reussis])];
-      setConfirmes(tous);
+      setModifies((avant) => avant.filter((id) => !reussis.includes(id)));
+      for (const resultatRessource of resultat.resultats) {
+        if (resultatRessource.ressource) {
+          const ressource = resultatRessource.ressource;
+          setRessourcesEnregistrees((avant) => ({ ...avant, [ressource.id]: { versionSource: depots.find((d) => d.id === ressource.id)!.modifieLe, ressource } }));
+          // Le référentiel peut avoir grandi : ne pas filtrer ici les nouveaux
+          // domaine/codes à travers le contexte précédant la confirmation.
+          setChoix((avant) => { const suivant = { ...avant }; delete suivant[ressource.id]; return suivant; });
+          setEditions((avant) => ({ ...avant, [ressource.id]: false }));
+        }
+      }
       setErreurs(Object.fromEntries(resultat.resultats.filter((r) => r.statut !== "confirmee").map((r) => [r.documentId, r.erreur ?? "Le classement n’est pas confirmé. Les autres ressources restent conservées."])));
-      if (depots.every((d) => tous.includes(d.id))) { router.push("/app?classique=1"); router.refresh(); }
+      if (reussis.length) {
+        try {
+          const relu = await lireClassementRessourcesAction(reussis);
+          onReferentielActualise?.(relu.referentiel);
+        } catch {
+          setErreurs((avant) => ({ ...avant, global: "Le choix est enregistré, mais la liste des domaines n’a pas pu être actualisée. Rouvrez la fenêtre avant de classer un autre document." }));
+        }
+        router.refresh();
+      }
     } catch (incident) {
       setErreurs({ global: incident instanceof Error ? incident.message : "Le classement n’a pas été confirmé. Vos ressources sont conservées ; aucun nouvel appel IA n’a été lancé." });
     } finally { verrou.current = false; setEnregistrement(false); }
   }
-  return <form id={formulaireId} className="space-y-6" onSubmit={(event) => { event.preventDefault(); void confirmer(); }}>
+  async function retirerRattachement(depot: DepotDocumentaire) {
+    if (verrou.current || disabled || !depot.rangementAnalyseId) return;
+    verrou.current = true; setEnregistrement(true); setErreurs({});
+    try {
+      const { ressource, raison } = await annulerRattachementDelegueAction(depot.id, depot.rangementAnalyseId, depot.modifieLe);
+      setRessourcesEnregistrees((avant) => ({ ...avant, [depot.id]: { versionSource: depots.find((d) => d.id === depot.id)!.modifieLe, ressource } }));
+      setChoix((avant) => ({ ...avant, [depot.id]: choixInitial(ressource, referentiel) }));
+      setModifies((avant) => avant.filter((id) => id !== depot.id));
+      setEditions((avant) => ({ ...avant, [depot.id]: false }));
+      if (ressource.domaineId) setErreurs({ [depot.id]: raison ?? "Le classement a changé ; le rattachement n’a pas été retiré. Relisez l’état enregistré." });
+      router.refresh();
+    } catch (incident) {
+      setErreurs({ [depot.id]: incident instanceof Error ? incident.message : "Le retrait n’est pas confirmé. Relisez l’état enregistré." });
+    } finally { verrou.current = false; setEnregistrement(false); }
+  }
+  return <form id={formulaireId} className="space-y-6" onSubmit={(event) => { event.preventDefault(); }}>
+    <p className="text-sm text-texte-attenue">Les nouveaux documents sont rattachés aux domaines existants lorsque leur analyse le permet. Contrôlez seulement les points à préciser ; vous pouvez fermer et retrouver vos originaux sans tout valider.</p>
     {depotsCourants.map((depot) => {
       const analyse = derniereAnalyse(depot)!;
       const retour = analyse.restitution!;
       const organisation = retour.version === 2 ? retour.organisation : undefined;
       const sujets = retour.elements.filter((e) => e.nature === "sujet");
       const c = choixDepot(depot);
-      const confirme = confirmes.includes(depot.id);
-      const bloque = occupe || enregistrement || confirme;
+      const confirme = Boolean(depot.rangementRevuLe && depot.rangementStatut !== "a-trier" && !depot.brouillonClassement && !modifies.includes(depot.id));
+      const delegue = confirme && depot.rangementOrigine === "assistant";
+      const bloque = occupe || enregistrement;
       const enEdition = Boolean(editions[depot.id]);
       const competences = organisation?.competences ?? [];
       const synthese = (sujets.length ? sujets : retour.elements)[0];
@@ -138,6 +178,7 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
       const nouvellesCompetencesARelire = depot.brouillonClassement && depot.brouillonClassement.analyseId !== analyse.id;
       const sourcesId = `${formulaireId}-sources-${depot.id}`;
       const incertitudes = retour.elements.filter((e) => e.nature === "incertitude");
+      const delegation = evaluerDelegationClassement(depot, analyse.id, referentiel);
       const pagesSource = (sources: { page?: number }[]) => {
         const pages = [...new Set(sources.flatMap((s) => s.page === undefined ? [] : [s.page]))].sort((a, b) => a - b);
         return pages.length ? `${pages.length > 1 ? "Pages" : "Page"} ${pages.join(", ")}` : "";
@@ -156,11 +197,16 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
           <p className="text-xs text-texte-attenue">{retour.couvertures.map((couverture) => `${couverture.nom} : ${new Set(couverture.pagesLues).size} page(s) lue(s) sur ${couverture.totalPages}`).join(" · ") || "Lecture de la note jointe."}</p>
         </div>
         <fieldset disabled={bloque} className="space-y-3 rounded-carte border border-bordure p-4">
-          <legend className="px-1 text-sm font-semibold">{confirme ? "Classement confirmé" : "Où ranger ce document ?"}</legend>
+          <legend className="px-1 text-sm font-semibold">{delegue ? "Rattachement effectué" : confirme ? "Classement enregistré" : "Où ranger ce document ?"}</legend>
           {nouvellesCompetencesARelire && <p className="text-xs text-texte-attenue">Votre choix de domaine est conservé. Les compétences de cette nouvelle analyse sont à relire.</p>}
           {enEdition
             ? <EditeurClassementRessource choix={c} domaines={domaines} bloque={bloque} onChanger={(saisie) => modifier(depot.id, saisie)} onReduire={() => setEditions((avant) => ({ ...avant, [depot.id]: false }))} />
-            : <CarteClassementRessource choix={c} domaines={domaines} bloque={bloque} provenance={brouillonConserve ? "Votre choix est conservé. Il reste à confirmer." : depot.domaineId ? "Classement actuel, conservé jusqu’à votre confirmation." : suggestionRetenue ? "Suggestion de l’IA · à vérifier" : "Votre choix · à confirmer"} onModifier={() => setEditions((avant) => ({ ...avant, [depot.id]: true }))} />}
+            : <CarteClassementRessource choix={c} domaines={domaines} bloque={bloque} provenance={brouillonConserve ? "Votre choix est conservé. Il reste à confirmer." : delegue ? "Rattaché par Twiny · vous pouvez corriger ce choix." : depot.domaineId ? "Classement actuel conservé." : suggestionRetenue ? "Suggestion de l’IA · à vérifier" : "Votre choix · à confirmer"} onModifier={() => setEditions((avant) => ({ ...avant, [depot.id]: true }))} />}
+          {delegue && !depot.competencesLiees.length && <p className="text-xs text-texte-attenue">Ce rattachement n’a créé ni associé aucune compétence.</p>}
+          {delegue && competences.length > 0 && <p className="text-xs text-texte-attenue">Les compétences ci-dessous restent facultatives : sélectionnez celles que vous souhaitez associer.</p>}
+          {depot.rangementOrigine === "assistant" && depot.domaineId && <Bouton type="button" variante="discret" disabled={bloque} onClick={() => void retirerRattachement(depot)}>Retirer ce rattachement</Bouton>}
+          {depot.rangementOrigine === "personne" && depot.rangementStatut === "a-trier" && !depot.domaineId && <p className="text-xs text-texte-attenue">Votre retrait est conservé. Le document reste disponible sans domaine.</p>}
+          {!confirme && delegation.statut === "a-controler" && <p className="text-xs text-texte-attenue">{delegation.raison}</p>}
           {c.destination === "nouveau" && c.usage === "continu" && !c.codes.length && !c.propositions.length && <p className="text-xs text-texte-attenue">Un nouveau domaine de progression continue demande au moins une compétence associée. Vous pouvez aussi choisir un domaine existant.</p>}
           {c.codes.length + c.propositions.length > 30 && <p className="text-xs text-danger">Gardez au maximum 30 compétences pour cette ressource.</p>}
         </fieldset>
@@ -188,6 +234,8 @@ export function FormulaireRelectureRessources({ depots, referentiel, occupe, aut
           <section aria-label="Passages cités" className="space-y-3"><h3 className="text-sm font-medium">Passages cités</h3>{retour.elements.map((e) => <div key={e.id}><p className="text-sm leading-relaxed">{e.texte}</p>{e.sources.map((source, i) => <blockquote key={i} className="mt-1 border-l-2 border-bordure pl-3 text-xs leading-relaxed text-texte-attenue">{source.citation}{source.page ? ` — page PDF ${source.page}` : ""}</blockquote>)}</div>)}</section>
           {competences.some((p) => p.sources.length) && <section aria-label="Sources des compétences" className="space-y-3"><h3 className="text-sm font-medium">Sources des compétences</h3>{competences.map((p, index) => p.sources.length > 0 && <div key={index}><p className="text-sm font-medium">{p.mode === "nouvelle" ? p.intitule : referentiel.competences.find((c) => c.code === p.code)?.intitule ?? "Compétence proposée"}</p>{p.sources.map((source, i) => <blockquote key={i} className="mt-1 border-l-2 border-bordure pl-3 text-xs leading-relaxed text-texte-attenue">{source.citation}{source.page ? ` — page PDF ${source.page}` : ""}</blockquote>)}</div>)}</section>}
         </section>
+        {(!confirme || (delegue && (c.codes.length + c.propositions.length > 0))) && <Bouton type="button" variante="principal" disabled={bloque || !choixComplet(c)} onClick={() => void confirmer(depot.id)}>{enregistrement ? "Enregistrement…" : delegue ? "Appliquer les compétences choisies" : "Appliquer ce choix"}</Bouton>}
+        <a className="block text-sm text-primaire hover:underline" href={`/atelier?document=${encodeURIComponent(depot.id)}`}>Retrouver ce document dans Mes cours</a>
         {erreurs[depot.id] && <div className="space-y-2"><p role="alert" className="text-sm text-danger">{erreurs[depot.id]}</p>{onActualiser && <Bouton type="button" taille="petite" variante="secondaire" disabled={occupe || enregistrement} onClick={() => onActualiser(depot.id)}>Relire l’état enregistré</Bouton>}</div>}
       </section>;
     })}

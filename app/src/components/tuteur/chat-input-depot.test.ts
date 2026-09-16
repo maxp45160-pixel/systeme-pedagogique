@@ -8,6 +8,8 @@ import { ChatInput } from "./chat-input";
 it("réunit le consentement fournisseur et le dépôt en une action explicite",()=>{
   const html=renderToStaticMarkup(createElement(ChatInput,{onEnvoyer:vi.fn(),onDepotConserve:vi.fn(),onArreter:vi.fn(),enCours:false,cleAbsente:true,usage:null,saisieInitiale:"",fournisseurDocumentaire:"mistral"}));
   expect(html).toContain("Préparer ma proposition");
+  expect(html).toContain("rattacher chaque nouveau document à un domaine existant");
+  expect(html).toContain("les compétences restent à votre choix");
   expect(html).toContain("Mistral");expect(html).toContain("20 premières pages");
   expect(html).toContain("0,583");
   expect(html).not.toContain("Autoriser et analyser");

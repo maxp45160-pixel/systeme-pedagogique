@@ -1,6 +1,6 @@
 # PRODUCT.md — Système pédagogique
 
-## État courant — 15/09/2026
+## État courant — 16/09/2026
 
 Le noyau relie exercices, tentatives, observations sourcées et recommandations.
 L'expérience vise d'abord les étudiants, avec un référentiel durable par compte,
@@ -16,10 +16,22 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   commence automatiquement ; elle s'arrête au premier échec, sans réessai payant
   automatique. Rouvrir une ressource ne lance rien. Les retours documentaires ne rejoignent pas le
   contexte permanent du chat et ne produisent aucune mesure.
-- **Organisation confirmée dans l'assistant.** Après l'analyse, une fenêtre
+- **Classement délégué borné, contrôle par document.** La première tranche locale
+  P01-0001 applique l'accord humain du 16/09 : après la première analyse déclenchée
+  d'une nouvelle ressource, rattacher seulement son domaine existant explicitement
+  identifié et sourcé, sans incertitude signalée. Aucun domaine ni compétence n'est
+  créé par cette délégation ; aucun lien de compétence n'est ajouté. Les choix,
+  corrections et brouillons antérieurs sont préservés. Le résultat porte son origine
+  Twiny et reste corrigeable. « Retirer ce rattachement » conserve un refus humain
+  et laisse l'original sans domaine ; une réanalyse ne rétablit pas ce lien.
+  Les réouvertures ne classent ni n'analysent automatiquement.
+  Après ce rattachement, les compétences proposées ne sont pas précochées :
+  une correction du domaine seul ne les associe pas implicitement.
+  Après l'analyse, une fenêtre
   présente une synthèse courte et des propositions de classement modifiables
-  en domaines et sous-domaines. La personne confirme le lot avant les écritures,
-  puis accède aux priorités du tableau de bord ; elle peut aussi différer.
+  en domaines et sous-domaines. La personne applique les choix restant à contrôler
+  par document, ou ferme sans les appliquer. Un point incomplet ne bloque pas
+  les choix des autres documents ; aucun passage par les priorités n'est imposé.
   Une ambiguïté ou une archive bloque la création ; un nouveau domaine demande
   son usage explicite. Les codes viennent des commandes applicatives. Une
   nouvelle analyse n'écrase pas le classement déjà accepté. Les liens de dépôt
@@ -29,8 +41,8 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   dans un autre domaine ne justifie pas d'y ranger le document. Le référentiel
   existant ne limite pas les sujets recevables. La présence d'une citation ne
   garantit pas à elle seule la pertinence du classement proposé.
-  Le rangement se modifie directement dans la proposition. Le bouton final
-  « Valider et voir mes priorités » conserve le choix puis confirme le lot,
+  Le rangement se modifie directement dans la proposition. Le bouton du document
+  « Appliquer ce choix » conserve le choix puis confirme ce document,
   sans étape « Garder ce choix ». Les brouillons antérieurs restent repris
   jusqu'à confirmation. Les fichiers sont
   identifiés dans la fenêtre ; un lien devenu inaccessible est distingué d'une
@@ -42,7 +54,7 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   reprise de synthèse réutilise les transcriptions conservées sans refaire l'OCR.
   La consigne couvre les gestes
   distincts des chapitres, sans plafond artificiel de deux compétences ni
-  promesse d'exhaustivité. Le domaine choisi reste proposé à la relecture ;
+  promesse d'exhaustivité. Un domaine hors délégation reste proposé à la relecture ;
   les anciennes sélections de compétences ne sont pas appliquées aux nouveaux indices.
 - **Contexte encore partiel.** La conversation peut enregistrer un examen avec
   une date absolue complète ; une date relative appelle une précision. Son fil
@@ -146,6 +158,15 @@ d'intention. Un événement de calendrier ne mesure rien et une séance manquée
 produit aucune preuve de compétence.
 
 ### Une mémoire réutilisable au service du prochain apprentissage
+
+**Arbitrages humains du 16/09 :** la mémoire personnelle et le suivi longitudinal
+priment ; sujets, contenus et idées peuvent entrer sans devenir des compétences.
+L'organisation est déléguée avec contrôle ciblé. La classification fiable est le
+premier jalon ; le travail proposé par le moteur vient ensuite, le plan reste
+attendu à terme. Le [dossier de direction](ai-company/product/cadrage-direction.md)
+conserve les sources exactes et [P-01](ai-company/product/parcours-depot-memoire.md)
+les exigences encore proposées. Le rattachement de domaine borné ci-dessus ne
+démontre ni la mémoire notionnelle transversale ni le suivi de compréhension cible.
 
 **Direction produit précisée par Maxime les 14–15/09/2026 ; réalisation à
 éprouver.** Ce qui est appris aujourd'hui doit pouvoir être retrouvé, relié
