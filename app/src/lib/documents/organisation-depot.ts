@@ -5,6 +5,7 @@ import { mettreAJourSections } from "./sections-markdown";
 
 export interface DomaineOrganisationDepot {
   id: string;
+  parentId?: string;
   nom: string;
   prefixe: string;
   description: string;
@@ -142,6 +143,8 @@ export function appliquerRangementDepot(contenuMd: string, entree: RangementRess
     rangement_analyse_id:entree.analyseId,
     rangement_empreinte:empreinte,
     rangement_statut:entree.aTrier ? "a-trier" : "rangee",
+    // Toute application ou correction effective remplace le brouillon préparatoire.
+    classement_brouillon:"",
   });
   return mettreAJourSections(suivant,[SECTION_COMPETENCES_RESSOURCE],{
     [SECTION_COMPETENCES_RESSOURCE]:listeMarkdown([...new Set(entree.codes)].sort()).join("\n"),

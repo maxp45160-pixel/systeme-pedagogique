@@ -23,8 +23,8 @@ mécanisme d'exécution.
 
 Les agents utilisent par défaut le modèle, l'effort et les permissions hérités de la tâche.
 L'[essai compute sur cinq missions](../decisions/DEC-0002-essai-manuel-compute.md)
-permet au coordinateur de sélectionner modèle et effort au lancement selon les
-options de l'outil ; recommandation et choix réel sont consignés dans le registre.
+porte sur USE-0002 à USE-0006. Sa revue ne démontre pas de gain comparatif ;
+les nouvelles missions conservent l'héritage sans prolongation automatique.
 Aucune dépendance, clé API supplémentaire, infrastructure cloud ou permission
 élargie n'est ajoutée. Leur travail consomme l'usage Codex disponible.
 
@@ -44,10 +44,11 @@ Aucune dépendance, clé API supplémentaire, infrastructure cloud ou permission
 5. Le coordinateur attend leurs résultats, vérifie les éléments importants,
    conserve les désaccords et rend une synthèse exploitable. Il peut leur
    demander une suite pendant la vie de la mission.
-6. Lorsque cela relève du chantier autorisé, les faits et décisions utiles sont
-   reportés dans les bons fichiers avec source/date. Ce report est explicite,
-   pas un archivage automatique des conversations ; une recommandation ne
-   devient pas une décision par simple écriture.
+6. Le coordinateur actualise la [fiche de mission](missions/README.md) après
+   résultat significatif et avant transfert : accord, propriétaire, preuves,
+   effets externes et prochaine action. Il corrige les index touchés et clôt
+   selon le [cycle de mission](../workflows/mission.md). Les transcriptions
+   complètes ne sont pas archivées ; une recommandation reste une proposition.
 
 Une analyse produit n'autorise pas de coder. Une réalisation explicitement
 demandée autorise ses modifications et vérifications ; le CTO peut alors utiliser
@@ -74,9 +75,10 @@ accessibles ; les seuls faits utiles reportés dans la mémoire servent de repri
 
 ## Limites explicites
 
-L'autonomie est celle d'une mission active. Aucun horaire, réveil automatique,
-veille permanente ou travail continu lorsque vous êtes absent n'est configuré.
-Un tel fonctionnement demande un déclencheur et un périmètre explicites.
+Le [mandat V2](autonomy.md) permet d'enchaîner le travail autorisé dans une tâche
+active. Maxime a choisi le 15/09 le déclenchement à la demande pendant la
+vérification de la V2. Aucun horaire, réveil automatique ou travail hors session
+n'est configuré. File vide ou résultat atteint : synthèse puis arrêt.
 
 Les agents peuvent être critiques sans avoir raison ; plusieurs agents peuvent
 partager la même erreur. Ni leur accord ni un test vert ne valide votre vision.

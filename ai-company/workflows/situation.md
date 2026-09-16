@@ -7,8 +7,12 @@ Lecture seule par défaut ; un bilan ne lance aucun chantier.
 
 1. Lire [Chief of Staff](../agents/chief-of-staff.md) et
    [contrat commun](../agents/common.md).
+   À la reprise, `npm run agents:resume` retrouve décisions, fiches ouvertes,
+   blocages et preuves déclaratives/périmées. Lire les sources, pas seulement la vue.
 2. Lire l'état courant de [PRODUCT](../../PRODUCT.md), les
    [priorités](../company/priorities.md) et l'[état institutionnel](../company/current-state.md).
+   Les [fiches de mission](../operations/missions/README.md) donnent le point de
+   reprise ; les résultats historiques ne remplacent pas leur état actif.
 3. Collecter `git status --short`, `git log -8 --date=short --format=...`,
    `git diff --stat` et `git diff --cached --stat`. Inclure les fichiers non
    suivis et suppressions. Les diff statistiques ne disent pas ce que fait une fonction.

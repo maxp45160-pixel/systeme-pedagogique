@@ -14,3 +14,7 @@ Relevé : 15/09/2026. Lire [PRODUCT](../../PRODUCT.md) avant tout arbitrage.
 Ne pas convertir ses concepts en tables ni annoncer sa totalité comme construite.
 Une nouvelle idée doit passer le critère d'arrêt de PRODUCT et indiquer le
 problème observé auquel elle répond.
+
+Le [dossier de direction du 16/09](cadrage-direction.md) prépare le cahier des
+charges : critique, exigences proposées, recettes et arbitrages ouverts. Aucune
+de ses recommandations ne remplace PRODUCT ou une décision humaine.

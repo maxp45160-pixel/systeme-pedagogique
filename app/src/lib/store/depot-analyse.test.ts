@@ -25,7 +25,56 @@ beforeEach(()=>{
   m.referentiel.mockResolvedValue({domaines:[{id:"physique",nom:"Physique",description:"Sciences",archive:false}],actifs:[{code:"PHY-01",intitule:"Analyser une situation physique",domaine:"physique"}]});
 });
 function ajouterPdf(){depot.pieces=[{id:"p",nom:"Notes.pdf",mimeType:"application/pdf",tailleOctets:3} as DepotDocumentaire["pieces"][number]];}
+function lectureTerminee() {
+  ajouterPdf(); depot.version=2;
+  depot.analyses=[{id:"ancienne",empreinte:"ancienne-empreinte",statut:"terminee",pages:[page,{...page,page:2}],restitution:{version:2}} as DepotDocumentaire["analyses"][number]];
+}
 describe("orchestration documentaire persistante",()=>{
+  it("conserve un diagnostic lisible lorsqu’une interruption ne porte aucun message", async () => {
+    m.restituer.mockRejectedValue(new Error(""));
+    const preparation = await preparerAnalyseDepot("d");
+    await analyserDepot("d", preparation.empreinte, 20, false);
+    expect(m.modifier).toHaveBeenCalledWith("a", "t", expect.objectContaining({ erreur: "La lecture documentaire a été interrompue sans message d’erreur." }));
+  });
+  it("prépare le complément sur les pages conservées sans appel payant, OCR ni écriture",async()=>{
+    lectureTerminee();
+    expect((await preparerAnalyseDepot("d")).disponible).toBe(false);
+    const p=await preparerAnalyseDepot("d",20,false,"ancienne");
+    expect(p.disponible).toBe(true);expect(p.syntheseDe).toBe("ancienne");
+    expect(p.tranches[0].pages).toEqual([1,2]);expect(p.pagesRestantes).toBe(0);
+    expect(p.coutMaximumMicroEuros).toBe(422880);
+    expect(m.ocr).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();expect(m.claim).not.toHaveBeenCalled();
+  });
+  it("le complément réutilise les transcriptions et laisse le classement intact",async()=>{
+    lectureTerminee();
+    const avant=JSON.stringify(depot);
+    const p=await preparerAnalyseDepot("d",20,false,"ancienne");
+    await analyserDepot("d",p.empreinte,20,false,undefined,undefined,"ancienne");
+    expect(m.ocr).not.toHaveBeenCalled();expect(m.restituer.mock.calls[0][1]).toEqual([page,{...page,page:2}]);
+    expect(m.claim).toHaveBeenCalledWith("d",p.empreinte,false);
+    expect(JSON.stringify(depot)).toBe(avant);
+  });
+  it("le reçu du complément empêche une nouvelle facturation au rejeu",async()=>{
+    lectureTerminee();
+    const p=await preparerAnalyseDepot("d",20,false,"ancienne");
+    depot.analyses.push({...depot.analyses[0],id:"nouvelle",empreinte:p.empreinte});
+    expect((await preparerAnalyseDepot("d",20,false,"ancienne")).disponible).toBe(false);
+    await analyserDepot("d",p.empreinte,20,false,undefined,undefined,"ancienne");
+    expect(m.claim).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it("refuse le complément si la source a changé, est absente ou dépasse la sélection",async()=>{
+    lectureTerminee();
+    await expect(preparerAnalyseDepot("d",20,false,"inconnue")).rejects.toThrow("disponible");
+    await expect(preparerAnalyseDepot("d",1,false,"ancienne")).rejects.toThrow("limite");
+    depot.analyses[0].pages[0]={...page,empreinteSource:"autre"};
+    await expect(preparerAnalyseDepot("d",20,false,"ancienne")).rejects.toThrow("correspondent");
+    expect(m.claim).not.toHaveBeenCalled();expect(m.ocr).not.toHaveBeenCalled();
+  });
+  it("le consentement initial ne peut pas autoriser un complément",async()=>{
+    lectureTerminee(); const normal=await preparerAnalyseDepot("d");
+    await expect(analyserDepot("d",normal.empreinte,20,false,undefined,undefined,"ancienne")).rejects.toThrow("changé");
+    expect(m.claim).not.toHaveBeenCalled();
+  });
   it("accepte un dossier de plus de dix fichiers sans élargir la tranche ni appeler l'IA",async()=>{
     ajouterPdf();
     depot.pieces=Array.from({length:25},(_,i)=>({...depot.pieces[0],id:`p${i}`}));

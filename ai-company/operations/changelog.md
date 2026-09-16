@@ -3,6 +3,33 @@
 Ce journal suit l'AI Company. Les changements produit restent dans leurs registres
 actifs et Git ; ils ne sont pas attribués à ce chantier.
 
+## 16/09/2026 — Direction critique et reprise contrôlée
+
+Mandat [DIR-0001](runs/2026-09-16-direction-mandat.md) : consolider l'équipe
+existante et préparer un cahier des charges exigeant. `agents:resume` retrouve
+décisions et missions ; les nouvelles fiches peuvent lier leurs contrôles à
+des empreintes et utiliser une mise à jour conditionnelle. Les droits hérités
+et leurs limites restent explicites. Le [copil](../workflows/copil.md) conduit
+au [dossier proposé](../product/cadrage-direction.md), sans pivot auto-validé.
+Revue QA et reprise Chief sans historique réalisées ; résultats et limites
+dans le [rapport](runs/2026-09-16-direction.md) et la
+[fiche](missions/DIR-0001.json). Aucun produit ou réglage global modifié.
+
+## 15/09/2026 — V2 : mandat, reprise et amélioration évaluée
+
+Maxime demande l'implémentation de l'audit puis choisit le déclenchement à la
+demande. [DEC-0003](../decisions/DEC-0003-autonomie-et-reprise.md) conserve cet accord.
+Les cinq profils accèdent au mandat et aux workflows de reprise/amélioration
+via le contrat commun. Une fiche d'exécution unique porte le point de reprise ;
+les index périmés sont réconciliés. La lecture ciblée autorise aussi la vérification.
+
+Commandes de missions, scénarios et scoreur sans dépendance ; raccordement des
+contrôles agents à `npm run verify`. Revue QA : deux collisions reproduites puis
+corrigées. Les tests et l'évaluation indépendante sont détaillés dans le
+[rapport de livraison](runs/2026-09-15-v2-agents.md) ; état dans
+[ORG-0001](missions/ORG-0001.json). Aucun gain comparatif, statut produit ou
+travail permanent déduit de ces résultats. Aucun changement applicatif par cette mission.
+
 ## 15/09/2026 — essai manuel compute autorisé
 
 Après revue native Product/CTO/QA de la spec Compute Router, Maxime accepte

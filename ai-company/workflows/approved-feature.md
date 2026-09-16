@@ -5,6 +5,8 @@
 Demande explicite, périmètre et critères attendus. Retrouver la source de l'accord
 et les décisions existantes ; ne pas demander une deuxième validation d'un accord clair.
 Si un choix important manque, préparer ses options et poursuivre l'indépendant.
+Ouvrir ou reprendre la [fiche de mission](mission.md) ; elle conserve l'accord,
+les critères, les chemins possédés et la prochaine action.
 
 ## Déroulement
 
@@ -24,6 +26,10 @@ Si un choix important manque, préparer ses options et poursuivre l'indépendant
    pas régularisé après coup.
 7. Mettre à jour le registre actif/changelog ; Chief of Staff actualise les index
    uniquement si objectif, état, risque ou décision ont changé.
+8. Clore la fiche avec preuves et contrôles liés à la version ; vérifier la
+   cohérence avec `npm run agents:check`, puis poursuivre seulement si le mandat
+   couvre une autre mission admissible. Une vérification indispensable bloquée
+   ne devient pas une réussite.
 
 Avant toute DB : inspection réelle Supabase, ADR, dépendances, migration adaptée
 et état d'application documenté. Jamais de rejeu déduit du seul fichier local.

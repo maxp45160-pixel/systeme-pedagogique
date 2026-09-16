@@ -26,6 +26,7 @@ import { Bouton } from "@/components/ui/primitives";
 import { PaletteFormules } from "@/components/ui/palette-formules";
 import { insererFormuleDansEditeur } from "@/lib/documents/insertion-formule-editeur";
 import { usePiecesConversation } from "./pieces-conversation";
+import { autorisationDepot, eurosDocumentaires, type AutorisationAnalyseDepot } from "@/lib/documents/conversation-ressources";
 
 export const ChatInput = memo(function ChatInput({
   onEnvoyer,
@@ -39,9 +40,11 @@ export const ChatInput = memo(function ChatInput({
   onDepotConserve,
   depotBloque = false,
   focusSignal,
+  fournisseurDocumentaire = "mistral",
 }: {
   onEnvoyer: (texte: string) => void | boolean | Promise<void | boolean>;
-  onDepotConserve?: (texte: string, recu: string, ressources: string[]) => void;
+  onDepotConserve?: (texte: string, recu: string, ressources: string[], autorisation?: AutorisationAnalyseDepot) => void;
+  fournisseurDocumentaire?: AutorisationAnalyseDepot["fournisseur"];
   depotBloque?: boolean;
   focusSignal?: string;
   /** Présent seulement en secours sans clé (`copieSecours`). */
@@ -57,7 +60,9 @@ export const ChatInput = memo(function ChatInput({
   const [saisie, setSaisie] = useState(saisieInitiale);
   const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
   const champRef = useRef<HTMLDivElement>(null);
-  const pieces = usePiecesConversation(onDepotConserve);
+  const accordDepot = useRef<AutorisationAnalyseDepot | undefined>(undefined);
+  const pieces = usePiecesConversation(onDepotConserve ? (texte,recu,ressources) => onDepotConserve(texte,recu,ressources,accordDepot.current) : undefined);
+  const autorisation = autorisationDepot(fournisseurDocumentaire,pieces.fichiers.length,Boolean(saisie.trim()));
   const verrouEnvoi = useRef(false);
   const bloque = enCours || pieces.occupe;
   useEffect(() => { if (focusSignal) champRef.current?.focus(); }, [focusSignal]);
@@ -68,6 +73,7 @@ export const ChatInput = memo(function ChatInput({
     if (avecFichiers && depotBloque) return;
     if (!avecFichiers && (!texte || cleAbsente)) return;
     verrouEnvoi.current = true;
+    if (avecFichiers) accordDepot.current = autorisation;
     try {
       const accepte = avecFichiers ? await pieces.envoyer(texte) : await onEnvoyer(texte);
       if (accepte !== false) setSaisie("");
@@ -102,6 +108,7 @@ export const ChatInput = memo(function ChatInput({
         />
       </div>
       {onDepotConserve && pieces.liste}
+      {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">En préparant votre proposition, vous envoyez ces fichiers (jusqu’aux 20 premières pages de chacun) et votre texte à {fournisseurDocumentaire === "qwen" ? "Qwen (Alibaba Cloud)" : "Mistral"}. Coût maximal : {fournisseurDocumentaire === "qwen" ? (autorisation.coutMaximum/1_000_000).toLocaleString("fr-FR",{style:"currency",currency:"USD",maximumFractionDigits:3}) : eurosDocumentaires(autorisation.coutMaximum)}.</p>}
 
       {/*
         Point d'entrée du focus quand le chat est monté dans une modale.
@@ -156,7 +163,7 @@ export const ChatInput = memo(function ChatInput({
           )}
           {/* Pendant la rédaction, le bouton devient la seule action utile.
               « En cours… » désactivé n'offrait aucune sortie. */}
-          {pieces.occupe ? <Bouton disabled taille="petite">Conservation des ressources…</Bouton> : enCours ? (
+          {pieces.occupe ? <Bouton disabled taille="petite">Préparation de vos documents…</Bouton> : enCours ? (
             <Bouton onClick={onArreter} variante="secondaire" taille="petite">
               Arrêter
             </Bouton>
@@ -167,7 +174,7 @@ export const ChatInput = memo(function ChatInput({
               variante="principal"
               taille="petite"
             >
-              Envoyer
+              {pieces.fichiers.length ? "Préparer ma proposition" : "Envoyer"}
             </Bouton>
           )}
         </div>

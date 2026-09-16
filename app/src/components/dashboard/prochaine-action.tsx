@@ -87,7 +87,7 @@ function lienActivite(action: RecommendedLearningAction, instant?: ContexteInsta
    * inutilisé dans une URL partageable laisse croire qu'il fait quelque chose.
    */
   const noteId = action.activityId ? idDocumentDepuisActivite(action.activityId) : null;
-  if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}&retour=${encodeURIComponent("/")}`;
+  if (noteId) return `/atelier?note=${encodeURIComponent(noteId)}&retour=${encodeURIComponent("/app?classique=1")}`;
   /*
    * Les exécutions et demandes de génération n'ont plus de surface : la
    * machinerie « Produire » est retirée (ADR-070) et l'arbitrage ne reçoit
@@ -166,8 +166,8 @@ export function CarteProchaineAction({
       <Carte accent>
         <div data-tour="action-prioritaire">
           <EtatVide
-            titre="Rien à vous proposer pour l'instant"
-            message="Vous avez fait le tour pour le moment. Ajoutez un cours ou une note, et on repart de là."
+            titre="Pas encore de prochaine activité pour ce créneau"
+            message="Vous pouvez ajuster le temps disponible, ajouter une ressource ou choisir un travail dans le cahier."
             action={actionPrincipale ?? <Link href="/seances" className={classesLienBouton("secondaire")}>Ouvrir le cahier</Link>}
           />
         </div>
@@ -349,6 +349,9 @@ function CarteActionActivite({
 }) {
   const estNote = Boolean(action.activityId && idDocumentDepuisActivite(action.activityId));
   const estRessource = action.activityId?.startsWith(PREFIXE_ACTIVITE_RESSOURCE) ?? false;
+  const motifPrincipal = (estRessource
+    ? facteursInstant.find((facteur) => facteur.kind === "ressource-documentaire")
+    : undefined) ?? facteursInstant[0];
   const codeRefusable = action.target.skillCodes[0];
   const libelle = action.source === "reprise"
     ? "Reprendre l’activité"
@@ -375,7 +378,7 @@ function CarteActionActivite({
               <span className="size-1.5 rounded-full bg-primaire animate-pulse" aria-hidden />
               Priorité du jour
             </span>
-            <Etiquette ton="primaire">{LIBELLES_FAMILLE[action.family]}</Etiquette>
+            <Etiquette ton="primaire">{estRessource ? "Étudier une ressource" : LIBELLES_FAMILLE[action.family]}</Etiquette>
             <span className="text-xs text-texte-attenue">≈ {formatDuree(action.durationMinutes)}</span>
             {action.segmented && <Etiquette ton="info">Reprenable plus tard</Etiquette>}
           </div>
@@ -392,8 +395,8 @@ function CarteActionActivite({
           {action.title}
         </h2>
 
-        {facteursInstant[0] && (
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-texte-attenue sm:text-base">{facteursInstant[0].label}</p>
+        {motifPrincipal && (
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-texte-attenue sm:text-base">{motifPrincipal.label}</p>
         )}
 
         {action.target.skillCodes.length > 0 && (

@@ -25,7 +25,6 @@ import { BandeauRepriseBienveillante } from "@/components/dashboard/bandeau-repr
 import { construireSeancesDuJour } from "@/lib/engine/seances-du-jour";
 import { calibragesPourModale, competencesPourModale } from "@/lib/domain/proprietes-generation";
 import { estPiloteDepot } from "@/lib/store/depot-budget";
-import { AccueilDepot } from "@/components/depot/accueil-depot";
 import { AccueilAssistant } from "@/components/tuteur/accueil-assistant";
 
 export default async function TableauDeBord(props: {
@@ -33,10 +32,7 @@ export default async function TableauDeBord(props: {
 }) {
   const recherche = await props.searchParams;
   if (recherche.classique !== "1" && await estPiloteDepot()) {
-    if (!recherche.depot) {
-      return <Suspense fallback={<SquelettePage />}><AccueilAssistant /></Suspense>;
-    }
-    return <Suspense fallback={<SquelettePage />}><AccueilDepot documentId={recherche.depot} nouveau={recherche.nouveau === "1"}/></Suspense>;
+    return <Suspense fallback={<SquelettePage />}><AccueilAssistant ressourcesInitiales={recherche.depot ? [recherche.depot] : []} /></Suspense>;
   }
   const instant = lireContexteInstant(recherche);
   const dateJour = formatDateAujourdhui();
@@ -69,20 +65,10 @@ async function ContenuTableauDeBord({
   dateJour: string;
   explicationEnregistree: boolean;
 }) {
-  /*
-   * Compte neuf : il n'y a rien à mettre sur ce tableau de bord, et une grille
-   * de tirets ne dit pas quoi faire. On envoie construire le référentiel — la
-   * seule action possible tant qu'il n'existe pas (ADR-026).
-   *
-   * Le test passe sur une lecture légère du seul référentiel, AVANT
-   * `chargerContexte()` : sur un compte neuf, le contexte complet (états,
-   * recommandations, calibrations…) serait calculé puis jeté à 100 % par la
-   * redirection. `chargerReferentiel` est mémoïsé par requête : sur un compte
-   * établi, l'appel ne coûte rien de plus — `chargerContexte` reprend le
-   * résultat en cache quand il emprunte le chemin lent.
-   */
+  // L'entrée libre peut proposer un travail documentaire avant la première
+  // compétence. Différer le classement ne renvoie pas vers l'ancien onboarding.
   const apercuReferentiel = await chargerReferentiel();
-  if (apercuReferentiel.skills.length === 0) {
+  if (apercuReferentiel.skills.length === 0 && !await estPiloteDepot()) {
     redirect("/demarrer");
   }
 
@@ -175,6 +161,14 @@ async function ContenuTableauDeBord({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
+          <form action="/app" className="flex items-center gap-2 text-sm">
+            <input type="hidden" name="classique" value="1" />
+            <input type="hidden" name="capacite" value={instant.capacite} />
+            <label htmlFor="temps-disponible" className="text-texte-attenue">Temps disponible</label>
+            <input id="temps-disponible" name="temps" type="number" min="5" max="480" defaultValue={instant.tempsMin} key={instant.tempsMin} className="w-20 rounded-lg border border-bordure bg-surface px-2 py-2 text-texte" />
+            <span className="text-texte-attenue">min</span>
+            <button type="submit" className={classesLienBouton("secondaire", "petite")}>Actualiser</button>
+          </form>
           {!aUneSeanceAujourdhui && (
             <p className="flex items-center gap-2 text-sm text-texte-attenue">
               <IconeCalendrier className="size-4 text-texte-discret" aria-hidden />
@@ -191,6 +185,12 @@ async function ContenuTableauDeBord({
           </Link>
         </div>
       </div>
+
+      {aucuneObservation && (
+        <p className="text-sm text-texte-attenue">
+          Voici des points de départ pour travailler. Votre niveau reste à observer au fil des activités.
+        </p>
+      )}
 
       {aUneSeanceAujourdhui && (
         <BlocAujourdHui

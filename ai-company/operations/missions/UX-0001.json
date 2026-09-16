@@ -1,0 +1,110 @@
+{
+  "id": "UX-0001",
+  "title": "Fluidifier le dépôt et la proposition documentaire",
+  "objective": "Saisie puis proposition automatique claire : synthèse, organisation et compétences, avec une validation finale vers les priorités.",
+  "status": "blocked",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-15-lisibilite-classement.md",
+    "summary": "Maxime demande le parcours fluide le 16/09 et autorise explicitement une reprise des 13 transcriptions Mistral à 0,423 EUR maximum. Cette tentative interrompue a réservé 0,299466 EUR ; accord supplémentaire demandé avant nouvel appel. Budget pilote 5 EUR inchangé. Le vas-y suivant autorise une tentative supplémentaire à 0,423 EUR : réalisée, coût rapproché 0,138984 EUR, rejet des citations. Aucune dépense supplémentaire implicite."
+  },
+  "scope": [
+    "app/src/components/tuteur",
+    "app/src/lib/store/ressource-assistant-actions.ts",
+    "app/src/lib/store/brouillon-classement-actions.ts",
+    "app/src/lib/store/brouillon-classement-actions.test.ts",
+    "app/src/lib/store/depot-documents.ts",
+    "app/src/lib/documents/depot.ts",
+    "app/src/lib/documents/brouillon-classement.ts",
+    "app/src/lib/documents/brouillon-classement.test.ts",
+    "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+    "docs/pilotes/DEPOT_DOCUMENTAIRE.md",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "app/src/lib/store/ressource-assistant-actions.test.ts",
+    "app/src/lib/store/classement-ressources-actions.ts",
+    "app/src/lib/store/classement-ressources-actions.test.ts",
+    "app/src/lib/store/depot-documents.test.ts",
+    "app/src/lib/documents/classement-ressources.ts",
+    "app/src/lib/documents/organisation-depot.ts",
+    "app/src/lib/documents/organisation-depot.test.ts",
+    "app/src/lib/store/depot-analyse.ts",
+    "app/src/lib/store/depot-analyse.test.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-mistral.test.ts",
+    "app/src/lib/tutor/depot-qwen.ts",
+    "app/src/lib/documents/depot-validation.ts",
+    "app/src/lib/documents/depot-validation.test.ts",
+    "app/src/app/api/depot/analyser",
+    "app/src/lib/tutor/depot-qwen.test.ts",
+    "app/src/lib/documents/depot-tarifs.test.ts",
+    "app/src/lib/documents/validation-rangement.ts",
+    "app/supabase/schema.sql",
+    "app/supabase/migrations",
+    "AGENTS.md",
+    "app/src/lib/documents/conversation-ressources.ts",
+    "app/src/lib/documents/conversation-ressources.test.ts"
+  ],
+  "owner": "01a0a641-26c9-7591-9276-a8e6990c3159",
+  "baseCommit": "60c8617",
+  "acceptance": [
+    "Nouveau dépôt autorisé : proposition automatique sans étapes intermédiaires",
+    "Synthèse courte, classement modifiable directement et compétences sourcées visibles",
+    "Validation finale unique vers les priorités, sans mesure créée par le document",
+    "Historique et erreur ne déclenchent aucune relance payante automatique",
+    "Tests, types et lint passent ; nouvelle synthèse réelle et fenêtre vérifiées"
+  ],
+  "nextAction": "Obtenir un accord borné pour vérifier la correction des citations sur les 13 transcriptions Mistral ; ne pas relancer automatiquement.",
+  "blocker": "La reprise supplémentaire autorisée a échoué sur une citation recomposée. Consigne corrigée et testée localement ; nouvelle vérification Mistral payante non encore autorisée.",
+  "checks": [
+    {
+      "command": "Tests ciblés UI, consentement, cache, fournisseurs et tarifs : 59 tests/7 fichiers",
+      "result": "passed",
+      "revision": "60c8617 + reprise détaillée au compte rendu",
+      "at": "2026-09-15T21:50:26Z"
+    },
+    {
+      "command": "TypeScript et ESLint ciblé après raccordement final",
+      "result": "passed",
+      "revision": "Diff local UX-0001",
+      "at": "2026-09-15T21:50:26Z"
+    },
+    {
+      "revision": "60c8617 + dernier diff local décrit au compte rendu",
+      "at": "2026-09-15T21:50:59Z",
+      "result": "passed",
+      "command": "npm run verify --workspace=app -- --maxWorkers=2 : 2342 tests/229 fichiers, TypeScript et lint sans erreur"
+    },
+    {
+      "revision": "Fiche de reprise et diff courant",
+      "at": "2026-09-15T21:50:59Z",
+      "result": "passed",
+      "command": "npm run agents:check ; git diff --check"
+    },
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2 : 2353 tests / 230 fichiers ; 30 tests ciblés après correction interruption",
+      "result": "passed",
+      "revision": "Diff local UX-0001 du 16 septembre",
+      "at": "2026-09-15T22:28:06Z"
+    },
+    {
+      "command": "Navigateur et Supabase : reprise du livret autorisée",
+      "result": "failed",
+      "revision": "Réponse reçue, citation du sommaire recomposée rejetée ; 0,138984 EUR décomptés",
+      "at": "2026-09-15T22:36:23Z"
+    },
+    {
+      "command": "36 tests validation et fournisseurs après précision des citations de tableaux",
+      "result": "passed",
+      "revision": "Diff local UX-0001",
+      "at": "2026-09-15T22:36:23Z"
+    }
+  ],
+  "externalActions": [
+    "Migration distante 20260915220807_depot_restitution_v2_sortie_8192 appliquée ; bornes et rejeu vérifiés en transaction annulée.",
+    "Essai Mistral explicitement autorisé : 0af7ae38-6427-46d5-923d-887e011c8d04 interrompu, 299466 micro-EUR réservés, facture inconnue.",
+    "Aucun nouvel OCR, aucune confirmation de classement ni création de compétences par Codex.",
+    "Tentative Mistral fc20d333-7cdd-4161-8eba-ed117525a315 à 22:32 UTC : 138984 micro-EUR décomptés, citation invalide, aucun OCR ni classement confirmé."
+  ],
+  "updatedAt": "2026-09-15T22:36:23Z",
+  "completion": null
+}

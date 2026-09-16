@@ -1,8 +1,6 @@
 import type { ConfigTuteurClient } from "@/lib/tutor/cle-client";
 import { analyserDepot, preparerAnalyseDepot } from "@/lib/store/depot-analyse";
 import { objetDepot, texteDepot, entierDepot } from "@/lib/documents/depot-validation";
-import { completerRessourceAnalysee } from "@/lib/store/dialogue-ressource";
-import { derniereOrganisationDepot } from "@/lib/documents/organisation-depot";
 
 export const maxDuration = 300;
 export const runtime = "nodejs";
@@ -10,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const query = new URL(request.url).searchParams;
-    return Response.json(await preparerAnalyseDepot(texteDepot(query.get("documentId"),120),entierDepot(Number(query.get("maximum") ?? 20)),query.get("fournisseur")==="qwen"), { headers:{"Cache-Control":"no-store"} });
+    return Response.json(await preparerAnalyseDepot(texteDepot(query.get("documentId"),120),entierDepot(Number(query.get("maximum") ?? 20)),query.get("fournisseur")==="qwen",query.has("syntheseDe") ? texteDepot(query.get("syntheseDe"),120) : undefined), { headers:{"Cache-Control":"no-store"} });
   } catch (e) { return Response.json({message:e instanceof Error ? e.message : "Préparation indisponible."},{status:400}); }
 }
 export async function POST(request: Request) {
@@ -29,15 +27,8 @@ export async function POST(request: Request) {
     }
     const body = objetDepot(JSON.parse(Buffer.concat(morceaux).toString("utf8")));
     if (body.consentement !== true) return Response.json({message:"L'analyse externe doit être demandée explicitement."},{status:400});
-    const depot = await analyserDepot(texteDepot(body.documentId,120),texteDepot(body.empreinte,64),entierDepot(body.maximum ?? 20),body.reprise===true,request.signal,...(body.config ? [body.config as ConfigTuteurClient] : []));
-    if (body.organiser === true) {
-      const analyse = depot.analyses.find((a) => a.empreinte === body.empreinte);
-      const derniere = derniereOrganisationDepot(depot);
-      if (analyse?.statut === "terminee" && derniere?.analyseId === analyse.id) {
-        return Response.json(await completerRessourceAnalysee(depot.id, analyse.id), { headers: { "Cache-Control": "no-store" } });
-      }
-      return Response.json({ depot, aPreciser: [] }, { headers: { "Cache-Control": "no-store" } });
-    }
+    if (body.organiser === true) return Response.json({message:"Le classement demande maintenant une confirmation après l'analyse. Actualisez l'assistant."},{status:400});
+    const depot = await analyserDepot(texteDepot(body.documentId,120),texteDepot(body.empreinte,64),entierDepot(body.maximum ?? 20),body.reprise===true,request.signal,body.config as ConfigTuteurClient | undefined,body.syntheseDe !== undefined ? texteDepot(body.syntheseDe,120) : undefined);
     return Response.json(depot,{headers:{"Cache-Control":"no-store"}});
   } catch (e) { return Response.json({message:e instanceof Error ? e.message : "Analyse indisponible."},{status:400}); }
 }

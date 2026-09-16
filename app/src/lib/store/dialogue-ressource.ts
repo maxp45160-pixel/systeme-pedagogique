@@ -1,8 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { lireDocument, modifierDocument, resynchroniserLiensDocument } from "./documents";
-import { lireContexteOrganisationDepotAction, organiserRessourceAssistantAction } from "./depot-actions";
-import { organiserDepuisReferentiel } from "@/lib/documents/organisation-assistant";
+import { lireContexteOrganisationDepotAction } from "./depot-actions";
 import { creerBranche, taguerCompetences } from "./referentiel-actions";
 import { lireReferentiel } from "./referentiel";
 import { definirChampsFrontMatter } from "@/lib/documents/markdown";
@@ -82,9 +81,9 @@ export function verifierChoixRessource(choix: ChoixRessource, charge: DialogueCh
 }
 
 /** Prépare la commande avant ses effets. Rejouer la même clé réutilise exactement cette commande. */
-export async function preparerOperationRessource(charge: DialogueCharge, cle: string, choix: ChoixRessource, messages: MessageTuteur[], automatique = false) {
+export async function preparerOperationRessource(charge: DialogueCharge, cle: string, choix: ChoixRessource, messages: MessageTuteur[]) {
   verifierChoixRessource(choix, charge, messages);
-  const operation: Operation = { cle, choix, analyseId: charge.derniere.analyseId, base: base(charge.depot), terminee: false, recu: "", automatique };
+  const operation: Operation = { cle, choix, analyseId: charge.derniere.analyseId, base: base(charge.depot), terminee: false, recu: "", automatique: false };
   const md = definirChampsFrontMatter(charge.document.contenuMd, champOperation(operation));
   await modifierDocument(charge.depot.id, md, false, charge.depot.modifieLe);
 }
@@ -92,6 +91,7 @@ export async function preparerOperationRessource(charge: DialogueCharge, cle: st
 export async function executerOperationRessource(charge: DialogueCharge, cle: string): Promise<string> {
   const operation = verifierOperationRessource(charge, cle);
   if (!operation) throw new Error("La commande n'a pas été retrouvée.");
+  if (operation.automatique) throw new Error("Cette ancienne organisation automatique doit être confirmée dans la fenêtre de classement.");
   if (operation.terminee) { await resynchroniserLiensDocument(charge.depot.id); return operation.recu; }
   if (operation.analyseId !== charge.derniere.analyseId || operation.base !== base(charge.depot)) throw new Error("La ressource a été modifiée depuis cette demande. Ouvrez une nouvelle correction.");
   const { choix } = operation;
@@ -151,16 +151,6 @@ export async function executerOperationRessource(charge: DialogueCharge, cle: st
   const actuel = await lireReferentiel();
   if (choix.action === "creer") rangement.aTrier = charge.derniere.organisation.competences.some((p) => p.mode === "nouvelle" && !actuel.actifs.some((s) => normalise(s.intitule) === normalise(p.intitule))) || !rangement.domaineId;
   rangement.codes = [...codes].sort();
-  if (operation.automatique) {
-    const proposition = organiserDepuisReferentiel(depot, {
-      compteId: charge.referentiel.compteId,
-      domaines: actuel.domaines.filter((d) => !d.archive),
-      competences: actuel.actifs.map((s) => ({ code: s.code, intitule: s.intitule, domaine: s.domaine, domaineNom: "" })),
-    }).rangement;
-    if (!proposition) throw new Error("La ressource a déjà un rangement ; il ne sera pas remplacé automatiquement.");
-    Object.assign(rangement, proposition);
-    rangement.codes = [...new Set([...rangement.codes, ...codes])].sort();
-  }
   validerRangementActif(rangement, actuel.domaines, actuel.actifs);
   operation.terminee = true;
   operation.recu = choix.action === "creer" ? `Compétences créées ou réutilisées et liées à « ${rangement.titre} » : ${ajouts.join(" ; ")}. Aucun niveau ni séance créé.` : `Correction enregistrée pour « ${rangement.titre} » (${choix.champ}). ${choix.champ === "retirer-liens" ? "Les compétences elles-mêmes sont conservées." : "Les autres ressources restent inchangées."}`;
@@ -168,25 +158,4 @@ export async function executerOperationRessource(charge: DialogueCharge, cle: st
   await modifierDocument(depot.id, md, false, depot.modifieLe);
   await resynchroniserLiensDocument(depot.id);
   return operation.recu;
-}
-
-/** Le consentement Analyser et ranger couvre les nouveautés sourcées d'un domaine déjà déclaré. */
-export async function completerRessourceAnalysee(documentId: string, analyseId: string) {
-  let charge = await chargerDialogueRessource(documentId);
-  if (charge.derniere.analyseId !== analyseId) throw new Error("L'analyse a changé.");
-  const cle = empreinte(["creation-sourcee", documentId, analyseId]);
-  const operation = verifierOperationRessource(charge, cle);
-  if (!operation && charge.depot.rangementRevuLe) return organiserRessourceAssistantAction(documentId, analyseId);
-  if (!operation) {
-    const propositions = charge.derniere.organisation.competences.flatMap((p, i) => {
-      if (p.mode !== "nouvelle") return [];
-      const cible = p.domaine;
-      return charge.referentiel.domaines.some((d) => cible.mode === "existant" ? d.id === cible.id : normalise(d.nom) === normalise(cible.nom)) ? [String(i)] : [];
-    });
-    if (!propositions.length) return organiserRessourceAssistantAction(documentId, analyseId);
-    await preparerOperationRessource(charge, cle, { action: "creer", reponse: "", champ: "", valeur: "", codes: [], propositions, usage: "", annee: "", citationUsage: "" }, [], true);
-    charge = await chargerDialogueRessource(documentId);
-  }
-  await executerOperationRessource(charge, cle);
-  return organiserRessourceAssistantAction(documentId, analyseId);
 }

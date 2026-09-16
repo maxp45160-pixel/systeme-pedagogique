@@ -10,10 +10,16 @@ Les Markdown portent leur mémoire et leurs contrats ; les exécutions sont rée
 Dans une tâche Codex ouverte sur ce dépôt, demander par exemple :
 
 - « Où en est Twiny ? » — [bilan Chief of Staff](workflows/situation.md).
+- « Copil, challenge notre direction et détaille le cahier des charges » —
+  [direction critique](workflows/copil.md), [dossier en cours](product/cadrage-direction.md).
+- Nouvelle session : `npm run agents:resume` ; reprendre ce chantier :
+  `npm run agents:resume -- DIR-0001`. [Guide et limites](operations/automation.md).
 - « Analyse cette idée : … » — [nouvelle idée](workflows/new-idea.md), sans code automatique.
 - « CTO, analyse ce choix technique : … » — [contrat CTO](agents/cto.md).
 - « QA, attaque cette proposition : … » — [contrat QA](agents/qa.md).
 - « Research, quelles preuves soutiennent cette hypothèse : … ? » — [contrat Research](agents/research.md).
+- « Reprends les missions autorisées » — [cycle de mission](workflows/mission.md),
+  dans les limites du [mandat V2](operations/autonomy.md).
 
 [AGENTS](../AGENTS.md) contient le routage vers les [profils natifs](../.codex/agents/).
 Exemple : « Product, prends en charge cette idée, confronte-la à la vision et
@@ -25,7 +31,9 @@ Un [premier bilan sourcé](operations/situation-initiale.md) illustre la sortie.
 ## Reprendre en quelques minutes
 
 1. Lire [les instructions](../AGENTS.md), puis [l'état courant](company/current-state.md).
-2. Lire [les priorités](company/priorities.md) et les seules sources pertinentes.
+2. Lire [les priorités](company/priorities.md), la [fiche de mission](operations/missions/README.md)
+   et les seules sources pertinentes. `npm run agents:next` indique la prochaine
+   mission admissible ; cette lecture ne réserve aucun travail.
 3. Vérifier Git avant de parler du code actuel ; distinguer travail local,
    committé, déployé, testé et validé humainement.
 4. Formuler les inconnues et une prochaine action vérifiable.
@@ -65,6 +73,8 @@ choisir silencieusement la version la plus commode.
 - [Contrôles locaux](operations/automation.md), [validation V1](operations/validation.md),
   [métriques d'utilité](operations/metrics.md), [agents natifs](operations/native-agents.md).
 - [Mandat initial](operations/mandate.md) : demandes humaines et périmètre autorisé.
+- [Mandat V2](operations/autonomy.md), [fiches d'exécution](operations/missions/README.md)
+  et [évaluations](evals/README.md) : reprise, limites et amélioration vérifiée.
 
 ## Entretien et contexte
 
@@ -79,3 +89,5 @@ courant et noter la raison dans le changelog. Les détails restent au document
 canonique. Ne pas recopier chaque patch dans chaque fiche, ni charger tout ce
 dossier à chaque tâche. Ne pas versionner secrets, transcriptions privées ou
 données personnelles d'apprenants. Préférer références et constats minimaux.
+L'état actif détaillé appartient à la fiche de mission ; les index y renvoient.
+Les résultats clôturés restent des preuves datées, jamais une autorisation nouvelle.

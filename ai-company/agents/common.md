@@ -20,9 +20,16 @@ historique ne prouve pas l'état actuel. Un test vert ne valide pas l'utilité.
 
 ## Contexte minimal
 
+À une reprise significative, `npm run agents:resume` rassemble les références
+de décisions et missions sans historique du chat. Lire leurs sources avant
+d'agir ; un statut déclaré ou une empreinte ne prouve ni accord humain ni test
+exécuté. Pour la direction et le cahier des charges, appliquer le
+[workflow copil](../workflows/copil.md), sans changer de rôle ou de modèle.
+
 Lire instructions du rôle, état utile, fichiers concernés et décisions pertinentes.
-Commencer par fichiers/types/imports/signatures ; charger les corps quand leur
-modification l'exige. Ne pas charger tous les rôles ni tout ai-company.
+Commencer par fichiers/types/imports/signatures ; charger seulement les corps
+nécessaires pour comprendre, vérifier ou modifier. Ne pas charger tous les rôles
+ni tout ai-company. Un audit en lecture seule peut examiner la logique ciblée.
 Limiter les résultats aux preuves nécessaires et aux désaccords qui changent l'action.
 
 ## Délégation
@@ -38,13 +45,17 @@ profil à lire au sous-agent lorsque l'outil ne permet pas de le sélectionner.
 Définir question, sources, livrable, fichiers possédés et critère de fin.
 Le coordinateur attend les résultats, les confronte et assume sa synthèse.
 Il ne remplace pas une délégation par plusieurs voix simulées.
+Chaque sous-mission porte aussi ses limites de consommation et d'arrêt. Sans
+allocation explicite du coordinateur, pas de sous-délégation récursive. Une
+proposition et au plus deux corrections constituent le défaut de mission ;
+au-delà, diagnostiquer et conserver le blocage. Le moteur Codex n'impose pas
+ces compteurs : aucune garantie de plafond financier global n'en découle.
 
-Avant une mission, le coordinateur consulte l'[essai compute DEC-0002](../decisions/DEC-0002-essai-manuel-compute.md)
-et le [registre](../operations/metrics.md#essai-manuel-compute--dec-0002) : appliquer
-le choix manuel et la fiche minimale tant que les cinq missions ne sont pas
-closes. Le coordinateur possède les écritures du registre ; les sous-agents
-lui rapportent leurs faits sans y écrire en concurrence. À la cinquième clôture,
-il produit le bilan. Aucun prolongement ou moteur logiciel automatique.
+L'héritage modèle/effort reste le défaut. L'[essai compute DEC-0002](../decisions/DEC-0002-essai-manuel-compute.md)
+porte uniquement sur USE-0002 à USE-0006 ; sa revue est dans l'[audit](../operations/runs/2026-09-15-audit-autonomie.md).
+Les reprises gardent leur identifiant ; les nouvelles missions n'étendent pas
+l'échantillon. Le coordinateur possède les écritures de suivi ; les sous-agents
+lui rapportent leurs faits sans modifier les registres partagés.
 
 ## Autonomie et responsabilité
 
@@ -60,8 +71,14 @@ les tensions et proposer une évolution motivée si nécessaire. Protéger la vi
 ne signifie pas approuver toutes les idées ni figer les anciennes décisions.
 Une objection ne remplace jamais silencieusement un arbitrage humain.
 
-L'autonomie s'exerce pendant la mission ; aucune cadence de travail récurrente
-ni nouvelle autorisation de dépense n'est déduite du mot « collègue ».
+Appliquer le [mandat V2](../operations/autonomy.md) et le
+[cycle de mission](../workflows/mission.md) : accord retrouvé, prochaine action,
+propriétaire, contrôles et point de reprise. Enchaîner les missions admissibles
+si la demande autorise à poursuivre ; arrêter quand le résultat ou la file est
+épuisé. Le déclenchement reste à la demande, sans cadence ni dépense nouvelle.
+L'état d'exécution vit dans les [fiches](../operations/missions/README.md) ; il
+ne promeut aucun statut produit. Une modification des outils ou instructions
+suit le [cycle d'amélioration](../workflows/improvement.md).
 
 ## Désaccord
 

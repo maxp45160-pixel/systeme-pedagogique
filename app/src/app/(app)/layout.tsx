@@ -10,14 +10,13 @@ import { ProfilPage } from "@/components/dev/profil-page";
 import { ProfilWrapper } from "@/components/dev/profil-wrapper";
 import { ProfilTracker } from "@/components/dev/profil-tracker";
 import { ProfilFlottant } from "@/components/dev/profil-flottant";
-import { TuteurGlobal } from "@/components/tuteur/tuteur-global";
+import { AccesAssistantMobile, TuteurGlobal } from "@/components/tuteur/tuteur-global";
 import { resoudreIdentite } from "@/lib/domain/identite";
 import { FournisseurIntention } from "@/components/intention/fournisseur-intention";
 import { FournisseurOnboarding } from "@/components/onboarding/onboarding-context";
 import { PastillePomodoroGlobale } from "@/components/seances/pomodoro";
 import { chargerDomaines } from "@/lib/store/referentiel";
 import { estPiloteDepot } from "@/lib/store/depot-budget";
-import { classesLienBouton } from "@/components/ui/primitives";
 
 /**
  * Cadre du carnet : rail de navigation, marge.
@@ -129,7 +128,7 @@ export default async function AppLayout({
               </div>
               <CompteMobile session={session} />
             </div>
-            {piloteDepot && <div className="border-b border-bordure bg-surface px-4 py-2 lg:hidden"><a href="/app" className={classesLienBouton("secondaire", "petite")}>Ouvrir l’assistant</a></div>}
+            {piloteDepot && <Suspense fallback={null}><AccesAssistantMobile /></Suspense>}
 
             {/*
               Marge de carnet : filet discret courant sur toute la hauteur de la
@@ -150,7 +149,7 @@ export default async function AppLayout({
 
           <NavMobile pastilles={pastillesMobile} piloteDepot={piloteDepot} />
           <ProfilFlottant compteId={compte.id} />
-          <TuteurGlobal />
+          <Suspense fallback={null}><TuteurGlobal piloteDepot={piloteDepot} /></Suspense>
         </div>
       </FournisseurIntention>
     </FournisseurOnboarding>

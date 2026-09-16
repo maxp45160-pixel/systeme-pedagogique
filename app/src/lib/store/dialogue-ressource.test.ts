@@ -4,7 +4,7 @@ vi.mock("./depot-actions", () => ({ organiserRessourceAssistantAction: m.organis
 vi.mock("./documents", () => ({ lireDocument: m.document, modifierDocument: m.modifier, resynchroniserLiensDocument: m.synchroniser }));
 vi.mock("./referentiel-actions", () => ({ creerBranche: m.creer, taguerCompetences: m.taguer }));
 vi.mock("./referentiel", () => ({ lireReferentiel: m.referentiel }));
-import { completerRessourceAnalysee, chargerDialogueRessource, preparerOperationRessource, executerOperationRessource, verifierOperationRessource, verifierChoixRessource } from "./dialogue-ressource";
+import { chargerDialogueRessource, preparerOperationRessource, executerOperationRessource, verifierOperationRessource, verifierChoixRessource } from "./dialogue-ressource";
 import { parserFrontMatter } from "@/lib/documents/markdown";
 import type { ChoixRessource } from "@/lib/tutor/dialogue-ressource";
 
@@ -77,24 +77,10 @@ it("ne remplace pas une correction effectuée entre deux tentatives", async () =
   expect(md).toContain("title: Autre correction");
 });
 
-it("crée les nouveautés sourcées du domaine existant dans la même organisation", async () => {
-  await completerRessourceAnalysee("doc", "analyse");
-  expect(m.creer).toHaveBeenCalledTimes(1);
-  expect(md).toContain("[[MAT-01]]");
-  expect(md).toContain("rangement_origine: assistant");
-  await completerRessourceAnalysee("doc", "analyse");
-  expect(m.creer).toHaveBeenCalledTimes(1);
-});
-it("laisse un domaine inconnu à préciser sans création automatique", async () => {
-  domaineNouveau = true;
-  await completerRessourceAnalysee("doc", "analyse");
-  expect(m.creer).not.toHaveBeenCalled(); expect(m.modifier).not.toHaveBeenCalled();
-  expect(m.organiser).toHaveBeenCalledWith("doc", "analyse");
-});
-
 it("réutilise et lie un homonyme unique présent dans un autre domaine", async () => {
   skills.push({ code: "AUT-01", intitule: "Calculer une probabilité", domaine: "autre" });
-  await completerRessourceAnalysee("doc", "analyse");
+  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"] }, []);
+  await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
   expect(m.creer).not.toHaveBeenCalled();
   expect(m.taguer).toHaveBeenCalledWith("math", ["AUT-01"], true);
   expect(md).toContain("[[AUT-01]]");

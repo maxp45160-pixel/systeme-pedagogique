@@ -4170,6 +4170,7 @@ BEGIN
   RETURN jsonb_build_object('analyse',to_jsonb(a),'nouvelle',nouvelle);
 END $$;
 
+-- Sortie maximale portée à 8192 par depot_restitution_v2_sortie_8192 (appliquée le 16/09/2026).
 CREATE FUNCTION public.depot_reserver(p_user_id uuid,p_operation text,p_pages integer,p_entree_octets integer,p_sortie_max integer)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
 DECLARE montant bigint; utilise bigint; existant public.document_depot_usage;
@@ -4179,7 +4180,7 @@ BEGIN
   IF now() >= timestamptz '2026-10-06 00:00:00+00' THEN RAISE EXCEPTION 'Tarifs documentaires à revérifier'; END IF;
   IF p_pages IS NULL OR p_entree_octets IS NULL OR p_sortie_max IS NULL OR p_operation IS NULL
     OR length(p_operation) NOT BETWEEN 1 AND 200 OR p_pages NOT BETWEEN 0 AND 20
-    OR p_entree_octets NOT BETWEEN 0 AND 100000 OR p_sortie_max NOT BETWEEN 0 AND 2500
+    OR p_entree_octets NOT BETWEEN 0 AND 100000 OR p_sortie_max NOT BETWEEN 0 AND 8192
     OR NOT ((p_pages>0 AND p_entree_octets=0 AND p_sortie_max=0) OR (p_pages=0 AND p_entree_octets>0 AND p_sortie_max>0))
     THEN RAISE EXCEPTION 'Réservation documentaire invalide'; END IF;
   -- Tarifs du 06/09/2026 majorés : 2 EUR/USD, incluant marge de change/taxes.

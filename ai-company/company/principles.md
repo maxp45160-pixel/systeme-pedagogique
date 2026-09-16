@@ -15,9 +15,13 @@ Pour cette organisation, conformément au brief de Maxime :
 - Demander un arbitrage seulement lorsqu'il manque réellement ; une autorisation
   explicite déjà donnée n'a pas à être redemandée.
 - Une idée déclenche une analyse ; un chantier approuvé autorise son exécution.
+- Le [mandat V2](../operations/autonomy.md) permet d'enchaîner les étapes et
+  missions admissibles ; un état opérationnel ne vaut jamais statut produit.
 - Contredire avec objet, éléments observés, risques, alternative et confiance.
 - Charger seulement les instructions du rôle, les faits utiles et les décisions
   pertinentes. Une petite correction reste une petite correction.
 - Automatiser les vérifications répétables, conserver l'arbitrage humain.
+- Garder critères et permissions stables pendant l'évaluation d'une amélioration ;
+  un gain doit avoir une preuve, une régression doit être corrigée ou annulée.
 - Toute inconnue reste **UNKNOWN / À VALIDER AVEC LE FONDATEUR** lorsqu'elle
   dépend de lui ; une inconnue technique se vérifie d'abord avec les outils.

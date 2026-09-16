@@ -1,4 +1,4 @@
-import { MAX_PAGES_ANALYSE_DEPOT, type CompetenceProposeeDepot, type CouvertureDepot, type DomaineProposeDepot, type DomaineReferenceDepot, type ElementRestitutionDepot, type PageExtraiteDepot, type PropositionOrganisationRessource, type SourceDepot, type TrancheDepot } from "./depot";
+import { MAX_PAGES_ANALYSE_DEPOT, MAX_SORTIE_RESTITUTION, MAX_COMPETENCES_ORGANISATION_DEPOT, type CompetenceProposeeDepot, type CouvertureDepot, type DomaineProposeDepot, type DomaineReferenceDepot, type ElementRestitutionDepot, type PageExtraiteDepot, type PropositionOrganisationRessource, type SourceDepot, type TrancheDepot } from "./depot";
 import { FORMATS_PAR_ROLE, formatAutorise } from "./roles-note";
 import { composerIntitule, motifsRefusStructure, VERBES_ACTION, type IntituleStructure } from "@/lib/domain/atomicite";
 import type { Palier } from "@/lib/domain/types";
@@ -50,8 +50,17 @@ export function validerSourceDepot(value: unknown, documentId: string, note: str
   const page = s.page === null || s.page === undefined ? undefined : entierDepot(s.page);
   if (s.documentId !== undefined && s.documentId !== documentId) throw new Error("La source appartient à un autre document.");
   if (Boolean(pieceId) !== (page !== undefined)) throw new Error("Le fichier et la page doivent être désignés ensemble.");
+  if (pieceId && !pages.some((p) => p.pieceId === pieceId)) throw new Error("Le fichier cité ne fait pas partie des pages lues.");
   const matiere = pieceId ? pages.find((p) => p.pieceId === pieceId && p.page === page)?.texte : note;
-  if (!matiere || !normaliserCitation(matiere).includes(normaliserCitation(citation))) throw new Error("La citation n'existe pas dans le passage désigné.");
+  if (matiere === undefined) throw new Error(`La page ${page} citée ne fait pas partie des pages lues de ce fichier.`);
+  if (!matiere || !normaliserCitation(matiere).includes(normaliserCitation(citation))) {
+    const repere = pieceId ? `page ${page}` : "note libre";
+    const autresPages = pieceId ? pages.filter((p) => p.pieceId === pieceId && p.page !== page && normaliserCitation(p.texte).includes(normaliserCitation(citation))).map((p) => p.page) : [];
+    const precision = autresPages.length
+      ? ` Elle est présente sur les pages ${autresPages.join(", ")} du même fichier ; le repère proposé est refusé.`
+      : "";
+    throw new Error(`La citation n'existe pas dans le passage désigné (${repere}).${precision} Citation proposée, non validée : ${JSON.stringify(citation.slice(0, 500))}${citation.length > 500 ? "…" : ""}`);
+  }
   return { documentId, ...(pieceId ? { pieceId, page } : {}), citation };
 }
 export function validerElementsDepot(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], prefixe: string): ElementRestitutionDepot[] {
@@ -148,7 +157,7 @@ export function validerOrganisationDepot(value: unknown, documentId: string, not
   const typeSuggere = texteDepot(organisation.typeSuggere, 60);
   if (!formatAutorise("support", typeSuggere)) throw new Error("Type de ressource proposé hors de la liste autorisée.");
   const competences = listeDepot(organisation.competences);
-  if (competences.length > 6) throw new Error("Trop de compétences proposées pour une ressource.");
+  if (competences.length > MAX_COMPETENCES_ORGANISATION_DEPOT) throw new Error("Trop de compétences proposées pour une ressource.");
   const domaine = validerDomainePropose(organisation.domaine, documentId, note, pages, referentiel);
   const competencesValidees = competences.map((item) => validerCompetenceProposee(item, documentId, note, pages, referentiel));
   const domainesNouveaux = new Set(competencesValidees.flatMap((competence) => competence.mode === "nouvelle" && competence.domaine.mode === "nouveau" ? [nomComparable(competence.domaine.nom)] : []));
@@ -190,6 +199,6 @@ export function prochainesTranchesDepot(fichiers: { pieceId: string; nom: string
 /** Tarifs fixes majorés (2 EUR/USD), alignés avec la réservation PostgreSQL. */
 export function coutDepotMicroEuros(pages: number, entreeOctets = 0, sortieMax = 0): number {
   for (const n of [pages, entreeOctets, sortieMax]) entierDepot(n, 0);
-  if (pages > 20 || entreeOctets > 100_000 || sortieMax > 2500) throw new Error("Analyse hors limites.");
+  if (pages > MAX_PAGES_ANALYSE_DEPOT || entreeOctets > 100_000 || sortieMax > MAX_SORTIE_RESTITUTION) throw new Error("Analyse hors limites.");
   return pages * 8000 + entreeOctets * 3 + sortieMax * 15;
 }

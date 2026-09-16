@@ -12,7 +12,6 @@ import {
 } from "./depot-documents";
 import { dorsaleCompte } from "./db";
 import { lireDocument, modifierDocument, supprimerDocument, resynchroniserLiensDocument } from "./documents";
-import { organiserDepuisReferentiel } from "@/lib/documents/organisation-assistant";
 import { lireReferentiel } from "./referentiel";
 import { derniereOrganisationDepot, appliquerRangementDepot, type ContexteOrganisationDepot, type RangementRessourceDepot } from "@/lib/documents/organisation-depot";
 import { definirChampsFrontMatter } from "@/lib/documents/markdown";
@@ -45,7 +44,7 @@ export async function lireContexteOrganisationDepotAction(documentIds: string[])
     ressources:ressources.filter((ressource) => ressource.version === 2),
     referentiel:{
       compteId:dorsale.userId,
-      domaines:referentiel.domaines.filter((domaine) => !domaine.archive).map(({id,nom,prefixe,description}) => ({id,nom,prefixe,description})),
+      domaines:referentiel.domaines.filter((domaine) => !domaine.archive).map(({id,nom,prefixe,description,parentId}) => ({id,nom,prefixe,description,parentId})),
       competences:referentiel.actifs.map((competence) => ({
         code:competence.code,
         intitule:competence.intitule,
@@ -72,20 +71,6 @@ export async function marquerReferentielRessourceAction(documentId: string, anal
 
 export async function rangerRessourceDepotAction(documentId: string, entree: RangementRessourceDepot, updatedAtAttendu: string) {
   return enregistrerRangement(documentId, entree, updatedAtAttendu, "personne");
-}
-
-/** Aucun choix de rangement fourni par le navigateur n'entre dans ce chemin autonome. */
-export async function organiserRessourceAssistantAction(documentId: string, analyseId: string) {
-  const { ressources, referentiel } = await lireContexteOrganisationDepotAction([documentId]);
-  const depot = ressources[0];
-  if (!depot || derniereOrganisationDepot(depot)?.analyseId !== analyseId) throw new Error("L'analyse a changé. Actualisez la ressource.");
-  const { rangement, aPreciser } = organiserDepuisReferentiel(depot, referentiel);
-  if (!rangement) {
-    // Une reprise ne réapplique pas l'IA aux choix humains ; elle répare seulement l'index.
-    if (depot.rangementRevuLe) await resynchroniserLiensDocument(documentId);
-    return { depot, aPreciser };
-  }
-  return { depot: await enregistrerRangement(documentId, rangement, depot.modifieLe, "assistant"), aPreciser };
 }
 
 async function enregistrerRangement(documentId: string, entree: RangementRessourceDepot, updatedAtAttendu: string, origine: "personne" | "assistant") {

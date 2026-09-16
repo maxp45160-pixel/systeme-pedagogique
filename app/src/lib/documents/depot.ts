@@ -1,5 +1,6 @@
 import type { PieceJointeDocument } from "./types-documents";
 import type { Palier } from "@/lib/domain/types";
+import type { BrouillonClassementRessource } from "./brouillon-classement";
 import type { VerbeAction } from "@/lib/domain/atomicite";
 
 /** Contrats documentaires du pilote. Aucun de ces contenus ne mesure l'apprenant. */
@@ -12,7 +13,13 @@ export const MAX_PAGES_ANALYSE_DEPOT = 20;
 export const MAX_NOTE_DEPOT = 12_000;
 export const MAX_FICHIERS_DEPOT = 100;
 export const MAX_OCTETS_DEPOT = 100 * 1024 * 1024;
-export const MAX_SORTIE_RESTITUTION = 2_500;
+export const MAX_SORTIE_RESTITUTION_V1 = 2_500;
+// Aligné avec depot_reserver, migration depot_restitution_v2_sortie_8192 appliquée.
+export const MAX_SORTIE_RESTITUTION = 8_192;
+export function limiteSortieRestitution(version: 1 | 2): number {
+  return version === VERSION_RESSOURCE_DEPOT ? MAX_SORTIE_RESTITUTION : MAX_SORTIE_RESTITUTION_V1;
+}
+export const MAX_COMPETENCES_ORGANISATION_DEPOT = 30;
 export const BUDGET_DEPOT_MICRO_EUROS = 5_000_000;
 
 export interface SourceDepot {
@@ -90,7 +97,7 @@ export interface PropositionOrganisationRessource extends PropositionSourceeDepo
 }
 
 export interface ReferentielDepotPourModele {
-  domaines: Array<{ id: string; nom: string; description: string }>;
+  domaines: Array<{ id: string; nom: string; description: string; parentId?: string }>;
   competences: Array<{ code: string; intitule: string; domaine: string }>;
 }
 
@@ -141,6 +148,7 @@ export interface DepotDocumentaire {
   rangementAnalyseId?: string;
   rangementStatut?: "rangee" | "a-trier";
   rangementOrigine?: "assistant" | "personne";
+  brouillonClassement?: BrouillonClassementRessource;
   competencesLiees: string[];
   pieces: PieceJointeDocument[];
   analyses: AnalyseDepot[];
@@ -167,6 +175,8 @@ export interface TrancheDepot {
 }
 
 export interface PreparationAnalyseDepot {
+  /** Nouvelle synthèse explicitement demandée sur les transcriptions de cette analyse. */
+  syntheseDe?: string;
   fournisseur?: "qwen";
   coutMaximumMicroDollars?: number;
   budgetRestantMicroDollars?: number;

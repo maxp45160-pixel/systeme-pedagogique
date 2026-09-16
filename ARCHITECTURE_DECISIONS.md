@@ -11940,6 +11940,40 @@ nouvelle confirmation. Les extractions inchangées sont réutilisées après
 échec. Une reprise est explicite ; un appel ou coût incertain garde sa
 réservation. Aucun réessai payant silencieux. Une tentative reprise possède
 un nouvel identifiant : une ancienne exécution ne peut plus écrire son état.
+
+Précision du 15/09/2026 après le premier essai Mistral réel : la restitution
+demande explicitement `reasoning_effort: "none"` pour obtenir le JSON textuel
+attendu par le parseur, et une synthèse compacte dans la borne inchangée de
+2 500 jetons. La consigne privilégie trois éléments et, en V2, deux compétences,
+sans modifier les maximums de validation ni prétendre à l'exhaustivité.
+Un arrêt fournisseur `length` donne un motif spécifique ; tout arrêt autre
+que `stop` reste refusé, même si le JSON paraît lisible. Les coûts connus
+sont rapprochés avant ce refus et les pages OCR restent réutilisables.
+Le premier refus observé ne conservait pas sa raison fournisseur précise :
+une longueur excessive reste une hypothèse, pas une cause établie de cet essai.
+
+Le diagnostic d'une citation refusée distingue fichier absent, page non lue et
+texte non retrouvé au repère annoncé. Dans ce dernier cas, le message conserve
+au plus 500 caractères de la citation proposée, explicitement non validée, et
+signale les autres pages du même fichier où elle apparaît exactement. Il ne
+corrige jamais le repère ni ne cherche dans un autre fichier pour accepter la
+proposition. La normalisation reste limitée à NFC et aux blancs ; un changement
+de formule ou de sens demeure refusé. Ce diagnostic reste dans l'erreur privée
+de l'analyse, jamais dans une restitution acceptée ni dans une mesure.
+
+Le diagnostic réel du livret ATS montre une citation attribuée à la page PDF 6
+alors qu'elle figure page PDF 7, numérotée 6 dans le document. La demande de
+restitution explicite donc que chaque source recopie le couple `pieceId`/`page`
+de l'objet contenant sa citation, sans utiliser la pagination imprimée ni les
+numéros de fiche ou d'exercice. Le validateur conserve le repère PDF exact ;
+aucun déplacement de citation n'est accepté automatiquement.
+
+La reprise atteint ensuite un refus de précision trop longue : la consigne
+documentaire V2 expose désormais les bornes `OBJET_MAX`, `PRECISION_MAX` et
+`INTITULE_MAX_ATOMIQUE` importées d'`atomicite.ts`. Elles ne sont ni recopiées
+comme nombres indépendants, ni augmentées. La validation métier reste portée
+par `motifsRefusStructure` ; le modèle est informé du contrat qu'il doit respecter.
+
 La limite d'exécution applicative est de quatre minutes, celle de la route de
 cinq minutes ; une analyse restée en cours devient reprenable après cinq
 minutes sans écriture. Une tranche trop dense demande une sélection réduite.
@@ -12254,6 +12288,122 @@ découpage est une proposition de mise en œuvre, pas une validation utilisateur
 de l'architecture. Aucun test applicatif ni vérification distante dans ce lot.
 
 ---
+
+### Amendement du 15/09/2026 à ADR-145 — confirmation dans l'assistant
+
+**Autorité :** Maxime demande une fenêtre présentant compréhension et
+classement en domaines/sous-domaines, suivie du tableau de bord. Il approuve la
+proposition et autorise sa réalisation autonome (« Parfait, tu peux tourner
+automatiquement comme tu veux jusqu'à ce que tout tourne bien »). Cette
+direction remplace le classement automatique avant présentation décrit plus
+haut ; elle ne promeut aucun statut de capacité démontrée.
+
+L'analyse conserve ses sources, sa couverture et le consentement tarifé
+ADR-143. La route refuse `organiser:true` avant tout appel payant ; la chaîne
+de complétion automatique est retirée. La proposition attend une confirmation
+humaine groupée. La fenêtre se ferme et se retrouve sans
+réanalyse. Les anciens liens `?depot=…` ouvrent l'assistant et cette même
+fenêtre ; le tunnel « Référentiel », puis « Ressources » quitte ce parcours.
+
+Le classement réutilise la hiérarchie de domaines existante (`parentId`), sans
+table de sous-domaines. La personne peut choisir un domaine vivant ou créer un
+domaine sous un parent existant, avec usage explicitement déclaré. Les
+compétences créées proviennent des propositions sourcées sélectionnées ; leurs
+codes sont attribués par les commandes du référentiel. Une analyse ultérieure
+n'écrase pas un choix humain. Un lot est prévalidé, puis appliqué par ressource :
+un échec partiel doit rester explicite, aucune atomicité globale n'est annoncée
+entre référentiel, Markdown et index documentaire.
+
+La trace technique `classement_confirmation` conserve la commande confirmée
+et son état, sans donnée dérivée du moteur. Une version attendue départage les
+confirmations et leurs reprises avant effets. La création d'un nouveau domaine
+emploie une clé de requête déterministe et relit son reçu existant dans
+`referentiel_changes` pour récupérer une réponse perdue. La reprise d'un lot
+partiel renvoie le lot complet, y compris les ressources déjà confirmées.
+
+Après confirmation, le tableau de bord relit les données et dérive la prochaine
+action avec le moteur immédiat existant. L'entrée pilote n'impose plus
+`/demarrer` en l'absence de compétences : une ressource peut fournir un point
+de départ. Sans observation, aucun niveau ni faiblesse n'est affirmé.
+La planification globale reste hors de cet amendement. Aucune nouvelle
+dépendance, migration ou mesure pédagogique n'est introduite.
+
+Les contrôles et limites de cette réalisation sont consignés dans la référence
+de l'assistant et dans le registre pilote documentaire.
+
+Correction du 15/09 après retour sur le livret de calcul : l'instruction de
+préférer les domaines existants favorisait un rattachement abusif par utilité
+transversale. La consigne part désormais du sujet effectivement enseigné et
+n'autorise la réutilisation d'un domaine que si celui-ci convient. Sinon elle
+demande un nouveau domaine sourcé, ou aucune proposition si les sources sont
+insuffisantes. Il s'agit d'une correction du prompt partagé, pas d'un filtre
+sémantique déterministe ; citations et enum ne garantissent pas la pertinence.
+Les restitutions historiques restent inchangées. La fenêtre distingue une
+suggestion du modèle d'un classement déjà enregistré. Les compétences sont
+désormais visibles, les sources consultables séparément.
+
+Reprise après retour utilisateur sur le choix perdu : un brouillon humain
+`classement_brouillon` est conservé dans le frontmatter existant, lié à l'analyse
+relue. Il contient les choix déclarés, pas une décision du moteur, et ne crée
+ni domaine ni compétence. « Garder ce choix » utilise la version attendue du
+document ; une réponse perdue se reprend sans double écriture. La confirmation
+finale conserve ses validations complètes et efface le brouillon dans son
+écriture, comme les autres corrections de classement. Une nouvelle analyse ne
+réutilise pas silencieusement les anciens indices de compétences. Le domaine
+humain reste prérempli, avec une invitation à relire les nouvelles compétences.
+Aucune table ni migration.
+
+La fenêtre affiche un chemin de classement et un éditeur explicite, sans menu
+déroulant métier. Elle relit d'abord les identités des documents accessibles du
+compte ; un lien absent n'est jamais présenté comme une analyse à actualiser.
+Une panne réseau ne prouve pas l'absence du document. En cas d'échec de préparation
+d'une nouvelle analyse, le document et les résultats déjà chargés sont conservés.
+
+Le troisième retour du 15/09 retire le volet regroupant compétences et sources.
+La consigne qui limitait la restitution à deux compétences est remplacée par
+une couverture des gestes distincts effectivement enseignés, avec citations.
+La validation autorise jusqu'à 30 propositions, borne déjà utilisée pour le
+classement. Le budget mensuel de 5 € et la sortie de 2 500 jetons restent inchangés :
+le relèvement à 8 192 n'est pas activé sans vérification et migration distante.
+La liste peut donc rester partielle et doit le signaler ; aucun essai fournisseur
+ne prouve encore la couverture du livret après ce changement.
+
+Une synthèse complémentaire exige `syntheseDe`, identifiant d'une lecture V2
+terminée du document accessible. Elle réutilise ses seules pages transcrites,
+après contrôle de l'empreinte du fichier, avec une limite de 20 pages. Son
+empreinte inclut la lecture d'origine et la version de consigne ; le reçu d'une
+même demande évite un second appel. La préparation ne transmet rien au modèle,
+le POST exige un nouveau consentement sur cette sélection. Aucun OCR implicite,
+classement automatique ou nouvelle table n'est ajouté.
+
+### Amendement du 16/09/2026 — un geste de dépôt, une proposition à valider
+
+Autorité : Maxime demande explicitement de supprimer les étapes techniques et
+de privilégier la fluidité et la qualité avant les optimisations de coût :
+saisie → synthèse, organisation et compétences → validation. Cela remplace le
+consentement séparé après conservation et les boutons de complément du parcours
+normal, sans autoriser des dépenses illimitées ni des écritures de référentiel
+avant validation humaine.
+
+« Préparer ma proposition » annonce le fournisseur, les fichiers et le texte
+transmis, au plus les 20 premières pages de chaque fichier et un coût maximal
+calculé. Après conservation des originaux, seules les nouvelles ressources sans
+analyse peuvent partir automatiquement. Le fournisseur et le total préparés
+doivent respecter cette autorisation capturée au clic. Une ouverture historique
+n'emporte aucune autorisation ; une erreur demande une reprise explicite, avec
+plafond visible, et ne produit pas de boucle payante.
+
+La fenêtre présente une proposition et ses champs modifiables directement. Le
+bouton final sauvegarde le brouillon déclaré puis confirme avec les commandes
+et contrôles de version existants. Les sources restent consultables en second
+plan ; aucune compréhension documentaire ne mesure un niveau.
+
+La réponse V2 passe à 8 192 jetons pour couvrir les gestes des chapitres ; V1
+reste à 2 500. Le budget mensuel de 5 EUR reste inchangé. La migration
+`20260915220807_depot_restitution_v2_sortie_8192.sql` est appliquée au projet
+pilote : elle élargit seulement la borne de sortie de `depot_reserver`, avec les
+mêmes tarifs, autorisations et budget. Vérifications et essai réel figurent dans
+le registre pilote ; aucun statut humain n'est promu par cet amendement.
 
 ## Comment modifier ce registre
 

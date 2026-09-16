@@ -1,0 +1,61 @@
+{
+  "id": "ORG-0001",
+  "title": "Mettre en place la V2 des agents Twiny",
+  "status": "done",
+  "authorization": {
+    "source": "ai-company/decisions/DEC-0003-autonomie-et-reprise.md",
+    "summary": "Maxime demande d'implémenter les améliorations de l'audit et choisit le déclenchement à la demande. Mandat, reprise, mémoire, contrôles et évaluations locaux ; aucune nouvelle dépense externe, publication ou modification du produit."
+  },
+  "objective": "Les agents retrouvent leur mandat et leur prochaine action, vérifient les fiches et évaluent les changements de règles avant clôture.",
+  "scope": ["ai-company", "AGENTS.md", "package.json"],
+  "owner": "01a0a697-72b8-7870-b03d-f887188e3eb0",
+  "baseCommit": "60c8617",
+  "acceptance": [
+    "Mandat et procédure de reprise reliés aux cinq profils via le contrat commun",
+    "Mémoire courante corrigée et états détaillés non dupliqués",
+    "Fiches invalides, faux succès et collisions détectés ; sélection limitée aux missions admissibles",
+    "Contrôles et tests agents reliés à npm run verify",
+    "Scénarios de décisions éprouvés par un agent indépendant, limites consignées",
+    "Revue QA terminée et synthèse remise à Maxime"
+  ],
+  "nextAction": "",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run agents:test",
+      "result": "passed",
+      "at": "2026-09-15T20:16:08Z",
+      "revision": "60c8617 + checkout local ; fichiers identifiés dans ai-company/evals/runs/2026-09-15-v2-files.json"
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-15T20:18:31Z",
+      "revision": "60c8617 + V2 locale ; 48 documents, 322 liens et fiche contrôlés"
+    },
+    {
+      "command": "node ai-company/evals/score.mjs ai-company/evals/runs/2026-09-15-v2-response.json",
+      "result": "passed",
+      "at": "2026-09-15T20:16:08Z",
+      "revision": "Contrats candidats et cas identifiés dans le manifeste ; score 8/8, justifications relues par QA"
+    },
+    {
+      "command": "git diff --check -- AGENTS.md ai-company package.json",
+      "result": "passed",
+      "at": "2026-09-15T20:18:31Z",
+      "revision": "60c8617 + modifications locales de la V2"
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-15T20:18:31Z",
+  "completion": {
+    "summary": "Mandat, reprise, mémoire, contrôles et évaluation installés. Deux défauts de collisions corrigés après revue QA ; 29 tests et huit choix synthétiques passent. Déclenchement à la demande ; aucun gain comparatif ni déploiement revendiqué.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-15-v2-agents.md",
+      "ai-company/evals/runs/2026-09-15-v2-response.json",
+      "ai-company/evals/runs/2026-09-15-v2-score.json",
+      "ai-company/evals/runs/2026-09-15-v2-files.json"
+    ],
+    "at": "2026-09-15T20:18:31Z"
+  }
+}

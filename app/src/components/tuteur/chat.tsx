@@ -54,6 +54,7 @@ const LIBELLE_OUTIL: Record<string, string> = {
 
 import { ChatInput } from "./chat-input";
 import { RessourcesConversation } from "./ressources-conversation";
+import type { AutorisationAnalyseDepot } from "@/lib/documents/conversation-ressources";
 import { lireRessourceAssistantAction } from "@/lib/store/ressource-assistant-actions";
 import { MessageBulle, type Message } from "./message-bulle";
 
@@ -63,6 +64,8 @@ import { MessageBulle, type Message } from "./message-bulle";
 
 export interface ProprietesChat {
   modeAccueil?: boolean;
+  /** Ressources à rouvrir depuis leur lien, sans quitter l'assistant. */
+  ressourcesInitiales?: string[];
   /** Manifeste et moteur, calculés côté serveur au rendu du tiroir. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -131,6 +134,7 @@ export function ChatTuteur(props: ProprietesChat) {
 
 function ChatHydrate({
   modeAccueil = false,
+  ressourcesInitiales,
   etatInitial,
   competenceCiblee,
   amorce,
@@ -143,6 +147,7 @@ function ChatHydrate({
   surEnCoursChange,
 }: {
   modeAccueil?: boolean;
+  ressourcesInitiales?: string[];
   /** Manifeste et moteur, calculés côté serveur au rendu de la page. */
   etatInitial: EtatContexteTuteur;
   competenceCiblee?: string;
@@ -232,6 +237,20 @@ function ChatHydrate({
   const [messages, setMessages] = useState<Message[]>(
     () => lireSession<Message[]>(cleConversation)?.slice(-MAX_MESSAGES_FENETRE) ?? [],
   );
+  const [ressourcesAffichees, setRessourcesAffichees] = useState<string[]>(() => ressourcesInitiales ?? []);
+  const [relectureOuverte, setRelectureOuverte] = useState(Boolean(ressourcesInitiales?.length));
+  const [autorisationAnalyse, setAutorisationAnalyse] = useState<AutorisationAnalyseDepot>();
+  function ouvrirRessources(references: string[], autorisation?: AutorisationAnalyseDepot) {
+    setAutorisationAnalyse(autorisation);
+    setRessourcesAffichees(references);
+    setRelectureOuverte(true);
+  }
+  function retirerReferenceIndisponible(id: string) {
+    setMessages((avant) => avant.map((message) => message.ressources?.includes(id)
+      ? { ...message, ressources: message.ressources.filter((reference) => reference !== id) }
+      : message));
+    setRessourcesAffichees((avant) => avant.filter((reference) => reference !== id));
+  }
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
@@ -801,6 +820,7 @@ function ChatHydrate({
 
   return (
     <div className="space-y-6 [&>*]:min-w-0">
+      {modeAccueil && ressourcesInitiales && ressourcesInitiales.length > 0 && <Bouton variante="secondaire" taille="petite" onClick={() => ouvrirRessources(ressourcesInitiales)}>Revoir les ressources ouvertes</Bouton>}
       {modeAccueil && messages.length > 0 && <div className="flex justify-end">
         <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente)} onClick={() => { setMessages([]); setRessourceCible(null); effacerSession(cleConversation); setAvis(null); }}>Nouvel échange</Bouton>
       </div>}
@@ -831,7 +851,7 @@ function ChatHydrate({
                 onOuvrirExercice={ouvrirExercice}
                 onDemarrerExerciceDirect={demarrerExerciceDirect}
               />
-              {modeAccueil && m.ressources && <RessourcesConversation compteId={compteId} revision={m.ressources.includes(ressourceCible?.id ?? "") ? revisionRessources : 0} references={m.ressources} onCorriger={(cible) => { if (!enCours && !envoiEnAttente) setRessourceCible(cible); }} />}
+              {modeAccueil && !!m.ressources?.length && <Bouton variante="secondaire" taille="petite" onClick={() => ouvrirRessources(m.ressources!)} className="mt-2">Revoir {m.ressources!.length > 1 ? "ces documents" : "ce document"}</Bouton>}
               </div>
             ))}
 
@@ -885,11 +905,13 @@ function ChatHydrate({
           <ChatInput
             focusSignal={ressourceCible ? `${ressourceCible.id}:${ressourceCible.version}` : undefined}
             depotBloque={Boolean(envoiEnAttente) || Boolean(ressourceCible)}
-            onDepotConserve={modeAccueil ? (texte, recu, ressources) => {
+            fournisseurDocumentaire={configClient?.fournisseur === "qwen" ? "qwen" : "mistral"}
+            onDepotConserve={modeAccueil ? (texte, recu, ressources, autorisation) => {
               setMessages((precedents) => [...precedents,
                 { role: "user", content: texte || "Pièces jointes partagées" },
                 { role: "assistant", content: recu, ressources },
               ]);
+              ouvrirRessources(ressources, autorisation);
               router.refresh();
             } : undefined}
             onEnvoyer={envoyer}
@@ -910,6 +932,8 @@ function ChatHydrate({
           />
         </div>
       </div>
+
+      {modeAccueil && ressourcesAffichees.length > 0 && <RessourcesConversation compteId={compteId} references={ressourcesAffichees} ouverte={relectureOuverte} onFermer={() => setRelectureOuverte(false)} onRetirerReference={retirerReferenceIndisponible} revision={revisionRessources} autorisationAnalyse={autorisationAnalyse} />}
 
       {/*
         Contexte réellement transmis.

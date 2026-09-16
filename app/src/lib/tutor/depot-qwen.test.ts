@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ appel: vi.fn() }));
 vi.mock("./qwen-appel", () => ({ appelerQwen: m.appel }));
-import { lireOcrQwen } from "./depot-qwen";
+import { lireOcrQwen, restituerQwen } from "./depot-qwen";
 
 function petitPdf() {
   const objets = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << >> /Contents 4 0 R >>", "<< /Length 0 >>\nstream\n\nendstream"];
@@ -31,4 +31,12 @@ it("un arrêt empêche l'envoi de la page suivante", async () => {
   await expect(lireOcrQwen({ ...tranche, pages: [1,2] }, { octets: new Uint8Array([1]), mimeType: "image/png" }, config, controle.signal, conserver)).rejects.toThrow();
   expect(m.appel).toHaveBeenCalledTimes(1);
   expect(conserver).toHaveBeenCalledWith([expect.objectContaining({ page: 1, texte: "page" })]);
+});
+it.each([undefined,{domaines:[],competences:[]}])("aligne la restitution Qwen et sa réservation sur la limite du corps", async (referentiel) => {
+  m.appel.mockResolvedValue({choices:[{message:{content:'{"elements":[]}'}}]});
+  await expect(restituerQwen("Note",[],config,referentiel)).resolves.toEqual({elements:[]});
+  const [,corps,,sortieMax]=m.appel.mock.calls[0];
+  expect(corps.max_tokens).toBe(referentiel ? 8192 : 2500);
+  expect(sortieMax).toBe(corps.max_tokens);
+  expect(m.appel).toHaveBeenCalledTimes(1);
 });

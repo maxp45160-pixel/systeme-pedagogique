@@ -9,18 +9,41 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
 [les ADR](ARCHITECTURE_DECISIONS.md).
 
 - **Entrée conversationnelle en pilote.** Une même saisie accueille texte,
-  fichiers et dossiers ; chaque ressource conserve son original. Le dépôt
-  n'appelle pas l'IA. L'analyse demande une autorisation présentant sources,
-  pages, fournisseur et coût maximal ; elle s'arrête au premier échec, sans
-  réessai payant automatique. Les retours documentaires ne rejoignent pas le
+  fichiers et dossiers ; chaque ressource conserve son original. Depuis la demande
+  de fluidité du 16/09, « Préparer ma proposition » autorise en un geste le dépôt
+  puis l'analyse, après affichage des fichiers, de la couverture maximale,
+  du fournisseur et du plafond de coût. L'analyse des nouvelles ressources
+  commence automatiquement ; elle s'arrête au premier échec, sans réessai payant
+  automatique. Rouvrir une ressource ne lance rien. Les retours documentaires ne rejoignent pas le
   contexte permanent du chat et ne produisent aucune mesure.
-- **Organisation corrigeable.** L'assistant range les éléments non ambigus dans
-  le référentiel vivant et rend compte des écritures réelles. Une ambiguïté ou
-  une archive bloque la création ; un nouveau domaine demande de préciser son
-  usage. Les codes viennent des commandes applicatives. Une ressource déjà
-  rangée n'est pas réécrite par une nouvelle analyse ; les corrections passent
-  par un geste distinct. Les anciens dépôts restent lisibles et leurs vues
-  conservent les revues historiques (ADR-143 à 145).
+- **Organisation confirmée dans l'assistant.** Après l'analyse, une fenêtre
+  présente une synthèse courte et des propositions de classement modifiables
+  en domaines et sous-domaines. La personne confirme le lot avant les écritures,
+  puis accède aux priorités du tableau de bord ; elle peut aussi différer.
+  Une ambiguïté ou une archive bloque la création ; un nouveau domaine demande
+  son usage explicite. Les codes viennent des commandes applicatives. Une
+  nouvelle analyse n'écrase pas le classement déjà accepté. Les liens de dépôt
+  rouvrent cette fenêtre dans l'assistant, sans deuxième page de revue
+  (amendement du 15/09 à ADR-145).
+  La proposition doit suivre la matière enseignée ; l'utilité de cette matière
+  dans un autre domaine ne justifie pas d'y ranger le document. Le référentiel
+  existant ne limite pas les sujets recevables. La présence d'une citation ne
+  garantit pas à elle seule la pertinence du classement proposé.
+  Le rangement se modifie directement dans la proposition. Le bouton final
+  « Valider et voir mes priorités » conserve le choix puis confirme le lot,
+  sans étape « Garder ce choix ». Les brouillons antérieurs restent repris
+  jusqu'à confirmation. Les fichiers sont
+  identifiés dans la fenêtre ; un lien devenu inaccessible est distingué d'une
+  erreur de chargement et peut être retiré de l'échange.
+  Les compétences proposées sont directement visibles et sélectionnables,
+  avec leurs pages sources ; les citations se consultent séparément.
+  Le parcours normal retire les boutons « Compléter », « Actualiser » et
+  « Classifier ». Une erreur affiche une reprise explicite et son coût ; la
+  reprise de synthèse réutilise les transcriptions conservées sans refaire l'OCR.
+  La consigne couvre les gestes
+  distincts des chapitres, sans plafond artificiel de deux compétences ni
+  promesse d'exhaustivité. Le domaine choisi reste proposé à la relecture ;
+  les anciennes sélections de compétences ne sont pas appliquées aux nouveaux indices.
 - **Contexte encore partiel.** La conversation peut enregistrer un examen avec
   une date absolue complète ; une date relative appelle une précision. Son fil
   reste en session navigateur, isolé par compte. La conservation durable de

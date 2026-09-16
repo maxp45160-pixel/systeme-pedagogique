@@ -7,6 +7,13 @@ import { renduPourIntervention } from "@/lib/domain/intervention-rendus";
 const pages = [{pieceId:"pdf-a",page:2,texte:"Exercice 3 à reprendre. Date : vendredi ?",incertain:true}];
 const source = {pieceId:"pdf-a",page:2,citation:"Exercice 3 à reprendre."};
 describe("dépôt documentaire — sources et couverture",()=>{
+  it("refuse un sommaire recomposé et accepte ses cellules citées séparément", () => {
+    const sommaire = [{ pieceId: "livret", page: 1, texte: "| Fractions | 1 |\n| --- | --- |\n| Puissances | 2 |", incertain: false }];
+    expect(() => validerSourceDepot({ pieceId: "livret", page: 1, citation: "Fractions | Puissances" }, "doc", "", sommaire)).toThrow("citation n'existe pas");
+    for (const citation of ["Fractions", "Puissances"]) {
+      expect(validerSourceDepot({ pieceId: "livret", page: 1, citation }, "doc", "", sommaire).citation).toBe(citation);
+    }
+  });
   it("refuse une citation inventée ou empruntée à une autre page",()=>{
     expect(validerSourceDepot(source,"doc","",pages).documentId).toBe("doc");
     expect(()=>validerSourceDepot({...source,page:1},"doc","",pages)).toThrow();
@@ -73,6 +80,45 @@ describe("organisation V2 strictement proposée",()=>{
     expect(resultat.competences[0]).toMatchObject({mode:"existante",code:"PHI-01"});
     expect(()=>validerOrganisationDepot({organisation:{...base,domaine:{...base.domaine,id:"inconnu"}}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
     expect(()=>validerOrganisationDepot({organisation:{...base,competences:[{...base.competences[0],code:"IA-99"}]}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
+  });
+  it("accepte jusqu'à trente propositions et contrôle encore la source et le code de la dernière",()=>{
+    const gestes=["Additionner des fractions","Multiplier des fractions","Comparer des fractions","Simplifier une fraction","Développer un produit","Factoriser une expression","Réduire une expression","Résoudre une équation","Résoudre une inéquation","Résoudre un système","Calculer une puissance","Simplifier une racine","Convertir une unité","Calculer un pourcentage","Calculer une proportion","Dériver un polynôme","Intégrer un polynôme","Calculer une limite","Étudier une fonction","Tracer une courbe","Calculer une moyenne","Calculer une médiane","Calculer une variance","Calculer une probabilité","Dénombrer des arrangements","Calculer un déterminant","Multiplier des matrices","Calculer une norme","Calculer un produit scalaire","Décomposer un vecteur"];
+    const competences=gestes.map((intitule,i)=>({code:`MAT-${i+1}`,intitule}));
+    const propositions=competences.map((c)=>({mode:"existante",code:c.code,justification:"Geste explicitement demandé.",sources:[{pieceId:null,page:null,citation:c.intitule}]}));
+    const note=[preuve.citation,...gestes].join("\n");
+    const ref={...referentiel,competences};
+    for(const nombre of [7,30]) expect(validerOrganisationDepot({organisation:{...base,competences:propositions.slice(0,nombre)}},"doc",note,[],ref).competences).toHaveLength(nombre);
+    expect(()=>validerOrganisationDepot({organisation:{...base,competences:[...propositions,propositions[0]]}},"doc",note,[],ref)).toThrow("Trop de compétences");
+    expect(()=>validerOrganisationDepot({organisation:{...base,competences:[...propositions.slice(0,29),{...propositions[29],code:"IA-99"}]}},"doc",note,[],ref)).toThrow("référentiel actif");
+    expect(()=>validerOrganisationDepot({organisation:{...base,competences:[...propositions.slice(0,29),{...propositions[29],sources:[{...preuve,citation:"Geste absent"}]}]}},"doc",note,[],ref)).toThrow("citation");
+  });
+  it("distingue un fichier absent d'une page non lue",()=>{
+    expect(()=>validerSourceDepot({...source,pieceId:"pdf-b"},"doc","",pages)).toThrow("fichier cité ne fait pas partie");
+    expect(()=>validerSourceDepot({...source,page:1},"doc","",pages)).toThrow("page 1 citée ne fait pas partie");
+  });
+  it("signale une citation sur une autre page sans corriger son repère ni l'accepter",()=>{
+    const lues=[...pages,{pieceId:"pdf-a",page:3,texte:"Autre exercice.",incertain:false}];
+    expect(()=>validerSourceDepot({...source,page:3},"doc","",lues)).toThrow("présente sur les pages 2 du même fichier");
+    expect(()=>validerSourceDepot({...source,page:3},"doc","",lues)).toThrow("repère proposé est refusé");
+  });
+  it("ne cherche pas une justification dans un autre fichier",()=>{
+    const lues=[{pieceId:"pdf-a",page:2,texte:"Autre exercice.",incertain:false},{...pages[0],pieceId:"pdf-b"}];
+    expect(()=>validerSourceDepot(source,"doc","",lues)).toThrow('Citation proposée, non validée : "Exercice 3 à reprendre."');
+    expect(()=>validerSourceDepot(source,"doc","",lues)).not.toThrow("présente sur les pages");
+  });
+  it("accepte les seuls écarts de blancs et d'encodage Unicode, pas les changements de formule",()=>{
+    const lues=[{pieceId:"pdf-a",page:2,texte:"Égalité :\n x + 1 = 2",incertain:false}];
+    expect(validerSourceDepot({...source,citation:"E\u0301galité : x + 1 = 2"},"doc","",lues).page).toBe(2);
+    expect(()=>validerSourceDepot({...source,citation:"Égalité : x - 1 = 2"},"doc","",lues)).toThrow("Citation proposée, non validée");
+  });
+  it("cite la page PDF même quand son numéro imprimé est différent",()=>{
+    const lues=[
+      {pieceId:"livret",page:6,texte:"Fiche n°5\nRacines carrées\n5",incertain:false},
+      {pieceId:"livret",page:7,texte:"Fiche n°6\nRésoudre les équations suivantes.\n6",incertain:false},
+    ];
+    const citation={pieceId:"livret",page:7,citation:"Résoudre les équations suivantes."};
+    expect(validerSourceDepot(citation,"doc","",lues).page).toBe(7);
+    expect(()=>validerSourceDepot({...citation,page:6},"doc","",lues)).toThrow("présente sur les pages 7");
   });
 
   it("construit l'intitulé d'une compétence nouvelle sans accepter de code modèle",()=>{

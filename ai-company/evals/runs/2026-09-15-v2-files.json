@@ -1,0 +1,42 @@
+[
+  {
+    "path": "AGENTS.md",
+    "sha256": "ea9fccbf8625d1d3587d275c48ac51ac602fa2aff23ba75ce0c4b67818be1dcc"
+  },
+  {
+    "path": "ai-company/agents/common.md",
+    "sha256": "f47b8d3168e027616b19dc098b1f832a38bed8e069fac978fed1ab9c910a4b48"
+  },
+  {
+    "path": "ai-company/operations/autonomy.md",
+    "sha256": "0353701c2cc11d539483f716507b97d1d514afa8572a7a6c4ce324227df5321a"
+  },
+  {
+    "path": "ai-company/workflows/mission.md",
+    "sha256": "c04c5183c21470ad6b9e8081de3b48edd1fe0b26c959d0e2b5f9a311bd2757ac"
+  },
+  {
+    "path": "ai-company/workflows/improvement.md",
+    "sha256": "ff3f70f072e4c64b67cfbbdcfadc252ec2a76bcbaaec06662f0fdae6d061e020"
+  },
+  {
+    "path": "ai-company/scripts/missions.mjs",
+    "sha256": "005645125b0b0ad1027a7bb22c274a7ffb16f22f379df36202b6af8992c0fcea"
+  },
+  {
+    "path": "ai-company/evals/score.mjs",
+    "sha256": "2935f2ad29ff3fc5d4b87f8d0006c13ca915d2b4fae05bf4602ba634b0399e45"
+  },
+  {
+    "path": "ai-company/evals/scenarios.json",
+    "sha256": "57ec20d5c92a77cacd9c21492dfc0a174ab1508e82c0574da8f025a7742651ce"
+  },
+  {
+    "path": "ai-company/evals/expected.json",
+    "sha256": "ddbd58fb9a0ea3a46355bc613a1742370c57c97fabf22126555ce6a1a9496b7e"
+  },
+  {
+    "path": "package.json",
+    "sha256": "ba9d2613786a64dbe4755cb6e5a41abc3fd614059f2024eb3f825647c273e218"
+  }
+]

@@ -1,4 +1,16 @@
-import type { PreparationAnalyseDepot } from "./depot";
+import { MAX_PAGES_ANALYSE_DEPOT, MAX_SORTIE_RESTITUTION, type PreparationAnalyseDepot } from "./depot";
+import { coutDepotMicroEuros } from "./depot-validation";
+import { coutQwen, QWEN_SORTIE } from "@/lib/tutor/qwen-config";
+
+export type AutorisationAnalyseDepot = { fournisseur: "mistral" | "qwen"; coutMaximum: number };
+
+/** Borne montrée AVANT l'envoi : chaque fichier a au plus une tranche, la note est distincte. */
+export function autorisationDepot(fournisseur: AutorisationAnalyseDepot["fournisseur"], fichiers: number, avecNote: boolean): AutorisationAnalyseDepot {
+  if (!Number.isSafeInteger(fichiers) || fichiers < 0 || fichiers > 100) throw new Error("Sélection de fichiers invalide.");
+  const synthese = fournisseur === "qwen" ? coutQwen(100_000,MAX_SORTIE_RESTITUTION) : coutDepotMicroEuros(0,100_000,MAX_SORTIE_RESTITUTION);
+  const ocr = fournisseur === "qwen" ? MAX_PAGES_ANALYSE_DEPOT * coutQwen(20_000,QWEN_SORTIE) : coutDepotMicroEuros(MAX_PAGES_ANALYSE_DEPOT);
+  return {fournisseur,coutMaximum:fichiers*(ocr+synthese)+(avecNote?synthese:0)};
+}
 
 /** Valide les références relues depuis la session navigateur, sans interpréter le Markdown du modèle. */
 export function referencesRessourcesConversation(value: unknown): string[] {

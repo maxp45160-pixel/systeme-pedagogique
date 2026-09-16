@@ -1,5 +1,9 @@
 # Validation de la V1
 
+Pour la V2 du 15/09, voir le [rapport de livraison](runs/2026-09-15-v2-agents.md)
+et la [fiche ORG-0001](missions/ORG-0001.json). Les preuves V1 ci-dessous restent
+historiques et ne remplacent pas les nouveaux contrôles.
+
 > Cette première vérification porte sur la livraison documentaire initiale.
 > L'intégration native et ses exécutions sont consignées dans le complément
 > en fin de fichier ; les résultats historiques ci-dessous restent datés.

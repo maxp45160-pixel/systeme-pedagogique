@@ -10,6 +10,7 @@ import { estDepotDocumentaire, MAX_NOTE_DEPOT, SECTION_COMPETENCES_RESSOURCE, VE
 import { objetDepot, texteDepot, validerCouverturesDepot, validerPagesDepot, validerElementsDepot, validerOrganisationDepot } from "@/lib/documents/depot-validation";
 import { extraireLiensMarkdown } from "@/lib/documents/markdown";
 import { lireValeursSections, sansSections } from "@/lib/documents/sections-markdown";
+import { lireBrouillonClassement } from "@/lib/documents/brouillon-classement";
 
 export function noteDuDepot(markdown: string): string {
   return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(/^\s*# [^\n]*\n\n?/, "");
@@ -32,7 +33,7 @@ function analyseDepuisLigne(value: unknown): AnalyseDepot {
     else throw new Error("Version de restitution inconnue.");
   }
   return { id, documentId, empreinte: texteDepot(a.empreinte, 64), statut: a.statut as AnalyseDepot["statut"], pages, couvertures, restitution,
-    erreur: a.erreur === null ? null : texteDepot(a.erreur, 2000), creeLe: texteDepot(a.created_at, 50), modifieLe: texteDepot(a.updated_at, 50) };
+    erreur: a.erreur === null || a.erreur === "" ? null : texteDepot(a.erreur, 2000), creeLe: texteDepot(a.created_at, 50), modifieLe: texteDepot(a.updated_at, 50) };
 }
 export async function creerDepotDocumentaire(note: string, cle: string): Promise<string> {
   if (typeof note !== "string" || note.length > MAX_NOTE_DEPOT || !/^[0-9a-f-]{36}$/i.test(cle)) throw new Error("Dépôt invalide.");
@@ -121,6 +122,7 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
   const version = Number(frontmatter.depot_version) === VERSION_RESSOURCE_DEPOT ? VERSION_RESSOURCE_DEPOT : VERSION_DEPOT;
   const champ = (nom: string) => typeof frontmatter[nom] === "string" && frontmatter[nom].trim() ? frontmatter[nom].trim() : undefined;
   const sectionCompetences = lireValeursSections(document.contenuMd, [SECTION_COMPETENCES_RESSOURCE])[SECTION_COMPETENCES_RESSOURCE] ?? "";
+  const brouillonClassement = lireBrouillonClassement(frontmatter.classement_brouillon);
   return { id, version, titre: document.titre ?? "Dépôt", note, creeLe: document.createdAt ?? "", modifieLe: document.updatedAt ?? "", type: document.type ?? "note",
     ...(champ("domaine") ? { domaineId: champ("domaine") } : {}),
     ...(champ("source_relative_path") ? { sourceRelativePath: champ("source_relative_path") } : {}),
@@ -130,6 +132,7 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
     ...(champ("rangement_analyse_id") ? { rangementAnalyseId: champ("rangement_analyse_id") } : {}),
     ...(champ("rangement_statut") === "rangee" || champ("rangement_statut") === "a-trier" ? { rangementStatut: champ("rangement_statut") as "rangee"|"a-trier" } : {}),
     ...(champ("rangement_origine") === "assistant" || champ("rangement_origine") === "personne" ? { rangementOrigine: champ("rangement_origine") as "assistant" | "personne" } : {}),
+    ...(brouillonClassement ? { brouillonClassement } : {}),
     competencesLiees: extraireLiensMarkdown(sectionCompetences).map(({ cible }) => cible), pieces,
     analyses: (analyses.data ?? []).map(analyseDepuisLigne),
     corrections: (corrections.data ?? []).map((c) => ({ id: texteDepot(c.id,100), elementId: c.element_id === null ? null : texteDepot(c.element_id,120), texte: texteDepot(c.texte), creeLe: texteDepot(c.created_at,50) })),

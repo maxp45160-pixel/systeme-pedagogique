@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "valid": true,
+  "score": 8,
+  "total": 8,
+  "covered": 8,
+  "casesSha256": "57ec20d5c92a77cacd9c21492dfc0a174ab1508e82c0574da8f025a7742651ce",
+  "expectedSha256": "ddbd58fb9a0ea3a46355bc613a1742370c57c97fabf22126555ce6a1a9496b7e",
+  "errors": [],
+  "incorrect": [],
+  "limitation": "Évaluation du choix déclaré seulement ; ni l'argumentation ni l'exécution des outils ne sont certifiées."
+}

@@ -45,5 +45,6 @@ Une autorisation d'implémentation réversible ne valide pas une architecture du
 |---|---|---|
 | [DEC-0001](DEC-0001-memoire-et-roles-documentaires.md) | Mémoire sourcée et rôles documentaires sans orchestrateur | proposed |
 | [DEC-0002](DEC-0002-essai-manuel-compute.md) | Essai manuel de choix modèle/effort sur cinq missions | accepted |
+| [DEC-0003](DEC-0003-autonomie-et-reprise.md) | Autonomie bornée, reprise et amélioration évaluée, à la demande | accepted |
 
 Aucune nouvelle décision produit acceptée par cette V1.

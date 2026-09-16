@@ -1,5 +1,54 @@
 # Assistant d'entrée — référence et reprise progressive
 
+## Parcours courant — amendement demandé le 16/09/2026
+
+Maxime a approuvé : **assistant → fenêtre de compréhension et classement →
+tableau de bord**. La fenêtre présente la synthèse courte, la couverture réelle
+et les chemins de domaines proposés. Le classement reste modifiable avant
+« Valider et voir mes priorités ». « Plus tard » conserve les ressources ;
+fermer et rouvrir ne relance pas l'analyse payante.
+
+Cet accord remplace le classement automatique décrit dans les relevés
+historiques ci-dessous. Les liens de dépôt reviennent dans l'assistant, sans
+imposer une page de revue distincte. La confirmation réutilise les commandes
+du référentiel et permet un nouveau domaine sous un parent existant ; son usage
+doit être déclaré. Les résultats partiels d'écriture restent visibles.
+
+Le tableau de bord utilise son moteur immédiat. Sans observation, il indique
+que le niveau reste à observer ; aucun score ne provient du document importé.
+Le planificateur global et le calendrier ne sont pas raccordés par ce chantier.
+Les validations réelles de cette réalisation sont ajoutées en fin de document.
+
+Après le retour sur la lisibilité du 15/09, l'aperçu de synthèse est limité à
+trois lignes et peut être déplié. Le classement est mis en évidence ; le nombre
+de compétences créées reste visible. Les compétences sont sélectionnables
+directement, avec leurs pages sources ; les réserves sont visibles et les citations
+se consultent séparément. Une suggestion de l'IA est identifiée comme telle. Le prompt classe
+selon la matière enseignée, sans forcer un domaine existant au seul motif que
+ces connaissances y seraient utiles. Une réponse déjà conservée n'est pas
+réécrite par ce changement d'instruction.
+
+La reprise suivante du 15/09 remplace les menus déroulants par un chemin lisible
+et « Modifier » : domaine existant, nouveau domaine ou nouveau sous-domaine,
+avec choix expliqués du type de matière. Depuis le 16/09, les changements sont
+directs : le bouton final conserve le brouillon puis confirme, sans bouton
+intermédiaire « Garder ce choix ». Les noms des fichiers restent visibles en
+en-tête. Les anciens liens devenus inaccessibles sont signalés séparément et
+peuvent être retirés de l'échange sans supprimer un document.
+
+« Préparer ma proposition » autorise le dépôt et l'analyse automatique des
+nouvelles ressources avec un plafond et un fournisseur annoncés dans la saisie.
+Le parcours normal ne présente plus « Compléter les compétences », « Actualiser »
+ni une seconde autorisation. Un échec propose une reprise explicite et son coût ;
+les transcriptions déjà conservées sont réutilisées sans nouvel OCR.
+Le choix humain du domaine survit à cette nouvelle analyse ; les compétences
+sont à relire et leurs anciens indices ne sont pas réutilisés.
+
+Le temps disponible est modifiable au tableau de bord. Une ressource de
+30 minutes n'est pas présentée comme tenant dans 25 minutes ; les conventions
+de durée et les seuils du moteur sont conservés. La carte distingue l'étude
+d'une ressource de l'entraînement et permet de revenir aux priorités.
+
 10/09/2026 : lot 0 documentaire terminé. Lot 1 implémenté localement les
 10–11/09/2026, validation réelle bloquée côté fournisseur. Référence issue des réponses explicites de Maxime dans la conversation du
 10/09 ; les choix d'implémentation ci-dessous restent des propositions.
@@ -284,3 +333,23 @@ Le premier passage sans limite de parallélisme a dépassé les délais de deux
 scanners et de quatre démarrages de workers ; la suite limitée passe sans
 modifier les tests ni leurs délais. Aucun nouvel essai fournisseur ni écriture
 de ressource personnelle n'a été effectué pendant cette vérification.
+
+## Vérification du parcours du 15/09/2026
+
+Le parcours assistant → fenêtre → confirmation → tableau de bord est construit.
+Le navigateur a confirmé une note synthétique avec un domaine existant, puis
+affiché la priorité du moteur. L'écriture et sa trace ont été relues dans
+Supabase ; la note et son analyse de test ont ensuite été supprimées, absence
+vérifiée. La fenêtre a aussi été contrôlée avec le livret déjà analysé et à
+390 × 844 : actions en pied, classement hiérarchique et fermeture/reprise.
+
+Validation finale : 2 301 tests dans 224 fichiers, TypeScript, ESLint sans
+erreur (10 avertissements existants) et build de production passent. Le contrôle
+SQL de création, rejeu et isolation hors compte passe puis est annulé. Le défaut
+de dates documentaires détecté dans le navigateur est corrigé et couvert par
+sept tests. Aucun nouvel appel Mistral, aucune migration ni dépendance.
+
+La confirmation réelle de la note ne valide pas la pertinence des propositions
+du modèle sur d'autres documents. Le classement personnel du livret n'a pas été
+modifié par cet essai. Aucun niveau ni séance n'a été créé ; le planificateur
+global reste hors périmètre. Aucun commit, push ou déploiement.

@@ -58,7 +58,7 @@ export function usePiecesConversation(onConserver?: (texte: string, recu: string
         }
         setFichiers([...fichiers]);
       }
-      if (ressources.length) onConserver(noteSauvee ? texte : "", `${ressources.length} ressource${ressources.length > 1 ? "s conservées" : " conservée"}. Vous pouvez lancer leur analyse ci-dessous.${echecs.length ? " Certains éléments restent à envoyer dans la saisie." : ""}`, ressources);
+      if (ressources.length) onConserver(noteSauvee ? texte : "", `Je prépare votre proposition à partir de ${ressources.length > 1 ? "vos documents" : "votre document"}.${echecs.length ? " Certains éléments restent à envoyer dans la saisie." : ""}`, ressources);
       setErreurs(echecs);
       if (!echecs.length) { setFichiers([]); note.current = null; return true; }
       return false;

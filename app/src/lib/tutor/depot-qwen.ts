@@ -3,7 +3,7 @@ import { getDocumentProxy, renderPageAsImage } from "unpdf";
 import { appelerQwen } from "./qwen-appel";
 import { corpsRestitutionDepot } from "./depot-mistral";
 import type { ConfigTuteurClient } from "./cle-client";
-import { MAX_SORTIE_RESTITUTION, type PageExtraiteDepot, type ReferentielDepotPourModele, type TrancheDepot } from "@/lib/documents/depot";
+import { type PageExtraiteDepot, type ReferentielDepotPourModele, type TrancheDepot } from "@/lib/documents/depot";
 
 export async function lireOcrQwen(tranche: TrancheDepot, source: { octets: Uint8Array; mimeType: string }, config: ConfigTuteurClient, signal?: AbortSignal, conserver?: (pages: PageExtraiteDepot[]) => Promise<void>): Promise<PageExtraiteDepot[]> {
   const pdf = source.mimeType === "application/pdf" ? await getDocumentProxy(source.octets.slice()) : null;
@@ -38,6 +38,6 @@ export async function restituerQwen(note: string, pages: PageExtraiteDepot[], co
   const corps = corpsRestitutionDepot(note, pages, referentiel);
   const entree = Buffer.byteLength(JSON.stringify(corps), "utf8") + 2048;
   if (entree > 100000) throw new Error("Ces pages sont trop denses. Choisissez une tranche plus courte.");
-  const result = await appelerQwen(config, corps, entree, MAX_SORTIE_RESTITUTION, signal);
+  const result = await appelerQwen(config, corps, entree, corps.max_tokens, signal);
   return JSON.parse(result.choices[0].message.content);
 }

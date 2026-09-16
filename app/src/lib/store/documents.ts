@@ -33,6 +33,19 @@ function verifierIdentifiant(id: string): string {
   return propre;
 }
 
+/** Les dates SQL documentaires servent notamment au contrôle de version. */
+function ligneVersDocument(ligne: Record<string, unknown>): LigneDocument {
+  const dates = [ligne.created_at, ligne.updated_at];
+  if (dates.some((date) => typeof date !== "string" || !date.trim() || !Number.isFinite(Date.parse(date)))) {
+    throw new Error("Les dates du document sont absentes ou invalides. La lecture est interrompue.");
+  }
+  return {
+    ...ligneVersEntite<LigneDocument>(ligne),
+    createdAt: ligne.created_at as string,
+    updatedAt: ligne.updated_at as string,
+  };
+}
+
 async function lireDocumentsDepuisDorsale(
   dorsale: DorsaleCompte,
 ): Promise<LigneDocument[]> {
@@ -42,9 +55,7 @@ async function lireDocumentsDepuisDorsale(
     .eq("user_id", dorsale.userId)
     .order("updated_at", { ascending: false });
   verifier("lecture des documents", error);
-  return ((data ?? []) as Record<string, unknown>[]).map((ligne) =>
-    ligneVersEntite<LigneDocument>(ligne),
-  );
+  return ((data ?? []) as Record<string, unknown>[]).map(ligneVersDocument);
 }
 
 function metadataDepuisContenu(id: string, contenuMd: string) {
@@ -131,7 +142,7 @@ export async function lireDocument(id: string): Promise<LigneDocument> {
     .maybeSingle();
   verifier("lecture du document", error);
   if (!data) throw new Error("Document introuvable.");
-  return ligneVersEntite<LigneDocument>(data as Record<string, unknown>);
+  return ligneVersDocument(data as Record<string, unknown>);
 }
 
 /**

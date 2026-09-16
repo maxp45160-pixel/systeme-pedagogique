@@ -3,6 +3,9 @@
 ## Entrée
 
 Symptôme, comportement attendu, contexte et reproduction disponibles.
+Pour un travail non trivial, reprendre le [cycle de mission](mission.md).
+Un défaut local démontré peut être corrigé sous le [mandat](../operations/autonomy.md)
+si le comportement attendu est déjà approuvé et le périmètre libre de conflit.
 
 ## Déroulement
 

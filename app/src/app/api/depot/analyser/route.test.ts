@@ -8,7 +8,7 @@ const url = "http://localhost/api/depot/analyser";
 function requete(body: object, origin = "http://localhost") {
   return new Request(url, { method: "POST", headers: { origin, "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
-const demande = { documentId: "doc", empreinte: "e", maximum: 20, consentement: true, organiser: true };
+const demande = { documentId: "doc", empreinte: "e", maximum: 20, consentement: true };
 beforeEach(() => {
   vi.resetAllMocks();
   m.analyser.mockResolvedValue({ id: "doc", analyses: [{ id: "a", empreinte: "e", statut: "terminee", creeLe: "2026-09-13", restitution: { version: 2, organisation: {} } }] });
@@ -19,17 +19,30 @@ it("la préparation ne lance ni analyse ni rangement", async () => {
   expect((await GET(new Request(`${url}?documentId=doc`))).status).toBe(200);
   expect(m.analyser).not.toHaveBeenCalled(); expect(m.organiser).not.toHaveBeenCalled();
 });
+it("prépare et transmet explicitement l'analyse à compléter avec un nouveau consentement", async () => {
+  m.preparer.mockResolvedValue({disponible:true,syntheseDe:"ancienne"});
+  expect((await GET(new Request(`${url}?documentId=doc&syntheseDe=ancienne`))).status).toBe(200);
+  expect(m.preparer).toHaveBeenCalledWith("doc",20,false,"ancienne");
+  expect(m.analyser).not.toHaveBeenCalled();
+  expect((await POST(requete({...demande,syntheseDe:"ancienne",consentement:false}))).status).toBe(400);
+  expect(m.analyser).not.toHaveBeenCalled();
+  expect((await POST(requete({...demande,syntheseDe:"ancienne"}))).status).toBe(200);
+  expect(m.analyser).toHaveBeenCalledWith("doc","e",20,false,expect.any(AbortSignal),undefined,"ancienne");
+});
 it("refuse la transmission sans consentement explicite ou depuis une autre origine", async () => {
   expect((await POST(requete({ ...demande, consentement: false }))).status).toBe(400);
   expect((await POST(requete(demande, "http://autre"))).status).toBe(403);
   expect(m.analyser).not.toHaveBeenCalled(); expect(m.organiser).not.toHaveBeenCalled();
 });
-it("analyse puis range la restitution effectivement terminée, sans revue intermédiaire", async () => {
+it("refuse un ancien client demandant le rangement automatique avant appel payant", async () => {
+  const r = await POST(requete({ ...demande, organiser: true }));
+  expect(r.status).toBe(400);
+  expect(m.analyser).not.toHaveBeenCalled(); expect(m.organiser).not.toHaveBeenCalled();
+});
+it("retourne une analyse sans écriture de classement", async () => {
   const r = await POST(requete(demande));
-  expect(r.status).toBe(200);
-  expect(m.organiser).toHaveBeenCalledWith("doc", "a");
-  expect(m.analyser.mock.invocationCallOrder[0]).toBeLessThan(m.organiser.mock.invocationCallOrder[0]);
-  expect(await r.json()).toMatchObject({ depot: { rangementStatut: "rangee" } });
+  expect(r.status).toBe(200); expect(await r.json()).toHaveProperty("analyses");
+  expect(m.organiser).not.toHaveBeenCalled();
 });
 it("un échec ou un traitement concurrent ne déclenche pas le rangement", async () => {
   for (const statut of ["echec", "interrompue", "en-cours"]) {
@@ -46,13 +59,13 @@ it("n'utilise pas une analyse antérieure quand une autre est devenue la plus r�
   await POST(requete(demande)); expect(m.organiser).not.toHaveBeenCalled();
 });
 it("ne transforme pas un échec d'écriture en reçu de réussite", async () => {
-  m.organiser.mockRejectedValue(new Error("Document modifié ailleurs"));
+  m.analyser.mockRejectedValue(new Error("Document modifié ailleurs"));
   const r = await POST(requete(demande));
   expect(r.status).toBe(400); expect(await r.json()).toEqual({ message: "Document modifié ailleurs" });
   expect(m.analyser).toHaveBeenCalledTimes(1);
 });
 it("la reprise payante exige le drapeau explicite et l'ancien parcours reste inchangé", async () => {
   const r = await POST(requete({ ...demande, organiser: false, reprise: true }));
-  expect(m.analyser).toHaveBeenCalledWith("doc", "e", 20, true, expect.any(AbortSignal));
+  expect(m.analyser).toHaveBeenCalledWith("doc", "e", 20, true, expect.any(AbortSignal), undefined, undefined);
   expect(m.organiser).not.toHaveBeenCalled(); expect(await r.json()).toHaveProperty("analyses");
 });

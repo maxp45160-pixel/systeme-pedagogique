@@ -168,9 +168,11 @@ Consulter `PRODUCT.md` pour la définition complète des principes.
   sans rouvrir la question de la fenêtre. Un document n'atteint le tuteur que
   par un geste explicite, composé côté client et **relu par la personne avant
   l'envoi** — `composerSujetFiche`, `composerSujetLecture`, `TraiterLigneMarge`.
-  Exception explicitement retenue pour le pilote ADR-143 : « Analyser le dépôt »
-  autorise la transmission des fichiers après présentation des sources,
-  pages traitées, fournisseur et coût maximal. L'OCR précède la relecture de
+  Exception explicitement retenue pour le pilote ADR-143, amendée à la demande
+  de fluidité du 16/09 : « Préparer ma proposition » autorise le dépôt puis
+  l'analyse des nouvelles ressources, après présentation des sources,
+  pages traitées, fournisseur et coût maximal. Ce consentement ne couvre ni
+  une réouverture ni un réessai payant implicite. L'OCR précède la relecture de
   sa transcription ; aucun de ces contenus ne rejoint le contexte du chat.
   Rien de ce qui vient d'un document ne devient une mesure.
 - Le prompt système du chat porte un plafond mesuré (ADR-125) :
@@ -221,6 +223,10 @@ Ne jamais rejouer une migration appliquée sans raison.
 ---
 
 ## Workflow
+
+Lecture ciblée : commencer par signatures, imports et types, puis charger les
+corps nécessaires pour comprendre, vérifier ou modifier. Une revue en lecture
+seule peut examiner la logique ciblée (DEC-0003, accord du 15/09/2026).
 
 Pour tout chantier non trivial :
 
@@ -302,10 +308,16 @@ autorité. Une idée n'autorise pas de code ; une mission de réalisation explic
 autorise les modifications et vérifications nécessaires. Aucun statut humain
 n'est promu par les agents. Charger seulement rôle, sources et décisions utiles.
 
-Pour les cinq prochaines missions après mise en place, appliquer l'essai manuel
-`ai-company/decisions/DEC-0002-essai-manuel-compute.md` et consigner les résultats
-dans `ai-company/operations/metrics.md`. Le coordinateur est autorisé à choisir
-explicitement modèle et effort des sous-agents selon ce protocole et les options
-réellement exposées ; aucune modification des réglages de la tâche utilisateur.
-L'héritage reste le choix par défaut. Faire le bilan à la cinquième clôture,
-sans création automatique de routeur ni prolongation tacite.
+L'essai manuel `ai-company/decisions/DEC-0002-essai-manuel-compute.md` porte sur
+USE-0002 à USE-0006 ; sa revue est conservée dans le rapport d'audit du 15/09.
+Une reprise garde son identifiant ; aucune nouvelle mission n'étend l'essai.
+L'héritage modèle/effort reste le défaut, sans changement des réglages utilisateur.
+
+La V2 approuvée le 15/09 (DEC-0003) applique `ai-company/operations/autonomy.md`
+et `ai-company/workflows/mission.md` : mandat, fiche de reprise, propriétaire,
+critères et preuves. `npm run agents:next` sélectionne sans réserver une mission
+admissible ; `npm run agents:check` contrôle les fiches. Le coordinateur possède
+ces écritures et vérifie le travail concurrent. Toute amélioration des règles
+suit `ai-company/workflows/improvement.md`. Les cinq profils réutilisent ce
+contrat via `ai-company/agents/common.md`. Déclenchement à la demande choisi
+par Maxime ; aucune boucle permanente ni dépense nouvelle.

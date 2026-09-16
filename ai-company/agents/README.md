@@ -20,8 +20,10 @@ Une analyse d'idée seule ne donne toujours pas d'autorisation de coder.
 
 Les agents héritent par défaut du modèle, de l'effort et des permissions de la tâche :
 aucun modèle imposé ou permission élargie par les profils. L'[essai compute](../decisions/DEC-0002-essai-manuel-compute.md)
-autorise le coordinateur à sélectionner modèle/effort au lancement quand l'outil
-le permet, avec justification et suivi. Ils restent disponibles
+est borné à ses cinq missions identifiées ; les nouvelles missions gardent
+l'héritage sans prolonger l'essai. Ils restent disponibles
 pour des suites pendant la vie de leur exécution ; ils ne tournent pas en permanence.
 Les fichiers portent la définition durable ; les faits utiles de la mission
 rejoignent la mémoire avec provenance. Voir [exécution native](../operations/native-agents.md).
+Les cinq profils lisent le contrat commun, qui raccorde le
+[mandat V2](../operations/autonomy.md), la reprise et l'évaluation des améliorations.

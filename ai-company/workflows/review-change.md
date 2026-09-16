@@ -30,3 +30,6 @@ Verdict borné au périmètre inspecté, constats actionnables, réserves et che
 exécutés/non exécutés. Corriger les défauts avant de conclure.
 Chief of Staff met à jour les index d'état seulement si le changement le justifie ;
 l'avis QA n'est pas une décision validée ni une autorisation de merge.
+Vérifier également la fiche de mission : accord applicable, critères satisfaits,
+contrôles sur la version livrée et effets externes connus. Pour un changement
+d'instructions, appliquer l'[évaluation des améliorations](improvement.md).
