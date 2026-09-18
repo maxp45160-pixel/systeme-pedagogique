@@ -26,6 +26,7 @@ interface Confirmation {
   tentativeId?: string;
   domaineId?: string;
   codes?: string[];
+  choixPrealable?: string;
 }
 export interface ResultatClassementRessource {
   documentId: string;
@@ -36,6 +37,10 @@ export interface ResultatClassementRessource {
 const normalise = (s: string) => s.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
 const empreinte = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const baseRessource = (d: DepotDocumentaire) => empreinte([d.titre, d.type, d.domaineId ?? "", [...d.competencesLiees].sort()]);
+// La version change à chaque étape de la confirmation. Cette empreinte permet
+// de reprendre nos propres écritures sans effacer un geste humain intercalé.
+const champsChoix = ["classement_brouillon", "rangement_origine", "rangement_analyse_id", "rangement_revu_le", "rangement_statut", "rangement_empreinte", "referentiel_revu_le", "referentiel_analyse_id"] as const;
+const empreinteChoix = (frontmatter: Record<string, unknown> = {}) => empreinte(champsChoix.map((cle) => frontmatter[cle] ?? ""));
 const champsConfirmation = (c: Confirmation) => ({ classement_confirmation: Buffer.from(JSON.stringify(c)).toString("base64url") });
 const cleCreation = (cle: string) => `classement:${cle}:domaine`;
 
@@ -86,7 +91,7 @@ function lireConfirmation(v: unknown): Confirmation | null {
   if (typeof v !== "string" || v.length > 10000) return null;
   try {
     const c = JSON.parse(Buffer.from(v, "base64url").toString("utf8"));
-    return c && typeof c.cle === "string" && /^[a-f0-9]{64}$/.test(c.cle) && typeof c.base === "string" && /^[a-f0-9]{64}$/.test(c.base) && typeof c.analyseId === "string" && typeof c.terminee === "boolean" && (c.domaineId === undefined || typeof c.domaineId === "string") && (c.codes === undefined || (Array.isArray(c.codes) && c.codes.every((code: unknown) => typeof code === "string"))) ? c : null;
+    return c && typeof c.cle === "string" && /^[a-f0-9]{64}$/.test(c.cle) && typeof c.base === "string" && /^[a-f0-9]{64}$/.test(c.base) && typeof c.analyseId === "string" && typeof c.terminee === "boolean" && (c.choixPrealable === undefined || (typeof c.choixPrealable === "string" && /^[a-f0-9]{64}$/.test(c.choixPrealable))) && (c.domaineId === undefined || typeof c.domaineId === "string") && (c.codes === undefined || (Array.isArray(c.codes) && c.codes.every((code: unknown) => typeof code === "string"))) ? c : null;
   } catch { return null; }
 }
 
@@ -133,6 +138,7 @@ function verifierReferentiel(choix: ChoixClassementRessource, propositions: Nouv
 
 async function chargerChoix(choix: ChoixClassementRessource, domaineCreeDansLot?: string) {
   const [depot, document, referentiel] = await Promise.all([lireDepotDocumentaire(choix.documentId), lireDocument(choix.documentId), lireReferentiel()]);
+  if (document.updatedAt !== depot.modifieLe) throw new Error("La ressource a changé pendant la lecture. Actualisez son classement.");
   const propositions = propositionsSelectionnees(depot, choix);
   const precedente = lireConfirmation(document.frontmatter?.classement_confirmation);
   const cle = empreinte(choix);
@@ -143,6 +149,12 @@ async function chargerChoix(choix: ChoixClassementRessource, domaineCreeDansLot?
   }
   if (!confirmation && depot.modifieLe !== choix.updatedAtAttendu) throw new Error("La ressource a été modifiée. Actualisez avant de confirmer son classement.");
   if (confirmation && !confirmation.terminee && confirmation.base !== baseRessource(depot)) throw new Error("Le classement a été corrigé pendant cette confirmation. Actualisez la ressource.");
+  // Un ancien reçu sans empreinte ne prouve rien sur un brouillon ou un choix
+  // déjà présent : exiger alors une nouvelle confirmation de la version relue.
+  if (confirmation && !confirmation.terminee
+    && (confirmation.choixPrealable ?? empreinteChoix({})) !== empreinteChoix(document.frontmatter)) {
+    throw new Error("Votre choix de classement a changé pendant cette confirmation. Actualisez la ressource avant de confirmer.");
+  }
   verifierReferentiel(choix, propositions, referentiel, confirmation?.domaineId ?? domaineCreeDansLot);
   if (choix.domaine.mode === "nouveau" && !confirmation?.domaineId && !domaineCreeDansLot) {
     const nouvelles = propositions.filter((p) => !referentiel.actifs.some((s) => normalise(s.intitule) === normalise(p.intitule)));
@@ -164,7 +176,7 @@ function prefixeDisponible(nom: string, r: Referentiel) {
 
 async function confirmerUneRessource(choix: ChoixClassementRessource, domaineCreeDansLot?: string): Promise<DepotDocumentaire> {
   const charge = await chargerChoix(choix, domaineCreeDansLot);
-  let confirmation: Confirmation = charge.confirmation ?? { cle: charge.cle, base: baseRessource(charge.depot), analyseId: choix.analyseId, terminee: false, ...(domaineCreeDansLot ? { domaineId: domaineCreeDansLot } : {}) };
+  let confirmation: Confirmation = charge.confirmation ?? { cle: charge.cle, base: baseRessource(charge.depot), choixPrealable: empreinteChoix(charge.document.frontmatter), analyseId: choix.analyseId, terminee: false, ...(domaineCreeDansLot ? { domaineId: domaineCreeDansLot } : {}) };
   if (confirmation.terminee) {
     if (charge.depot.domaineId !== confirmation.domaineId || empreinte([...charge.depot.competencesLiees].sort()) !== empreinte(confirmation.codes ?? [])) throw new Error("Le classement a été corrigé depuis cette confirmation. Actualisez la ressource.");
     await resynchroniserLiensDocument(choix.documentId);

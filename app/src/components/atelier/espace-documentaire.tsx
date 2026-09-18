@@ -101,7 +101,7 @@ import {
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
-import { regrouperFichesParDomaine, type FicheCorpus } from "@/lib/documents/corpus-groupe";
+import { domaineAffichageCorpus, regrouperFichesParDomaine, separerGroupesNommes } from "@/lib/documents/corpus-groupe";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
 import { VueRessources } from "./vues-ressources-atelier";
@@ -2354,7 +2354,7 @@ function ModaleAjoutLien({
  * se regroupent sous le nom du domaine auquel elles servent (B.2). C'est une
  * lecture du corpus, pas un rangement : aucune donnée ne bouge.
  */
-function ResultatsRecherche({
+export function ResultatsRecherche({
   terme,
   elements,
   couleursDomaines,
@@ -2374,25 +2374,12 @@ function ResultatsRecherche({
   const { groupes, autres } = useMemo(() => {
     const estFicheCorpus = (element: ElementAtelier): boolean =>
       element.frontMatter.role === "support" || element.type === "cours";
-    const domaineDe = (element: ElementAtelier): string | null => {
-      if (element.rangement.zone === "domaine" && element.rangement.domaineId) {
-        return element.rangement.domaineId;
-      }
-      const codeRattache = element.rangement.rattachements[0];
-      if (codeRattache && domaineDeCompetence[codeRattache]) return domaineDeCompetence[codeRattache];
-      if (element.domaineId) return element.domaineId;
-      return null;
-    };
     const groupesCorpus = regrouperFichesParDomaine(elements, {
       estFicheCorpus,
-      domaineDe,
+      domaineDe: (element) => domaineAffichageCorpus(element, domaineDeCompetence),
       nomDuDomaine: (domaineId) => nomsDomaines[domaineId] ?? null,
     });
-    const idsGroupes = new Set(groupesCorpus.flatMap((groupe) => groupe.elements.map((el) => el.id)));
-    return {
-      groupes: groupesCorpus.filter((groupe) => groupe.nom !== null),
-      autres: elements.filter((element) => !idsGroupes.has(element.id)),
-    };
+    return separerGroupesNommes(elements, groupesCorpus);
   }, [elements, nomsDomaines, domaineDeCompetence]);
 
   return (

@@ -12,7 +12,7 @@ import {
 } from "@/lib/store/document-actions";
 import { IconeDocuments, IconeFleche } from "@/components/ui/icones";
 import { estATrier } from "@/lib/documents/rangement-atelier";
-import { regrouperFichesParDomaine } from "@/lib/documents/corpus-groupe";
+import { domaineAffichageCorpus, regrouperFichesParDomaine, separerGroupesNommes } from "@/lib/documents/corpus-groupe";
 import {
   BoutonRestaurationCarte,
   BoutonSuppressionCarte,
@@ -105,16 +105,11 @@ export function VueRessources({
     if (estArchives || rattachees.length === 0) return [];
     return regrouperFichesParDomaine(rattachees, {
       estFicheCorpus: () => true,
-      domaineDe: (element) => {
-        const codeRattache = element.rangement.rattachements[0];
-        if (codeRattache && domaineDeCompetence[codeRattache]) return domaineDeCompetence[codeRattache];
-        return element.domaineId ?? null;
-      },
+      domaineDe: (element) => domaineAffichageCorpus(element, domaineDeCompetence),
       nomDuDomaine: (domaineId) => nomsDomaines[domaineId] ?? null,
     });
   }, [estArchives, rattachees, domaineDeCompetence, nomsDomaines]);
-  const groupesNommes = groupesRattachees.filter((groupe) => groupe.nom !== null);
-  const horsGroupe = groupesRattachees.find((groupe) => groupe.nom === null)?.elements ?? [];
+  const { groupes: groupesNommes, autres: horsGroupe } = separerGroupesNommes(rattachees, groupesRattachees);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface-2/30">

@@ -1,0 +1,335 @@
+{
+  "id": "NUIT-0001",
+  "title": "Résister aux interruptions et reprises",
+  "objective": "Sauvegardes, clôture et reprise sans perte de réponse ni observation inventée",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+    "summary": "Accord de Maxime du 17/09 pour traiter les trois sujets successivement en autonomie ; corrections locales et tests, sans dépense, dépendance, base distante ni publication."
+  },
+  "status": "done",
+  "owner": "01a0ac86-510b-77f3-b6e0-69c527682bb2",
+  "scope": [
+    "app/src/components/exercices/zone-reponse.tsx",
+    "app/src/lib/store/seance-actions.ts",
+    "app/src/lib/store/seance-actions.test.ts",
+    "app/src/lib/store/seance-concurrence.ts",
+    "app/src/lib/store/seance-concurrence.test.ts",
+    "app/scripts/verify-zone-reponse.mjs",
+    "ai-company/operations/runs/2026-09-17-nuit-interruptions.md"
+  ],
+  "inputs": [
+    "app/src/lib/store/reponse-tentative.ts",
+    "app/src/lib/store/cloture-exercice.ts",
+    "app/src/lib/store/db.ts",
+    "app/src/lib/store/supabase-backend.ts",
+    "app/src/lib/store/validation-supabase.ts",
+    "app/src/lib/domain/seance.ts",
+    "app/src/lib/domain/tentative.ts",
+    "app/src/lib/ui/stockage-session.ts",
+    "app/src/components/exercices/abandon.tsx"
+  ],
+  "baseCommit": "e9c6fc76c1866a4dee876e541bda8394abc0bd60",
+  "acceptance": [
+    "Scénarios ciblés documentés avec preuves reproductibles et limites",
+    "Défauts démontrés corrigés au périmètre minimal ou blocage expliqué",
+    "Contrôles requis passés sur les fichiers livrés ; aucune modification distante"
+  ],
+  "nextAction": "Poursuivre NUIT-0002. Réserve confirmée : démarrage simultané du même exercice dans plusieurs onglets/appareils peut créer deux tentatives ouvertes. Une contrainte/RPC et vérification des doublons distants sont nécessaires, hors mandat sans modification DB.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-16T23:42:49.218Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local NUIT-0001 (2466 tests et 8 cas navigateur)",
+      "snapshot": {
+        "contractSha256": "5d50508683050f4d10b61e6c6447f40ad0e4a481998f01a7e8dd7535eeb86003",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-interruptions.md",
+            "073c34774321eb49d3ae5ed787cc09691c8438586dcd22ef69f74c25b86b3af9"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-zone-reponse.mjs",
+            "3521eff2d5f8753e9bb223a1ba9bab844ffb6d4d0ab880a27e5c9018873ee58e"
+          ],
+          [
+            "app/src/components/exercices/abandon.tsx",
+            "293221a1a26c23b0ad26896232387d71da8c2ba03c0e937edfbf35273208b781"
+          ],
+          [
+            "app/src/components/exercices/zone-reponse.tsx",
+            "19772cb39f31d72b48198d43d3e618bbfd9a9807f9247a9b6fb9556e1fa8a769"
+          ],
+          [
+            "app/src/lib/domain/seance.ts",
+            "2df7f827a4c2a254b68a45b4583befcd2c32930755598187131ceb1b63aac17e"
+          ],
+          [
+            "app/src/lib/domain/tentative.ts",
+            "2f23af6c12fd1f4513505400484f7eeac4a055c948526c792ecd64434f78c652"
+          ],
+          [
+            "app/src/lib/store/cloture-exercice.ts",
+            "a6a127cb861a7bbe6b14ba4efec90ff25e8331f2135181195180c44bb89ad1ea"
+          ],
+          [
+            "app/src/lib/store/db.ts",
+            "84f5b06fbde9212b7d8fa4e643a2562552b5dc8a416793d44a0bfd031c0340e6"
+          ],
+          [
+            "app/src/lib/store/reponse-tentative.ts",
+            "0bad9e4fabf6694d996f6f96f1592560679c06aa9a92e1f084c9059a17d45072"
+          ],
+          [
+            "app/src/lib/store/seance-actions.test.ts",
+            "6fe77a1fbfba8757e3858ea64c33aec3f0d913a3d6d334f22b97b563ccf23a51"
+          ],
+          [
+            "app/src/lib/store/seance-actions.ts",
+            "df95cbdaa3243386ec6e99719eb5d895ff317bc9695d1396ec10f15f2699224c"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.test.ts",
+            "dacdc2ada11e6336dbd11ba1f73fbdaabc9230b9e24c04981a41bb45dfc573ba"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.ts",
+            "3691840f9cb4cfcf5f89d3d0c29fa50e9f1df4e844d12bbf82f191069d3f92d3"
+          ],
+          [
+            "app/src/lib/store/supabase-backend.ts",
+            "e03804bacb75ad85216cead08dcff003a8e37951b4087b51cbc214acca21b292"
+          ],
+          [
+            "app/src/lib/store/validation-supabase.ts",
+            "4495accdf591df889c52b6357d2de6f9b8dd58c4e2814da300f79a291ac19f90"
+          ],
+          [
+            "app/src/lib/ui/stockage-session.ts",
+            "5556b884acc8e13c918e20e9bb27977497719229536911a66525e67c7b98f908"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "node app/scripts/verify-zone-reponse.mjs",
+      "result": "passed",
+      "at": "2026-09-16T23:42:49.218Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local NUIT-0001 (2466 tests et 8 cas navigateur)",
+      "snapshot": {
+        "contractSha256": "5d50508683050f4d10b61e6c6447f40ad0e4a481998f01a7e8dd7535eeb86003",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-interruptions.md",
+            "073c34774321eb49d3ae5ed787cc09691c8438586dcd22ef69f74c25b86b3af9"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-zone-reponse.mjs",
+            "3521eff2d5f8753e9bb223a1ba9bab844ffb6d4d0ab880a27e5c9018873ee58e"
+          ],
+          [
+            "app/src/components/exercices/abandon.tsx",
+            "293221a1a26c23b0ad26896232387d71da8c2ba03c0e937edfbf35273208b781"
+          ],
+          [
+            "app/src/components/exercices/zone-reponse.tsx",
+            "19772cb39f31d72b48198d43d3e618bbfd9a9807f9247a9b6fb9556e1fa8a769"
+          ],
+          [
+            "app/src/lib/domain/seance.ts",
+            "2df7f827a4c2a254b68a45b4583befcd2c32930755598187131ceb1b63aac17e"
+          ],
+          [
+            "app/src/lib/domain/tentative.ts",
+            "2f23af6c12fd1f4513505400484f7eeac4a055c948526c792ecd64434f78c652"
+          ],
+          [
+            "app/src/lib/store/cloture-exercice.ts",
+            "a6a127cb861a7bbe6b14ba4efec90ff25e8331f2135181195180c44bb89ad1ea"
+          ],
+          [
+            "app/src/lib/store/db.ts",
+            "84f5b06fbde9212b7d8fa4e643a2562552b5dc8a416793d44a0bfd031c0340e6"
+          ],
+          [
+            "app/src/lib/store/reponse-tentative.ts",
+            "0bad9e4fabf6694d996f6f96f1592560679c06aa9a92e1f084c9059a17d45072"
+          ],
+          [
+            "app/src/lib/store/seance-actions.test.ts",
+            "6fe77a1fbfba8757e3858ea64c33aec3f0d913a3d6d334f22b97b563ccf23a51"
+          ],
+          [
+            "app/src/lib/store/seance-actions.ts",
+            "df95cbdaa3243386ec6e99719eb5d895ff317bc9695d1396ec10f15f2699224c"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.test.ts",
+            "dacdc2ada11e6336dbd11ba1f73fbdaabc9230b9e24c04981a41bb45dfc573ba"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.ts",
+            "3691840f9cb4cfcf5f89d3d0c29fa50e9f1df4e844d12bbf82f191069d3f92d3"
+          ],
+          [
+            "app/src/lib/store/supabase-backend.ts",
+            "e03804bacb75ad85216cead08dcff003a8e37951b4087b51cbc214acca21b292"
+          ],
+          [
+            "app/src/lib/store/validation-supabase.ts",
+            "4495accdf591df889c52b6357d2de6f9b8dd58c4e2814da300f79a291ac19f90"
+          ],
+          [
+            "app/src/lib/ui/stockage-session.ts",
+            "5556b884acc8e13c918e20e9bb27977497719229536911a66525e67c7b98f908"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-16T23:42:49.218Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local NUIT-0001 (2466 tests et 8 cas navigateur)",
+      "snapshot": {
+        "contractSha256": "5d50508683050f4d10b61e6c6447f40ad0e4a481998f01a7e8dd7535eeb86003",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-interruptions.md",
+            "073c34774321eb49d3ae5ed787cc09691c8438586dcd22ef69f74c25b86b3af9"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-zone-reponse.mjs",
+            "3521eff2d5f8753e9bb223a1ba9bab844ffb6d4d0ab880a27e5c9018873ee58e"
+          ],
+          [
+            "app/src/components/exercices/abandon.tsx",
+            "293221a1a26c23b0ad26896232387d71da8c2ba03c0e937edfbf35273208b781"
+          ],
+          [
+            "app/src/components/exercices/zone-reponse.tsx",
+            "19772cb39f31d72b48198d43d3e618bbfd9a9807f9247a9b6fb9556e1fa8a769"
+          ],
+          [
+            "app/src/lib/domain/seance.ts",
+            "2df7f827a4c2a254b68a45b4583befcd2c32930755598187131ceb1b63aac17e"
+          ],
+          [
+            "app/src/lib/domain/tentative.ts",
+            "2f23af6c12fd1f4513505400484f7eeac4a055c948526c792ecd64434f78c652"
+          ],
+          [
+            "app/src/lib/store/cloture-exercice.ts",
+            "a6a127cb861a7bbe6b14ba4efec90ff25e8331f2135181195180c44bb89ad1ea"
+          ],
+          [
+            "app/src/lib/store/db.ts",
+            "84f5b06fbde9212b7d8fa4e643a2562552b5dc8a416793d44a0bfd031c0340e6"
+          ],
+          [
+            "app/src/lib/store/reponse-tentative.ts",
+            "0bad9e4fabf6694d996f6f96f1592560679c06aa9a92e1f084c9059a17d45072"
+          ],
+          [
+            "app/src/lib/store/seance-actions.test.ts",
+            "6fe77a1fbfba8757e3858ea64c33aec3f0d913a3d6d334f22b97b563ccf23a51"
+          ],
+          [
+            "app/src/lib/store/seance-actions.ts",
+            "df95cbdaa3243386ec6e99719eb5d895ff317bc9695d1396ec10f15f2699224c"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.test.ts",
+            "dacdc2ada11e6336dbd11ba1f73fbdaabc9230b9e24c04981a41bb45dfc573ba"
+          ],
+          [
+            "app/src/lib/store/seance-concurrence.ts",
+            "3691840f9cb4cfcf5f89d3d0c29fa50e9f1df4e844d12bbf82f191069d3f92d3"
+          ],
+          [
+            "app/src/lib/store/supabase-backend.ts",
+            "e03804bacb75ad85216cead08dcff003a8e37951b4087b51cbc214acca21b292"
+          ],
+          [
+            "app/src/lib/store/validation-supabase.ts",
+            "4495accdf591df889c52b6357d2de6f9b8dd58c4e2814da300f79a291ac19f90"
+          ],
+          [
+            "app/src/lib/ui/stockage-session.ts",
+            "5556b884acc8e13c918e20e9bb27977497719229536911a66525e67c7b98f908"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-16T23:42:49.218Z",
+  "completion": {
+    "summary": "Six mécanismes corrigés, tests verts et revue indépendante. Réserve distincte reproduite en mémoire : actions.ts demarrerTentative fait lecture puis insert ; deux appels concurrents créent deux identifiants en-cours. Index attempts_user_exercise_idx non unique dans schéma local. Aucun correctif DB ni promesse d’unicité interappareils ; vérification distante/doublons et décision de migration nécessaires.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-nuit-interruptions.md"
+    ],
+    "at": "2026-09-16T23:42:49.218Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "node app/scripts/verify-zone-reponse.mjs",
+    "npm run agents:check"
+  ],
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-memoire-travail.md",
+      "requirement": "P02-03",
+      "scope": "Fiabilisation du comportement existant uniquement ; aucun développement du parcours futur ni promotion de statut."
+    },
+    {
+      "source": "ai-company/product/parcours-memoire-travail.md",
+      "requirement": "P02-04",
+      "scope": "Fiabilisation du comportement existant uniquement ; aucun développement du parcours futur ni promotion de statut."
+    },
+    {
+      "source": "ai-company/product/parcours-memoire-travail.md",
+      "requirement": "P02-06",
+      "scope": "Fiabilisation du comportement existant uniquement ; aucun développement du parcours futur ni promotion de statut."
+    }
+  ],
+  "handoff": {
+    "delivered": "Six mécanismes défectueux corrigés : identité de saisie, protection en vol, connaissance après erreur, ancien écran, clôtures concurrentes et début idempotent.",
+    "remaining": [
+      "Recette distante multi-onglets et éditeur réel hors preuve locale ; aucune publication."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-nuit-interruptions.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  }
+}

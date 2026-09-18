@@ -25,16 +25,17 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   Twiny et reste corrigeable. « Retirer ce rattachement » conserve un refus humain
   et laisse l'original sans domaine ; une réanalyse ne rétablit pas ce lien.
   Les réouvertures ne classent ni n'analysent automatiquement.
-  **Extension P01-0002 approuvée le 16/09, préparée localement :** si la première
+  **Extension P01-0002 approuvée le 16/09, code local et garde SQL distante appliquée :** si la première
   analyse propose un nouveau domaine sourcé sans incertitude ni collision connue,
   Twiny peut le créer comme domaine d'organisation sans compétence, puis rattacher
   le document. Aucun usage académique ou continu n'est déduit ; le contexte peut
   être précisé plus tard. La trace distingue création à vérifier et rattachement
   effectué ; une reprise explicite retrouve le reçu sans doublon ni réanalyse.
   Cette création vide nécessite la migration
-  `20260916183000_domaines_organisation_vides.sql`, **en attente d'application**.
-  La base distante conserve donc encore le refus historique ; ne pas présenter
-  l'extension comme activée avant cette application.
+  `20260916183000_domaines_organisation_vides.sql`, **appliquée le 16/09** sous la
+  version distante `20260916183753`. Corps et permissions vérifiés après accord
+  explicite ; aucune publication du frontend dans cette mission. La recette de
+  bout en bout sur corpus réel reste à faire.
   Après ce rattachement, les compétences proposées ne sont pas précochées :
   une correction du domaine seul ne les associe pas implicitement.
   Après l'analyse, une fenêtre
@@ -67,6 +68,13 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   distincts des chapitres, sans plafond artificiel de deux compétences ni
   promesse d'exhaustivité. Un domaine hors délégation reste proposé à la relecture ;
   les anciennes sélections de compétences ne sont pas appliquées aux nouveaux indices.
+- **Documents retrouvables — correction locale P01-0003.** Ressources et recherche
+  affichent le corpus sous son domaine explicitement enregistré ; une compétence
+  liée ne remplace pas ce choix. Sans domaine déclaré, le repli historique vers la
+  première compétence reste une lecture. Un domaine absent ou introuvable laisse
+  le document visible parmi les autres résultats, une seule fois. La consultation
+  ne réécrit aucun rangement. La recherche reste limitée aux champs déjà indexés
+  (titre, identifiant, type, tags), sans recherche sémantique ni dans le contenu entier.
 - **Contexte encore partiel.** La conversation peut enregistrer un examen avec
   une date absolue complète ; une date relative appelle une précision. Son fil
   reste en session navigateur, isolé par compte. La conservation durable de
@@ -377,7 +385,7 @@ arbitrage.
 | # | Principe | Source | État |
 |---|---|---|---|
 | **P1** | Rien de ce qui peut être dérivé n'est stocké | Instructions §1 | ✅ Tenu |
-| **P2** | L'absence de mesure n'est pas un zéro | Anti-halluc. §7 et §14 | ✅ Tenu depuis le 31/07 (ADR-006) |
+| **P2** | L'absence de mesure n'est pas un zéro | Anti-halluc. §7 et §14 | ✅ Tenu pour le score global depuis le 31/07 (ADR-006) ; réserve sur les dimensions ci-dessous |
 | **P3** | Aucune valeur sans source — chaque nombre porte son « Pourquoi ? » | Anti-halluc. §4 | ✅ Tenu |
 | **P4** | Une faiblesse ne disparaît pas sans démonstration | Anti-halluc. §5 et §6 | ✅ Tenu |
 | **P5** | Le tuteur n'écrit aucune mesure | Instructions §13 | ✅ Tenu — reformulé le 03/08 (ADR-037) |
@@ -408,6 +416,13 @@ n'a pas encore été mesuré. Le doute sur une couverture partielle continue de
 plafonner la *confiance*, pas d'abaisser le niveau. ✅ Tranché : ADR-006.
 Les compétences non mesurées restent **en veille** dans le référentiel, prêtes à
 être remobilisées lorsqu'une intention ou une recommandation les rend utiles.
+
+**Réserve technique constatée le 17/09/2026 (NUIT-0002).** Cette protection du
+score global ne règle pas la couverture des dimensions à l'intérieur d'une
+compétence : le calcul actuel représente encore une dimension absente par zéro
+dans son score pondéré. Une explication ne doit pas présenter ce zéro comme une
+mesure. Le traitement du score partiellement observé reste à arbitrer ; aucun
+poids ni seuil n'a été changé et ce constat ne promeut aucun statut.
 
 ### P5 — ce que la garantie protégeait réellement
 
@@ -717,7 +732,8 @@ d'ajouter la première compétence. Cette exception ne s'étend pas aux domaines
 continus ; elle ne crée ni compétence sentinelle, ni score, ni contenu implicite.
 L'accord humain P01-0002 du 16/09 autorise aussi le domaine d'organisation vide,
 dont l'usage reste indéterminé. Le code local et le schéma de référence sont adaptés ;
-la migration correspondante reste en attente sur la base distante. Le domaine continu
+la migration correspondante est appliquée sur la base distante depuis le 16/09.
+Le domaine continu
 explicitement déclaré conserve son contrat. Cette ouverture n'ajoute ni table ni
 notion de compétence factice.
 

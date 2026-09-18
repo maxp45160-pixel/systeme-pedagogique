@@ -14,13 +14,22 @@ ne constituent pas d'autres autorisations.
 
 ## Socle courant — lecture avant les analyses historiques
 
+- **Suite autorisée, P01-0003, 16/09 :** « oui j'autorise. Une fois que c fait,
+  bosse la tranche 3 ». La migration P01-0002 est appliquée et vérifiée. La tranche
+  locale suivante restaure la restitution du domaine déclaré et la visibilité de
+  tous les résultats dans Ressources/recherche ([mandat et critères](../operations/runs/2026-09-16-p01-retrouver-mandat.md)).
+  Contribution bornée à P01-07 ; pas de nouvelle politique de classement, de recherche
+  sémantique ni de validation générale du parcours. Aucune publication autorisée.
+
 - **Accord suivant P01-0002, 16/09 :** Maxime accepte la création déléguée de
   domaines d'organisation sans compétence obligatoire, avec contexte académique
   précisé plus tard et contrôle ciblé des ambiguïtés/doublons. Source exacte et
   confrontation dans [le mandat](../operations/runs/2026-09-16-p01-domaines.md).
-  Le code local est préparé ; l'activation distante attend une migration non
-  appliquée. Aucun pouvoir externe ni autre exigence de P-01 n'est validé par
-  cet accord. La frontière limitée de P01-0001 ci-dessous est ainsi étendue.
+  Le code local est livré ; la migration est ensuite explicitement autorisée et
+  appliquée le 16/09 sous la version distante 20260916183753, avec corps et permissions
+  vérifiés ([preuve](../operations/runs/2026-09-16-p01-domaines-activation.md)).
+  Aucune publication ni autre exigence de P-01 n'est validée par cet accord.
+  La frontière limitée de P01-0001 ci-dessous est ainsi étendue.
 
 - **Réalisation autorisée ensuite le 16/09 :** Maxime demande de confronter P-01 au
   code puis réaliser une première tranche. Il confirme le rattachement des seules

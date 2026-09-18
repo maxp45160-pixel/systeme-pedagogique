@@ -1,0 +1,45 @@
+{
+  "contractSha256": "3b13a2e4a4233b82e5c3d534097d6bad98ed24741afab497f8ef7c665fcb088d",
+  "files": [
+    [
+      "ai-company/operations/runs/2026-09-17-p01-recette-mandat.md",
+      "01eaf846e1ca2b8c98ed72d8587f1bb687ac81770618b1e0b6451bd740801050"
+    ],
+    [
+      "ai-company/operations/runs/2026-09-17-p01-recette.md",
+      "fd7234950a8abb4cbf6fe91c116bf365c49fa6ed2e1fe3664cbbdb142520744e"
+    ],
+    [
+      "ai-company/product/parcours-depot-memoire.md",
+      "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+    ],
+    [
+      "app/src/components/atelier/actions-creation-atelier.tsx",
+      "2895922ecf15686cf8413c20392763271448276386314c91c48002d21396f223"
+    ],
+    [
+      "app/src/components/atelier/espace-documentaire.tsx",
+      "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+    ],
+    [
+      "app/src/components/atelier/vues-ressources-atelier.tsx",
+      "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+    ],
+    [
+      "app/src/components/tuteur/modale-ressources.tsx",
+      "031a58ed64bea91e9eb54ebc5dc0fd12f4f8c5c7169e76ec76d92744a95727bb"
+    ],
+    [
+      "app/src/components/tuteur/ressources-conversation.tsx",
+      "423b9795f4407299bbbed44ec5ffab9a94099abdb14a25d701486c853a75795b"
+    ],
+    [
+      "app/src/lib/documents/delegation-classement.ts",
+      "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+    ],
+    [
+      "app/src/lib/store/delegation-classement-actions.ts",
+      "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+    ]
+  ]
+}

@@ -1,0 +1,230 @@
+{
+  "owner": "01a0ab48-a27f-7453-ac53-3b8d3407eae7",
+  "scope": [
+    "ai-company/operations/runs/2026-09-17-p01-recette.md",
+    "app/src/components/atelier/actions-creation-atelier.tsx"
+  ],
+  "updatedAt": "2026-09-16T23:30:21.542Z",
+  "status": "done",
+  "nextAction": "Recette gratuite terminée et limitée : nouvelle analyse réelle et validation de sa pertinence restent à autoriser séparément ; aucune publication.",
+  "checks": [
+    {
+      "command": "npm run test --workspace=app -- src/components/atelier/creation-domaines.composition.test.ts src/components/atelier/retrouver-ressources.test.ts",
+      "result": "passed",
+      "at": "2026-09-16T23:30:21.542Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003 et correction URL P01-0004",
+      "snapshot": {
+        "contractSha256": "3b13a2e4a4233b82e5c3d534097d6bad98ed24741afab497f8ef7c665fcb088d",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette-mandat.md",
+            "01eaf846e1ca2b8c98ed72d8587f1bb687ac81770618b1e0b6451bd740801050"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette.md",
+            "fd7234950a8abb4cbf6fe91c116bf365c49fa6ed2e1fe3664cbbdb142520744e"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/actions-creation-atelier.tsx",
+            "2895922ecf15686cf8413c20392763271448276386314c91c48002d21396f223"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/components/tuteur/modale-ressources.tsx",
+            "031a58ed64bea91e9eb54ebc5dc0fd12f4f8c5c7169e76ec76d92744a95727bb"
+          ],
+          [
+            "app/src/components/tuteur/ressources-conversation.tsx",
+            "423b9795f4407299bbbed44ec5ffab9a94099abdb14a25d701486c853a75795b"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-16T23:30:21.542Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003 et correction URL P01-0004",
+      "snapshot": {
+        "contractSha256": "3b13a2e4a4233b82e5c3d534097d6bad98ed24741afab497f8ef7c665fcb088d",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette-mandat.md",
+            "01eaf846e1ca2b8c98ed72d8587f1bb687ac81770618b1e0b6451bd740801050"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette.md",
+            "fd7234950a8abb4cbf6fe91c116bf365c49fa6ed2e1fe3664cbbdb142520744e"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/actions-creation-atelier.tsx",
+            "2895922ecf15686cf8413c20392763271448276386314c91c48002d21396f223"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/components/tuteur/modale-ressources.tsx",
+            "031a58ed64bea91e9eb54ebc5dc0fd12f4f8c5c7169e76ec76d92744a95727bb"
+          ],
+          [
+            "app/src/components/tuteur/ressources-conversation.tsx",
+            "423b9795f4407299bbbed44ec5ffab9a94099abdb14a25d701486c853a75795b"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "at": "2026-09-16T23:30:21.542Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003 et correction URL P01-0004",
+      "snapshot": {
+        "contractSha256": "3b13a2e4a4233b82e5c3d534097d6bad98ed24741afab497f8ef7c665fcb088d",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette-mandat.md",
+            "01eaf846e1ca2b8c98ed72d8587f1bb687ac81770618b1e0b6451bd740801050"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-recette.md",
+            "fd7234950a8abb4cbf6fe91c116bf365c49fa6ed2e1fe3664cbbdb142520744e"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/actions-creation-atelier.tsx",
+            "2895922ecf15686cf8413c20392763271448276386314c91c48002d21396f223"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/components/tuteur/modale-ressources.tsx",
+            "031a58ed64bea91e9eb54ebc5dc0fd12f4f8c5c7169e76ec76d92744a95727bb"
+          ],
+          [
+            "app/src/components/tuteur/ressources-conversation.tsx",
+            "423b9795f4407299bbbed44ec5ffab9a94099abdb14a25d701486c853a75795b"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [
+    "Trois fiches TEST P01-0004 créées via UI : doc-mu4q5u60-y1j01, doc-mu4qdeha-ar9e5, doc-mu4qe9t0-lkerj. Une modification sauvegardée sur la première ; troisième dans Qualité. Aucun original modifié ni appel fournisseur."
+  ],
+  "objective": "Vérifier les trois tranches sur les ressources conservées, documenter les cas réellement exercés et les limites",
+  "inputs": [
+    "app/src/components/tuteur/modale-ressources.tsx",
+    "app/src/components/tuteur/ressources-conversation.tsx",
+    "app/src/lib/store/delegation-classement-actions.ts",
+    "app/src/lib/documents/delegation-classement.ts",
+    "app/src/components/atelier/espace-documentaire.tsx",
+    "app/src/components/atelier/vues-ressources-atelier.tsx"
+  ],
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-17-p01-recette-mandat.md",
+    "summary": "Accord humain pour les tests proposés sans nouvelle dépense, publication ni changement de permissions ; préserver originaux et choix antérieurs"
+  },
+  "baseCommit": "e9c6fc76c1866a4dee876e541bda8394abc0bd60",
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-06",
+      "scope": "Recette des contrôles existants avec analyses déjà enregistrées, limites explicites"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-07",
+      "scope": "Recette navigateur recherche et réouverture des ressources"
+    }
+  ],
+  "blocker": null,
+  "id": "P01-0004",
+  "completion": {
+    "summary": "Recette navigateur gratuite documentée, retour Ressources corrigé et vérifié ; 109 tests ciblés QA et 11 tests de non-régression passent. Pas de validation de nouvelle analyse fournisseur.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-p01-recette.md"
+    ],
+    "at": "2026-09-16T23:30:21.542Z"
+  },
+  "acceptance": [
+    "Navigation et recherche observées sur ressources conservées",
+    "Correction/réouverture exercées sans perte ou blocage précis documenté",
+    "Cas non testables sans analyse payante explicitement distingués",
+    "Aucun appel IA, aucune modification des originaux pour simuler le succès"
+  ],
+  "title": "Recette navigateur sans nouvelle analyse payante",
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run test --workspace=app -- src/components/atelier/creation-domaines.composition.test.ts src/components/atelier/retrouver-ressources.test.ts",
+    "npm run agents:check",
+    "git diff --check"
+  ],
+  "handoff": {
+    "delivered": "Recette réelle sans dépense : recherche, ouverture, persistance, domaine existant et retour corrigé.",
+    "remaining": [
+      "Classification déléguée sur nouvelle analyse réelle non exercée ; pas de nouvelle dépense autorisée.",
+      "Frontend non publié."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-p01-recette.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  }
+}

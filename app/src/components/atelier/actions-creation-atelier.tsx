@@ -737,7 +737,7 @@ function ModaleCreationDocument({
   function ouvrirDocument(fiche: { id: string }) {
     const retour = domaine !== "transversal"
       ? `/atelier?document=${encodeURIComponent(`domaine:${domaine}`)}`
-      : "/atelier?vue=ressources";
+      : "/atelier?document=ressources";
     onFermer();
     router.push(`/atelier?note=${encodeURIComponent(fiche.id)}&retour=${encodeURIComponent(retour)}`);
     router.refresh();

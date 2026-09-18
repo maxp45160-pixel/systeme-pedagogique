@@ -1,0 +1,543 @@
+{
+  "id": "NUIT-0003",
+  "title": "Accessibilité des parcours essentiels",
+  "objective": "Corriger les obstacles démontrés de clavier, focus, formulaires et affichage mobile",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+    "summary": "Accord de Maxime du 17/09 pour traiter les trois sujets successivement en autonomie ; corrections locales et tests, sans dépense, dépendance, base distante ni publication."
+  },
+  "status": "done",
+  "owner": "01a0ac86-510b-77f3-b6e0-69c527682bb2",
+  "scope": [
+    "app/src/components/ui",
+    "app/src/components/seances/etape-besoin.tsx",
+    "app/src/components/seances/marge-cahier.tsx",
+    "app/src/components/seances/accessibilite-saisie.test.ts",
+    "app/src/lib/ui/modales.ts",
+    "app/src/lib/ui/modales.test.ts",
+    "app/scripts/verify-accessibilite.mjs"
+  ],
+  "inputs": [],
+  "baseCommit": "e9c6fc76c1866a4dee876e541bda8394abc0bd60",
+  "acceptance": [
+    "Scénarios ciblés documentés avec preuves reproductibles et limites",
+    "Défauts démontrés corrigés au périmètre minimal ou blocage expliqué",
+    "Contrôles requis passés sur les fichiers livrés ; aucune modification distante"
+  ],
+  "nextAction": "Trois lots nocturnes livrés localement ; réserves décrites dans les rapports. Aucune publication effectuée.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-17T00:10:03.954Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff NUIT-0003 ; 2572 tests, 13 scénarios Edge, build production réussi (réseau autorisé pour polices Google existantes)",
+      "snapshot": {
+        "contractSha256": "fff6aeaacb8ce3662a2cec597fb676848c4ae411a4509c52631bb1b6b11d9e1b",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md",
+            "6292691c8df9e136829da4b7793e558a208d4f74f387339ebddb234e930fad74"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-accessibilite.mjs",
+            "268e6ab8886af72ac5357013b70232eaf60e3aecf42ff206f91c5192580d0ac5"
+          ],
+          [
+            "app/src/components/seances/accessibilite-saisie.test.ts",
+            null
+          ],
+          [
+            "app/src/components/seances/etape-besoin.tsx",
+            "e92156050cac74f9c306ff37eeae8373636c23a9512ac5a86254c1a8c8f031ec"
+          ],
+          [
+            "app/src/components/seances/marge-cahier.tsx",
+            "e237da4b88bf953927a3ee47a42add05e5a7817636a46b4273a76c71c82a3a24"
+          ],
+          [
+            "app/src/components/ui/",
+            "directory"
+          ],
+          [
+            "app/src/components/ui/champ.test.ts",
+            "8cd0faa40ace147e96b7a973a62482051cadfdc323627ed261e4323b259cc653"
+          ],
+          [
+            "app/src/components/ui/champ.tsx",
+            "e18bbd1f707007664bf6aee198b82a0087b3fe2a53e0a74f15fafdc59dc18a42"
+          ],
+          [
+            "app/src/components/ui/chargement-generation.tsx",
+            "883c6d6829f19bf3c10ee5f8dd48cd89096dbc34a9e1d41cb00b24cabd17ee2d"
+          ],
+          [
+            "app/src/components/ui/explication.tsx",
+            "69ce850e8790c35784e8b3e7b9981da65a305d0d2b49e6216c7eac581f712975"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.test.ts",
+            "d443feca2a575b683d31d7b8ebe638ec2dadb5d26c7a185f03d058d30f0ab8a1"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.tsx",
+            "1567833d1ef9725d6ff68e05c2130752b4a40cc29cfd02aa0b2468fecb8b8bd2"
+          ],
+          [
+            "app/src/components/ui/formule-math.test.ts",
+            "2b62193e73afd882406a7b4569b8e2a5b9f1ba086f8a4709efc5430f5cc7a313"
+          ],
+          [
+            "app/src/components/ui/formule-math.tsx",
+            "e2a7ede6bb6640bee30937d249e456554004289052c50abe27704f319d822bf6"
+          ],
+          [
+            "app/src/components/ui/glossaire.tsx",
+            "1f837853c486e73d5ae53597d7af0bfc3431edddc3c1628ddb1fbeb40c8432ca"
+          ],
+          [
+            "app/src/components/ui/icone-document.tsx",
+            "a4f7b98438cccc6dd8e2409217f33bae1dde22157ef03bd5948540e563d36c50"
+          ],
+          [
+            "app/src/components/ui/icones.tsx",
+            "72edb4bafe7fba710f512973efd6afce14b52ea0061b5692a6a223f3acd1bf79"
+          ],
+          [
+            "app/src/components/ui/lien-retour.tsx",
+            "932b21fe241645c5fa9aba2dd56253a13b06bd3a4e85e0e7f15be2361237074f"
+          ],
+          [
+            "app/src/components/ui/markdown.tsx",
+            "cd2d8507edba8c4287484284637e2d1e58c9a5ed10175b430d8f34557a3fba07"
+          ],
+          [
+            "app/src/components/ui/modale.tsx",
+            "3f2b2cfc87614e04d179d63fc1702295c589eb33f24740f99362b0f66c8ac38f"
+          ],
+          [
+            "app/src/components/ui/palette-formules.tsx",
+            "20acab2fcf1e590a5fa93eace2fd3b13206fbac9f4cd34846b479d329efa51b2"
+          ],
+          [
+            "app/src/components/ui/panneau-pliable.tsx",
+            "9e495c7a8e66f7182933d708b1ac4c574acf57c98a28eed6b263b89b4431840b"
+          ],
+          [
+            "app/src/components/ui/primitives.tsx",
+            "8f073d9ae6c80d984284354e8e6d67527e640ef54b00909d363e7b3a18c9ec66"
+          ],
+          [
+            "app/src/lib/ui/modales.test.ts",
+            null
+          ],
+          [
+            "app/src/lib/ui/modales.ts",
+            "81c74252386c11dc9dd79b0b2b7e7d5aea2e6f4f21ecd9b986c9c33f538b18b7"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "node app/scripts/verify-accessibilite.mjs",
+      "result": "passed",
+      "at": "2026-09-17T00:10:03.954Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff NUIT-0003 ; 2572 tests, 13 scénarios Edge, build production réussi (réseau autorisé pour polices Google existantes)",
+      "snapshot": {
+        "contractSha256": "fff6aeaacb8ce3662a2cec597fb676848c4ae411a4509c52631bb1b6b11d9e1b",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md",
+            "6292691c8df9e136829da4b7793e558a208d4f74f387339ebddb234e930fad74"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-accessibilite.mjs",
+            "268e6ab8886af72ac5357013b70232eaf60e3aecf42ff206f91c5192580d0ac5"
+          ],
+          [
+            "app/src/components/seances/accessibilite-saisie.test.ts",
+            null
+          ],
+          [
+            "app/src/components/seances/etape-besoin.tsx",
+            "e92156050cac74f9c306ff37eeae8373636c23a9512ac5a86254c1a8c8f031ec"
+          ],
+          [
+            "app/src/components/seances/marge-cahier.tsx",
+            "e237da4b88bf953927a3ee47a42add05e5a7817636a46b4273a76c71c82a3a24"
+          ],
+          [
+            "app/src/components/ui/",
+            "directory"
+          ],
+          [
+            "app/src/components/ui/champ.test.ts",
+            "8cd0faa40ace147e96b7a973a62482051cadfdc323627ed261e4323b259cc653"
+          ],
+          [
+            "app/src/components/ui/champ.tsx",
+            "e18bbd1f707007664bf6aee198b82a0087b3fe2a53e0a74f15fafdc59dc18a42"
+          ],
+          [
+            "app/src/components/ui/chargement-generation.tsx",
+            "883c6d6829f19bf3c10ee5f8dd48cd89096dbc34a9e1d41cb00b24cabd17ee2d"
+          ],
+          [
+            "app/src/components/ui/explication.tsx",
+            "69ce850e8790c35784e8b3e7b9981da65a305d0d2b49e6216c7eac581f712975"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.test.ts",
+            "d443feca2a575b683d31d7b8ebe638ec2dadb5d26c7a185f03d058d30f0ab8a1"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.tsx",
+            "1567833d1ef9725d6ff68e05c2130752b4a40cc29cfd02aa0b2468fecb8b8bd2"
+          ],
+          [
+            "app/src/components/ui/formule-math.test.ts",
+            "2b62193e73afd882406a7b4569b8e2a5b9f1ba086f8a4709efc5430f5cc7a313"
+          ],
+          [
+            "app/src/components/ui/formule-math.tsx",
+            "e2a7ede6bb6640bee30937d249e456554004289052c50abe27704f319d822bf6"
+          ],
+          [
+            "app/src/components/ui/glossaire.tsx",
+            "1f837853c486e73d5ae53597d7af0bfc3431edddc3c1628ddb1fbeb40c8432ca"
+          ],
+          [
+            "app/src/components/ui/icone-document.tsx",
+            "a4f7b98438cccc6dd8e2409217f33bae1dde22157ef03bd5948540e563d36c50"
+          ],
+          [
+            "app/src/components/ui/icones.tsx",
+            "72edb4bafe7fba710f512973efd6afce14b52ea0061b5692a6a223f3acd1bf79"
+          ],
+          [
+            "app/src/components/ui/lien-retour.tsx",
+            "932b21fe241645c5fa9aba2dd56253a13b06bd3a4e85e0e7f15be2361237074f"
+          ],
+          [
+            "app/src/components/ui/markdown.tsx",
+            "cd2d8507edba8c4287484284637e2d1e58c9a5ed10175b430d8f34557a3fba07"
+          ],
+          [
+            "app/src/components/ui/modale.tsx",
+            "3f2b2cfc87614e04d179d63fc1702295c589eb33f24740f99362b0f66c8ac38f"
+          ],
+          [
+            "app/src/components/ui/palette-formules.tsx",
+            "20acab2fcf1e590a5fa93eace2fd3b13206fbac9f4cd34846b479d329efa51b2"
+          ],
+          [
+            "app/src/components/ui/panneau-pliable.tsx",
+            "9e495c7a8e66f7182933d708b1ac4c574acf57c98a28eed6b263b89b4431840b"
+          ],
+          [
+            "app/src/components/ui/primitives.tsx",
+            "8f073d9ae6c80d984284354e8e6d67527e640ef54b00909d363e7b3a18c9ec66"
+          ],
+          [
+            "app/src/lib/ui/modales.test.ts",
+            null
+          ],
+          [
+            "app/src/lib/ui/modales.ts",
+            "81c74252386c11dc9dd79b0b2b7e7d5aea2e6f4f21ecd9b986c9c33f538b18b7"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-17T00:10:03.954Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff NUIT-0003 ; 2572 tests, 13 scénarios Edge, build production réussi (réseau autorisé pour polices Google existantes)",
+      "snapshot": {
+        "contractSha256": "fff6aeaacb8ce3662a2cec597fb676848c4ae411a4509c52631bb1b6b11d9e1b",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md",
+            "6292691c8df9e136829da4b7793e558a208d4f74f387339ebddb234e930fad74"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-accessibilite.mjs",
+            "268e6ab8886af72ac5357013b70232eaf60e3aecf42ff206f91c5192580d0ac5"
+          ],
+          [
+            "app/src/components/seances/accessibilite-saisie.test.ts",
+            null
+          ],
+          [
+            "app/src/components/seances/etape-besoin.tsx",
+            "e92156050cac74f9c306ff37eeae8373636c23a9512ac5a86254c1a8c8f031ec"
+          ],
+          [
+            "app/src/components/seances/marge-cahier.tsx",
+            "e237da4b88bf953927a3ee47a42add05e5a7817636a46b4273a76c71c82a3a24"
+          ],
+          [
+            "app/src/components/ui/",
+            "directory"
+          ],
+          [
+            "app/src/components/ui/champ.test.ts",
+            "8cd0faa40ace147e96b7a973a62482051cadfdc323627ed261e4323b259cc653"
+          ],
+          [
+            "app/src/components/ui/champ.tsx",
+            "e18bbd1f707007664bf6aee198b82a0087b3fe2a53e0a74f15fafdc59dc18a42"
+          ],
+          [
+            "app/src/components/ui/chargement-generation.tsx",
+            "883c6d6829f19bf3c10ee5f8dd48cd89096dbc34a9e1d41cb00b24cabd17ee2d"
+          ],
+          [
+            "app/src/components/ui/explication.tsx",
+            "69ce850e8790c35784e8b3e7b9981da65a305d0d2b49e6216c7eac581f712975"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.test.ts",
+            "d443feca2a575b683d31d7b8ebe638ec2dadb5d26c7a185f03d058d30f0ab8a1"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.tsx",
+            "1567833d1ef9725d6ff68e05c2130752b4a40cc29cfd02aa0b2468fecb8b8bd2"
+          ],
+          [
+            "app/src/components/ui/formule-math.test.ts",
+            "2b62193e73afd882406a7b4569b8e2a5b9f1ba086f8a4709efc5430f5cc7a313"
+          ],
+          [
+            "app/src/components/ui/formule-math.tsx",
+            "e2a7ede6bb6640bee30937d249e456554004289052c50abe27704f319d822bf6"
+          ],
+          [
+            "app/src/components/ui/glossaire.tsx",
+            "1f837853c486e73d5ae53597d7af0bfc3431edddc3c1628ddb1fbeb40c8432ca"
+          ],
+          [
+            "app/src/components/ui/icone-document.tsx",
+            "a4f7b98438cccc6dd8e2409217f33bae1dde22157ef03bd5948540e563d36c50"
+          ],
+          [
+            "app/src/components/ui/icones.tsx",
+            "72edb4bafe7fba710f512973efd6afce14b52ea0061b5692a6a223f3acd1bf79"
+          ],
+          [
+            "app/src/components/ui/lien-retour.tsx",
+            "932b21fe241645c5fa9aba2dd56253a13b06bd3a4e85e0e7f15be2361237074f"
+          ],
+          [
+            "app/src/components/ui/markdown.tsx",
+            "cd2d8507edba8c4287484284637e2d1e58c9a5ed10175b430d8f34557a3fba07"
+          ],
+          [
+            "app/src/components/ui/modale.tsx",
+            "3f2b2cfc87614e04d179d63fc1702295c589eb33f24740f99362b0f66c8ac38f"
+          ],
+          [
+            "app/src/components/ui/palette-formules.tsx",
+            "20acab2fcf1e590a5fa93eace2fd3b13206fbac9f4cd34846b479d329efa51b2"
+          ],
+          [
+            "app/src/components/ui/panneau-pliable.tsx",
+            "9e495c7a8e66f7182933d708b1ac4c574acf57c98a28eed6b263b89b4431840b"
+          ],
+          [
+            "app/src/components/ui/primitives.tsx",
+            "8f073d9ae6c80d984284354e8e6d67527e640ef54b00909d363e7b3a18c9ec66"
+          ],
+          [
+            "app/src/lib/ui/modales.test.ts",
+            null
+          ],
+          [
+            "app/src/lib/ui/modales.ts",
+            "81c74252386c11dc9dd79b0b2b7e7d5aea2e6f4f21ecd9b986c9c33f538b18b7"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-17T00:10:03.954Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff NUIT-0003 ; 2572 tests, 13 scénarios Edge, build production réussi (réseau autorisé pour polices Google existantes)",
+      "snapshot": {
+        "contractSha256": "fff6aeaacb8ce3662a2cec597fb676848c4ae411a4509c52631bb1b6b11d9e1b",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md",
+            "6292691c8df9e136829da4b7793e558a208d4f74f387339ebddb234e930fad74"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-nuit-mandat.md",
+            "bbe0bbe1f21ff26023e644cb3186a85d705e049cd5377630233236002380842a"
+          ],
+          [
+            "ai-company/product/parcours-memoire-travail.md",
+            "5fc560826347c363a9cb6b2ef79dc34ea20e1ffacaa518e2abeeb6d01f9a9b32"
+          ],
+          [
+            "app/scripts/verify-accessibilite.mjs",
+            "268e6ab8886af72ac5357013b70232eaf60e3aecf42ff206f91c5192580d0ac5"
+          ],
+          [
+            "app/src/components/seances/accessibilite-saisie.test.ts",
+            null
+          ],
+          [
+            "app/src/components/seances/etape-besoin.tsx",
+            "e92156050cac74f9c306ff37eeae8373636c23a9512ac5a86254c1a8c8f031ec"
+          ],
+          [
+            "app/src/components/seances/marge-cahier.tsx",
+            "e237da4b88bf953927a3ee47a42add05e5a7817636a46b4273a76c71c82a3a24"
+          ],
+          [
+            "app/src/components/ui/",
+            "directory"
+          ],
+          [
+            "app/src/components/ui/champ.test.ts",
+            "8cd0faa40ace147e96b7a973a62482051cadfdc323627ed261e4323b259cc653"
+          ],
+          [
+            "app/src/components/ui/champ.tsx",
+            "e18bbd1f707007664bf6aee198b82a0087b3fe2a53e0a74f15fafdc59dc18a42"
+          ],
+          [
+            "app/src/components/ui/chargement-generation.tsx",
+            "883c6d6829f19bf3c10ee5f8dd48cd89096dbc34a9e1d41cb00b24cabd17ee2d"
+          ],
+          [
+            "app/src/components/ui/explication.tsx",
+            "69ce850e8790c35784e8b3e7b9981da65a305d0d2b49e6216c7eac581f712975"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.test.ts",
+            "d443feca2a575b683d31d7b8ebe638ec2dadb5d26c7a185f03d058d30f0ab8a1"
+          ],
+          [
+            "app/src/components/ui/figure-exercice.tsx",
+            "1567833d1ef9725d6ff68e05c2130752b4a40cc29cfd02aa0b2468fecb8b8bd2"
+          ],
+          [
+            "app/src/components/ui/formule-math.test.ts",
+            "2b62193e73afd882406a7b4569b8e2a5b9f1ba086f8a4709efc5430f5cc7a313"
+          ],
+          [
+            "app/src/components/ui/formule-math.tsx",
+            "e2a7ede6bb6640bee30937d249e456554004289052c50abe27704f319d822bf6"
+          ],
+          [
+            "app/src/components/ui/glossaire.tsx",
+            "1f837853c486e73d5ae53597d7af0bfc3431edddc3c1628ddb1fbeb40c8432ca"
+          ],
+          [
+            "app/src/components/ui/icone-document.tsx",
+            "a4f7b98438cccc6dd8e2409217f33bae1dde22157ef03bd5948540e563d36c50"
+          ],
+          [
+            "app/src/components/ui/icones.tsx",
+            "72edb4bafe7fba710f512973efd6afce14b52ea0061b5692a6a223f3acd1bf79"
+          ],
+          [
+            "app/src/components/ui/lien-retour.tsx",
+            "932b21fe241645c5fa9aba2dd56253a13b06bd3a4e85e0e7f15be2361237074f"
+          ],
+          [
+            "app/src/components/ui/markdown.tsx",
+            "cd2d8507edba8c4287484284637e2d1e58c9a5ed10175b430d8f34557a3fba07"
+          ],
+          [
+            "app/src/components/ui/modale.tsx",
+            "3f2b2cfc87614e04d179d63fc1702295c589eb33f24740f99362b0f66c8ac38f"
+          ],
+          [
+            "app/src/components/ui/palette-formules.tsx",
+            "20acab2fcf1e590a5fa93eace2fd3b13206fbac9f4cd34846b479d329efa51b2"
+          ],
+          [
+            "app/src/components/ui/panneau-pliable.tsx",
+            "9e495c7a8e66f7182933d708b1ac4c574acf57c98a28eed6b263b89b4431840b"
+          ],
+          [
+            "app/src/components/ui/primitives.tsx",
+            "8f073d9ae6c80d984284354e8e6d67527e640ef54b00909d363e7b3a18c9ec66"
+          ],
+          [
+            "app/src/lib/ui/modales.test.ts",
+            null
+          ],
+          [
+            "app/src/lib/ui/modales.ts",
+            "81c74252386c11dc9dd79b0b2b7e7d5aea2e6f4f21ecd9b986c9c33f538b18b7"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-17T00:10:03.954Z",
+  "completion": {
+    "summary": "Fenêtres : focus, superposition, masquage et défilement corrigés. Filtre nommé et bouton Noter visible au focus. 2572 tests, 13 scénarios navigateur et build verts ; neuf avertissements ESLint préexistants. Contrôle ciblé, aucune certification globale ni test lecteur d’écran.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md"
+    ],
+    "at": "2026-09-17T00:10:03.954Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "node app/scripts/verify-accessibilite.mjs",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-memoire-travail.md",
+      "requirement": "P02-03",
+      "scope": "Fiabilisation du comportement existant uniquement ; aucun développement du parcours futur ni promotion de statut."
+    }
+  ],
+  "handoff": {
+    "delivered": "Focus et défilement des fenêtres corrigés, filtre nommé, bouton Noter visible au clavier ; recette navigateur reproductible.",
+    "remaining": [
+      "Audit global lecteur d’écran et parcours complets hors de cette recette ciblée."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-nuit-accessibilite.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { rangementDomaine, rangementRessource } from "./rangement-atelier";
-import { CLE_SANS_DOMAINE, regrouperFichesParDomaine } from "./corpus-groupe";
+import { CLE_SANS_DOMAINE, domaineAffichageCorpus, regrouperFichesParDomaine, separerGroupesNommes } from "./corpus-groupe";
 import type { FicheCorpus } from "./corpus-groupe";
 
 function fiche(titre: string, options: Partial<FicheCorpus> = {}): FicheCorpus {
@@ -81,5 +81,46 @@ describe("regroupement du corpus par domaine", () => {
 
   it("ne regroupe rien quand aucune fiche n'est concernée", () => {
     expect(regrouperFichesParDomaine([], parametres)).toEqual([]);
+  });
+});
+
+describe("domaine de lecture et conservation des résultats", () => {
+  it("suit le domaine explicite, sa correction puis son retrait sans modifier la fiche", () => {
+    const element = fiche("Cours", { domaineId: "organisation", rangement: rangementRessource(["B-1"]) });
+    const avant = structuredClone(element);
+    const competences = { "B-1": "algebre" };
+    expect(domaineAffichageCorpus(element, competences)).toBe("organisation");
+    expect(element).toEqual(avant);
+    expect(domaineAffichageCorpus({ ...element, domaineId: "corrige" }, competences)).toBe("corrige");
+    expect(domaineAffichageCorpus({ ...element, domaineId: undefined }, competences)).toBe("algebre");
+    expect(domaineAffichageCorpus(fiche("Sans compétence", { domaineId: "organisation" }), {})).toBe("organisation");
+    expect(domaineAffichageCorpus(fiche("Sans domaine"), {})).toBeNull();
+    expect(domaineAffichageCorpus(fiche("Projection", { rangement: rangementDomaine("algebre") }), {})).toBe("algebre");
+  });
+
+  it("ne remplace pas un domaine déclaré inconnu par celui d'une compétence", () => {
+    expect(domaineAffichageCorpus(fiche("Cours", {
+      domaineId: "supprime", rangement: rangementRessource(["B-1"]),
+    }), { "B-1": "algebre" })).toBe("supprime");
+  });
+
+  it("conserve tous les groupes inconnus et les éléments hors corpus dans leur ordre", () => {
+    const elements = [
+      fiche("Z inconnue", { domaineId: "inconnu-1" }),
+      fiche("Cours connu", { domaineId: "algebre" }),
+      fiche("A inconnue", { domaineId: "inconnu-2" }),
+      fiche("Sans domaine"), fiche("Hors corpus"),
+    ];
+    const avant = structuredClone(elements);
+    const groupes = regrouperFichesParDomaine(elements, {
+      estFicheCorpus: (element) => element.titre !== "Hors corpus",
+      domaineDe: (element) => domaineAffichageCorpus(element, {}),
+      nomDuDomaine: (id) => id === "algebre" ? "Algèbre" : null,
+    });
+    const resultat = separerGroupesNommes(elements, groupes);
+    expect(resultat.groupes.map((groupe) => groupe.nom)).toEqual(["Algèbre"]);
+    expect(resultat.autres).toEqual([elements[0], elements[2], elements[3], elements[4]]);
+    expect([...resultat.groupes.flatMap((groupe) => groupe.elements), ...resultat.autres]).toHaveLength(elements.length);
+    expect(elements).toEqual(avant);
   });
 });

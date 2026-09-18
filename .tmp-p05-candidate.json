@@ -1,0 +1,389 @@
+{
+  "id": "P01-0005",
+  "title": "Robustesse du classement et conservation des ressources",
+  "objective": "Éprouver les reprises et choix concurrents de P01 avec preuves locales et corrections minimales",
+  "authorization": {
+    "summary": "Travail autonome à faible risque demandé le 17/09 ; tests et corrections locales minimales, sans dépense ni effet distant.",
+    "source": "ai-company/operations/runs/2026-09-17-p01-robustesse-mandat.md"
+  },
+  "status": "done",
+  "owner": "01a0ab48-a27f-7453-ac53-3b8d3407eae7",
+  "scope": [
+    "app/src/lib/store/delegation-classement-actions.ts",
+    "app/src/lib/store/delegation-classement-actions.test.ts",
+    "app/src/lib/store/classement-ressources-actions.ts",
+    "app/src/lib/store/classement-ressources-actions.test.ts",
+    "app/src/lib/store/classement-resilience.test.ts",
+    "app/src/lib/documents/corpus-groupe.proprietes.test.ts",
+    "app/src/lib/documents/corpus-groupe.ts",
+    "app/src/components/atelier/retrouver-ressources.test.ts",
+    "ai-company/operations/runs/2026-09-17-p01-robustesse.md"
+  ],
+  "inputs": [
+    "app/src/lib/documents/delegation-classement.ts",
+    "app/src/lib/documents/classement-ressources.ts",
+    "app/src/lib/documents/creation-domaine-deleguee.ts",
+    "app/src/lib/documents/markdown.ts",
+    "app/src/lib/documents/organisation-depot.ts",
+    "app/src/lib/documents/validation-rangement.ts",
+    "app/src/lib/documents/brouillon-classement.ts",
+    "app/src/lib/domain/referentiel-compte.ts",
+    "app/src/lib/domain/gouvernance-referentiel.ts",
+    "app/src/components/atelier/espace-documentaire.tsx",
+    "app/src/components/atelier/vues-ressources-atelier.tsx"
+  ],
+  "baseCommit": "e9c6fc76c1866a4dee876e541bda8394abc0bd60",
+  "acceptance": [
+    "Scénarios adverses déterministes avec assertions métier indépendantes",
+    "Sources et choix humains préservés, reprises sans effets dupliqués dans les scénarios testés",
+    "Aucune ressource perdue ou dupliquée dans les combinaisons de restitution",
+    "Défauts démontrés corrigés ou limites explicites ; aucun effet distant"
+  ],
+  "nextAction": "Sujet borné terminé ; nouvelle analyse réelle reste hors mandat sans dépense. Aucun travail supplémentaire programmé.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-16T23:44:45.772Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local partagé, périmètre P01-0005 empreinté",
+      "snapshot": {
+        "contractSha256": "e99b9e441e7d8c300c209002683db32105ee7dc935971875fd1d83e746c822c2",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse-mandat.md",
+            "c0c01eb0032d7cf0930b5f0258449c20e83176ce6cb904c8c64b1065c4700f56"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse.md",
+            "634979e6273756791b851bc9399ef8f269769d6585da4cd502cbd9e6cd6415c3"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "ef2bf0cd55e90711ef2966316a5ba18109b3ab362bd149e8d34513d7b092a318"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/brouillon-classement.ts",
+            "9849856af3c117b8b987caaa2ea08f95cca7579fde226572ebf123278b008ff7"
+          ],
+          [
+            "app/src/lib/documents/classement-ressources.ts",
+            "0ddcfd3b7cc7953d96448ba1decc512e5dccecfa997d827e21c98917b384dc48"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.proprietes.test.ts",
+            "683a898b8f2550896230c366c62e6232c87e8ccbfd898d9b21fed82e49a099d2"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/creation-domaine-deleguee.ts",
+            "56577c63cb2cad4fec9eb5ec3af433c0ac08a8b886e2ac17a476afd2411382fd"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/documents/markdown.ts",
+            "30c44947005b6770c29e47df3e0c00665b1eaa4088dbefe4f9ef78dd0951d746"
+          ],
+          [
+            "app/src/lib/documents/organisation-depot.ts",
+            "0f610258f4e2e5e228cd4a659dccc73d0a6ca614f7a9644a1895b2b62a87b658"
+          ],
+          [
+            "app/src/lib/documents/validation-rangement.ts",
+            "e8e16a3336483f05b82fba5d1f8ec5cb5b67c0412767d2cd2c0d23ab6a13dee7"
+          ],
+          [
+            "app/src/lib/domain/gouvernance-referentiel.ts",
+            "1d20fbfc552e5078084ef83956b925ca98f7d947f589ccd416be07f25f75af1b"
+          ],
+          [
+            "app/src/lib/domain/referentiel-compte.ts",
+            "b45b34f94b1a2514a117c4d405c1bcd689d3ae41e8c19f636d65cfd42b027c4f"
+          ],
+          [
+            "app/src/lib/store/classement-resilience.test.ts",
+            "cb422820b3d332764a328287377eff2e91db99e6e56778df20e8e4ce11447204"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.test.ts",
+            "49e4a902206b7122af2b2aa265776db29445075198b5765af026f4b50f8b645d"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.ts",
+            "575737f061aec140fd8981249b890c72807651e20bb26a1b554a625ddaa46a56"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.test.ts",
+            "692769ed19a3c7ad825c3d004ca3d67ba9bb2c62fb44f625188df9b5f7971be4"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-16T23:44:45.772Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local partagé, périmètre P01-0005 empreinté",
+      "snapshot": {
+        "contractSha256": "e99b9e441e7d8c300c209002683db32105ee7dc935971875fd1d83e746c822c2",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse-mandat.md",
+            "c0c01eb0032d7cf0930b5f0258449c20e83176ce6cb904c8c64b1065c4700f56"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse.md",
+            "634979e6273756791b851bc9399ef8f269769d6585da4cd502cbd9e6cd6415c3"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "ef2bf0cd55e90711ef2966316a5ba18109b3ab362bd149e8d34513d7b092a318"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/brouillon-classement.ts",
+            "9849856af3c117b8b987caaa2ea08f95cca7579fde226572ebf123278b008ff7"
+          ],
+          [
+            "app/src/lib/documents/classement-ressources.ts",
+            "0ddcfd3b7cc7953d96448ba1decc512e5dccecfa997d827e21c98917b384dc48"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.proprietes.test.ts",
+            "683a898b8f2550896230c366c62e6232c87e8ccbfd898d9b21fed82e49a099d2"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/creation-domaine-deleguee.ts",
+            "56577c63cb2cad4fec9eb5ec3af433c0ac08a8b886e2ac17a476afd2411382fd"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/documents/markdown.ts",
+            "30c44947005b6770c29e47df3e0c00665b1eaa4088dbefe4f9ef78dd0951d746"
+          ],
+          [
+            "app/src/lib/documents/organisation-depot.ts",
+            "0f610258f4e2e5e228cd4a659dccc73d0a6ca614f7a9644a1895b2b62a87b658"
+          ],
+          [
+            "app/src/lib/documents/validation-rangement.ts",
+            "e8e16a3336483f05b82fba5d1f8ec5cb5b67c0412767d2cd2c0d23ab6a13dee7"
+          ],
+          [
+            "app/src/lib/domain/gouvernance-referentiel.ts",
+            "1d20fbfc552e5078084ef83956b925ca98f7d947f589ccd416be07f25f75af1b"
+          ],
+          [
+            "app/src/lib/domain/referentiel-compte.ts",
+            "b45b34f94b1a2514a117c4d405c1bcd689d3ae41e8c19f636d65cfd42b027c4f"
+          ],
+          [
+            "app/src/lib/store/classement-resilience.test.ts",
+            "cb422820b3d332764a328287377eff2e91db99e6e56778df20e8e4ce11447204"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.test.ts",
+            "49e4a902206b7122af2b2aa265776db29445075198b5765af026f4b50f8b645d"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.ts",
+            "575737f061aec140fd8981249b890c72807651e20bb26a1b554a625ddaa46a56"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.test.ts",
+            "692769ed19a3c7ad825c3d004ca3d67ba9bb2c62fb44f625188df9b5f7971be4"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "at": "2026-09-16T23:44:45.772Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local partagé, périmètre P01-0005 empreinté",
+      "snapshot": {
+        "contractSha256": "e99b9e441e7d8c300c209002683db32105ee7dc935971875fd1d83e746c822c2",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse-mandat.md",
+            "c0c01eb0032d7cf0930b5f0258449c20e83176ce6cb904c8c64b1065c4700f56"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-17-p01-robustesse.md",
+            "634979e6273756791b851bc9399ef8f269769d6585da4cd502cbd9e6cd6415c3"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "ef2bf0cd55e90711ef2966316a5ba18109b3ab362bd149e8d34513d7b092a318"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/brouillon-classement.ts",
+            "9849856af3c117b8b987caaa2ea08f95cca7579fde226572ebf123278b008ff7"
+          ],
+          [
+            "app/src/lib/documents/classement-ressources.ts",
+            "0ddcfd3b7cc7953d96448ba1decc512e5dccecfa997d827e21c98917b384dc48"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.proprietes.test.ts",
+            "683a898b8f2550896230c366c62e6232c87e8ccbfd898d9b21fed82e49a099d2"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/creation-domaine-deleguee.ts",
+            "56577c63cb2cad4fec9eb5ec3af433c0ac08a8b886e2ac17a476afd2411382fd"
+          ],
+          [
+            "app/src/lib/documents/delegation-classement.ts",
+            "abafbac7d6cecc5a71c295847c78b8134a3fa741c536b53681c432cdc6a8c646"
+          ],
+          [
+            "app/src/lib/documents/markdown.ts",
+            "30c44947005b6770c29e47df3e0c00665b1eaa4088dbefe4f9ef78dd0951d746"
+          ],
+          [
+            "app/src/lib/documents/organisation-depot.ts",
+            "0f610258f4e2e5e228cd4a659dccc73d0a6ca614f7a9644a1895b2b62a87b658"
+          ],
+          [
+            "app/src/lib/documents/validation-rangement.ts",
+            "e8e16a3336483f05b82fba5d1f8ec5cb5b67c0412767d2cd2c0d23ab6a13dee7"
+          ],
+          [
+            "app/src/lib/domain/gouvernance-referentiel.ts",
+            "1d20fbfc552e5078084ef83956b925ca98f7d947f589ccd416be07f25f75af1b"
+          ],
+          [
+            "app/src/lib/domain/referentiel-compte.ts",
+            "b45b34f94b1a2514a117c4d405c1bcd689d3ae41e8c19f636d65cfd42b027c4f"
+          ],
+          [
+            "app/src/lib/store/classement-resilience.test.ts",
+            "cb422820b3d332764a328287377eff2e91db99e6e56778df20e8e4ce11447204"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.test.ts",
+            "49e4a902206b7122af2b2aa265776db29445075198b5765af026f4b50f8b645d"
+          ],
+          [
+            "app/src/lib/store/classement-ressources-actions.ts",
+            "575737f061aec140fd8981249b890c72807651e20bb26a1b554a625ddaa46a56"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.test.ts",
+            "692769ed19a3c7ad825c3d004ca3d67ba9bb2c62fb44f625188df9b5f7971be4"
+          ],
+          [
+            "app/src/lib/store/delegation-classement-actions.ts",
+            "09a28fb2cbc7551f19e32b6c36a3d0872d0de9ca620441a87c2d87abcc892283"
+          ]
+        ]
+      }
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-16T23:44:45.772Z",
+  "completion": {
+    "summary": "Deux pertes de choix corrigées et revue QA traitée ; 94 tests ciblés passent. Vérification globale 17/09 01:43 : 2466 tests/239 fichiers passent (59 s), TypeScript et lint sans erreur, 9 avertissements préexistants. Empreinte inchangée avant/après. Livraison locale, aucune donnée distante modifiée.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-p01-robustesse.md"
+    ],
+    "at": "2026-09-16T23:44:45.772Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run agents:check",
+    "git diff --check"
+  ],
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-05",
+      "scope": "Fiabilisation des contrats existants de délégation et reprise uniquement"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-06",
+      "scope": "Préservation des choix humains concurrents"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-07",
+      "scope": "Conservation et unicité des résultats dans les vues existantes"
+    }
+  ],
+  "handoff": {
+    "delivered": "Deux pertes de choix humain corrigées ; campagnes locales de panne/reprise et restitution livrées, revue indépendante traitée.",
+    "remaining": [
+      "Validation PostgreSQL et nouvelle analyse fournisseur réelles non couvertes par les doubles.",
+      "Publication non autorisée et non effectuée."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-17-p01-robustesse.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  }
+}

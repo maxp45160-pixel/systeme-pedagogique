@@ -110,12 +110,12 @@ export function ChampMarge({
           L'indication remplace un bouton « Noter » : la touche Entrée soumet
           déjà le formulaire, et un bouton permanent dans une barre fixe est
           un objet de plus dans le champ de vision. Le bouton reste rendu pour
-          le clavier et la souris, mais hors écran visuellement.
+          le clavier et devient visible lorsqu'il reçoit le focus.
         */}
         <span aria-hidden className="hidden shrink-0 pr-2 text-[0.6875rem] text-texte-discret sm:block">
           Entrée pour noter
         </span>
-        <button type="submit" className="sr-only">
+        <button type="submit" className="sr-only focus:not-sr-only focus:rounded-full focus:bg-primaire focus:px-3 focus:py-1.5 focus:text-sm focus:font-medium focus:text-primaire-contraste">
           Noter
         </button>
       </form>

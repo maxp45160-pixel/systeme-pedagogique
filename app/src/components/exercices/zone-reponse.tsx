@@ -90,7 +90,10 @@ export function ZoneReponse(proprietes: ZoneReponseProps) {
       </div>
     );
   }
-  return <ZoneHydrate {...proprietes} />;
+  // React peut conserver ce composant entre deux destinations. L'identité
+  // force un nouvel état : une réponse ne doit jamais suivre un autre compte
+  // ou une autre tentative lors d'une navigation sans rechargement.
+  return <ZoneHydrate key={JSON.stringify([proprietes.compteId, proprietes.attemptId])} {...proprietes} />;
 }
 
 function ZoneHydrate({
@@ -105,7 +108,7 @@ function ZoneHydrate({
   const cle = cleParCompte(`brouillon-reponse:${attemptId}`, compteId);
 
   const [texte, setTexte] = useState<string>(() => lireSession<string>(cle) ?? valeur);
-  const [enregistre, setEnregistre] = useState<string>(valeur);
+  const [enregistre, setEnregistre] = useState<string | null>(valeur);
   const [etat, setEtat] = useState<EtatSauvegarde>(() =>
     (lireSession<string>(cle) ?? valeur) === valeur ? "enregistre" : "modifie",
   );
@@ -121,8 +124,9 @@ function ZoneHydrate({
    * jamais une valeur capturée dans une clôture qui pourrait être périmée.
    */
   const texteRef = useRef(texte);
-  const enregistreRef = useRef(valeur);
+  const enregistreRef = useRef<string | null>(valeur);
   const envoiEnVol = useRef<Promise<boolean> | null>(null);
+  const actifRef = useRef(true);
   const champRef = useRef<HTMLDivElement | null>(null);
 
   // Alignées après le rendu, jamais pendant. La saisie met aussi texteRef
@@ -136,7 +140,9 @@ function ZoneHydrate({
     (corps: string) => {
       // Aligné sur la base, le filet n'a plus d'objet : le garder ferait
       // réapparaître un vieux texte si la tentative est reprise ailleurs.
-      if (corps === enregistreRef.current) effacerSession(cle);
+      // Un envoi peut encore remplacer cette valeur en base : revenir au
+      // texte initial pendant l'envoi reste une modification à protéger.
+      if (corps === enregistreRef.current && !envoiEnVol.current) effacerSession(cle);
       else ecrireSession(cle, corps);
     },
     [cle],
@@ -160,14 +166,20 @@ function ZoneHydrate({
       // que si la base porte bien ce qui est affiché à cet instant.
       const aJour = texteRef.current === corps;
       setEtat(aJour ? "enregistre" : "modifie");
-      if (aJour) effacerSession(cle);
+      // Une ancienne instance peut finir après un retour sur cette tentative.
+      // Son accusé ne possède pas le brouillon saisi dans la nouvelle instance.
+      if (aJour && actifRef.current && lireSession<string>(cle) === corps) effacerSession(cle);
       return true;
     } catch (e) {
+      // L'écriture a pu aboutir avant la coupure de sa réponse. La dernière
+      // valeur confirmée ne permet plus de déduire celle réellement en base.
+      enregistreRef.current = null;
+      setEnregistre(null);
       setErreur(e instanceof Error ? e.message : "Enregistrement impossible.");
       setEtat("echec");
       setEssai((n) => n + 1);
       // Le texte n'est pas en base : le filet local reste la seule copie.
-      ecrireFilet(texteRef.current);
+      if (actifRef.current) ecrireFilet(texteRef.current);
       return false;
     } finally {
       envoiEnVol.current = null;
@@ -179,7 +191,7 @@ function ZoneHydrate({
 
   /** Écriture immédiate, pour les gestionnaires qui ne peuvent pas attendre. */
   const forcer = useCallback(() => {
-    if (texteRef.current === enregistreRef.current) return;
+    if (texteRef.current === enregistreRef.current && !envoiEnVol.current) return;
     ecrireFilet(texteRef.current);
     void enregistrerMaintenant();
   }, [ecrireFilet, enregistrerMaintenant]);
@@ -193,10 +205,10 @@ function ZoneHydrate({
 
   // Auto-sauvegarde : après une pause de frappe, une seule écriture.
   useEffect(() => {
-    if (texte === enregistre) return;
+    if (texte === enregistre || etat === "echec") return;
     const minuterie = setTimeout(() => void enregistrerMaintenant(), DELAI_AUTO_SAUVEGARDE_MS);
     return () => clearTimeout(minuterie);
-  }, [texte, enregistre, enregistrerMaintenant]);
+  }, [texte, enregistre, etat, enregistrerMaintenant]);
 
   // Relance après échec : sans elle, une coupure réseau laisserait la réponse
   // hors de la base jusqu'à la frappe suivante — qui peut ne jamais venir.
@@ -216,6 +228,7 @@ function ZoneHydrate({
    * nettoyage de l'effet.
    */
   useEffect(() => {
+    actifRef.current = true;
     function quandCache() {
       if (document.visibilityState === "hidden") forcer();
     }
@@ -225,6 +238,7 @@ function ZoneHydrate({
       document.removeEventListener("visibilitychange", quandCache);
       window.removeEventListener("pagehide", forcer);
       forcer();
+      actifRef.current = false;
     };
   }, [forcer]);
 
@@ -235,14 +249,14 @@ function ZoneHydrate({
    * honnête — elle n'apparaît que si la base est réellement en retard.
    */
   useEffect(() => {
-    if (texte === enregistre) return;
+    if (texte === enregistre && etat !== "envoi") return;
     function avantFermeture(evenement: BeforeUnloadEvent) {
       forcer();
       evenement.preventDefault();
     }
     window.addEventListener("beforeunload", avantFermeture);
     return () => window.removeEventListener("beforeunload", avantFermeture);
-  }, [texte, enregistre, forcer]);
+  }, [texte, enregistre, etat, forcer]);
 
   /*
    * Raccourci de passage à l'acte suivant.

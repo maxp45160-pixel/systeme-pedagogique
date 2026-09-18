@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Exercise, LearningSession } from "@/lib/domain/types";
 
 const mocks = vi.hoisted(() => ({
@@ -28,6 +28,7 @@ vi.mock("@/lib/seed/exercises", () => ({ EXERCICES_DIAGNOSTIC: [] }));
 import {
   annulerSeance,
   creerSeanceFocusExercice,
+  demarrerSeance,
   planifierExerciceRecommande,
   terminerIntervention,
   terminerSeance,
@@ -82,6 +83,131 @@ describe("création d'une séance focus", () => {
 
     await expect(creerSeanceFocusExercice(EXERCICE.id)).resolves.toBe("ses-nouvelle");
     expect(mocks.ajouter).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("écritures concurrentes d'une séance", () => {
+  afterEach(() => vi.useRealTimers());
+
+  function persistance(initiale: LearningSession) {
+    let session = structuredClone(initiale);
+    const ecritures: object[] = [];
+    let apresEcriture = () => {};
+    function appliquer(champs: object) {
+      ecritures.push(structuredClone(champs));
+      session = { ...session, ...structuredClone(champs) };
+      apresEcriture();
+      return structuredClone(session);
+    }
+    const from = vi.fn(() => {
+      let champs: object;
+      const filtres: [string, unknown][] = [];
+      const requete = {
+        update: (valeur: object) => { champs = valeur; return requete; },
+        eq: (cle: string, valeur: unknown) => { filtres.push([cle, valeur]); return requete; },
+        is: (cle: string, valeur: unknown) => { filtres.push([cle, valeur]); return requete; },
+        select: () => requete,
+        maybeSingle: async () => {
+          const correspond = filtres.every(([cle, valeur]) => {
+            if (cle === "user_id") return valeur === "compte-1";
+            if (cle === "interventions") return valeur === (session.interventions === undefined
+              ? null : JSON.stringify(session.interventions));
+            return (session[cle as keyof LearningSession] ?? null) === valeur;
+          });
+          return { data: correspond ? appliquer(champs) : null, error: null };
+        },
+      };
+      return requete;
+    });
+    vi.clearAllMocks();
+    mocks.dorsaleCompte.mockResolvedValue({ userId: "compte-1", supabase: { from } });
+    mocks.lire.mockImplementation(async (collection: string) => collection === "sessions"
+      ? [structuredClone(session)] : []);
+    mocks.modifier.mockImplementation(async (_collection: string, _id: string, champs: object) => appliquer(champs));
+    return {
+      lire: () => structuredClone(session),
+      ecritures,
+      apresEcriture: (callback: () => void) => { apresEcriture = callback; },
+    };
+  }
+
+  it("refuse une clôture concurrente au lieu d'effacer celle déjà enregistrée", async () => {
+    const stockage = persistance({
+      ...SEANCE_EXISTANTE,
+      activites: [],
+      interventions: ["a", "b"].map((id) => ({
+        id, type: "read", label: id,
+        source: { kind: "document", ref: `doc-${id}` }, expectedEffect: "preparation",
+      })),
+    });
+    const resultats = await Promise.allSettled([
+      terminerIntervention(SEANCE_EXISTANTE.id, "a"),
+      terminerIntervention(SEANCE_EXISTANTE.id, "b"),
+    ]);
+    expect(resultats.filter((resultat) => resultat.status === "rejected")).toHaveLength(1);
+    const indexRefuse = resultats.findIndex((resultat) => resultat.status === "rejected");
+    expect(stockage.ecritures).toHaveLength(1);
+    expect(stockage.lire().interventions?.filter((intervention) => intervention.statut === "completed"))
+      .toHaveLength(1);
+
+    // Le réessai explicite repart de l'état frais et conserve le premier geste.
+    await terminerIntervention(SEANCE_EXISTANTE.id, ["a", "b"][indexRefuse]);
+    expect(stockage.lire().interventions?.every((intervention) => intervention.statut === "completed"))
+      .toBe(true);
+  });
+
+  it("conserve la première date quand deux démarrages ont lu la séance planifiée", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-17T08:00:00.000Z"));
+    const stockage = persistance({ ...SEANCE_EXISTANTE, statut: "planifiee" });
+    let liberer: () => void = () => {};
+    const premiereEcriture = new Promise<void>((resolve) => { liberer = resolve; });
+    let lectures = 0;
+    mocks.lire.mockImplementation(async () => {
+      const instantane = stockage.lire();
+      if (++lectures === 2) await premiereEcriture;
+      return [instantane];
+    });
+    stockage.apresEcriture(() => {
+      vi.setSystemTime(new Date("2026-09-17T08:00:01.000Z"));
+      liberer();
+    });
+
+    const destinations = await Promise.all([
+      demarrerSeance(SEANCE_EXISTANTE.id), demarrerSeance(SEANCE_EXISTANTE.id),
+    ]);
+    expect(destinations.every((destination) => destination.includes(`session=${SEANCE_EXISTANTE.id}`))).toBe(true);
+    expect(stockage.ecritures).toHaveLength(1);
+    expect(stockage.lire().date).toBe("2026-09-17T08:00:00.000Z");
+  });
+
+  it("retrouve une séance déjà démarrée après la perte de la réponse serveur", async () => {
+    const stockage = persistance(SEANCE_EXISTANTE);
+    await expect(demarrerSeance(SEANCE_EXISTANTE.id))
+      .resolves.toBe(`/seances?session=${SEANCE_EXISTANTE.id}&focus=1`);
+    expect(stockage.ecritures).toHaveLength(0);
+    expect(stockage.lire().date).toBe(SEANCE_EXISTANTE.date);
+  });
+
+  it("ne rouvre pas une séance annulée entre la lecture et le démarrage", async () => {
+    const stockage = persistance({ ...SEANCE_EXISTANTE, statut: "abandonnee" });
+    mocks.lire.mockResolvedValueOnce([{ ...SEANCE_EXISTANTE, statut: "planifiee" }]);
+    await expect(demarrerSeance(SEANCE_EXISTANTE.id)).rejects.toThrow("a changé pendant le démarrage");
+    expect(stockage.ecritures).toHaveLength(0);
+    expect(stockage.lire().statut).toBe("abandonnee");
+  });
+
+  it("n'enregistre pas une intervention dans une séance abandonnée après sa lecture", async () => {
+    const interventions: LearningSession["interventions"] = [{
+      id: "lecture", type: "read", label: "Lire",
+      source: { kind: "document", ref: "document-test" }, expectedEffect: "preparation",
+    }];
+    const stockage = persistance({ ...SEANCE_EXISTANTE, statut: "abandonnee", interventions });
+    mocks.lire.mockResolvedValueOnce([{ ...SEANCE_EXISTANTE, interventions }]);
+    await expect(terminerIntervention(SEANCE_EXISTANTE.id, "lecture"))
+      .rejects.toThrow("vérifier le résultat avant de réessayer");
+    expect(stockage.ecritures).toHaveLength(0);
+    expect(stockage.lire().interventions).toEqual(interventions);
   });
 });
 
@@ -170,9 +296,19 @@ describe("clôture d'une séance", () => {
 });
 
 describe("clôture d'une intervention sans observation", () => {
+  function dorsaleConditionnelle(id: string) {
+    const requete = {
+      update: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id }, error: null }),
+    };
+    mocks.dorsaleCompte.mockResolvedValue({ userId: "compte-1", supabase: { from: () => requete } });
+    return requete;
+  }
+
   it("met à jour uniquement le statut canonique", async () => {
     vi.clearAllMocks();
-    mocks.dorsaleCompte.mockResolvedValue({});
+    const requete = dorsaleConditionnelle("ses-multi");
     const session = {
       id: "ses-multi",
       date: "2026-08-28T09:00:00.000Z",
@@ -190,21 +326,18 @@ describe("clôture d'une intervention sans observation", () => {
       }],
     } as LearningSession;
     mocks.lire.mockResolvedValue([session]);
-    mocks.modifier.mockResolvedValue(session);
 
     await expect(terminerIntervention("ses-multi", "i-read")).resolves.toContain("intervention=i-read");
-    expect(mocks.modifier).toHaveBeenCalledWith(
-      "sessions",
-      "ses-multi",
+    expect(requete.update).toHaveBeenCalledWith(
       { interventions: [{ ...session.interventions![0], statut: "completed" }] },
-      {},
     );
+    expect(mocks.modifier).not.toHaveBeenCalled();
     expect(mocks.ajouter).not.toHaveBeenCalled();
   });
 
   it("clôture une intervention Feynman sans recréer de séance ni d'observation", async () => {
     vi.clearAllMocks();
-    mocks.dorsaleCompte.mockResolvedValue({});
+    const requete = dorsaleConditionnelle("ses-feynman");
     const session = {
       id: "ses-feynman",
       date: "2026-08-28T09:00:00.000Z",
@@ -223,16 +356,13 @@ describe("clôture d'une intervention sans observation", () => {
       }],
     } as LearningSession;
     mocks.lire.mockResolvedValue([session]);
-    mocks.modifier.mockResolvedValue(session);
 
     await expect(terminerIntervention("ses-feynman", "i-explain"))
       .resolves.toContain("intervention=i-explain");
-    expect(mocks.modifier).toHaveBeenCalledWith(
-      "sessions",
-      "ses-feynman",
+    expect(requete.update).toHaveBeenCalledWith(
       { interventions: [{ ...session.interventions![0], statut: "completed" }] },
-      {},
     );
+    expect(mocks.modifier).not.toHaveBeenCalled();
     expect(mocks.ajouter).not.toHaveBeenCalled();
     expect(mocks.cloreExerciceAtomiquement).not.toHaveBeenCalled();
   });

@@ -2786,8 +2786,19 @@ maitrisee ⟺ niveau !== null ∧ niveau >= 4 ∧ confiance ∈ {moyenne, forte}
 ```
 
 **Aucune colonne, aucun stockage** (P1). Il se recalcule à chaque lecture, comme
-le niveau dont il dépend : une preuve contradictoire écrite demain le retire
-d'elle-même.
+le niveau dont il dépend. Une preuve contradictoire peut retirer la maîtrise si
+le niveau ou la confiance ne satisfait plus ce prédicat ; une contradiction
+isolée ne la retire pas nécessairement. Précision factuelle du 17/09/2026
+(NUIT-0002), conforme à la formule et au code existants : aucun seuil changé.
+
+Correctif de chronologie du 17/09/2026 (NUIT-0002) : le calcul compare les
+instants, pas les chaînes de fuseaux horaires. L'identifiant stabilise seulement
+la présentation des faits simultanés ; il ne prouve pas leur succession. Si un
+groupe ex aequo traverse la frontière des deux dernières observations, la baisse
+d'un palier exige deux échecs autonomes quel que soit l'ordre de ce groupe.
+Sinon, l'ordre inconnu est signalé et les contradictions restent présentes.
+La garde de trois observations et le seuil A2 sont conservés ; cette correction
+applique le refus d'inventer l'ordre des événements (anti-hallucination §7).
 
 **Pourquoi 4 et non 5.** Le niveau 5 de `niveauSoutenu` exige
 `competencesCombinees.length >= 1`, que `terminerExercice` n'écrit que pour un
@@ -6336,7 +6347,7 @@ Trois conséquences assumées :
   nomme les existantes et dit quoi faire.
   Cette garde historique a été amendée par ADR-138 pour les modules, puis par
   l'accord P01-0002 du 16/09 pour les domaines d'organisation sans usage déclaré.
-  Ce dernier amendement est préparé localement ; sa migration reste en attente.
+  Ce dernier amendement est appliqué en base le 16/09 (version 20260916183753).
 * **L'écran le dit.** Le bandeau annonce le rattachement et affiche les codes
   d'origine — sans quoi un `STA-01` apparaissant dans un domaine préfixé `LOG`
   passerait pour un bug.
@@ -11167,7 +11178,8 @@ source de vérité pour la hiérarchie, les tags et les documents, et poussait f
    continus ou indéterminés vides restent refusés par cette version distante.
    **Amendement humain P01-0002 du 16/09 :** le domaine d'organisation à usage
    indéterminé peut aussi naître vide. Code et schéma locaux adaptés ; migration
-   `20260916183000_domaines_organisation_vides.sql` en attente d'application.
+   `20260916183000_domaines_organisation_vides.sql` appliquée le 16/09 sous la
+   version distante `20260916183753_domaines_organisation_vides`.
    Le domaine continu vide reste refusé ; aucun usage académique n'est déduit.
 3. **L'usage est atomique à la création, puis possède sa commande dédiée.**
    `creer_domaine` écrit l'usage déclaré dans la même transaction que le
@@ -12478,14 +12490,38 @@ un incident ou un changement humain. Le retrait supprime le lien, jamais le doma
 ni l'original ; les commandes existantes permettent ensuite de renommer/déplacer
 le domaine. Le refus humain continue à primer sur les nouvelles analyses.
 
-**Migration préparée, non appliquée :** `20260916183000_domaines_organisation_vides.sql`.
-Lecture distante le 16/09 : RPC `appliquer_commande_referentiel(text,integer,text,text,jsonb)`,
+**Migration appliquée le 16/09 après accord explicite :**
+`20260916183000_domaines_organisation_vides.sql`, version distante `20260916183753`.
+Lecture distante avant effet : RPC `appliquer_commande_referentiel(text,integer,text,text,jsonb)`,
 MD5 du corps `85ff24629e3d0f8966fcbecdaf98d336`. La migration remplace uniquement la
 garde interdisant les domaines vides hors module par celle du domaine continu vide.
 Elle vérifie la présence exacte de la garde, préserve signature, sécurité et
-permissions ; aucune modification distante ni publication n'est autorisée ici.
+permissions. Après application, le corps correspond exactement à l'amendement
+attendu (MD5 `b1b8253dfafab2763c34db60e9e6e23c`) et les permissions sont inchangées.
+L'accord « oui j'autorise. Une fois que c fait, bosse la tranche 3 » et les contrôles
+figurent dans [la preuve d'application](ai-company/operations/runs/2026-09-16-p01-domaines-activation.md).
+Aucune publication du frontend ni nouvelle dépense fournisseur n'est autorisée.
 Tests locaux et limites restent dans la fiche de mission. La pertinence sur corpus
 réel n'est pas prouvée ; aucun statut humain ne monte.
+
+### Correction du 16/09/2026 — P01-0003, restitution fidèle du rangement
+
+La réalisation de la tranche 3 est autorisée par Maxime après l'application SQL
+P01-0002. Elle restaure le contrat ADR-145 §5 : le domaine principal déclaré est
+la métadonnée de regroupement, même si la première compétence liée relève d'un
+autre domaine. `domaineAffichageCorpus` porte cette priorité commune à Ressources
+et à la recherche. Sans domaine déclaré, le repli historique vers la première
+compétence reste dérivé, sans enregistrer un rangement.
+
+La partition de lecture ne retire des autres résultats que les éléments effectivement
+affichés dans un groupe nommé. Les supports sans domaine ou avec un domaine devenu
+introuvable restent visibles, y compris lorsque plusieurs groupes sans nom coexistent.
+Aucune mutation, aucun appel fournisseur, aucune nouvelle entité. Le tri des autres
+résultats et leurs liens d'ouverture restent ceux de la liste filtrée.
+
+Cette correction ne valide ni recherche dans le contenu intégral, ni organisation
+notionnelle, ni toute l'exigence P01-07. Autorité, critères et périmètre dans
+[le mandat](ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md).
 
 ## Comment modifier ce registre
 

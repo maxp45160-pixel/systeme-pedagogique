@@ -1,5 +1,7 @@
 -- P01-0002 : domaine d'organisation sans compétence ni usage déduit.
--- Préparée localement le 16/09/2026, EN ATTENTE d'application distante.
+-- Préparée puis appliquée le 16/09/2026 avec accord humain explicite.
+-- Version distante Supabase : 20260916183753_domaines_organisation_vides.
+-- Corps après application : MD5 b1b8253dfafab2763c34db60e9e6e23c.
 -- État distant relu : appliquer_commande_referentiel(text,integer,text,text,jsonb),
 -- MD5 prosrc 85ff24629e3d0f8966fcbecdaf98d336 ; dernière migration 20260915220807.
 -- Seule la garde de création vide change. La définition courante préserve

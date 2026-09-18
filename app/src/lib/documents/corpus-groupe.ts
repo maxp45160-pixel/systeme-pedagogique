@@ -21,12 +21,35 @@ export interface FicheCorpus {
 export interface GroupeCorpus<T extends FicheCorpus> {
   /** Identifiant du domaine ; `"__sans_domaine__"` pour le groupe fourre-tout final. */
   cle: string;
-  /** Nom du domaine tel que la base l'écrit ; `null` pour le groupe fourre-tout. */
+  /** Nom du domaine ; `null` si le domaine est absent ou inconnu. */
   nom: string | null;
   elements: T[];
 }
 
 export const CLE_SANS_DOMAINE = "__sans_domaine__";
+
+/** Le domaine déclaré prime ; les compétences ne servent que de repli historique. */
+export function domaineAffichageCorpus(
+  element: FicheCorpus,
+  domaineDeCompetence: Readonly<Record<string, string>>,
+): string | null {
+  if (element.domaineId) return element.domaineId;
+  if (element.rangement.zone === "domaine" && element.rangement.domaineId) {
+    return element.rangement.domaineId;
+  }
+  const code = element.rangement.rattachements[0];
+  return (code && domaineDeCompetence[code]) || null;
+}
+
+/** Tout élément sans groupe affichable reste visible, dans son ordre d'origine. */
+export function separerGroupesNommes<T extends FicheCorpus>(
+  elements: readonly T[],
+  groupes: readonly GroupeCorpus<T>[],
+): { groupes: GroupeCorpus<T>[]; autres: T[] } {
+  const nommes = groupes.filter((groupe) => groupe.nom !== null);
+  const affiches = new Set(nommes.flatMap((groupe) => groupe.elements));
+  return { groupes: nommes, autres: elements.filter((element) => !affiches.has(element)) };
+}
 
 /**
  * Réunit les fiches de corpus par domaine.
@@ -63,6 +86,7 @@ export function regrouperFichesParDomaine<T extends FicheCorpus>(
       elements: [...membres].sort((a, b) => a.titre.localeCompare(b.titre, "fr")),
     }))
     .sort((a, b) => {
+      if (!a.nom && !b.nom) return 0;
       if (!a.nom) return 1;
       if (!b.nom) return -1;
       return a.nom.localeCompare(b.nom, "fr");

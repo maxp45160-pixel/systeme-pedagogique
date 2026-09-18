@@ -1,0 +1,325 @@
+{
+  "nextAction": "Tranche locale terminée ; migration distante déjà appliquée. Recette utilisateur navigateur et pertinence sur corpus réel restent à réaliser ; pas de publication ni essai fournisseur payant autorisé.",
+  "blocker": null,
+  "planLinks": [
+    {
+      "requirement": "P01-07",
+      "scope": "Domaine explicite prioritaire et conservation de tous les résultats dans Ressources et recherche ; pas de recherche intégrale ni carte notionnelle",
+      "source": "ai-company/product/parcours-depot-memoire.md"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-05",
+      "scope": "Application distante explicitement autorisée de la garde SQL de P01-0002 ; frontend non publié et recette réelle distincte"
+    }
+  ],
+  "scope": [
+    "app/src/lib/documents/corpus-groupe.ts",
+    "app/src/lib/documents/corpus-groupe.test.ts",
+    "app/src/components/atelier/vues-ressources-atelier.tsx",
+    "app/src/components/atelier/espace-documentaire.tsx",
+    "app/src/components/atelier/retrouver-ressources.test.ts",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/product/cadrage-direction.md",
+    "ai-company/product/parcours-depot-memoire.md",
+    "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+    "app/supabase/migrations/20260916183000_domaines_organisation_vides.sql"
+  ],
+  "status": "done",
+  "authorization": {
+    "summary": "Accord humain pour migration P01-0002 distante et tranche 3 locale ; aucune dépense, permission ou publication.",
+    "source": "ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md"
+  },
+  "inputs": [
+    "app/src/components/atelier/types-atelier.ts",
+    "app/src/lib/documents/rangement-atelier.ts",
+    "app/src/lib/documents/vue-atelier.ts"
+  ],
+  "objective": "Activer la garde SQL autorisée puis corriger les pertes et regroupements de documents dans Ressources et recherche",
+  "title": "Retrouver fidèlement les documents organisés",
+  "baseCommit": "e9c6fc76c1866a4dee876e541bda8394abc0bd60",
+  "checks": [
+    {
+      "at": "2026-09-16T21:30:25.577Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+      "result": "passed",
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "snapshot": {
+        "contractSha256": "c8d3bae568898dd98cea2940c7b30bb4267e639d2a26a673e33785c55abdd0bf",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md",
+            "eb024ef625076ad2d6db3a74369bdad66b3126715a5d3b451d8ba4f9050d8ae4"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+            "a9a7fda44618930d7afde4182f708a2bfd1bf916b0812d492b55df82d346dc47"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md",
+            "a4940365882e025b73280bc84159e76eb753aba9e6450834dc6661e870d7cd08"
+          ],
+          [
+            "ai-company/product/cadrage-direction.md",
+            "b3467fbf1d2375a4aefdd6d7e14401dbcdf4b0daf68a8847f4952b87b0ea0113"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "34076344210433a6d3e44b08b6242d29ee8b78058af9373b8c78c70e95b27fef"
+          ],
+          [
+            "app/src/components/atelier/types-atelier.ts",
+            "35101dbf400f4b6134996f5a0777e4ff64c62d287e95b5d8c94c889ce19be88b"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.test.ts",
+            "06f26e93eee410b0be466f1ec494cd26f5c2586a8c6513dd3fbcffbdc2020dfc"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/rangement-atelier.ts",
+            "0e0b15bf66a3978eb05abe596a13e3c1ce7a0c376d430cefb4a5d5be14c34c8e"
+          ],
+          [
+            "app/src/lib/documents/vue-atelier.ts",
+            "bb4301c6f5304999a1eff1ebbcc010905c750a36b0eb6fbe7e4864894a4b296a"
+          ],
+          [
+            "app/supabase/migrations/20260916183000_domaines_organisation_vides.sql",
+            "fcc0d9825c934150be0d2ab601b5117789b7c6277275013c586aafc11c4b5760"
+          ],
+          [
+            "ARCHITECTURE_DECISIONS.md",
+            "11e15b0896e098ba7d99e88ecf982402298882ba845444dc053f988374fb3467"
+          ],
+          [
+            "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+            "3b322dd448582707cb94b1ea197c288b935f2d08e51ff406e3bed0824e9aceb0"
+          ],
+          [
+            "PRODUCT.md",
+            "ac958caf5e37137e9370c244820590ab97b9c10e70d0496e7073542b58ddd931"
+          ]
+        ]
+      }
+    },
+    {
+      "at": "2026-09-16T21:30:25.577Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+      "result": "passed",
+      "command": "npm run agents:check",
+      "snapshot": {
+        "contractSha256": "c8d3bae568898dd98cea2940c7b30bb4267e639d2a26a673e33785c55abdd0bf",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md",
+            "eb024ef625076ad2d6db3a74369bdad66b3126715a5d3b451d8ba4f9050d8ae4"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+            "a9a7fda44618930d7afde4182f708a2bfd1bf916b0812d492b55df82d346dc47"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md",
+            "a4940365882e025b73280bc84159e76eb753aba9e6450834dc6661e870d7cd08"
+          ],
+          [
+            "ai-company/product/cadrage-direction.md",
+            "b3467fbf1d2375a4aefdd6d7e14401dbcdf4b0daf68a8847f4952b87b0ea0113"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "34076344210433a6d3e44b08b6242d29ee8b78058af9373b8c78c70e95b27fef"
+          ],
+          [
+            "app/src/components/atelier/types-atelier.ts",
+            "35101dbf400f4b6134996f5a0777e4ff64c62d287e95b5d8c94c889ce19be88b"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.test.ts",
+            "06f26e93eee410b0be466f1ec494cd26f5c2586a8c6513dd3fbcffbdc2020dfc"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/rangement-atelier.ts",
+            "0e0b15bf66a3978eb05abe596a13e3c1ce7a0c376d430cefb4a5d5be14c34c8e"
+          ],
+          [
+            "app/src/lib/documents/vue-atelier.ts",
+            "bb4301c6f5304999a1eff1ebbcc010905c750a36b0eb6fbe7e4864894a4b296a"
+          ],
+          [
+            "app/supabase/migrations/20260916183000_domaines_organisation_vides.sql",
+            "fcc0d9825c934150be0d2ab601b5117789b7c6277275013c586aafc11c4b5760"
+          ],
+          [
+            "ARCHITECTURE_DECISIONS.md",
+            "11e15b0896e098ba7d99e88ecf982402298882ba845444dc053f988374fb3467"
+          ],
+          [
+            "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+            "3b322dd448582707cb94b1ea197c288b935f2d08e51ff406e3bed0824e9aceb0"
+          ],
+          [
+            "PRODUCT.md",
+            "ac958caf5e37137e9370c244820590ab97b9c10e70d0496e7073542b58ddd931"
+          ]
+        ]
+      }
+    },
+    {
+      "at": "2026-09-16T21:30:25.577Z",
+      "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+      "result": "passed",
+      "command": "git diff --check",
+      "snapshot": {
+        "contractSha256": "c8d3bae568898dd98cea2940c7b30bb4267e639d2a26a673e33785c55abdd0bf",
+        "files": [
+          [
+            "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md",
+            "eb024ef625076ad2d6db3a74369bdad66b3126715a5d3b451d8ba4f9050d8ae4"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+            "a9a7fda44618930d7afde4182f708a2bfd1bf916b0812d492b55df82d346dc47"
+          ],
+          [
+            "ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md",
+            "a4940365882e025b73280bc84159e76eb753aba9e6450834dc6661e870d7cd08"
+          ],
+          [
+            "ai-company/product/cadrage-direction.md",
+            "b3467fbf1d2375a4aefdd6d7e14401dbcdf4b0daf68a8847f4952b87b0ea0113"
+          ],
+          [
+            "ai-company/product/parcours-depot-memoire.md",
+            "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+          ],
+          [
+            "app/src/components/atelier/espace-documentaire.tsx",
+            "bcab241c51f9a13bbe8a3fe693f9b76b847e89e3602967da4773d8a7a7b499c4"
+          ],
+          [
+            "app/src/components/atelier/retrouver-ressources.test.ts",
+            "34076344210433a6d3e44b08b6242d29ee8b78058af9373b8c78c70e95b27fef"
+          ],
+          [
+            "app/src/components/atelier/types-atelier.ts",
+            "35101dbf400f4b6134996f5a0777e4ff64c62d287e95b5d8c94c889ce19be88b"
+          ],
+          [
+            "app/src/components/atelier/vues-ressources-atelier.tsx",
+            "f4383697e85ada95bd3abf5a3817aada22d5731d9380c6ea36b02c1037c64436"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.test.ts",
+            "06f26e93eee410b0be466f1ec494cd26f5c2586a8c6513dd3fbcffbdc2020dfc"
+          ],
+          [
+            "app/src/lib/documents/corpus-groupe.ts",
+            "7fef7a98037680c196aab906ef8f3990af7fe24175465fb2f121c74bf06ec5e3"
+          ],
+          [
+            "app/src/lib/documents/rangement-atelier.ts",
+            "0e0b15bf66a3978eb05abe596a13e3c1ce7a0c376d430cefb4a5d5be14c34c8e"
+          ],
+          [
+            "app/src/lib/documents/vue-atelier.ts",
+            "bb4301c6f5304999a1eff1ebbcc010905c750a36b0eb6fbe7e4864894a4b296a"
+          ],
+          [
+            "app/supabase/migrations/20260916183000_domaines_organisation_vides.sql",
+            "fcc0d9825c934150be0d2ab601b5117789b7c6277275013c586aafc11c4b5760"
+          ],
+          [
+            "ARCHITECTURE_DECISIONS.md",
+            "11e15b0896e098ba7d99e88ecf982402298882ba845444dc053f988374fb3467"
+          ],
+          [
+            "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+            "3b322dd448582707cb94b1ea197c288b935f2d08e51ff406e3bed0824e9aceb0"
+          ],
+          [
+            "PRODUCT.md",
+            "ac958caf5e37137e9370c244820590ab97b9c10e70d0496e7073542b58ddd931"
+          ]
+        ]
+      }
+    }
+  ],
+  "owner": "01a0ab48-a27f-7453-ac53-3b8d3407eae7",
+  "updatedAt": "2026-09-16T21:30:25.577Z",
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run agents:check",
+    "git diff --check"
+  ],
+  "verificationVersion": 1,
+  "completion": {
+    "at": "2026-09-16T21:30:25.577Z",
+    "summary": "Migration P01-0002 appliquée et vérifiée ; tranche 3 locale réalisée : domaine explicite prioritaire, résultats inconnus/sans domaine conservés. 2427 tests passent ; frontend non publié.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md",
+      "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+    ]
+  },
+  "externalActions": [
+    "Migration domaines_organisation_vides appliquée : version distante 20260916183753 ; preuve ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+  ],
+  "acceptance": [
+    "Migration distante exacte vérifiée, permissions inchangées",
+    "Domaine explicite prioritaire, sans compétence obligatoire",
+    "Tous les résultats nommés/non nommés et hors corpus visibles exactement une fois",
+    "Affichage suit correction/retrait sans écriture ni appel IA"
+  ],
+  "id": "P01-0003",
+  "handoff": {
+    "evidence": [
+      "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+      "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+    ],
+    "remaining": [
+      "Recette interactive navigateur et pertinence sur corpus réel",
+      "Publication frontend non autorisée et non effectuée",
+      "Reste de P01-07 : contenu intégral, carte et relations notionnelles hors tranche"
+    ],
+    "delivered": "Migration P01-0002 appliquée et vérifiée en base ; correction locale du domaine affiché et des résultats perdus dans Ressources/recherche.",
+    "deployment": {
+      "evidence": [
+        "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+      ],
+      "status": "not-deployed"
+    }
+  }
+}

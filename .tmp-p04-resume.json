@@ -1,0 +1,887 @@
+
+> agents:resume
+> node ai-company/scripts/context.mjs --resume P01-0003
+
+{
+  "limitation": "Vue dérivée. Statuts et accords déclarés à confronter aux sources humaines ; aucune autorisation créée. Aucun test relancé. Aucun effet externe rejoué.",
+  "sources": [
+    "AGENTS.md",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/company/current-state.md",
+    "ai-company/company/priorities.md",
+    "ai-company/operations/autonomy.md",
+    "ai-company/workflows/copil.md",
+    "ai-company/workflows/continuity.md"
+  ],
+  "decisions": [
+    {
+      "id": "DEC-0001",
+      "title": "DEC-0001 — Mémoire sourcée et rôles documentaires",
+      "declaredStatus": "proposed",
+      "date": "2026-09-15",
+      "source": "ai-company/decisions/DEC-0001-memoire-et-roles-documentaires.md",
+      "sha256": "ddb7128a7bd8e96a71ce8de7bb9d681ece8e16787d0eb39e25ff665f8f224daf",
+      "validationSource": "UNKNOWN / À VALIDER AVEC LE FONDATEUR",
+      "replacedBy": null
+    },
+    {
+      "id": "DEC-0002",
+      "title": "DEC-0002 — Essai manuel de choix du modèle et de l'effort",
+      "declaredStatus": "accepted",
+      "date": "2026-09-15",
+      "source": "ai-company/decisions/DEC-0002-essai-manuel-compute.md",
+      "sha256": "6473a22be5aa7c69de8a406e2bd2fb3cad5e66b7a3378b9f18d7f5f18424b5d3",
+      "validationSource": "échange Compute Router dans la tâche Codex de l'AI Company ; extrait et périmètre conservés ci-dessous.",
+      "replacedBy": null
+    },
+    {
+      "id": "DEC-0003",
+      "title": "DEC-0003 — Autonomie bornée, reprise et amélioration évaluée",
+      "declaredStatus": "accepted",
+      "date": "2026-09-15",
+      "source": "ai-company/decisions/DEC-0003-autonomie-et-reprise.md",
+      "sha256": "467f2aa0611a0c8c943f90bf64cf41eab6e71a811d59b63347b73d6508e3b237",
+      "validationSource": "tâche Codex 01a0a697-72b8-7870-b03d-f887188e3eb0, réponse à l'audit du 15/09/2026 ; portée détaillée ci-dessous.",
+      "replacedBy": null
+    }
+  ],
+  "progress": {
+    "configured": true,
+    "requirements": [
+      {
+        "id": "P01-01",
+        "title": "Confier",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 70,
+        "deliveries": []
+      },
+      {
+        "id": "P01-02",
+        "title": "Autoriser",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 71,
+        "deliveries": []
+      },
+      {
+        "id": "P01-03",
+        "title": "Conserver et lire",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 72,
+        "deliveries": []
+      },
+      {
+        "id": "P01-04",
+        "title": "Comprendre",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 73,
+        "deliveries": []
+      },
+      {
+        "id": "P01-05",
+        "title": "Organiser",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 74,
+        "deliveries": [
+          {
+            "mission": "P01-0001",
+            "status": "done",
+            "scope": "Contribution partielle : domaine existant explicitement identifié, contrôle par ressource, correction et refus. Ne couvre pas toute l'organisation, les liens notionnels ni la recette d'usage réelle.",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-classification.md"
+            ],
+            "handoff": null,
+            "verification": [
+              "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+              "Preuve absente ou périmée : npm run agents:check",
+              "Preuve absente ou périmée : git diff --check"
+            ],
+            "updatedAt": "2026-09-16T17:54:55.874Z"
+          },
+          {
+            "mission": "P01-0002",
+            "status": "done",
+            "scope": "Contribution en cours lors du raccordement : création de domaine d'organisation et contrôle ciblé. Le mandat ne prouve ni achèvement, ni application distante de la migration. Lire l'état actuel de la mission.",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-domaines-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines-livraison.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines.md"
+            ],
+            "handoff": {
+              "deployment": {
+                "status": "not-deployed",
+                "evidence": []
+              },
+              "remaining": [
+                "Autorisation distincte et application de la migration distante",
+                "Recette navigateur et pertinence sur corpus réel",
+                "Reste de P-01 hors tranche, compétences proposées non validées"
+              ],
+              "evidence": [
+                "ai-company/operations/runs/2026-09-16-p01-domaines-livraison.md"
+              ],
+              "delivered": "Création et rattachement délégués de domaines vides, contrôle humain et reprise locale sans doublon."
+            },
+            "verification": [
+              "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+              "Preuve absente ou périmée : npm run agents:check",
+              "Preuve absente ou périmée : git diff --check"
+            ],
+            "updatedAt": "2026-09-16T18:24:32.518Z"
+          },
+          {
+            "mission": "P01-0003",
+            "status": "done",
+            "scope": "Application distante explicitement autorisée de la garde SQL de P01-0002 ; frontend non publié et recette réelle distincte",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md",
+              "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md"
+            ],
+            "handoff": {
+              "evidence": [
+                "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+                "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+              ],
+              "remaining": [
+                "Recette interactive navigateur et pertinence sur corpus réel",
+                "Publication frontend non autorisée et non effectuée",
+                "Reste de P01-07 : contenu intégral, carte et relations notionnelles hors tranche"
+              ],
+              "delivered": "Migration P01-0002 appliquée et vérifiée en base ; correction locale du domaine affiché et des résultats perdus dans Ressources/recherche.",
+              "deployment": {
+                "evidence": [
+                  "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+                ],
+                "status": "not-deployed"
+              }
+            },
+            "verification": [],
+            "updatedAt": "2026-09-16T21:30:25.577Z"
+          }
+        ]
+      },
+      {
+        "id": "P01-06",
+        "title": "Contrôler",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 75,
+        "deliveries": [
+          {
+            "mission": "P01-0001",
+            "status": "done",
+            "scope": "Contribution partielle : domaine existant explicitement identifié, contrôle par ressource, correction et refus. Ne couvre pas toute l'organisation, les liens notionnels ni la recette d'usage réelle.",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-classification.md"
+            ],
+            "handoff": null,
+            "verification": [
+              "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+              "Preuve absente ou périmée : npm run agents:check",
+              "Preuve absente ou périmée : git diff --check"
+            ],
+            "updatedAt": "2026-09-16T17:54:55.874Z"
+          },
+          {
+            "mission": "P01-0002",
+            "status": "done",
+            "scope": "Contribution en cours lors du raccordement : création de domaine d'organisation et contrôle ciblé. Le mandat ne prouve ni achèvement, ni application distante de la migration. Lire l'état actuel de la mission.",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-domaines-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines-livraison.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines.md"
+            ],
+            "handoff": {
+              "deployment": {
+                "status": "not-deployed",
+                "evidence": []
+              },
+              "remaining": [
+                "Autorisation distincte et application de la migration distante",
+                "Recette navigateur et pertinence sur corpus réel",
+                "Reste de P-01 hors tranche, compétences proposées non validées"
+              ],
+              "evidence": [
+                "ai-company/operations/runs/2026-09-16-p01-domaines-livraison.md"
+              ],
+              "delivered": "Création et rattachement délégués de domaines vides, contrôle humain et reprise locale sans doublon."
+            },
+            "verification": [
+              "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+              "Preuve absente ou périmée : npm run agents:check",
+              "Preuve absente ou périmée : git diff --check"
+            ],
+            "updatedAt": "2026-09-16T18:24:32.518Z"
+          }
+        ]
+      },
+      {
+        "id": "P01-07",
+        "title": "Retrouver",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 76,
+        "deliveries": [
+          {
+            "mission": "P01-0003",
+            "status": "done",
+            "scope": "Domaine explicite prioritaire et conservation de tous les résultats dans Ressources et recherche ; pas de recherche intégrale ni carte notionnelle",
+            "reportPaths": [
+              "ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md",
+              "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md",
+              "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md"
+            ],
+            "handoff": {
+              "evidence": [
+                "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+                "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+              ],
+              "remaining": [
+                "Recette interactive navigateur et pertinence sur corpus réel",
+                "Publication frontend non autorisée et non effectuée",
+                "Reste de P01-07 : contenu intégral, carte et relations notionnelles hors tranche"
+              ],
+              "delivered": "Migration P01-0002 appliquée et vérifiée en base ; correction locale du domaine affiché et des résultats perdus dans Ressources/recherche.",
+              "deployment": {
+                "evidence": [
+                  "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+                ],
+                "status": "not-deployed"
+              }
+            },
+            "verification": [],
+            "updatedAt": "2026-09-16T21:30:25.577Z"
+          }
+        ]
+      },
+      {
+        "id": "P01-08",
+        "title": "Challenger",
+        "source": "ai-company/product/parcours-depot-memoire.md",
+        "line": 77,
+        "deliveries": []
+      },
+      {
+        "id": "P02-01",
+        "title": "Revenir sur un sujet",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 31,
+        "deliveries": []
+      },
+      {
+        "id": "P02-02",
+        "title": "Demander ou accepter un travail",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 32,
+        "deliveries": []
+      },
+      {
+        "id": "P02-03",
+        "title": "Travailler",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 33,
+        "deliveries": []
+      },
+      {
+        "id": "P02-04",
+        "title": "Relire le résultat",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 34,
+        "deliveries": []
+      },
+      {
+        "id": "P02-05",
+        "title": "Retrouver son cheminement",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 35,
+        "deliveries": []
+      },
+      {
+        "id": "P02-06",
+        "title": "Reprendre plus tard",
+        "source": "ai-company/product/parcours-memoire-travail.md",
+        "line": 36,
+        "deliveries": []
+      }
+    ],
+    "unlinkedMissions": [
+      {
+        "id": "CONT-0001",
+        "status": "done",
+        "title": "Relier les exigences aux livraisons et à la reprise du copil",
+        "file": "ai-company/operations/missions/CONT-0001.json",
+        "updatedAt": "2026-09-16T18:20:31.599Z",
+        "completion": {
+          "summary": "Continuité locale raccordée : 61 tests passés, 14 exigences relues, missions terminées visibles en processus neuf, revue QA et correction des exemples Markdown. Aucun chantier produit modifié.",
+          "evidence": [
+            "ai-company/operations/runs/2026-09-16-continuite.md"
+          ],
+          "at": "2026-09-16T18:20:31.599Z"
+        },
+        "handoff": null,
+        "verification": []
+      },
+      {
+        "id": "DIR-0001",
+        "status": "done",
+        "title": "Consolider la direction et préparer le cahier des charges Twiny",
+        "file": "ai-company/operations/missions/DIR-0001.json",
+        "updatedAt": "2026-09-16T17:50:19.940Z",
+        "completion": {
+          "summary": "Consolidation locale vérifiée : 37 tests, contrôle de 54 documents/355 liens/3 missions et reprise sans historique. QA indépendante terminée, dossier critique et huit exigences proposées. Aucun arbitrage produit, intégration Git ni déploiement.",
+          "evidence": [
+            "ai-company/operations/runs/2026-09-16-direction.md"
+          ],
+          "at": "2026-09-16T15:47:47.926Z"
+        },
+        "handoff": null,
+        "verification": [
+          "Preuve absente ou périmée : npm run agents:test",
+          "Preuve absente ou périmée : npm run agents:check",
+          "Preuve absente ou périmée : npm run agents:resume -- DIR-0001"
+        ]
+      },
+      {
+        "id": "GRAPH-0001",
+        "status": "done",
+        "title": "Raccorder les graphes frais aux agents",
+        "file": "ai-company/operations/missions/GRAPH-0001.json",
+        "updatedAt": "2026-09-16T16:17:18.012Z",
+        "completion": {
+          "summary": "Raccordement local livré : 48 tests passés, graphes rescannés et index technique frais vérifiés en CLI, revue QA indépendante. Aucune installation, configuration globale, API payante ou modification produit.",
+          "evidence": [
+            "ai-company/operations/runs/2026-09-16-graphes-raccordement.md"
+          ],
+          "at": "2026-09-16T16:17:18.012Z"
+        },
+        "handoff": null,
+        "verification": [
+          "Preuve absente ou périmée : npm run agents:test",
+          "Preuve absente ou périmée : npm run agents:check",
+          "Preuve absente ou périmée : node ai-company/scripts/graph.mjs ux page:/seances --depth 1",
+          "Preuve absente ou périmée : node ai-company/scripts/graph.mjs code callers envTuteur"
+        ]
+      },
+      {
+        "id": "ORG-0001",
+        "status": "done",
+        "title": "Mettre en place la V2 des agents Twiny",
+        "file": "ai-company/operations/missions/ORG-0001.json",
+        "updatedAt": "2026-09-15T20:18:31Z",
+        "completion": {
+          "summary": "Mandat, reprise, mémoire, contrôles et évaluation installés. Deux défauts de collisions corrigés après revue QA ; 29 tests et huit choix synthétiques passent. Déclenchement à la demande ; aucun gain comparatif ni déploiement revendiqué.",
+          "evidence": [
+            "ai-company/operations/runs/2026-09-15-v2-agents.md",
+            "ai-company/evals/runs/2026-09-15-v2-response.json",
+            "ai-company/evals/runs/2026-09-15-v2-score.json",
+            "ai-company/evals/runs/2026-09-15-v2-files.json"
+          ],
+          "at": "2026-09-15T20:18:31Z"
+        },
+        "handoff": null,
+        "verification": [
+          "Preuves historiques déclaratives : fraîcheur non contrôlée"
+        ]
+      },
+      {
+        "id": "UX-0001",
+        "status": "blocked",
+        "title": "Fluidifier le dépôt et la proposition documentaire",
+        "file": "ai-company/operations/missions/UX-0001.json",
+        "updatedAt": "2026-09-16T18:07:19.734Z",
+        "completion": null,
+        "handoff": null,
+        "verification": [
+          "Preuves historiques déclaratives : fraîcheur non contrôlée"
+        ]
+      }
+    ],
+    "errors": [],
+    "limitations": [
+      "Les livraisons ne valident ni une exigence produit ni un déploiement ; aucun statut produit n'est déduit.",
+      "P01-0001 : handoff non structuré ; consulter les rapports, sans inférer le reste à faire ou le déploiement."
+    ]
+  },
+  "closedMissions": [
+    {
+      "id": "CONT-0001",
+      "title": "Relier les exigences aux livraisons et à la reprise du copil",
+      "status": "done",
+      "file": "ai-company/operations/missions/CONT-0001.json",
+      "updatedAt": "2026-09-16T18:20:31.599Z",
+      "completion": {
+        "summary": "Continuité locale raccordée : 61 tests passés, 14 exigences relues, missions terminées visibles en processus neuf, revue QA et correction des exemples Markdown. Aucun chantier produit modifié.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-continuite.md"
+        ],
+        "at": "2026-09-16T18:20:31.599Z"
+      },
+      "nextAction": "À chaque reprise, lire progress et closedMissions ; réalisations futures : planLinks et handoff selon workflows/continuity.md. Aucun chantier produit relancé.",
+      "planLinks": [],
+      "handoff": null,
+      "verification": []
+    },
+    {
+      "id": "DIR-0001",
+      "title": "Consolider la direction et préparer le cahier des charges Twiny",
+      "status": "done",
+      "file": "ai-company/operations/missions/DIR-0001.json",
+      "updatedAt": "2026-09-16T17:50:19.940Z",
+      "completion": {
+        "summary": "Consolidation locale vérifiée : 37 tests, contrôle de 54 documents/355 liens/3 missions et reprise sans historique. QA indépendante terminée, dossier critique et huit exigences proposées. Aucun arbitrage produit, intégration Git ni déploiement.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-direction.md"
+        ],
+        "at": "2026-09-16T15:47:47.926Z"
+      },
+      "nextAction": "P01-0001 porte la réalisation locale autorisée le 16/09 dans la tâche 01a0ab48-a27f-7453-ac53-3b8d3407eae7 : rattachement limité aux domaines existants, contrôle ciblé et transfert classement/documentation depuis UX-0001. Voir ai-company/operations/runs/2026-09-16-p01-classification.md. Le statut done historique de DIR-0001 ne clôt ni le produit ni son cahier des charges. P-02 reste ultérieur ; aucune dépense ni publication.",
+      "planLinks": [],
+      "handoff": null,
+      "verification": [
+        "Preuve absente ou périmée : npm run agents:test",
+        "Preuve absente ou périmée : npm run agents:check",
+        "Preuve absente ou périmée : npm run agents:resume -- DIR-0001"
+      ]
+    },
+    {
+      "id": "GRAPH-0001",
+      "title": "Raccorder les graphes frais aux agents",
+      "status": "done",
+      "file": "ai-company/operations/missions/GRAPH-0001.json",
+      "updatedAt": "2026-09-16T16:17:18.012Z",
+      "completion": {
+        "summary": "Raccordement local livré : 48 tests passés, graphes rescannés et index technique frais vérifiés en CLI, revue QA indépendante. Aucune installation, configuration globale, API payante ou modification produit.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-graphes-raccordement.md"
+        ],
+        "at": "2026-09-16T16:17:18.012Z"
+      },
+      "nextAction": "Consultation à la demande via agents:graph ; lire workflows/graphes.md. Aucun autre chantier ni activation permanente requis.",
+      "planLinks": [],
+      "handoff": null,
+      "verification": [
+        "Preuve absente ou périmée : npm run agents:test",
+        "Preuve absente ou périmée : npm run agents:check",
+        "Preuve absente ou périmée : node ai-company/scripts/graph.mjs ux page:/seances --depth 1",
+        "Preuve absente ou périmée : node ai-company/scripts/graph.mjs code callers envTuteur"
+      ]
+    },
+    {
+      "id": "ORG-0001",
+      "title": "Mettre en place la V2 des agents Twiny",
+      "status": "done",
+      "file": "ai-company/operations/missions/ORG-0001.json",
+      "updatedAt": "2026-09-15T20:18:31Z",
+      "completion": {
+        "summary": "Mandat, reprise, mémoire, contrôles et évaluation installés. Deux défauts de collisions corrigés après revue QA ; 29 tests et huit choix synthétiques passent. Déclenchement à la demande ; aucun gain comparatif ni déploiement revendiqué.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-15-v2-agents.md",
+          "ai-company/evals/runs/2026-09-15-v2-response.json",
+          "ai-company/evals/runs/2026-09-15-v2-score.json",
+          "ai-company/evals/runs/2026-09-15-v2-files.json"
+        ],
+        "at": "2026-09-15T20:18:31Z"
+      },
+      "nextAction": "",
+      "planLinks": [],
+      "handoff": null,
+      "verification": [
+        "Preuves historiques déclaratives : fraîcheur non contrôlée"
+      ]
+    },
+    {
+      "id": "P01-0001",
+      "title": "Rattacher les nouvelles ressources avec contrôle ciblé",
+      "status": "done",
+      "file": "ai-company/operations/missions/P01-0001.json",
+      "updatedAt": "2026-09-16T17:54:55.874Z",
+      "completion": {
+        "at": "2026-09-16T17:54:55.874Z",
+        "summary": "Rattachement domaine seul, contrôle indépendant, correction/retrait durable et reprise réalisés localement. 2385 tests passent ; types/lint sans erreur ; revue QA corrigée. Aucun effet distant.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-verification.md"
+        ]
+      },
+      "nextAction": "Tranche locale terminée. Éprouver le classement sur corpus réel dans une mission distincte, sans appel payant implicite ; traiter ensuite les écarts de restitution P01-07 documentés. P-02 non prioritaire. UX-0001 conserve son essai fournisseur.",
+      "planLinks": [],
+      "handoff": null,
+      "verification": [
+        "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+        "Preuve absente ou périmée : npm run agents:check",
+        "Preuve absente ou périmée : git diff --check"
+      ]
+    },
+    {
+      "id": "P01-0002",
+      "title": "Créer les domaines sans compétence obligatoire",
+      "status": "done",
+      "file": "ai-company/operations/missions/P01-0002.json",
+      "updatedAt": "2026-09-16T18:24:32.518Z",
+      "completion": {
+        "at": "2026-09-16T18:24:32.518Z",
+        "summary": "Création déléguée sans compétence obligatoire, reprise sans doublon et contrôle ciblé réalisés localement. 2417 tests passent ; migration distante non appliquée.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-domaines-verification.md"
+        ]
+      },
+      "nextAction": "Tranche locale terminée. Attendre l'autorisation distincte pour appliquer la migration distante, puis vérifier son effet ; recette réelle restant à réaliser.",
+      "planLinks": [],
+      "handoff": {
+        "deployment": {
+          "status": "not-deployed",
+          "evidence": []
+        },
+        "remaining": [
+          "Autorisation distincte et application de la migration distante",
+          "Recette navigateur et pertinence sur corpus réel",
+          "Reste de P-01 hors tranche, compétences proposées non validées"
+        ],
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-domaines-livraison.md"
+        ],
+        "delivered": "Création et rattachement délégués de domaines vides, contrôle humain et reprise locale sans doublon."
+      },
+      "verification": [
+        "Preuve absente ou périmée : npm run verify --workspace=app -- --maxWorkers=2",
+        "Preuve absente ou périmée : npm run agents:check",
+        "Preuve absente ou périmée : git diff --check"
+      ]
+    },
+    {
+      "id": "P01-0003",
+      "title": "Retrouver fidèlement les documents organisés",
+      "status": "done",
+      "file": "ai-company/operations/missions/P01-0003.json",
+      "updatedAt": "2026-09-16T21:30:25.577Z",
+      "completion": {
+        "at": "2026-09-16T21:30:25.577Z",
+        "summary": "Migration P01-0002 appliquée et vérifiée ; tranche 3 locale réalisée : domaine explicite prioritaire, résultats inconnus/sans domaine conservés. 2427 tests passent ; frontend non publié.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md",
+          "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+        ]
+      },
+      "nextAction": "Tranche locale terminée ; migration distante déjà appliquée. Recette utilisateur navigateur et pertinence sur corpus réel restent à réaliser ; pas de publication ni essai fournisseur payant autorisé.",
+      "planLinks": [
+        {
+          "requirement": "P01-07",
+          "scope": "Domaine explicite prioritaire et conservation de tous les résultats dans Ressources et recherche ; pas de recherche intégrale ni carte notionnelle",
+          "source": "ai-company/product/parcours-depot-memoire.md"
+        },
+        {
+          "source": "ai-company/product/parcours-depot-memoire.md",
+          "requirement": "P01-05",
+          "scope": "Application distante explicitement autorisée de la garde SQL de P01-0002 ; frontend non publié et recette réelle distincte"
+        }
+      ],
+      "handoff": {
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+          "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+        ],
+        "remaining": [
+          "Recette interactive navigateur et pertinence sur corpus réel",
+          "Publication frontend non autorisée et non effectuée",
+          "Reste de P01-07 : contenu intégral, carte et relations notionnelles hors tranche"
+        ],
+        "delivered": "Migration P01-0002 appliquée et vérifiée en base ; correction locale du domaine affiché et des résultats perdus dans Ressources/recherche.",
+        "deployment": {
+          "evidence": [
+            "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+          ],
+          "status": "not-deployed"
+        }
+      },
+      "verification": []
+    }
+  ],
+  "missions": [
+    {
+      "id": "P01-0003",
+      "title": "Retrouver fidèlement les documents organisés",
+      "status": "done",
+      "owner": "01a0ab48-a27f-7453-ac53-3b8d3407eae7",
+      "file": "ai-company/operations/missions/P01-0003.json",
+      "fileSha256": "7fa6a7d3325a550084ea145618d87c283c65510e9bb2b9229a28dda588674dfa",
+      "objective": "Activer la garde SQL autorisée puis corriger les pertes et regroupements de documents dans Ressources et recherche",
+      "authorization": {
+        "summary": "Accord humain pour migration P01-0002 distante et tranche 3 locale ; aucune dépense, permission ou publication.",
+        "source": "ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md"
+      },
+      "scope": [
+        "app/src/lib/documents/corpus-groupe.ts",
+        "app/src/lib/documents/corpus-groupe.test.ts",
+        "app/src/components/atelier/vues-ressources-atelier.tsx",
+        "app/src/components/atelier/espace-documentaire.tsx",
+        "app/src/components/atelier/retrouver-ressources.test.ts",
+        "PRODUCT.md",
+        "ARCHITECTURE_DECISIONS.md",
+        "ai-company/product/cadrage-direction.md",
+        "ai-company/product/parcours-depot-memoire.md",
+        "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+        "app/supabase/migrations/20260916183000_domaines_organisation_vides.sql"
+      ],
+      "nextAction": "Tranche locale terminée ; migration distante déjà appliquée. Recette utilisateur navigateur et pertinence sur corpus réel restent à réaliser ; pas de publication ni essai fournisseur payant autorisé.",
+      "blocker": null,
+      "externalActions": [
+        "Migration domaines_organisation_vides appliquée : version distante 20260916183753 ; preuve ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+      ],
+      "completion": {
+        "at": "2026-09-16T21:30:25.577Z",
+        "summary": "Migration P01-0002 appliquée et vérifiée ; tranche 3 locale réalisée : domaine explicite prioritaire, résultats inconnus/sans domaine conservés. 2427 tests passent ; frontend non publié.",
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md",
+          "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+        ]
+      },
+      "planLinks": [
+        {
+          "requirement": "P01-07",
+          "scope": "Domaine explicite prioritaire et conservation de tous les résultats dans Ressources et recherche ; pas de recherche intégrale ni carte notionnelle",
+          "source": "ai-company/product/parcours-depot-memoire.md"
+        },
+        {
+          "source": "ai-company/product/parcours-depot-memoire.md",
+          "requirement": "P01-05",
+          "scope": "Application distante explicitement autorisée de la garde SQL de P01-0002 ; frontend non publié et recette réelle distincte"
+        }
+      ],
+      "handoff": {
+        "evidence": [
+          "ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md",
+          "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+        ],
+        "remaining": [
+          "Recette interactive navigateur et pertinence sur corpus réel",
+          "Publication frontend non autorisée et non effectuée",
+          "Reste de P01-07 : contenu intégral, carte et relations notionnelles hors tranche"
+        ],
+        "delivered": "Migration P01-0002 appliquée et vérifiée en base ; correction locale du domaine affiché et des résultats perdus dans Ressources/recherche.",
+        "deployment": {
+          "evidence": [
+            "ai-company/operations/runs/2026-09-16-p01-domaines-activation.md"
+          ],
+          "status": "not-deployed"
+        }
+      },
+      "verification": [],
+      "checks": [
+        {
+          "at": "2026-09-16T21:30:25.577Z",
+          "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+          "result": "passed",
+          "command": "npm run verify --workspace=app -- --maxWorkers=2",
+          "snapshotPresent": true
+        },
+        {
+          "at": "2026-09-16T21:30:25.577Z",
+          "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+          "result": "passed",
+          "command": "npm run agents:check",
+          "snapshotPresent": true
+        },
+        {
+          "at": "2026-09-16T21:30:25.577Z",
+          "revision": "e9c6fc76c1866a4dee876e541bda8394abc0bd60 + diff local P01-0003",
+          "result": "passed",
+          "command": "git diff --check",
+          "snapshotPresent": true
+        }
+      ],
+      "consumption": {
+        "codexTokens": null,
+        "codexCost": null,
+        "apiCost": null,
+        "note": "Usage attribuable non disponible"
+      }
+    },
+    {
+      "id": "UX-0001",
+      "title": "Fluidifier le dépôt et la proposition documentaire",
+      "status": "blocked",
+      "owner": "01a0a641-26c9-7591-9276-a8e6990c3159",
+      "file": "ai-company/operations/missions/UX-0001.json",
+      "fileSha256": "67d4ae7f16a11ce57f81c67a8bb272bd9394d51e49c3163669560d5174f2e0fb",
+      "objective": "Saisie puis proposition automatique claire : synthèse, organisation et compétences, avec une validation finale vers les priorités.",
+      "authorization": {
+        "source": "ai-company/operations/runs/2026-09-15-lisibilite-classement.md",
+        "summary": "Maxime demande le parcours fluide le 16/09 et autorise explicitement une reprise des 13 transcriptions Mistral à 0,423 EUR maximum. Cette tentative interrompue a réservé 0,299466 EUR ; accord supplémentaire demandé avant nouvel appel. Budget pilote 5 EUR inchangé. Le vas-y suivant autorise une tentative supplémentaire à 0,423 EUR : réalisée, coût rapproché 0,138984 EUR, rejet des citations. Aucune dépense supplémentaire implicite. Transfert humain du 16/09 dans P01-0001 : composants tuteur et PRODUCT/ADR repris pour classement ciblé ; analyse fournisseur et essai payant restent UX-0001. La référence active docs/design/ASSISTANT_ENTREE_REFERENCE.md suit ce même transfert documentaire. Suite P01-0002 approuvée : lecteurs/champs et commandes de classement, schéma local et nouvelle migration nécessaires au domaine sans compétence sont repris ici ; migrations préexistantes et fournisseur restent UX-0001."
+      },
+      "scope": [
+        "app/src/lib/store/ressource-assistant-actions.ts",
+        "app/src/lib/store/brouillon-classement-actions.ts",
+        "app/src/lib/store/brouillon-classement-actions.test.ts",
+        "app/src/lib/documents/brouillon-classement.ts",
+        "app/src/lib/documents/brouillon-classement.test.ts",
+        "docs/pilotes/DEPOT_DOCUMENTAIRE.md",
+        "app/src/lib/store/ressource-assistant-actions.test.ts",
+        "app/src/lib/documents/organisation-depot.ts",
+        "app/src/lib/documents/organisation-depot.test.ts",
+        "app/src/lib/store/depot-analyse.ts",
+        "app/src/lib/store/depot-analyse.test.ts",
+        "app/src/lib/tutor/depot-mistral.ts",
+        "app/src/lib/tutor/depot-mistral.test.ts",
+        "app/src/lib/tutor/depot-qwen.ts",
+        "app/src/lib/documents/depot-validation.ts",
+        "app/src/lib/documents/depot-validation.test.ts",
+        "app/src/app/api/depot/analyser",
+        "app/src/lib/tutor/depot-qwen.test.ts",
+        "app/src/lib/documents/depot-tarifs.test.ts",
+        "app/src/lib/documents/validation-rangement.ts",
+        "AGENTS.md",
+        "app/src/lib/documents/conversation-ressources.ts",
+        "app/src/lib/documents/conversation-ressources.test.ts",
+        "app/supabase/migrations/20260812192112_document_support_attachments.sql",
+        "app/supabase/migrations/20260813095437_referentiel_governance.sql",
+        "app/supabase/migrations/20260813095635_referentiel_governance_policy_hardening.sql",
+        "app/supabase/migrations/20260814225149_annuler_assistance_remplace_indices.sql",
+        "app/supabase/migrations/20260814231505_boucle_projet_minimale.sql",
+        "app/supabase/migrations/20260815095104_retrait_boucle_projet.sql",
+        "app/supabase/migrations/20260816112000_panel_admin_acces.sql",
+        "app/supabase/migrations/20260816112500_retrait_dev_todos.sql",
+        "app/supabase/migrations/20260816113000_premier_admin.sql",
+        "app/supabase/migrations/20260816124000_protection_pairs_admin.sql",
+        "app/supabase/migrations/20260816124500_unification_profil_oauth.sql",
+        "app/supabase/migrations/20260816134000_charger_tout_themes.sql",
+        "app/supabase/migrations/20260816134500_document_snapshots_purge_compte.sql",
+        "app/supabase/migrations/20260816180000_abandon_seance.sql",
+        "app/supabase/migrations/20260816200000_rattachement_competence_domaines.sql",
+        "app/supabase/migrations/20260817100000_refus_code_optionnel.sql",
+        "app/supabase/migrations/20260818120000_journal_moteur.sql",
+        "app/supabase/migrations/20260818140000_journal_reglages.sql",
+        "app/supabase/migrations/20260818160000_competence_succession.sql",
+        "app/supabase/migrations/20260820000000_charger_tout_reglages.sql",
+        "app/supabase/migrations/20260820093322_rupture_evidence_vers_observations.sql",
+        "app/supabase/migrations/20260820120404_twiny_lot_2_provenance_transaction_chargement.sql",
+        "app/supabase/migrations/20260820123515_activer_frontiere_cloture_lot_2.sql",
+        "app/supabase/migrations/20260820134723_twiny_lot_3_carte_globale_overlay_minimal.sql",
+        "app/supabase/migrations/20260820161556_twiny_lot_4_objectifs_evenements_parcours.sql",
+        "app/supabase/migrations/20260820164500_twiny_lot_4_fk_indexes.sql",
+        "app/supabase/migrations/20260820170000_twiny_lot_4_cibles_strictes.sql",
+        "app/supabase/migrations/20260820190000_twiny_lot_7_correspondances_relations.sql",
+        "app/supabase/migrations/20260820191500_durcissement_rls_initplan_politiques.sql",
+        "app/supabase/migrations/20260820193000_twiny_lot_7_observations_append_only.sql",
+        "app/supabase/migrations/20260820194000_twiny_lot_7_admin_comptes_observations.sql",
+        "app/supabase/migrations/20260820213000_restaurer_domaine_active_perimetre.sql",
+        "app/supabase/migrations/20260821000000_suppression_themes.sql",
+        "app/supabase/migrations/20260821120000_retrait_objectifs_structures.sql",
+        "app/supabase/migrations/20260821175518_corriger_archivage_domaine.sql",
+        "app/supabase/migrations/20260821190000_retrait_carte_globale.sql",
+        "app/supabase/migrations/20260821200000_renonciation_seance.sql",
+        "app/supabase/migrations/20260822090000_retrait_hypothese_initiale.sql",
+        "app/supabase/migrations/20260822093000_index_fk_couvrants.sql",
+        "app/supabase/migrations/20260822100000_retrait_index_inutilises.sql",
+        "app/supabase/migrations/20260822120000_rattachement_carte_savoirs.sql",
+        "app/supabase/migrations/20260822140000_classer_domaine.sql",
+        "app/supabase/migrations/20260822160000_engagements_fait_date.sql",
+        "app/supabase/migrations/20260822183000_pieces_jointes_images.sql",
+        "app/supabase/migrations/20260822230000_mode_epreuve_seance.sql",
+        "app/supabase/migrations/20260823090000_domaines_hierarchiques_tags.sql",
+        "app/supabase/migrations/20260824090000_relecture_referentiel.sql",
+        "app/supabase/migrations/20260824100000_trace_relecture.sql",
+        "app/supabase/migrations/20260824110000_genre_rattachement.sql",
+        "app/supabase/migrations/20260824170120_declenchement_relecture_sur_ajout_declare.sql",
+        "app/supabase/migrations/20260825090000_quota_tuteur.sql",
+        "app/supabase/migrations/20260825100000_archiver_competence.sql",
+        "app/supabase/migrations/20260825120000_tag_creation_competence.sql",
+        "app/supabase/migrations/20260825140000_engagement_module_domaine.sql",
+        "app/supabase/migrations/20260826090000_usage_domaine_declare.sql",
+        "app/supabase/migrations/20260828110000_interventions_seance.sql",
+        "app/supabase/migrations/20260828120000_lot_3_acceptation_plan.sql",
+        "app/supabase/migrations/20260828150000_lot_5_revision_plan.sql",
+        "app/supabase/migrations/20260828201530_lot_9_contexte_declare.sql",
+        "app/supabase/migrations/20260828212423_corriger_intervalle_acceptation_plan.sql",
+        "app/supabase/migrations/20260829072035_corriger_somme_intervalle_acceptation_plan.sql",
+        "app/supabase/migrations/20260829101500_corriger_idempotence_acceptation_plan.sql",
+        "app/supabase/migrations/20260829155409_retirer_periode_declaree_inutile.sql",
+        "app/supabase/migrations/20260829163836_memoriser_refus_proposition_plan.sql",
+        "app/supabase/migrations/20260829190000_plan_acceptation_origine_cours.sql",
+        "app/supabase/migrations/20260830200308_autoriser_module_vide.sql",
+        "app/supabase/migrations/20260830202830_creer_module_vide_atomique.sql",
+        "app/supabase/migrations/20260831105740_creer_domaine_continu_depuis_competences_existantes.sql",
+        "app/supabase/migrations/20260901133558_rectifications_observations.sql",
+        "app/supabase/migrations/20260904084047_supprimer_domaine_archive.sql",
+        "app/supabase/migrations/20260906094254_depot_documentaire_pilote.sql",
+        "app/supabase/migrations/20260906101952_conserver_budget_depot_apres_reinitialisation.sql",
+        "app/supabase/migrations/20260914165848_qwen_budget_essai.sql",
+        "app/supabase/migrations/20260914214857_qwen_reservation_compte.sql",
+        "app/supabase/migrations/20260914220251_depot_analyse_compte_v2.sql",
+        "app/supabase/migrations/20260915220807_depot_restitution_v2_sortie_8192.sql"
+      ],
+      "nextAction": "Obtenir un accord borné pour vérifier la correction des citations sur les 13 transcriptions Mistral ; ne pas relancer automatiquement.",
+      "blocker": "La reprise supplémentaire autorisée a échoué sur une citation recomposée. Consigne corrigée et testée localement ; nouvelle vérification Mistral payante non encore autorisée.",
+      "externalActions": [
+        "Migration distante 20260915220807_depot_restitution_v2_sortie_8192 appliquée ; bornes et rejeu vérifiés en transaction annulée.",
+        "Essai Mistral explicitement autorisé : 0af7ae38-6427-46d5-923d-887e011c8d04 interrompu, 299466 micro-EUR réservés, facture inconnue.",
+        "Aucun nouvel OCR, aucune confirmation de classement ni création de compétences par Codex.",
+        "Tentative Mistral fc20d333-7cdd-4161-8eba-ed117525a315 à 22:32 UTC : 138984 micro-EUR décomptés, citation invalide, aucun OCR ni classement confirmé."
+      ],
+      "completion": null,
+      "planLinks": [],
+      "handoff": null,
+      "verification": [
+        "Preuves historiques déclaratives : fraîcheur non contrôlée"
+      ],
+      "checks": [
+        {
+          "command": "Tests ciblés UI, consentement, cache, fournisseurs et tarifs : 59 tests/7 fichiers",
+          "result": "passed",
+          "revision": "60c8617 + reprise détaillée au compte rendu",
+          "at": "2026-09-15T21:50:26Z",
+          "snapshotPresent": false
+        },
+        {
+          "command": "TypeScript et ESLint ciblé après raccordement final",
+          "result": "passed",
+          "revision": "Diff local UX-0001",
+          "at": "2026-09-15T21:50:26Z",
+          "snapshotPresent": false
+        },
+        {
+          "revision": "60c8617 + dernier diff local décrit au compte rendu",
+          "at": "2026-09-15T21:50:59Z",
+          "result": "passed",
+          "command": "npm run verify --workspace=app -- --maxWorkers=2 : 2342 tests/229 fichiers, TypeScript et lint sans erreur",
+          "snapshotPresent": false
+        },
+        {
+          "revision": "Fiche de reprise et diff courant",
+          "at": "2026-09-15T21:50:59Z",
+          "result": "passed",
+          "command": "npm run agents:check ; git diff --check",
+          "snapshotPresent": false
+        },
+        {
+          "command": "npm run verify --workspace=app -- --maxWorkers=2 : 2353 tests / 230 fichiers ; 30 tests ciblés après correction interruption",
+          "result": "passed",
+          "revision": "Diff local UX-0001 du 16 septembre",
+          "at": "2026-09-15T22:28:06Z",
+          "snapshotPresent": false
+        },
+        {
+          "command": "Navigateur et Supabase : reprise du livret autorisée",
+          "result": "failed",
+          "revision": "Réponse reçue, citation du sommaire recomposée rejetée ; 0,138984 EUR décomptés",
+          "at": "2026-09-15T22:36:23Z",
+          "snapshotPresent": false
+        },
+        {
+          "command": "36 tests validation et fournisseurs après précision des citations de tableaux",
+          "result": "passed",
+          "revision": "Diff local UX-0001",
+          "at": "2026-09-15T22:36:23Z",
+          "snapshotPresent": false
+        }
+      ],
+      "consumption": {
+        "codexTokens": null,
+        "codexCost": null,
+        "apiCost": null,
+        "note": "Usage attribuable non disponible"
+      }
+    }
+  ],
+  "git": "M ARCHITECTURE_DECISIONS.md\n M PRODUCT.md\n M ai-company/product/cadrage-direction.md\n M ai-company/product/parcours-depot-memoire.md\n M app/src/components/atelier/espace-documentaire.tsx\n M app/src/components/atelier/vues-ressources-atelier.tsx\n M app/src/lib/documents/corpus-groupe.test.ts\n M app/src/lib/documents/corpus-groupe.ts\n M app/supabase/migrations/20260916183000_domaines_organisation_vides.sql\n M docs/design/ASSISTANT_ENTREE_REFERENCE.md\n?? .tmp-p03-candidate.json\n?? .tmp-p03-snapshot-after.json\n?? .tmp-p03-snapshot.json\n?? .tmp-p04-resume.json\n?? ai-company/operations/missions/P01-0003.json\n?? ai-company/operations/runs/2026-09-16-p01-domaines-activation.md\n?? ai-company/operations/runs/2026-09-16-p01-retrouver-livraison.md\n?? ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md\n?? ai-company/operations/runs/2026-09-16-p01-retrouver-verification.md\n?? app/src/components/atelier/retrouver-ressources.test.ts",
+  "head": "e9c6fc76c1866a4dee876e541bda8394abc0bd60"
+}

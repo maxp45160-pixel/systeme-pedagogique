@@ -50,15 +50,7 @@ import { createPortal } from "react-dom";
 import { cx, Filigrane } from "./primitives";
 import { IconeFermer } from "./icones";
 
-/** Ce qui peut recevoir le focus au clavier, dans l'ordre du document. */
-const FOCUSABLES = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
+import { bloquerDefilement, ciblesTabulation, modaleSuperieure } from "@/lib/ui/modales";
 
 export type LargeurModale = "md" | "xl" | "2xl" | "3xl" | "4xl" | "5xl" | "6xl";
 
@@ -130,97 +122,59 @@ export function Modale({
    */
   const monte = useEstHydrate();
 
-  /*
-   * Restitution du focus.
-   *
-   * Mémorisé au montage, rendu au démontage. Sans cela, fermer une modale
-   * laisse le focus sur `<body>` : la tabulation suivante repart du haut de la
-   * page, et l'on a perdu l'endroit où l'on travaillait.
-   *
-   * Deux précautions que la version simple n'avait pas :
-   *
-   * - **L'élément peut avoir disparu.** Une modale qui enregistre remplace
-   *   souvent la zone d'où elle est partie (le bouton « Générer » cède la place
-   *   à la fiche). Rendre le focus à un nœud détaché le renvoie silencieusement
-   *   sur `<body>` — même perte qu'avant, mais invisible. On vérifie donc qu'il
-   *   est encore dans le document.
-   * - **Le rendu de fermeture n'est pas fini.** Restituer dans le nettoyage
-   *   d'effet, c'est le faire avant que React ait posé l'écran suivant, qui
-   *   peut redéplacer le focus. Un `requestAnimationFrame` laisse passer cette
-   *   image et repose le focus après.
-   */
+  // Une période visible possède son déclencheur, même si le chat reste monté.
   useEffect(() => {
-    const declencheur = document.activeElement as HTMLElement | null;
-    return () => {
-      if (!declencheur?.focus) return;
-      requestAnimationFrame(() => {
-        if (document.contains(declencheur)) declencheur.focus();
-      });
-    };
-  }, []);
-
-  /*
-   * Blocage du défilement de fond.
-   *
-   * La compensation vaut la largeur de la barre de défilement : la masquer sans
-   * rendre sa place décale toute la page vers la droite à l'ouverture. Les
-   * valeurs d'origine sont relues puis restituées telles quelles, pour qu'une
-   * modale ouverte au-dessus d'une autre rende bien `hidden` en se fermant.
-   */
-  useEffect(() => {
-    if (masquee) return;
-    const compensation = window.innerWidth - document.documentElement.clientWidth;
-    const { overflow, paddingRight } = document.body.style;
-    document.body.style.overflow = "hidden";
-    if (compensation > 0) document.body.style.paddingRight = `${compensation}px`;
-    return () => {
-      document.body.style.overflow = overflow;
-      document.body.style.paddingRight = paddingRight;
-    };
-  }, [masquee]);
-
-  /*
-   * Le focus entre dans la modale — sur le panneau lui-même si rien d'autre
-   * n'est focalisable, pour que `Échap` et la tabulation partent d'ici.
-   *
-   * `[data-focus-initial]` laisse le contenu désigner son point d'entrée. Le
-   * premier focalisable dans l'ordre du document n'est pas toujours celui par
-   * lequel on veut commencer : dans le tiroir du tuteur, ce sont les boutons de
-   * mode, alors que la seule chose à faire en ouvrant est d'écrire. L'appelant
-   * pose l'attribut, la primitive garde la règle.
-   */
-  useEffect(() => {
-    if (masquee) return;
+    if (!monte || masquee) return;
     const panneau = panneauRef.current;
     if (!panneau) return;
+    const declencheur = document.activeElement as HTMLElement | null;
     const designe = panneau.querySelector<HTMLElement>("[data-focus-initial]");
-    const premier = designe ?? panneau.querySelector<HTMLElement>(FOCUSABLES);
-    (premier ?? panneau).focus();
+    (designe ?? ciblesTabulation(panneau)[0] ?? panneau).focus();
+    // Un appelant peut désigner un conteneur non focalisable.
+    if (!panneau.contains(document.activeElement)) {
+      (ciblesTabulation(panneau)[0] ?? panneau).focus();
+    }
+    return () => {
+      requestAnimationFrame(() => {
+        const superieure = modaleSuperieure();
+        if (declencheur?.isConnected && (!superieure || superieure.contains(declencheur))) {
+          declencheur.focus();
+        }
+      });
+    };
+  }, [monte, masquee]);
+
+  useEffect(() => {
+    if (!monte || masquee) return;
+    return bloquerDefilement();
   }, [monte, masquee]);
 
   const surTouche = useCallback(
     (e: KeyboardEvent) => {
+      const panneau = panneauRef.current;
+      if (!panneau || e.defaultPrevented || modaleSuperieure() !== panneau) return;
       if (e.key === "Escape") {
+        e.preventDefault();
         e.stopPropagation();
         onFermer();
         return;
       }
       if (e.key !== "Tab") return;
 
-      const panneau = panneauRef.current;
-      if (!panneau) return;
-      const cibles = [...panneau.querySelectorAll<HTMLElement>(FOCUSABLES)].filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
-      );
+      const cibles = ciblesTabulation(panneau);
       if (cibles.length === 0) {
         e.preventDefault();
+        panneau.focus();
         return;
       }
 
       const premier = cibles[0];
       const dernier = cibles[cibles.length - 1];
-      // La boucle : sortir par le bas revient au début, et inversement.
-      if (!e.shiftKey && document.activeElement === dernier) {
+      // Une cible statique désignée à l'ouverture n'appartient pas à la boucle.
+      if (!cibles.includes(document.activeElement as HTMLElement)) {
+        e.preventDefault();
+        (e.shiftKey ? dernier : premier).focus();
+      } else if (!e.shiftKey && document.activeElement === dernier) {
         e.preventDefault();
         premier.focus();
       } else if (e.shiftKey && document.activeElement === premier) {
@@ -254,6 +208,7 @@ export function Modale({
       <div
         ref={panneauRef}
         role="dialog"
+        data-modale-active={!masquee ? "true" : undefined}
         aria-modal="true"
         aria-labelledby={idTitre}
         tabIndex={-1}

@@ -27,7 +27,7 @@ import { test } from "vitest";
 import { deroulerCampagne, planComplet, planRapide } from "./campagne";
 import { ecrireRapportCampagne } from "./export";
 
-const SORTIE = resolve(process.cwd(), ".simulation");
+const SORTIE = resolve(process.cwd(), process.env.CAMPAGNE_SORTIE ?? ".simulation");
 
 test("campagne", () => {
   const complet = process.env.CAMPAGNE !== "rapide";

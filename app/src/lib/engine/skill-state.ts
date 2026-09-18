@@ -118,11 +118,23 @@ function niveauSoutenu(observations: SkillObservation[]): AppuiNiveau[] {
  * la confiance. Le niveau ne recule que si une difficulté est confirmée par
  * plusieurs observations — ici : les deux observations les plus récentes sont des échecs
  * en autonomie réelle (A2+), ce qui indique une compétence non mobilisable.
+ * À date identique, aucun identifiant ne prouve l'ordre des faits (§7 du
+ * protocole anti-hallucination). Tous les candidats aux deux dernières places
+ * doivent donc confirmer la difficulté ; un groupe mixte reste une réserve.
  */
-function difficulteConfirmee(observationsTriees: SkillObservation[]): boolean {
-  if (observationsTriees.length < 3) return false;
-  const deuxDernieres = observationsTriees.slice(-2);
-  return deuxDernieres.every((e) => e.resultat === "echec" && autonomieAuMoins(e, "A2"));
+function difficulteRecente(observationsTriees: SkillObservation[]): {
+  confirmee: boolean;
+  ordreNonEtabli: boolean;
+} {
+  if (observationsTriees.length < 3) return { confirmee: false, ordreNonEtabli: false };
+  const avantDerniere = Date.parse(observationsTriees.at(-2)!.date);
+  const candidates = observationsTriees.filter((e) => Date.parse(e.date) >= avantDerniere);
+  const echecsAutonomes = candidates.filter((e) => e.resultat === "echec" && autonomieAuMoins(e, "A2"));
+  const confirmee = echecsAutonomes.length === candidates.length;
+  return {
+    confirmee,
+    ordreNonEtabli: candidates.length > 2 && echecsAutonomes.length > 0 && !confirmee,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -305,7 +317,9 @@ export function computeSkillState(
 ): SkillState {
   const observations = toutesObservations
     .filter((e) => e.skillCode === skill.code && estRecevable(e))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    // L'identifiant stabilise seulement le rendu des ex aequo. La régression
+    // examine leur groupe entier et ne lui attribue aucun ordre temporel.
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date) || a.id.localeCompare(b.id));
 
   // Des FAMILLES de situation, pas des titres d'exercice (ADR-083). C'est la
   // seule ligne qui décide de ce que « deux contextes distincts » veut dire,
@@ -351,10 +365,16 @@ export function computeSkillState(
     : 0;
 
   const reserves: string[] = [];
-  if (difficulteConfirmee(observations) && niveau > 1) {
+  const difficulte = difficulteRecente(observations);
+  if (difficulte.confirmee && niveau > 1) {
     niveau = (niveau - 1) as NiveauCompetence;
     reserves.push(
       "Niveau abaissé d'un palier : les deux dernières observations sont des échecs en autonomie (protocole d'évaluation §9).",
+    );
+  }
+  if (difficulte.ordreNonEtabli) {
+    reserves.push(
+      "Observations à date identique : l'ordre des deux dernières est non établi. Ce groupe mixte ne justifie pas un abaissement de niveau ; les contradictions restent conservées.",
     );
   }
 
@@ -367,10 +387,17 @@ export function computeSkillState(
 
   const robustesse = calculerRobustesse(observations, contextesTestes.length, now);
   const dimensions = calculerDimensions(observations, now);
+  const dimensionsNonObservees = DIMENSIONS.filter((d) => observations.every((e) => e.dimensions[d] === undefined));
 
   // Score macro — protocole d'évaluation §12, sur 5, une décimale.
   const brut = DIMENSIONS.reduce((s, d) => s + POIDS_DIMENSIONS[d] * dimensions[d], 0);
   const score = Math.round(brut * 5 * MODULATION_CONFIANCE[confiance] * 10) / 10;
+
+  if (dimensionsNonObservees.length > 0) {
+    reserves.push(
+      `Le score actuel représente encore par zéro les dimensions non observées (${dimensionsNonObservees.join(", ")}) : cette couverture partielle est à interpréter avec prudence.`,
+    );
+  }
 
   if (contradictions.length > 0) {
     reserves.push(
@@ -413,7 +440,7 @@ export function computeSkillState(
     facteurs: [
       ...DIMENSIONS.map((d) => ({
         libelle: d,
-        valeur: dimensions[d].toFixed(2),
+        valeur: dimensionsNonObservees.includes(d) ? "non observée" : dimensions[d].toFixed(2),
         poids: POIDS_DIMENSIONS[d],
       })),
       ...robustesse.facteurs,

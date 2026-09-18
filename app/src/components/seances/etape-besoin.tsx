@@ -7,7 +7,7 @@
  * cette étape ne reçoit que des valeurs et des setters.
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { BandeauInfo, Carte, cx } from "@/components/ui/primitives";
 import { Champ } from "@/components/ui/champ";
 import { DUREE_ESTIMEE_MIN } from "@/lib/domain/exercice";
@@ -114,6 +114,7 @@ export function EtapeBesoin({
   // Déclarés avant toute sortie anticipée : l'ordre des hooks ne se négocie pas.
   const [choixOuvert, setChoixOuvert] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const rechercheId = useId();
 
   const q = recherche.trim().toLowerCase();
   /*
@@ -197,10 +198,11 @@ export function EtapeBesoin({
             }}
           />
           <div className="space-y-2">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
+            <label htmlFor={rechercheId} className="block text-[0.6875rem] font-semibold uppercase tracking-wide text-texte-discret">
               Une compétence précise
-            </p>
+            </label>
             <input
+              id={rechercheId}
               type="search"
               value={recherche}
               onChange={(event) => setRecherche(event.target.value)}

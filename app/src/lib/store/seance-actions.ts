@@ -27,6 +27,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ajouter, dorsaleCompte, lire, modifier, nouvelId, type DorsaleCompte } from "./db";
 import { cloreExerciceAtomiquement } from "./cloture-exercice";
+import { modifierSeanceSiInchangee } from "./seance-concurrence";
 import {
   avancementSeance,
   attendPreparationSeance,
@@ -458,13 +459,14 @@ export async function demarrerSeance(seanceId: string): Promise<string> {
   const seance = await seanceDuCompte(seanceId, dorsale);
 
   const statut = statutSeance(seance);
+  if (statut === "en-cours") {
+    return `/seances?session=${encodeURIComponent(seanceId)}&focus=1`;
+  }
   if (statut !== "planifiee") {
     throw new Error(
-      statut === "en-cours"
-        ? "Cette séance est déjà en cours."
-        : statut === "abandonnee"
-          ? "Cette séance a été abandonnée : elle se reprend, elle ne se démarre pas."
-          : "Cette séance est terminée : elle ne se redémarre pas. Compose-en une nouvelle.",
+      statut === "abandonnee"
+        ? "Cette séance a été abandonnée : elle se reprend, elle ne se démarre pas."
+        : "Cette séance est terminée : elle ne se redémarre pas. Compose-en une nouvelle.",
     );
   }
 
@@ -480,12 +482,19 @@ export async function demarrerSeance(seanceId: string): Promise<string> {
     );
   }
 
-  await modifier(
-    "sessions",
-    seanceId,
+  const demarree = await modifierSeanceSiInchangee(
+    seance,
     { statut: "en-cours", date: new Date().toISOString() },
     dorsale,
   );
+  if (!demarree) {
+    const actuelle = await seanceDuCompte(seanceId, dorsale);
+    if (statutSeance(actuelle) !== "en-cours") {
+      throw new Error("Cette séance a changé pendant le démarrage. Actualisez-la avant de réessayer.");
+    }
+    revalidatePath("/", "layout");
+    return `/seances?session=${encodeURIComponent(seanceId)}&focus=1`;
+  }
   revalidatePath("/", "layout");
   /*
    * `sas=1` : la coupure entre décider et travailler (ADR-103). Le paramètre
@@ -550,8 +559,10 @@ export async function terminerIntervention(
   const misesAJour = interventions.map((candidate, candidateIndex) =>
     candidateIndex === index ? { ...candidate, statut: "completed" as const } : candidate,
   );
-  const modifiee = await modifier("sessions", seanceId, { interventions: misesAJour }, dorsale);
-  if (!modifiee) throw new Error("La séance n'est plus accessible dans ce compte.");
+  const modifiee = await modifierSeanceSiInchangee(seance, { interventions: misesAJour }, dorsale);
+  if (!modifiee) {
+    throw new Error("Cette séance a changé pendant l'enregistrement. Actualisez-la pour vérifier le résultat avant de réessayer.");
+  }
   revalidatePath("/", "layout");
   return `/seances?session=${encodeURIComponent(seanceId)}&intervention=${encodeURIComponent(interventionId)}`;
 }

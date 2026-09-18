@@ -243,13 +243,23 @@ ou le coût de correction compromettent le bénéfice attendu. Seuils à éprouv
 
 ## Existant et écart
 
+**P01-0003 — troisième tranche autorisée le 16/09 :** restauration locale de
+l'affichage du domaine explicitement enregistré et des résultats perdus dans
+Ressources/recherche, y compris sans compétence et avec plusieurs domaines inconnus.
+Consultation sans écriture, aucun appel IA. [Mandat et critères](../operations/runs/2026-09-16-p01-retrouver-mandat.md).
+Cette contribution bornée à P01-07 ne réalise pas la recherche dans le contenu
+intégral, la carte ou les relations notionnelles. La migration P01-0002 est appliquée
+avec accord distinct ; le frontend de cette tranche reste local.
+
 **P01-0002 — accord humain suivant du 16/09 :** création déléguée de domaines
 d'organisation sans compétence obligatoire, contexte académique précisé plus tard.
 [Mandat et confrontation](../operations/runs/2026-09-16-p01-domaines.md).
 Le domaine et son usage indéterminé existaient déjà ; seule la garde de création
 vide est élargie. Collisions/ambiguïtés à contrôler, origine explicite, reprise
 de création partielle sans doublon et retrait durable restent exigés. Le code est
-préparé localement ; migration distante en attente. Les autres exigences proposées
+livré localement ; migration distante ensuite autorisée et appliquée le 16/09,
+version 20260916183753 ([preuve](../operations/runs/2026-09-16-p01-domaines-activation.md)).
+La recette de bout en bout reste à faire. Les autres exigences proposées
 de P-01 ne deviennent pas validées par cette extension.
 
 **Réalisation locale du 16/09 — P01-0001 :**

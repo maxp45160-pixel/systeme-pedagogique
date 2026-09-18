@@ -8,12 +8,13 @@ usage académique déduit, avec le contrôle des ambiguïtés/collisions. Le cho
 propose ce cadre par défaut ; le module garde son année explicitement déclarée.
 Une création partielle reste signalée et se reprend sans relancer l'IA. Retirer le
 rattachement conserve l'original et le domaine, avec refus durable de ce lien.
-La migration `20260916183000_domaines_organisation_vides.sql` demeure **en attente** ;
-la base distante n'accepte pas encore la création vide. Le détail P01-0001 ci-dessous
+La migration `20260916183000_domaines_organisation_vides.sql` est **appliquée le 16/09**
+sous la version distante `20260916183753`, après accord explicite. Le code frontend
+reste local ; la recette de bout en bout reste à faire. Le détail P01-0001 ci-dessous
 décrit la tranche précédente, amendée par cette extension et par
 [son mandat](../../ai-company/operations/runs/2026-09-16-p01-domaines.md).
 
-Le dernier accord humain borne P01-0001 : **nouvelle ressource → première analyse
+L'accord initial de P01-0001 bornait : **nouvelle ressource → première analyse
 → domaine existant rattaché si le cas est admissible → contrôle par document**.
 La fenêtre présente la synthèse courte, la couverture réelle, le rattachement
 effectué et les points à contrôler. « Appliquer ce choix » concerne seulement le

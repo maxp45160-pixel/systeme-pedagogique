@@ -7,7 +7,7 @@ vi.mock("./referentiel-actions", () => ({ creerBranche: m.creer, deplacerDomaine
 vi.mock("./db", () => ({ dorsaleCompte: m.dorsale }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { confirmerClassementRessourcesAction, lireClassementRessourcesAction } from "./classement-ressources-actions";
-import { parserFrontMatter } from "@/lib/documents/markdown";
+import { definirChampsFrontMatter, parserFrontMatter } from "@/lib/documents/markdown";
 import { encoderBrouillonClassement } from "@/lib/documents/brouillon-classement";
 import { referentielDe, domaineDeTest, skillDeTest } from "@/lib/domain/referentiel.fixture";
 import type { Domaine, Skill } from "@/lib/domain/types";
@@ -31,7 +31,7 @@ beforeEach(() => {
   domaines = [domaineDeTest("math", "Mathématiques", "MAT", 0)]; skills = []; recus = new Map();
   docs = new Map(["doc", "doc2"].map((id) => [id, { version: 1, md: "---\ntitle: Livret\ntype: cours\nrole: support\n---\n# Livret\n\nOriginal conservé." }]));
   m.referentiel.mockImplementation(async () => referentielDe(skills, domaines));
-  m.document.mockImplementation(async (id) => { const d = docs.get(id)!; return { contenuMd: d.md, frontmatter: parserFrontMatter(d.md).frontMatter }; });
+  m.document.mockImplementation(async (id) => { const d = docs.get(id)!; return { contenuMd: d.md, frontmatter: parserFrontMatter(d.md).frontMatter, updatedAt: `v${d.version}` }; });
   m.depot.mockImplementation(async (id) => {
     const d = docs.get(id)!; const f = parserFrontMatter(d.md).frontMatter;
     return { id, version: 2, titre: "Livret", type: "cours", modifieLe: `v${d.version}`, domaineId: f.domaine || undefined, competencesLiees: [...d.md.matchAll(/\[\[(MAT-\d+)\]\]/g)].map((a) => a[1]), analyses: [{ id: "a", creeLe: "2026-09-15", statut: "terminee", restitution: { version: 2, organisation: { competences: [{ mode: "nouvelle", intitule: "Calculer une probabilité", palier: "fondamentaux", importance: 0.5, domaine: { mode: "existant", id: "logistique" } }] } } }] };
@@ -192,4 +192,130 @@ it("efface le brouillon seulement avec le classement effectivement confirmé", a
   expect((await confirmerClassementRessourcesAction([choix()])).resultats[0].statut).toBe("confirmee");
   expect(parserFrontMatter(d.md).frontMatter.classement_brouillon).toBe("");
   expect(parserFrontMatter(d.md).frontMatter.domaine).toBe("math");
+});
+
+it("préserve un nouveau brouillon humain lors de la reprise d'une confirmation interrompue", async () => {
+  const c = { ...choix(), propositions: [] };
+  const modifier = m.modifier.getMockImplementation()!;
+  let appels = 0;
+  m.modifier.mockImplementation(async (...args) => {
+    if (++appels === 2) throw new Error("Interruption avant le rangement final");
+    return modifier(...args);
+  });
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  const d = docs.get("doc")!;
+  const brouillon = encoderBrouillonClassement({ analyseId: "a", domaine: { mode: "nouveau", nom: "Physique", usage: { type: "indetermine" } }, codes: [], propositions: [], origine: "personne", modifieLe: "2026-09-17T00:00:00Z" });
+  d.md = definirChampsFrontMatter(d.md, { classement_brouillon: brouillon });
+  d.version++;
+  const contenuHumain = d.md;
+  const ecrituresAvantReprise = m.modifier.mock.calls.length;
+
+  await expect(confirmerClassementRessourcesAction([c])).rejects.toThrow();
+  expect(d.md).toBe(contenuHumain);
+  expect(m.modifier).toHaveBeenCalledTimes(ecrituresAvantReprise);
+});
+
+it("refuse de reprendre depuis un Markdown plus ancien que la version du dépôt", async () => {
+  const c = { ...choix(), propositions: [] };
+  const modifier = m.modifier.getMockImplementation()!;
+  let appels = 0;
+  m.modifier.mockImplementation(async (...args) => {
+    if (++appels === 2) throw new Error("Interruption avant le rangement final");
+    return modifier(...args);
+  });
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  const d = docs.get("doc")!;
+  const ancienneLecture = { contenuMd: d.md, frontmatter: parserFrontMatter(d.md).frontMatter, updatedAt: `v${d.version}` };
+  d.md += "\n\nCorrection humaine du contenu à conserver.";
+  d.version++;
+  const contenuHumain = d.md;
+  m.document.mockResolvedValue(ancienneLecture);
+  const ecrituresAvantReprise = m.modifier.mock.calls.length;
+
+  await expect(confirmerClassementRessourcesAction([c])).rejects.toThrow();
+  expect(d.md).toBe(contenuHumain);
+  expect(m.modifier).toHaveBeenCalledTimes(ecrituresAvantReprise);
+});
+
+it("le rejeu d'une confirmation terminée ne consomme pas un nouveau brouillon humain", async () => {
+  const c = { ...choix(), propositions: [] };
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  const d = docs.get("doc")!;
+  const brouillon = encoderBrouillonClassement({ analyseId: "a", domaine: { mode: "nouveau", nom: "Physique", usage: { type: "indetermine" } }, codes: [], propositions: [], origine: "personne", modifieLe: "2026-09-17T00:00:00Z" });
+  d.md = definirChampsFrontMatter(d.md, { classement_brouillon: brouillon });
+  d.version++;
+  const contenuHumain = d.md;
+  const ecrituresAvantReprise = m.modifier.mock.calls.length;
+
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(d.md).toBe(contenuHumain);
+  expect(m.modifier).toHaveBeenCalledTimes(ecrituresAvantReprise);
+});
+
+function interrompreAvantRangementFinal() {
+  const modifier = m.modifier.getMockImplementation()!;
+  let appels = 0;
+  m.modifier.mockImplementation(async (...args) => {
+    if (++appels === 2) throw new Error("Interruption avant le rangement final");
+    return modifier(...args);
+  });
+}
+
+const brouillonMath = () => encoderBrouillonClassement({ analyseId: "a", domaine: { mode: "existant", id: "math" }, codes: [], propositions: [], origine: "personne", modifieLe: "2026-09-17T00:00:00Z" });
+
+it("reprend une confirmation interrompue avec son brouillon initial inchangé", async () => {
+  const c = { ...choix(), propositions: [] };
+  const d = docs.get("doc")!;
+  d.md = definirChampsFrontMatter(d.md, { classement_brouillon: brouillonMath() });
+  interrompreAvantRangementFinal();
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  expect(parserFrontMatter(d.md).frontMatter.classement_brouillon).toBe(brouillonMath());
+
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(parserFrontMatter(d.md).frontMatter).toMatchObject({ domaine: "math", classement_brouillon: "", rangement_origine: "personne" });
+});
+
+it.each([false, true])("reprend un reçu historique seulement sans choix humain à préserver (choix présent : %s)", async (avecChoixHumain) => {
+  const c = { ...choix(), propositions: [] };
+  interrompreAvantRangementFinal();
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  const d = docs.get("doc")!;
+  const recu = JSON.parse(Buffer.from(String(parserFrontMatter(d.md).frontMatter.classement_confirmation), "base64url").toString("utf8"));
+  delete recu.choixPrealable; // Format réellement écrit avant cette correction.
+  d.md = definirChampsFrontMatter(d.md, {
+    classement_confirmation: Buffer.from(JSON.stringify(recu)).toString("base64url"),
+    ...(avecChoixHumain ? { classement_brouillon: brouillonMath() } : {}),
+  });
+  d.version++;
+  const contenuAvantReprise = d.md;
+  const ecrituresAvantReprise = m.modifier.mock.calls.length;
+
+  if (avecChoixHumain) {
+    await expect(confirmerClassementRessourcesAction([c])).rejects.toThrow("choix");
+    expect(d.md).toBe(contenuAvantReprise);
+    expect(m.modifier).toHaveBeenCalledTimes(ecrituresAvantReprise);
+    // Une nouvelle confirmation explicite de la version courante reste possible.
+    expect((await confirmerClassementRessourcesAction([{ ...c, updatedAtAttendu: `v${d.version}` }])).resultats[0].statut).toBe("confirmee");
+  } else {
+    expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  }
+  expect(parserFrontMatter(d.md).frontMatter.domaine).toBe("math");
+});
+
+it("préserve un retrait humain après interruption même si domaine et compétences restent identiques", async () => {
+  const c = { ...choix(), propositions: [] };
+  interrompreAvantRangementFinal();
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  const d = docs.get("doc")!;
+  d.md = definirChampsFrontMatter(d.md, {
+    rangement_origine: "personne", rangement_statut: "a-trier",
+    rangement_analyse_id: "a", rangement_revu_le: "2026-09-17T00:00:00Z",
+  });
+  d.version++;
+  const contenuHumain = d.md;
+  const ecrituresAvantReprise = m.modifier.mock.calls.length;
+
+  await expect(confirmerClassementRessourcesAction([c])).rejects.toThrow("choix");
+  expect(d.md).toBe(contenuHumain);
+  expect(m.modifier).toHaveBeenCalledTimes(ecrituresAvantReprise);
 });
