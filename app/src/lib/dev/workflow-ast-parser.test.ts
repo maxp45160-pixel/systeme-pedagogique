@@ -74,6 +74,35 @@ export default async function Layout() {
   return analyses;
 }
 
+describe("imports transitifs du cadre partagé", () => {
+  function cadreCyclique() {
+    const sources = [
+      ["app/(app)/layout.tsx", 'import { Cadre } from "@/components/cadre"; export default function Layout() { return <Cadre />; }'],
+      ["components/cadre/index.tsx", 'import { Menu } from "../menu"; import { TiroirTuteur } from "../tuteur/tiroir-tuteur"; import { Absent } from "../absent"; export function Cadre() { return <><Menu /><TiroirTuteur /></>; }'],
+      ["components/menu.tsx", 'import { Cadre } from "./cadre"; export function Menu() { return <Link href="/aide">Aide</Link>; }'],
+      ["components/tuteur/tiroir-tuteur.tsx", 'export function TiroirTuteur() { return <Tiroir />; }'],
+    ];
+    return new Map(sources.map(([chemin, source]) => [chemin, analyser(chemin, source)]));
+  }
+
+  it("résout les index et les cycles sans perdre navigation ou tiroir", () => {
+    const analyses = cadreCyclique();
+    expect([...resoudreNavigationPartagee(analyses).get("app/(app)")!]).toEqual(["/aide"]);
+    expect([...resoudreSurfacesPartagees(analyses).get("app/(app)")!]).toEqual(["tiroir:tuteur"]);
+  });
+
+  it("relit les ajouts, changements et suppressions sans conserver un ancien index", () => {
+    const analyses = cadreCyclique();
+    expect(resoudreNavigationPartagee(analyses).get("app/(app)")).toContain("/aide");
+    expect(resoudreSurfacesPartagees(analyses).get("app/(app)")).toContain("tiroir:tuteur");
+    analyses.set("components/menu.tsx", analyser("components/menu.tsx", '<Link href="/compte">Compte</Link>'));
+    analyses.set("components/absent.tsx", analyser("components/absent.tsx", '<Link href="/progression">Progression</Link>'));
+    analyses.delete("components/tuteur/tiroir-tuteur.tsx");
+    expect([...resoudreNavigationPartagee(analyses).get("app/(app)")!]).toEqual(["/compte", "/progression"]);
+    expect(resoudreSurfacesPartagees(analyses).size).toBe(0);
+  });
+});
+
 describe("resoudreNavigationPartagee", () => {
   it("retrouve les destinations du rail, y compris les href déclarés en données", () => {
     const resultat = resoudreNavigationPartagee(analysesDeBase());

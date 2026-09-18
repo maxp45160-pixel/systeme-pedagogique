@@ -82,6 +82,13 @@ describe("règle de longueur", () => {
 });
 
 describe("règle des deux verbes", () => {
+  it.each([
+    "Développer et factoriser une expression",
+    "Calculer et simplifier une fraction",
+  ])("refuse la coordination des gestes ajoutés pour ATS : %s", (intitule) => {
+    expect(regles(intitule)).toContain("deux-verbes");
+  });
+
   it("refuse « et » comme « ou » devant un verbe d'action", () => {
     expect(regles("Modéliser et résoudre un flux")).toContain("deux-verbes");
     expect(regles("Modéliser ou résoudre un flux")).toContain("deux-verbes");
@@ -187,6 +194,22 @@ describe("composerIntitule — la phrase est écrite par l'application", () => {
 });
 
 describe("motifsRefusStructure", () => {
+  it.each([
+    { verbeAction: "factoriser", objet: "une expression polynomiale" },
+    { verbeAction: "simplifier", objet: "une expression rationnelle" },
+  ])("accepte le geste observable $verbeAction sans le remplacer", (structure) => {
+    expect(motifsRefusStructure(structure)).toEqual([]);
+    expect(motifsNonAtomique(composerIntitule(structure))).toEqual([]);
+  });
+
+  it.each(["factoriser", "simplifier"])("conserve les bornes atomiques pour %s", (verbeAction) => {
+    const structure = { verbeAction, objet: "a".repeat(OBJET_MAX), precision: "b".repeat(PRECISION_MAX) };
+    expect(motifsRefusStructure(structure)).toEqual([]);
+    expect(composerIntitule(structure).length).toBeLessThanOrEqual(INTITULE_MAX_ATOMIQUE);
+    expect(motifsRefusStructure({ ...structure, objet: `${structure.objet}a` })).toHaveLength(1);
+    expect(motifsRefusStructure({ ...structure, precision: `${structure.precision}b` })).toHaveLength(1);
+  });
+
   it("refuse un verbe hors de la liste fermée", () => {
     expect(
       motifsRefusStructure({ verbeAction: "comprendre", objet: "un flux" }),

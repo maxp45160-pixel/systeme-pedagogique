@@ -28,7 +28,10 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   **Extension P01-0002 approuvée le 16/09, code local et garde SQL distante appliquée :** si la première
   analyse propose un nouveau domaine sourcé sans incertitude ni collision connue,
   Twiny peut le créer comme domaine d'organisation sans compétence, puis rattacher
-  le document. Aucun usage académique ou continu n'est déduit ; le contexte peut
+  le document. Correction locale P01-0008 du 18/09 : le validateur de restitution
+  accepte aussi un domaine nouveau sans compétence ; sa garde historique
+  imposant une compétence a été retirée pour respecter cet accord.
+  Aucun usage académique ou continu n'est déduit ; le contexte peut
   être précisé plus tard. La trace distingue création à vérifier et rattachement
   effectué ; une reprise explicite retrouve le reçu sans doublon ni réanalyse.
   Cette création vide nécessite la migration
@@ -80,9 +83,29 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   reste en session navigateur, isolé par compte. La conservation durable de
   toute conversation n'est pas décidée. Le parcours complet et la fidélité de
   l'analyse sur corpus réel restent à éprouver.
+  Après l'échec réel du 18/09 sur une formule réécrite, la correction locale
+  P01-0007 fait sélectionner des passages identifiés au fournisseur. Le serveur
+  extrait leur citation exacte et leur repère ; le modèle ne recopie plus les
+  formules dans les citations. Cela garantit leur provenance textuelle, pas la
+  pertinence de l'interprétation. Après un refus sur une précision trop longue,
+  P01-0008 contraint la réponse Mistral par schéma strict, conserve les validations
+  métier et ajoute les verbes observables factoriser/simplifier qui manquaient.
+  La consigne distingue les gestes demandés et leurs sources. Le mode direct
+  est conservé après deux essais de raisonnement trop longs. Les essais réels
+  aboutissent à 13 pages et 16 propositions affichées, avec les choix humains
+  conservés et une réouverture sans nouvel appel. Le contrôle reste nécessaire,
+  notamment pour une proposition générale sur les vecteurs. Détails et limites :
+  [rapport P01-0008](ai-company/operations/runs/2026-09-18-aboutir-ats.md). Cette vérification
+  locale ne vaut pas validation humaine du parcours complet ou du corpus.
+  Le ménage local du 18/09 retire les composants de l'ancien accueil quotidien
+  et l'ancien chemin de création de dépôts V1, devenus sans appelants. Les
+  ressources récentes et les liens vers les dépôts historiques restent
+  consultables ; leurs lecteurs et leurs originaux sont conservés.
 - **Planification globale non raccordée.** La composition expérimentale a été
-  retirée le 30/08. Ses fondations restent gelées ; la programmation déléguée et
-  le calendrier externe ne sont pas construits. Les séances acceptées du jour
+  retirée le 30/08, puis ses composants, sa revue groupée et ses commandes
+  d'acceptation/déplacement supprimés le 18/09 sur accord de Maxime. Le
+  planificateur et les candidats utilisés par les cours restent ; la programmation
+  déléguée et le calendrier externe ne sont pas construits. Les séances acceptées du jour
   et en cours restent visibles. Le tableau de bord porte le choix immédiat,
   Séances les échéances « À venir », Mes cours le contexte et Progression le
   long terme (ADR-139, 145).
@@ -609,10 +632,10 @@ projet réellement mené — pas d'avance.
 qui le mettait en œuvre est parti le 15/08 (ADR-070) : sa table n'avait jamais
 existé en production. Aucun chemin ne réécrit une preuve aujourd'hui.
 ✅ **`LearningSession` reste l'épisode de travail unique.** ❓ Son extension aux
-interventions d'ADR-139, au diff de revue groupée et à la chronologie À venir est
-outillée côté domaine, engine et acceptation. La composition `/seances` issue
-de cette tentative a été retirée le 30/08 ; ces fondations restent
-expérimentales et non raccordées au parcours visible. Les objets Supabase
+interventions d'ADR-139 reste outillée côté domaine et moteur. La composition
+`/seances` issue de cette tentative a été retirée le 30/08 ; sa revue groupée,
+sa frontière d'acceptation et ses commandes non raccordées ont été supprimées
+le 18/09. Les projections et protocoles actifs restent. Les objets Supabase
 additifs sont présents, tandis que les migrations historiques des lots 1, 3 et
 5 restent absentes de l'historique distant et ne sont pas rejouées. La colonne
 de durée planifiée, la RPC de raccourcissement et la conservation du blueprint
@@ -622,14 +645,12 @@ peuvent rester ouvertes en parallèle ; le contexte explicite désigne la séanc
 en cours. Les exercices historiques passent par un adaptateur sans copie ni
 double écriture. Aucune entité parallèle n'est créée pour la lecture, la
 synthèse, la production, le diagnostic ou l'aide.
-🔬 **La lecture « À venir » de Séances reste expérimentale** (lot 6). Le moteur
-relit les `LearningSession` acceptées encore planifiées ou en cours dans une
-chronologie groupée par jour ; la composition qui la rendait nominale a été
-retirée lors du retour arrière du 30/08. La route visible conserve donc le
-Bureau/Cahier et ses liens jour/focus. Les absences de date, d'intervention ou
-de domaine sont montrées comme réserves, jamais complétées par une valeur
-pédagogique inventée. Aucun déplacement n'est écrit sans recalcul et choix
-explicites.
+🔬 **La projection des séances acceptées reste utilisée par « Aujourd'hui ».**
+Le moteur `seances-a-venir` relit les `LearningSession` planifiées ou en cours
+et alimente `seances-du-jour`. L'ancienne interface de chronologie et ses
+commandes, débranchées le 30/08, ont été supprimées le 18/09. La route visible
+conserve le Bureau/Cahier et ses liens jour/focus ; aucune donnée pédagogique
+manquante n'est fabriquée.
 🔄 **Le déploiement en bêta par compte** est sans objet depuis le 15/08 :
 `learning_loop_mode` a été retiré avec la boucle qu'il gardait (ADR-070). La
 suppression des 7 tables a fait l'objet de l'autorisation distincte que cette
@@ -950,8 +971,9 @@ rappeler, lire, synthétiser, produire et demander de l'aide. Les gestes de
 préparation ou de soutien terminés ne produisent pas de mesure. Les contrats
 sont dans [la matrice des interventions](docs/architecture/INTERVENTIONS_LEARNING_SESSION.md).
 
-❓ Le plan global, sa revue et les candidats de cours restent des fondations
-expérimentales non raccordées. Leur présence dans le dépôt ne valide pas la
+❓ Le plan global reste à construire. Son interface expérimentale, sa revue et
+ses commandes non raccordées ont été supprimées le 18/09 ; le planificateur et
+les candidats de cours encore utilisés sont conservés. Ils ne valident pas la
 boucle complète. Le protocole de cours historique reste en place jusqu'à la
 preuve de parité ; aucune source documentaire manquante n'est remplacée par
 un autre PDF. L'ADR-139 et [les contrats moteur](ENGINE_CONTRACTS.md) portent

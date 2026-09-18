@@ -4,12 +4,11 @@
  * « Abandonner » un exercice en cours, depuis le tableau de bord.
  *
  * Le bouton vivait dans un formulaire nu : un clic écrivait l'abandon sans
- * le moindre répit, alors que les deux autres points d'entrée — « Passer la
- * séance » (`passer-seance.tsx`) et l'abandon depuis l'exercice — confirment
- * avant d'écrire. L'incohérence coûtait cher : l'abandon est irréversible
+ * le moindre répit, alors que l'abandon depuis l'exercice confirme avant
+ * d'écrire. L'incohérence coûtait cher : l'abandon est irréversible
  * (aucune observation ne sera jamais écrite pour cette tentative).
  *
- * Même forme que `PasserSeance` : confirmation, puis action serveur. L'action
+ * Confirmation, puis action serveur. L'action
  * retourne la destination ; le composant y navigue après écriture. En cas
  * d'échec, le message s'affiche dans la modale et rien n'est écrit.
  */

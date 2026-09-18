@@ -38,20 +38,3 @@ export function Depliant({
     </details>
   );
 }
-
-/** Liste de réserves affichée à plat, sans dépliant. */
-export function Reserves({ items }: { items: string[] }) {
-  if (items.length === 0) return null;
-  return (
-    <ul className="space-y-1 text-xs text-texte-attenue">
-      {items.map((r, i) => (
-        <li key={i} className="flex gap-1.5">
-          <span aria-hidden className="mt-px text-texte-discret">
-            ·
-          </span>
-          <span>{r}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}

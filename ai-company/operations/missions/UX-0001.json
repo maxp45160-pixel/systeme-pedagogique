@@ -17,15 +17,7 @@
     "app/src/lib/store/ressource-assistant-actions.test.ts",
     "app/src/lib/documents/organisation-depot.ts",
     "app/src/lib/documents/organisation-depot.test.ts",
-    "app/src/lib/store/depot-analyse.ts",
-    "app/src/lib/store/depot-analyse.test.ts",
-    "app/src/lib/tutor/depot-mistral.ts",
-    "app/src/lib/tutor/depot-mistral.test.ts",
-    "app/src/lib/tutor/depot-qwen.ts",
-    "app/src/lib/documents/depot-validation.ts",
-    "app/src/lib/documents/depot-validation.test.ts",
     "app/src/app/api/depot/analyser",
-    "app/src/lib/tutor/depot-qwen.test.ts",
     "app/src/lib/documents/depot-tarifs.test.ts",
     "app/src/lib/documents/validation-rangement.ts",
     "AGENTS.md",
@@ -117,7 +109,7 @@
     "Historique et erreur ne déclenchent aucune relance payante automatique",
     "Tests, types et lint passent ; nouvelle synthèse réelle et fenêtre vérifiées"
   ],
-  "nextAction": "Obtenir un accord borné pour vérifier la correction des citations sur les 13 transcriptions Mistral ; ne pas relancer automatiquement.",
+  "nextAction": "Validation documentaire et corrections ATS reprises par P01-0008 sur mandat du18/09 jusqu’à succès dans10€ Mistral cumulés. Les autres fichiers restent réservés ; ne pas lancer d’essai concurrent.",
   "blocker": "La reprise supplémentaire autorisée a échoué sur une citation recomposée. Consigne corrigée et testée localement ; nouvelle vérification Mistral payante non encore autorisée.",
   "checks": [
     {
@@ -169,6 +161,6 @@
     "Aucun nouvel OCR, aucune confirmation de classement ni création de compétences par Codex.",
     "Tentative Mistral fc20d333-7cdd-4161-8eba-ed117525a315 à 22:32 UTC : 138984 micro-EUR décomptés, citation invalide, aucun OCR ni classement confirmé."
   ],
-  "updatedAt": "2026-09-16T18:07:19.734Z",
+  "updatedAt": "2026-09-18T17:00:12.903Z",
   "completion": null
 }

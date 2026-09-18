@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkMissions, inspectPath, sha256, verificationErrors } from "./missions.mjs";
+import { checkMissions, checkSnapshot, inspectPath, sha256, verificationErrors } from "./missions.mjs";
 import { planProgress } from "./progress.mjs";
 
 // Fixed local reads, no shell, network, execution or automatic report write.
@@ -49,7 +49,11 @@ export function resumeContext(repoRoot, id = null) {
       externalActions: mission.externalActions, completion: mission.completion,
       planLinks: mission.planLinks ?? [], handoff: mission.handoff ?? null,
       verification: verificationErrors(repoRoot, mission),
-      checks: mission.checks.map(({ snapshot, ...check }) => ({ ...check, snapshotPresent: Boolean(snapshot) })),
+      checks: mission.checks.map(check => {
+        const summary = { ...check, snapshotPresent: Boolean(checkSnapshot(mission, check)) };
+        delete summary.snapshot;
+        return summary;
+      }),
       consumption: mission.consumption ?? { codexTokens: null, codexCost: null, apiCost: null, note: "Usage attribuable non disponible" },
     })),
   };

@@ -67,7 +67,6 @@ interface ZoneReponseProps {
   valeur: string;
   compteId: string;
   urlCorrection?: string;
-  onDemanderCorrection?: () => void;
   cloture?: { exerciceId: string; codes: string[]; dureeMin: number; navigation?: ContexteNavigationExercice };
 }
 
@@ -101,7 +100,6 @@ function ZoneHydrate({
   valeur,
   compteId,
   urlCorrection,
-  onDemanderCorrection,
   cloture,
 }: ZoneReponseProps) {
   const router = useRouter();
@@ -280,8 +278,7 @@ function ZoneHydrate({
     setSortieEnCours(true);
     try {
       await sauvegarderAvantSortie();
-      if (onDemanderCorrection) onDemanderCorrection();
-      else if (urlCorrection) router.push(urlCorrection);
+      if (urlCorrection) router.push(urlCorrection);
     } catch {
       sortieRef.current = false;
       setSortieEnCours(false);
@@ -290,7 +287,7 @@ function ZoneHydrate({
 
   function gererToucheClavier(e: React.KeyboardEvent<HTMLDivElement>) {
     if (!(e.ctrlKey || e.metaKey) || e.key !== "Enter") return;
-    if (!urlCorrection && !onDemanderCorrection) return;
+    if (!urlCorrection) return;
     e.preventDefault();
     void allerCorriger();
   }
@@ -346,7 +343,7 @@ function ZoneHydrate({
             Le contenu n&apos;est pas corrigé automatiquement — il sert de trace de votre raisonnement.
           </span>
         </div>
-        {(urlCorrection || onDemanderCorrection) && (
+        {urlCorrection && (
           <div className="hidden sm:flex items-center gap-1">
             <kbd className="rounded border border-bordure bg-surface-2 px-1 py-0.5 font-mono text-[0.625rem]">Ctrl+Entrée</kbd>
             <span>demander la correction</span>

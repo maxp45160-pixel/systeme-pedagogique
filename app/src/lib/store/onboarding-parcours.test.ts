@@ -78,8 +78,6 @@ const EXERCICE: Exercise = {
   origine: "tuteur",
 };
 
-const JOUR = "2026-08-25T08:00:00.000Z";
-
 /** L'état « base » partagé par les mocks de lecture/écriture. */
 let db: { exercises: Exercise[]; attempts: ExerciseAttempt[]; sessions: LearningSession[] };
 

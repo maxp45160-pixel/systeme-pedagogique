@@ -1,0 +1,57 @@
+{
+  "contractSha256": "31e6fbc9f64bb9815e9f03160727ce15848c47418b41b113601b408032530373",
+  "files": [
+    [
+      "ai-company/operations/runs/2026-09-18-references-mandat.md",
+      "6d82017bee496785a424bd3a31444341c1b8a2d55092f1185d5239894befe79a"
+    ],
+    [
+      "ai-company/operations/runs/2026-09-18-references.md",
+      "24329e32bd1338635284e2588c8ac5528940b0db0def6cf84ab7cde2a462177d"
+    ],
+    [
+      "ai-company/product/parcours-depot-memoire.md",
+      "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+    ],
+    [
+      "app/src/lib/documents/depot-validation.ts",
+      "21485af89371d5facd4b691f7078959f7a8dc47e17e51ebc32cf54ed1e6e702f"
+    ],
+    [
+      "app/src/lib/documents/depot.ts",
+      "88c6c933cb3e0e6c7fae5681d60c8477b577680c2013c94252e5b4033af711c9"
+    ],
+    [
+      "app/src/lib/documents/sources-restitution.test.ts",
+      "56a46e3f9967e74055f9c271e080acf00c49e60fdb1b4439d4c6157d9fc02682"
+    ],
+    [
+      "app/src/lib/documents/sources-restitution.ts",
+      "879377be26183e8a7dad3c15d51c08a0096836afc26e822711d480e174890a3c"
+    ],
+    [
+      "app/src/lib/store/depot-analyse.test.ts",
+      "90dd91586d2db8b2399a1392da3c6088750701d035b2c86f963472563bab66d1"
+    ],
+    [
+      "app/src/lib/store/depot-analyse.ts",
+      "e6eeb3ab0acec1d4ba488458f39cb19fcc0198a57b6adccf86cb725ed61bcd50"
+    ],
+    [
+      "app/src/lib/tutor/depot-mistral.test.ts",
+      "00913961fc531556cf2b3733151f425b970163c05b837802ef700133b366e27c"
+    ],
+    [
+      "app/src/lib/tutor/depot-mistral.ts",
+      "11aacda173c105d67d869395404c22f4fa1ce81140dbb59830352fd036205f72"
+    ],
+    [
+      "app/src/lib/tutor/depot-qwen.test.ts",
+      "970a379a55dc1bfc83341de940ac8e3a70ae118597e3917cfc7856a58654e5f1"
+    ],
+    [
+      "app/src/lib/tutor/depot-qwen.ts",
+      "1a713d853ad129915fa213eb3b3eb21dc4788ad850b7e7b64293a8771734c297"
+    ]
+  ]
+}

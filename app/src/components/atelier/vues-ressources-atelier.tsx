@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton, cx } from "@/components/ui/primitives";
 import {
@@ -65,8 +65,6 @@ export function VueRessources({
    */
   const [suppressionGroupeeOuverte, setSuppressionGroupeeOuverte] = useState(false);
   const [resultatGroupe, setResultatGroupe] = useState<ResultatSuppressionArchives | null>(null);
-  const [suppressionGroupeeEnCours, demarrerSuppressionGroupee] = useTransition();
-  const [erreurGroupee, setErreurGroupee] = useState<string | null>(null);
 
   const estArchives = statut === "archives";
 
@@ -130,7 +128,6 @@ export function VueRessources({
                     variante="danger"
                     taille="petite"
                     onClick={() => {
-                      setErreurGroupee(null);
                       setResultatGroupe(null);
                       setSuppressionGroupeeOuverte(true);
                     }}
@@ -342,19 +339,10 @@ export function VueRessources({
           explication={`Ces ${archivees.length} ressource${archivees.length > 1 ? "s" : ""} et leurs fichiers joints seront définitivement effacés de votre compte. Cette action est irréversible.`}
           texteBoutonConfirmer="Tout supprimer définitivement"
           onConfirmer={async () => {
-            setErreurGroupee(null);
-            demarrerSuppressionGroupee(async () => {
-              try {
-                const resultat = await supprimerArchivesAction();
-                setResultatGroupe(resultat);
-                setSuppressionGroupeeOuverte(false);
-                router.refresh();
-              } catch (e) {
-                setErreurGroupee(
-                  e instanceof Error ? e.message : "La suppression groupée a échoué.",
-                );
-              }
-            });
+            // La modale possède l'attente et l'erreur jusqu'au résultat réel.
+            const resultat = await supprimerArchivesAction();
+            setResultatGroupe(resultat);
+            router.refresh();
           }}
           onFermer={() => setSuppressionGroupeeOuverte(false)}
         />

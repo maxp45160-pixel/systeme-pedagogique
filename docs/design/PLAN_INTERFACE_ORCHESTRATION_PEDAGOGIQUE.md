@@ -5,8 +5,10 @@
 >
 > La tentative de traduction de cette vision a été retirée par retour arrière le
 > 30/08/2026. Le tableau de bord et la route `/seances` visibles ont retrouvé
-> leur composition précédente ; le code d'orchestration reste une fondation
-> expérimentale non raccordée et gelée. L'itération 1 branche seulement une
+> leur composition précédente. Le 18/09, Maxime autorise le retrait des composants,
+> de la revue et des commandes non raccordés ; les helpers actifs restent.
+> La description ci-dessous conserve la cible historique, pas du code à réactiver.
+> L'itération 1 branche seulement une
 > projection compacte des `LearningSession` réellement acceptées aujourd'hui,
 > séparée de la recommandation. La replanification, la revue et les candidats
 > de cours restent à valider avant toute réactivation.
@@ -466,9 +468,9 @@ verdicts visuels et inventaires de composants ne décrivent pas l'état courant.
 Les constats suivants restent à revérifier dans le code avant réactivation ;
 leur résolution n'est pas démontrée par ce nettoyage documentaire :
 
-- `replanifierSession` dans `lib/engine/revision-plan.ts` : un plan sans slot
-  ne doit pas provoquer l'annulation des séances acceptées simplement exclues
-  des créneaux candidats. Résoudre cette sémantique dans le moteur, sans masque UI.
+- Le diff expérimental `revision-plan.ts` a été retiré le 18/09. Une future
+  implémentation devra éviter qu'un plan sans slot annule les séances acceptées
+  simplement exclues des créneaux candidats.
 - Vérifier le comportement réel de « Modifier » et « Garder mon plan » ; fermer
   une modale ne démontre pas l'application de ces actions.
 - Établir la parité des actions d'échéance (ajouter, passer, reporter), des

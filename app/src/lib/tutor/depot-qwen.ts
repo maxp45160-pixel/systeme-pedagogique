@@ -1,3 +1,4 @@
+import { traduireSourcesRestitution } from "@/lib/documents/sources-restitution";
 import "server-only";
 import { getDocumentProxy, renderPageAsImage } from "unpdf";
 import { appelerQwen } from "./qwen-appel";
@@ -39,5 +40,5 @@ export async function restituerQwen(note: string, pages: PageExtraiteDepot[], co
   const entree = Buffer.byteLength(JSON.stringify(corps), "utf8") + 2048;
   if (entree > 100000) throw new Error("Ces pages sont trop denses. Choisissez une tranche plus courte.");
   const result = await appelerQwen(config, corps, entree, corps.max_tokens, signal);
-  return JSON.parse(result.choices[0].message.content);
+  return traduireSourcesRestitution(JSON.parse(result.choices[0].message.content), note, pages);
 }

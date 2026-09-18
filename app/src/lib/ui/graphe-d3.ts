@@ -93,3 +93,126 @@ export function observerTailleCanvas(
   observateur.observe(conteneur);
   return () => observateur.disconnect();
 }
+
+type RefGraphe<T> = { current: T };
+type NoeudManipulable = NoeudPositionne & { fx?: number | null; fy?: number | null };
+
+/**
+ * Pan, drag, survol et zoom molette des deux graphes Canvas.
+ * Les refs restent possédées par le composant : réinstaller les écouteurs
+ * ne réinitialise ni un geste en cours, ni la caméra, ni le dessin courant.
+ * Pointercancel garde le comportement historique de pointerup (clic compris).
+ * Le cleanup retire seulement les écouteurs, sans modifier la simulation.
+ */
+export function lierInteractionsCanvas<N extends NoeudManipulable>(
+  canvas: HTMLCanvasElement,
+  {
+    cameraRef, tailleRef, dragRef, panRef, deplaceRef, survolIdRef,
+    simulationRef, dessinerRef, noeudSousCurseur, surClic, zoomMin,
+  }: {
+    cameraRef: RefGraphe<{ x: number; y: number; zoom: number }>;
+    tailleRef: RefGraphe<{ largeur: number; hauteur: number }>;
+    dragRef: RefGraphe<{ noeud: N } | null>;
+    panRef: RefGraphe<{ x: number; y: number } | null>;
+    deplaceRef: RefGraphe<boolean>;
+    survolIdRef: RefGraphe<string | null>;
+    simulationRef: RefGraphe<{ alphaTarget: (alpha: number) => { restart: () => unknown } } | null>;
+    dessinerRef: RefGraphe<() => void>;
+    noeudSousCurseur: (x: number, y: number) => N | null;
+    surClic: (noeud: N) => void;
+    zoomMin: number;
+  },
+): () => void {
+  function coordsRelatives(e: { clientX: number; clientY: number }): [number, number] {
+    const rect = canvas.getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
+  }
+
+  function onPointerDown(e: PointerEvent) {
+    const [x, y] = coordsRelatives(e);
+    deplaceRef.current = false;
+    const n = noeudSousCurseur(x, y);
+    if (n) {
+      dragRef.current = { noeud: n };
+      simulationRef.current?.alphaTarget(0.3).restart();
+      n.fx = n.x;
+      n.fy = n.y;
+    } else {
+      panRef.current = { x: e.clientX, y: e.clientY };
+    }
+    canvas.setPointerCapture(e.pointerId);
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    const [x, y] = coordsRelatives(e);
+    if (dragRef.current) {
+      deplaceRef.current = true;
+      const { largeur, hauteur } = tailleRef.current;
+      const camera = cameraRef.current;
+      dragRef.current.noeud.fx = (x - largeur / 2) / camera.zoom - camera.x;
+      dragRef.current.noeud.fy = (y - hauteur / 2) / camera.zoom - camera.y;
+      dessinerRef.current();
+      return;
+    }
+    if (panRef.current) {
+      deplaceRef.current = true;
+      const dx = e.clientX - panRef.current.x;
+      const dy = e.clientY - panRef.current.y;
+      panRef.current = { x: e.clientX, y: e.clientY };
+      cameraRef.current.x += dx / cameraRef.current.zoom;
+      cameraRef.current.y += dy / cameraRef.current.zoom;
+      dessinerRef.current();
+      return;
+    }
+    const n = noeudSousCurseur(x, y);
+    const idSuivant = n?.id ?? null;
+    if (survolIdRef.current !== idSuivant) {
+      survolIdRef.current = idSuivant;
+      dessinerRef.current();
+    }
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    if (dragRef.current) {
+      dragRef.current.noeud.fx = null;
+      dragRef.current.noeud.fy = null;
+      simulationRef.current?.alphaTarget(0);
+      if (!deplaceRef.current) surClic(dragRef.current.noeud);
+      dragRef.current = null;
+    }
+    panRef.current = null;
+    try {
+      canvas.releasePointerCapture(e.pointerId);
+    } catch {
+      /* déjà relâché */
+    }
+  }
+
+  function onWheel(e: WheelEvent) {
+    e.preventDefault();
+    const [x, y] = coordsRelatives(e);
+    const { largeur, hauteur } = tailleRef.current;
+    const camera = cameraRef.current;
+    // Point du monde sous le curseur avant zoom, pour l'y garder après.
+    const mondeX = (x - largeur / 2) / camera.zoom - camera.x;
+    const mondeY = (y - hauteur / 2) / camera.zoom - camera.y;
+    const facteur = Math.exp(-e.deltaY * 0.001);
+    camera.zoom = Math.min(4.5, Math.max(zoomMin, camera.zoom * facteur));
+    camera.x = (x - largeur / 2) / camera.zoom - mondeX;
+    camera.y = (y - hauteur / 2) / camera.zoom - mondeY;
+    dessinerRef.current();
+  }
+
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
+  return () => {
+    canvas.removeEventListener("pointerdown", onPointerDown);
+    canvas.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerup", onPointerUp);
+    canvas.removeEventListener("pointercancel", onPointerUp);
+    canvas.removeEventListener("wheel", onWheel);
+  };
+}

@@ -11,7 +11,7 @@ import "server-only";
  *
  * Volontairement HORS de `charger_tout`. Cette RPC est le chemin chaud de
  * toutes les pages ; un historique de propositions qui ne fait que grossir n'a
- * rien à y faire. Même raison que `chargerCandidatsReferentiel` et
+ * rien à y faire. Même raison que la relecture du référentiel et
  * `chargerMetriquesMoteur` : ce qui ne sert qu'à un écran se charge depuis cet
  * écran.
  */

@@ -1,4 +1,6 @@
 import "server-only";
+import { CONTRAT_SOURCES_RESTITUTION, CONTRATS_SOURCES_PRECEDENTS } from "@/lib/documents/sources-restitution";
+import { VERSION_SCHEMA_RESTITUTION_DEPOT } from "@/lib/tutor/schema-restitution-depot";
 import { budgetQwen } from "./qwen-budget";
 import { lireOcrQwen, restituerQwen } from "@/lib/tutor/depot-qwen";
 import { QWEN_MODELE, coutQwen } from "@/lib/tutor/qwen-config";
@@ -46,8 +48,11 @@ async function preparer(documentId: string, maximum: number, qwen = false, synth
   const nombrePages = tranches.reduce((n,t) => n+t.pages.length,0);
   if (base && nombrePages > Math.min(maximum,20)) throw new Error("Cette reprise dépasse la limite de 20 pages.");
   const pagesRestantes = base ? fichiers.reduce((n,f) => n+f.totalPages,0)-nombrePages : normale.pagesRestantes;
-  const empreinte = hash(JSON.stringify({ version:depot.version,sortieMax:limiteSortieRestitution(depot.version),note:depot.note,sources:fichiers.map((f)=>[f.pieceId,f.empreinteSource]),tranches,ocr:qwen ? QWEN_MODELE : MODELE_OCR_DEPOT,modele:qwen ? QWEN_MODELE : MODELE_RESTITUTION_DEPOT, ...(syntheseDe ? {syntheseDe,consigne:"competences-par-chapitre-v1"} : {}) }));
-  const analyseExistante = depot.analyses.find((a)=>a.empreinte===empreinte) ?? null;
+  const contrat = { version:depot.version,sortieMax:limiteSortieRestitution(depot.version),note:depot.note,sources:fichiers.map((f)=>[f.pieceId,f.empreinteSource]),tranches,ocr:qwen ? QWEN_MODELE : MODELE_OCR_DEPOT,modele:qwen ? QWEN_MODELE : MODELE_RESTITUTION_DEPOT, ...(syntheseDe ? {syntheseDe,consigne:"competences-par-chapitre-v1"} : {}) };
+  const empreinte = hash(JSON.stringify({ ...contrat, references: CONTRAT_SOURCES_RESTITUTION, ...(!qwen ? { schema: VERSION_SCHEMA_RESTITUTION_DEPOT } : {}) }));
+  // Une réussite historique reste une réussite ; seule une demande non terminée change de contrat.
+  const empreintesHistoriques = [hash(JSON.stringify(contrat)), ...[...CONTRATS_SOURCES_PRECEDENTS, CONTRAT_SOURCES_RESTITUTION].map((references) => hash(JSON.stringify({ ...contrat, references })))];
+  const analyseExistante = depot.analyses.find((a)=>a.empreinte===empreinte) ?? depot.analyses.find((a)=>a.statut==="terminee" && empreintesHistoriques.includes(a.empreinte)) ?? null;
   const cache = base ? base.pages : depot.analyses.flatMap((a)=>a.pages).filter(valide);
   const aLire = tranches.reduce((n,t)=>n+t.pages.filter((p)=>!cache.some((c)=>c.pieceId===t.pieceId && c.page===p)).length,0);
   const budget = qwen ? (await budgetQwen()).restant : await budgetRestantDepot();

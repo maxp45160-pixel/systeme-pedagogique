@@ -1,0 +1,289 @@
+{
+  "id": "MENAGE-0002",
+  "title": "Retirer les fondations abandonnées et les répétitions du suivi",
+  "objective": "Supprimer les branches de planification non raccordées autorisées et alléger les preuves sans perdre les parcours actifs ni les contrôles.",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-18-retrait-fondations.md",
+    "summary": "Maxime autorise explicitement le 18/09 « vas-y supprime tout ça », après présentation des cibles et de leur ancien gel."
+  },
+  "status": "done",
+  "owner": "01a0ac86-510b-77f3-b6e0-69c527682bb2",
+  "scope": [
+    "app/src/components/dashboard/carte-preparation-periode.tsx",
+    "app/src/components/dashboard/carte-proposition-plan.tsx",
+    "app/src/components/dashboard/carte-proposition-plan.test.ts",
+    "app/src/components/dashboard/modale-revue-plan.tsx",
+    "app/src/components/dashboard/modale-revue-plan.test.ts",
+    "app/src/components/dashboard/tableau-bord-orchestration.tsx",
+    "app/src/components/seances/seances-a-venir.tsx",
+    "app/src/lib/engine/dashboard-orchestration.ts",
+    "app/src/lib/engine/dashboard-orchestration.test.ts",
+    "app/src/lib/store/plan-actions.ts",
+    "app/src/lib/store/plan-actions.test.ts",
+    "app/src/components/atelier/vues/elements-fiche.tsx",
+    "app/src/components/seances/cahier-interactif.test.ts",
+    "app/src/lib/store/contexte-declare.integration.test.ts",
+    "app/src/lib/domain/acceptation-plan.ts",
+    "app/src/lib/domain/acceptation-plan.test.ts",
+    "app/src/lib/engine/revision-plan.ts",
+    "app/src/lib/engine/revision-plan.test.ts",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ENGINE_CONTRACTS.md",
+    "docs/design/PLAN_INTERFACE_ORCHESTRATION_PEDAGOGIQUE.md",
+    "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+    "docs/architecture/TWINY_MIGRATION.md",
+    "ai-company/scripts/missions.mjs",
+    "ai-company/scripts/missions.test.mjs",
+    "ai-company/scripts/context.mjs",
+    "ai-company/operations/missions/README.md",
+    "ai-company/operations/missions/MENAGE-0001.json",
+    ".tmp-direction-resume-18.txt",
+    "ai-company/operations/runs/2026-09-18-retrait-fondations.md",
+    "app/src/lib/engine/plan-candidates.ts",
+    "app/src/lib/engine/planification-temporelle.ts",
+    "app/src/lib/engine/planification-temporelle.test.ts"
+  ],
+  "inputs": [
+    "app/src/lib/documents/sources-restitution.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-qwen.ts",
+    "app/src/lib/store/depot-analyse.ts"
+  ],
+  "baseCommit": "1c7588e6a0e034681047e067906cadc09b4c91cd",
+  "acceptance": [
+    "Branches non raccordées retirées, lecteurs et parcours actifs conservés.",
+    "Preuves dédupliquées sans changement des refus de clôture ni altération des archives.",
+    "Documentation courante synchronisée ; contrôles exécutés sur empreinte stable."
+  ],
+  "nextAction": "Livraison locale terminée et vérifiée ; documents libérés, aucune publication.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-18T16:32:28.478Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff MENAGE-0001/MENAGE-0002 et chantier documentaire P01-0006 coordonné",
+      "note": "2 546 tests dans 235 fichiers verts, TypeScript sans erreur, ESLint sans erreur et 4 avertissements préexistants. Première tentative interrompue par les erreurs de types du chantier P01-0006 en cours, corrigées par son propriétaire ; relance finale stable réussie.",
+      "snapshotRef": "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359"
+    },
+    {
+      "command": "npm run agents:test",
+      "result": "passed",
+      "at": "2026-09-18T16:32:28.478Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff MENAGE-0001/MENAGE-0002 et chantier documentaire P01-0006 coordonné",
+      "note": "67 tests verts ; formats inline, pool et mixte, refus de preuves absentes/altérées/périmées, reprise et clôture couverts.",
+      "snapshotRef": "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-18T16:32:28.478Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff MENAGE-0001/MENAGE-0002 et chantier documentaire P01-0006 coordonné",
+      "note": "Build Next.js réussi, compilation, TypeScript et génération des routes terminés.",
+      "snapshotRef": "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359"
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-18T16:32:28.478Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff MENAGE-0001/MENAGE-0002 et chantier documentaire P01-0006 coordonné",
+      "note": "Validation structurelle/continuité réussie ; avertissements de fraîcheur historiques conservés.",
+      "snapshotRef": "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "at": "2026-09-18T16:32:28.478Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff MENAGE-0001/MENAGE-0002 et chantier documentaire P01-0006 coordonné",
+      "note": "Aucune erreur de whitespace.",
+      "snapshotRef": "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359"
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-18T16:32:28.478Z",
+  "completion": {
+    "summary": "Retrait complémentaire de 3 409 lignes applicatives et 1 333 lignes de tests exclusifs nettes ; temporaire de 1 316 lignes retiré, ancienne fiche réduite de 1 718 à 345 lignes. Parcours actifs et SQL conservés, documentation synchronisée. 2 546 tests applicatifs, 67 tests outillage et build verts sur empreinte stable.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-retrait-fondations.md"
+    ],
+    "at": "2026-09-18T16:32:28.478Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run agents:test",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "handoff": {
+    "delivered": "Ancienne planification globale non raccordée retirée avec ses tests exclusifs ; Indicateur et temporaire retirés ; preuves dédupliquées avec contrôles inchangés ; documentation synchronisée.",
+    "remaining": [],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-retrait-fondations.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  },
+  "snapshots": {
+    "c18d5a5d42b724e5949d34e7d31fde0b1ffe29f9eb4cd57622d4d691bdcaf359": {
+      "contractSha256": "c3af8d141e20bd51071710ef524443cdfcc5fa88c7d17dc74701763b7d3250d5",
+      "files": [
+        [
+          ".tmp-direction-resume-18.txt",
+          null
+        ],
+        [
+          "ai-company/operations/missions/MENAGE-0001.json",
+          "14658dd69233d18d98c283e0807dc785de0990917f91e772d5cfa0beeb6bb711"
+        ],
+        [
+          "ai-company/operations/missions/README.md",
+          "652878d148552df317bc9604a038033cf6028d61c4643f4a5faf199277f7446b"
+        ],
+        [
+          "ai-company/operations/runs/2026-09-18-retrait-fondations.md",
+          "333b853ee5131e647ab0383080b3ac51352ba818f4f58e11e6f7d442a2de1ac8"
+        ],
+        [
+          "ai-company/scripts/context.mjs",
+          "e8d343c14dd3ac9b14c3dd6f5482da4320c335fb2efdab3a714110249f6852fd"
+        ],
+        [
+          "ai-company/scripts/missions.mjs",
+          "f64f8e66f0d03e95b093d8b887078bfafcfa68efe70edce8441a075dea08600a"
+        ],
+        [
+          "ai-company/scripts/missions.test.mjs",
+          "8aca6d42301c6ec7601f52c47a7237db87aac1d8df4a5505827558d74e61bda4"
+        ],
+        [
+          "app/src/components/atelier/vues/elements-fiche.tsx",
+          "bb61979d4583b346b35221827802225c5eed84732c16d0772f3a06f91555926e"
+        ],
+        [
+          "app/src/components/dashboard/carte-preparation-periode.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/carte-proposition-plan.test.ts",
+          null
+        ],
+        [
+          "app/src/components/dashboard/carte-proposition-plan.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/modale-revue-plan.test.ts",
+          null
+        ],
+        [
+          "app/src/components/dashboard/modale-revue-plan.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/tableau-bord-orchestration.tsx",
+          null
+        ],
+        [
+          "app/src/components/seances/cahier-interactif.test.ts",
+          "ea2b32a11d0906e514daeb87eb900d6ff6dbada729ead1394c3c947d469c7073"
+        ],
+        [
+          "app/src/components/seances/seances-a-venir.tsx",
+          null
+        ],
+        [
+          "app/src/lib/documents/sources-restitution.ts",
+          "879377be26183e8a7dad3c15d51c08a0096836afc26e822711d480e174890a3c"
+        ],
+        [
+          "app/src/lib/domain/acceptation-plan.test.ts",
+          null
+        ],
+        [
+          "app/src/lib/domain/acceptation-plan.ts",
+          null
+        ],
+        [
+          "app/src/lib/engine/dashboard-orchestration.test.ts",
+          null
+        ],
+        [
+          "app/src/lib/engine/dashboard-orchestration.ts",
+          null
+        ],
+        [
+          "app/src/lib/engine/plan-candidates.ts",
+          "4a223d53b278a5f912e32469600c4f9ce9160d5942af50cd59bc053c11288116"
+        ],
+        [
+          "app/src/lib/engine/planification-temporelle.test.ts",
+          "5a42cdadb27e419177e0f61685324e107f37655fd77b4959a5aef0b3760258ec"
+        ],
+        [
+          "app/src/lib/engine/planification-temporelle.ts",
+          "40206c5ddb3785e6f2b80e0393a1f23b925508464736ee9d850d2246b37aef3f"
+        ],
+        [
+          "app/src/lib/engine/revision-plan.test.ts",
+          null
+        ],
+        [
+          "app/src/lib/engine/revision-plan.ts",
+          null
+        ],
+        [
+          "app/src/lib/store/contexte-declare.integration.test.ts",
+          "d04a951739d007ac319bf4bed714c2681a4e4298b698db95fe4ec09a3f7b3f0f"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.ts",
+          "e6eeb3ab0acec1d4ba488458f39cb19fcc0198a57b6adccf86cb725ed61bcd50"
+        ],
+        [
+          "app/src/lib/store/plan-actions.test.ts",
+          null
+        ],
+        [
+          "app/src/lib/store/plan-actions.ts",
+          null
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.ts",
+          "11aacda173c105d67d869395404c22f4fa1ce81140dbb59830352fd036205f72"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.ts",
+          "1a713d853ad129915fa213eb3b3eb21dc4788ad850b7e7b64293a8771734c297"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "b79f5dceee4b4a99eb52ce488ac42d352f6b22ac5a983791b4e22d771d09dbd6"
+        ],
+        [
+          "docs/architecture/TWINY_MIGRATION.md",
+          "a5019cca78f5e04619a03f88f905f6558ca9cab0f5d6f676fc1c00100884051f"
+        ],
+        [
+          "docs/design/ASSISTANT_ENTREE_REFERENCE.md",
+          "1a0c3f52798cdfe2795c8d8bf251d28a1dd842fe65878ddc4136e02ec4044fd2"
+        ],
+        [
+          "docs/design/PLAN_INTERFACE_ORCHESTRATION_PEDAGOGIQUE.md",
+          "7a81c35119bf959a628de713742dbdfc70824278634801abdc003b5bb14eb121"
+        ],
+        [
+          "ENGINE_CONTRACTS.md",
+          "bc6a8e0057930b872ba7ec918a27abe6035e3b811a9847772cf80619a1aa2e92"
+        ],
+        [
+          "PRODUCT.md",
+          "d72f164a7ccf28450ce50e626c355bd6230d4845e4ab4b9caf4a1fdc324b11cb"
+        ]
+      ]
+    }
+  }
+}

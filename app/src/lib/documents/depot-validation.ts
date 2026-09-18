@@ -164,9 +164,8 @@ export function validerOrganisationDepot(value: unknown, documentId: string, not
   if (domainesNouveaux.size > 1 || (domainesNouveaux.size === 1 && (domaine?.mode !== "nouveau" || !domainesNouveaux.has(nomComparable(domaine.nom))))) {
     throw new Error("Une ressource ne peut proposer qu'un nouveau domaine principal.");
   }
-  if (domaine?.mode === "nouveau" && !competencesValidees.some((competence) => competence.mode === "nouvelle" && competence.domaine.mode === "nouveau" && nomComparable(competence.domaine.nom) === nomComparable(domaine.nom))) {
-    throw new Error("Un nouveau domaine doit être accompagné d'au moins une compétence nouvelle.");
-  }
+  // P01-0002 : un domaine d'organisation peut être proposé sans compétence.
+  // Les références à d'autres domaines nouveaux restent refusées ci-dessus.
   return {
     titreSuggere: texteDepot(organisation.titreSuggere, 200).trim(),
     typeSuggere,

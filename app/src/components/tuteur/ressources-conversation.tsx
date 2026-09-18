@@ -53,13 +53,6 @@ function selectionReprise(lignes: Ligne[]): Ligne[] {
   return lignes.filter((l) => !l.introuvable && !l.erreur && l.preparation?.disponible && !["en-cours", "terminee"].includes(l.preparation.analyseExistante?.statut ?? ""));
 }
 
-export function lectureAProposer(ligne: Ligne): boolean {
-  return !ligne.introuvable && (!ligne.ressource?.depot.analyses.some((a) => a.statut === "terminee" && a.restitution)
-    || Boolean(ligne.preparation?.disponible)
-    || Boolean(ligne.erreur)
-    || Boolean(ligne.ressource?.depot.analyses.some((a) => a.statut === "en-cours")));
-}
-
 export async function preparerLigne(id: string, config: ConfigTuteurClient | null, onRessource?: (ressource: Ressource) => void, syntheseDe?: string): Promise<Ligne> {
   const ressource = await lireRessourceAssistantAction(id);
   syntheseDe ??= syntheseAReprendre(ressource);

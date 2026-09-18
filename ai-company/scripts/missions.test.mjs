@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
-import { checkMissions, normalizeRepoPath, scopesOverlap, selectNextMission, validateMission, snapshotMission, sha256, updateMission, verificationErrors } from "./missions.mjs";
+import { checkMissions, normalizeRepoPath, scopesOverlap, selectNextMission, validateMission, snapshotMission, sha256, updateMission, verificationErrors, compactMissionSnapshots } from "./missions.mjs";
 import { resumeContext } from "./context.mjs";
 
 const at = "2026-09-15T20:00:00.000Z";
@@ -36,6 +36,134 @@ function fixture(t) {
   write("approval.md", "Accord humain consigné pour cette mission de test.");
   return { root, write, add };
 }
+
+test("snapshot pool preserves legacy and mixed proofs, without mutating or changing the contract", t => {
+  const { root, write } = fixture(t);
+  write("lib/check.mjs", "initial");
+  const legacy = mission({ verificationVersion: 1, requiredChecks: [passed.command, "second check"] });
+  const snapshot = snapshotMission(root, legacy);
+  legacy.checks = [passed.command, "second check"].map(command => ({ ...passed, command, snapshot }));
+  const before = structuredClone(legacy);
+  const compact = compactMissionSnapshots(legacy);
+  const ref = sha256(JSON.stringify(snapshot));
+  assert.deepEqual(legacy, before);
+  assert.deepEqual(compact.snapshots, { [ref]: snapshot });
+  assert.deepEqual(compact.checks, legacy.checks.map(({ snapshot, ...check }) => ({ ...check, snapshotRef: ref })));
+  assert.deepEqual(compactMissionSnapshots(compact), compact);
+  assert.deepEqual(snapshotMission(root, compact), snapshot);
+  const mixed = structuredClone(compact);
+  mixed.checks[1] = legacy.checks[1];
+  for (const value of [legacy, compact, mixed]) {
+    assert.deepEqual(validateMission(value, value.id), []);
+    assert.deepEqual(verificationErrors(root, value), []);
+  }
+  compact.snapshots[ref].files.push(["never-written", null]);
+  assert.deepEqual(legacy, before);
+});
+
+test("snapshot references reject missing pools, missing entries, bad hashes and ambiguous evidence", t => {
+  const { root } = fixture(t);
+  const legacy = mission({ verificationVersion: 1, requiredChecks: [passed.command] });
+  const snapshot = snapshotMission(root, legacy);
+  legacy.checks = [{ ...passed, snapshot }];
+  const good = compactMissionSnapshots(legacy);
+  const ref = good.checks[0].snapshotRef;
+  const variants = [
+    { ...good, snapshots: undefined }, { ...good, snapshots: [] },
+    { ...good, snapshots: {} },
+    { ...good, snapshots: { [ref]: { ...snapshot, contractSha256: "tampered" } } },
+    { ...good, checks: [{ ...good.checks[0], snapshot }] },
+    { ...good, checks: [{ ...good.checks[0], snapshotRef: "__proto__" }] },
+    { ...good, checks: [{ ...good.checks[0], snapshotRef: null }] },
+  ];
+  for (const value of variants) {
+    assert.ok(validateMission(value, value.id).length, JSON.stringify(value));
+    assert.ok(verificationErrors(root, value).length);
+    assert.throws(() => compactMissionSnapshots(value), /snapshot/);
+  }
+  assert.ok(validateMission({ ...good, verificationVersion: undefined }, good.id).length);
+  assert.throws(() => compactMissionSnapshots(mission()), /verificationVersion/);
+});
+
+test("compact proofs preserve refusals for missing, failed or duplicate checks and changed contracts", t => {
+  const { root } = fixture(t);
+  const legacy = mission({ verificationVersion: 1, requiredChecks: [passed.command] });
+  legacy.checks = [{ ...passed, snapshot: snapshotMission(root, legacy) }];
+  const compact = compactMissionSnapshots(legacy);
+  for (const base of [legacy, compact]) {
+    for (const changes of [
+      { checks: [] }, { checks: [passed] },
+      { checks: [{ ...base.checks[0], result: "failed" }] },
+      { checks: [base.checks[0], base.checks[0]] },
+      { acceptance: ["different contract"] },
+      { requiredChecks: ["unexecuted"] },
+    ]) assert.ok(verificationErrors(root, { ...base, ...changes }).length);
+  }
+  const missing = { ...legacy, checks: [passed] };
+  assert.deepEqual(compactMissionSnapshots(missing), missing);
+  assert.match(verificationErrors(root, compactMissionSnapshots(missing))[0], /absente ou périmée/);
+  const oldContract = { ...legacy, objective: "changed objective" };
+  assert.deepEqual(verificationErrors(root, compactMissionSnapshots(oldContract)), verificationErrors(root, oldContract));
+});
+
+test("compact proofs detect input additions, modifications and deletions exactly like legacy proofs", t => {
+  const { root, write } = fixture(t);
+  write("lib/a", "initial");
+  const legacy = mission({ verificationVersion: 1, requiredChecks: [passed.command], scope: ["lib"] });
+  legacy.checks = [{ ...passed, snapshot: snapshotMission(root, legacy) }];
+  const compact = compactMissionSnapshots(legacy);
+  for (const change of [
+    () => write("lib/b", "added"),
+    () => { rmSync(join(root, "lib/b")); write("lib/a", "modified"); },
+    () => rmSync(join(root, "lib/a")),
+  ]) {
+    change();
+    assert.match(verificationErrors(root, compact)[0], /périmée/);
+    assert.deepEqual(verificationErrors(root, compact), verificationErrors(root, legacy));
+  }
+});
+
+test("conditional update accepts fresh compact archives but never refreshes stale ones", t => {
+  const { root, add, write } = fixture(t);
+  write("lib/check.mjs", "initial"); write("proof.md", "Fixture");
+  const value = mission({ verificationVersion: 1, requiredChecks: [passed.command], status: "done", owner: "test", nextAction: "",
+    completion: { summary: "Fixture", evidence: ["proof.md"], at } });
+  value.checks = [{ ...passed, snapshot: snapshotMission(root, value) }];
+  add(value);
+  const file = join(root, "ai-company/operations/missions/M-001.json");
+  const compact = compactMissionSnapshots(value);
+  assert.equal(updateMission(root, value.id, sha256(readFileSync(file)), compact).changed, true);
+  assert.deepEqual(JSON.parse(readFileSync(file)), compact);
+  for (const changes of [{ acceptance: ["weaker"] }, { authorization: { ...value.authorization, summary: "new rights" } }, { requiredChecks: ["other"] }]) {
+    assert.throws(() => updateMission(root, value.id, sha256(readFileSync(file)), { ...compact, ...changes }), /Contrat modifié/);
+  }
+  add(value);
+  write("lib/check.mjs", "changed");
+  const before = readFileSync(file);
+  assert.throws(() => updateMission(root, value.id, sha256(before), compact), /périmée/);
+  assert.deepEqual(readFileSync(file), before);
+});
+
+test("resume reports referenced evidence without expanding the pool, and exposes stale evidence", t => {
+  const { root, add, write } = fixture(t);
+  write("ai-company/decisions/README.md", "Fixture"); write("lib/check.mjs", "initial");
+  const value = mission({ verificationVersion: 1, requiredChecks: [passed.command] });
+  value.checks = [{ ...passed, snapshot: snapshotMission(root, value) }];
+  const compact = compactMissionSnapshots(value);
+  add(compact);
+  let resumed = resumeContext(root).missions[0];
+  assert.equal(resumed.checks[0].snapshotPresent, true);
+  assert.equal(resumed.checks[0].snapshotRef, compact.checks[0].snapshotRef);
+  assert.equal(Object.hasOwn(resumed, "snapshots"), false);
+  assert.equal(Object.hasOwn(resumed.checks[0], "snapshot"), false);
+  assert.deepEqual(resumed.verification, []);
+  write("lib/check.mjs", "changed");
+  resumed = resumeContext(root).missions[0];
+  assert.equal(resumed.checks[0].snapshotPresent, true);
+  assert.match(resumed.verification[0], /périmée/);
+  add({ ...compact, snapshots: {} });
+  assert.throws(() => resumeContext(root), /snapshotRef/);
+});
 
 test("next respects lexical priority, retains blocked ownership and never replays closed work", () => {
   const entries = [

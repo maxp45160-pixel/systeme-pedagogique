@@ -13,6 +13,27 @@ function petitPdf() {
 }
 const config = { fournisseur: "qwen" as const, cle: "sk-test-factice" };
 const tranche = { pieceId: "p", nom: "test.pdf", pages: [1], totalPages: 1 };
+it("refuse un catalogue trop volumineux avant tout appel Qwen",async()=>{
+  await expect(restituerQwen("x\n".repeat(3000),[],config)).rejects.toThrow("trop denses");
+  expect(m.appel).not.toHaveBeenCalled();
+});
+it("refuse une citation ajoutée au passage sélectionné sans réessai",async()=>{
+  m.appel.mockResolvedValue({choices:[{message:{content:JSON.stringify({elements:[{sources:[{passageId:"passage-0",citation:"Note"}]}]})}}]});
+  await expect(restituerQwen("Note",[],config)).rejects.toThrow("uniquement passageId");
+  expect(m.appel).toHaveBeenCalledTimes(1);
+});
+it.each([undefined,{domaines:[],competences:[]}])("traduit les identifiants de la réponse Qwen en repères persistables", async (referentiel) => {
+  m.appel.mockImplementation(async (_config, corps) => {
+    const entree=JSON.parse(corps.messages[1].content);
+    const sources=[{passageId:entree.sources[1].passages[0].passageId}];
+    return {choices:[{message:{content:JSON.stringify({elements:[{nature:"sujet",texte:"Équations",sources}],...(referentiel?{organisation:{sources,domaine:null,competences:[{mode:"nouvelle",objet:"équation",sources}]}}:{})})}}]};
+  });
+  const resultat=await restituerQwen("Note",[{pieceId:"ats",page:7,texte:"Fiche 6 : Résoudre une équation",incertain:false}],config,referentiel);
+  const sources=[{pieceId:"ats",page:7,citation:"Fiche 6 : Résoudre une équation"}];
+  expect(resultat).toMatchObject({elements:[{sources}],...(referentiel?{organisation:{sources,domaine:null,competences:[{sources}]}}:{})});
+  expect(JSON.stringify(resultat)).not.toContain("passageId");
+  expect(m.appel).toHaveBeenCalledTimes(1);
+});
 beforeEach(() => { vi.resetAllMocks(); m.appel.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ texte: "Texte simulé par le test" }) } }] }); });
 it("rend une vraie page PDF en image avant Qwen et conserve son numéro", async () => {
   const pages = await lireOcrQwen(tranche, { octets: petitPdf(), mimeType: "application/pdf" }, config);
@@ -37,6 +58,7 @@ it.each([undefined,{domaines:[],competences:[]}])("aligne la restitution Qwen et
   await expect(restituerQwen("Note",[],config,referentiel)).resolves.toEqual({elements:[]});
   const [,corps,,sortieMax]=m.appel.mock.calls[0];
   expect(corps.max_tokens).toBe(referentiel ? 8192 : 2500);
+  expect(corps.response_format).toEqual({type:"json_object"});
   expect(sortieMax).toBe(corps.max_tokens);
   expect(m.appel).toHaveBeenCalledTimes(1);
 });

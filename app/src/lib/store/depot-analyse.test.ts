@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DepotDocumentaire, PageExtraiteDepot } from "@/lib/documents/depot";
+import { MODELE_OCR_DEPOT, MODELE_RESTITUTION_DEPOT } from "@/lib/documents/depot";
 const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn(),referentiel:vi.fn()}));
 vi.mock("./depot-budget",()=>({budgetRestantDepot:m.budget,configurationDepotDisponible:m.configuration}));
 vi.mock("./depot-documents",()=>({lireDepotDocumentaire:m.lire,lireSourceDepot:m.source,commencerAnalyseDepot:m.claim,modifierAnalyseDepot:m.modifier}));
@@ -30,6 +31,31 @@ function lectureTerminee() {
   depot.analyses=[{id:"ancienne",empreinte:"ancienne-empreinte",statut:"terminee",pages:[page,{...page,page:2}],restitution:{version:2}} as DepotDocumentaire["analyses"][number]];
 }
 describe("orchestration documentaire persistante",()=>{
+  function empreinteHistoriqueNote(references?: string) {
+    return createHash("sha256").update(JSON.stringify({version:1,sortieMax:2500,note:depot.note,sources:[],tranches:[],ocr:MODELE_OCR_DEPOT,modele:MODELE_RESTITUTION_DEPOT,...(references ? {references} : {})})).digest("hex");
+  }
+  it.each(["echec","en-cours","interrompue"] as const)("ne convertit pas un état historique %s en réussite",async(statut)=>{
+    for (const references of [undefined,"sources-identifiees-v1","passages-extraits-v1"]) {
+      depot.analyses=[{id:"ancienne",documentId:"d",empreinte:empreinteHistoriqueNote(references),statut,pages:[],couvertures:[],erreur:null,creeLe:"2026-09-18",modifieLe:"2026-09-18",restitution:null}];
+      const preparation=await preparerAnalyseDepot("d");
+      expect(preparation.analyseExistante).toBeNull();expect(preparation.disponible).toBe(true);
+    }
+    expect(m.claim).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it.each([undefined,"sources-identifiees-v1","passages-extraits-v1"])("invalide un devis ancien avant réservation et envoi : %s",async(references)=>{
+    const ancienne=empreinteHistoriqueNote(references);
+    expect((await preparerAnalyseDepot("d")).empreinte).not.toBe(ancienne);
+    await expect(analyserDepot("d",ancienne,20,false)).rejects.toThrow("changé");
+    expect(m.claim).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();expect(m.ocr).not.toHaveBeenCalled();
+  });
+  it.each([undefined,"sources-identifiees-v1","passages-extraits-v1"])("garde une restitution de note terminée sous un ancien contrat : %s",async(references)=>{
+    depot.analyses=[{id:"ancienne",documentId:"d",empreinte:empreinteHistoriqueNote(references),statut:"terminee",pages:[],couvertures:[],erreur:null,creeLe:"2026-09-18",modifieLe:"2026-09-18",restitution:{version:1,modele:MODELE_RESTITUTION_DEPOT,creeLe:"2026-09-18",couvertures:[],elements:[{id:"e",nature:"sujet",texte:"Cours",sources:[{documentId:"d",citation:"cours"}]}]}}];
+    const avant=JSON.stringify(depot);
+    const preparation=await preparerAnalyseDepot("d");
+    expect(preparation.disponible).toBe(false);expect(preparation.analyseExistante?.id).toBe("ancienne");
+    expect(await analyserDepot("d",preparation.empreinte,20,false)).toEqual(depot);
+    expect(JSON.stringify(depot)).toBe(avant);expect(m.claim).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();
+  });
   it("conserve un diagnostic lisible lorsqu’une interruption ne porte aucun message", async () => {
     m.restituer.mockRejectedValue(new Error(""));
     const preparation = await preparerAnalyseDepot("d");
@@ -44,6 +70,18 @@ describe("orchestration documentaire persistante",()=>{
     expect(p.tranches[0].pages).toEqual([1,2]);expect(p.pagesRestantes).toBe(0);
     expect(p.coutMaximumMicroEuros).toBe(422880);
     expect(m.ocr).not.toHaveBeenCalled();expect(m.restituer).not.toHaveBeenCalled();expect(m.claim).not.toHaveBeenCalled();
+  });
+  it("une reprise explicite de treize transcriptions conservées ne refait aucun OCR",async()=>{
+    lectureTerminee();
+    const transcriptions=Array.from({length:13},(_,i)=>({...page,page:i+1}));
+    depot.analyses[0].pages=transcriptions;
+    m.pdf.mockResolvedValue({numPages:13,cleanup:vi.fn()});
+    m.restituer.mockResolvedValue({elements:[],organisation:{titreSuggere:"Notes",typeSuggere:"note",domaine:null,competences:[],justification:"Note personnelle",sources:[{citation:depot.note}]}});
+    const p=await preparerAnalyseDepot("d",20,false,"ancienne");
+    await analyserDepot("d",p.empreinte,20,true,undefined,undefined,"ancienne");
+    expect(m.ocr).not.toHaveBeenCalled();expect(m.restituer).toHaveBeenCalledTimes(1);
+    expect(m.restituer.mock.calls[0][1]).toEqual(transcriptions);
+    expect(m.modifier).toHaveBeenLastCalledWith("a","t",expect.objectContaining({statut:"terminee"}));
   });
   it("le complément réutilise les transcriptions et laisse le classement intact",async()=>{
     lectureTerminee();

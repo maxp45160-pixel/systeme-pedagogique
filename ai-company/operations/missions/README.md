@@ -24,7 +24,8 @@ coopératifs ; un éditeur direct peut la contourner.
 | `baseCommit` | Base Git de 7 à 40 caractères hexadécimaux ; relire le diff courant en plus. |
 | `acceptance` | Critères observables non vides. Leur présence n'atteste pas leur satisfaction. |
 | `nextAction`, `blocker` | Étape concrète ; motif non vide si bloqué, sinon `null`. |
-| `checks` | Liste de `{command, result, at, revision}` ; résultat `passed`, `failed` ou `blocked`. Date ISO avec fuseau. Les détails du diff local vont dans la preuve de clôture. |
+| `checks` | Liste de `{command, result, at, revision}` ; résultat `passed`, `failed` ou `blocked`. Date ISO avec fuseau. Une preuve version 1 porte `snapshot` ou `snapshotRef`, exclusivement. |
+| `snapshots` | Pool facultatif des preuves version 1, indexé par le SHA-256 du `JSON.stringify(snapshot)` exact. Plusieurs contrôles peuvent référencer le même objet. |
 | `externalActions` | Effets externes accomplis ou incertains et leur preuve, sans secret ; liste vide si aucun. |
 | `updatedAt` | Date ISO avec fuseau du dernier point de reprise. |
 | `completion` | `null` avant clôture ; `{summary, evidence, at}` ensuite. `evidence` contient des fichiers de preuve du dépôt. `done` exige des contrôles tous passés ; `cancelled` exige motif/source. |
@@ -82,7 +83,27 @@ conditionne la preuve. Ne pas inclure secrets ou répertoires sans rapport.
 
 Avant les contrôles, conserver cette empreinte ; après leur exécution, vérifier
 qu'elle est inchangée et joindre cet objet dans `checks[].snapshot`, avec la
-commande exacte, résultat, date et révision. Un snapshot **ne lance aucun test**.
+commande exacte, résultat, date et révision. Pour éviter de recopier un snapshot
+identique, on peut le placer une fois dans `snapshots[empreinte]` et porter cette
+empreinte dans `checks[].snapshotRef`. `empreinte` est le SHA-256 du
+`JSON.stringify(snapshot)` sans indentation, avec l'ordre des champs conservé.
+Les anciennes preuves inline restent acceptées, ainsi qu'une fiche mixte.
+La version de vérification reste 1 : seul le rangement des preuves change.
+
+Une référence inconnue, un pool mal formé, une empreinte incorrecte ou un
+contrôle portant à la fois `snapshot` et `snapshotRef` sont refusés. Le snapshot
+résolu est toujours comparé intégralement au snapshot courant, contrat compris.
+La reprise affiche `snapshotPresent` et la référence sans développer le pool ;
+la présence seule ne garantit pas la fraîcheur.
+
+`compactMissionSnapshots(mission)`, exporté par `ai-company/scripts/missions.mjs`,
+retourne une copie dédupliquée d'une fiche version 1. Cette fonction pure ne lit
+pas le checkout, n'écrit aucun fichier, ne remplit aucune preuve manquante et ne
+modifie ni résultats, ni dates, ni contrat. Elle ne promeut pas les archives
+déclaratives en preuves vérifiées. Le coordinateur enregistre le candidat avec
+`update` ci-dessous ; une archive périmée reste refusée, même pour sa conversion.
+
+Un snapshot **ne lance aucun test**.
 Le coordinateur conserve aussi le résultat réel et la revue dans la preuve de
 clôture. Aucun succès n'est inféré d'un JSON écrit par le développeur.
 

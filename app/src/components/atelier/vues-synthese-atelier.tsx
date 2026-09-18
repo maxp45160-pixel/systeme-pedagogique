@@ -2,43 +2,6 @@
 
 import { cx } from "@/components/ui/primitives";
 
-export function CarteCreationPointillee({
-  titre,
-  description,
-  onClick,
-  className,
-}: {
-  titre: string;
-  description?: string;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        "group flex min-h-[170px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-bordure/80 bg-surface/20 p-6 text-center shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-primaire/60 hover:bg-surface hover:shadow-[var(--ombre-posee)] cursor-pointer",
-        className,
-      )}
-    >
-      <span className="grid size-10 place-items-center rounded-full bg-surface-2 text-lg font-semibold text-texte-discret transition-colors group-hover:bg-primaire-faible group-hover:text-primaire">
-        +
-      </span>
-      <div className="min-w-0">
-        <span className="block font-serif text-sm font-semibold text-texte transition-colors group-hover:text-primaire">
-          {titre}
-        </span>
-        {description && (
-          <span className="mt-1 block text-xs text-texte-discret leading-relaxed max-w-[220px] mx-auto">
-            {description}
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
-
 /**
  * Les trois entrées de Mes cours.
  *

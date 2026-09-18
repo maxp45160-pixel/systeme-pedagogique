@@ -69,47 +69,6 @@ export interface PlanificateurTemporelInput {
   propositionRef?: string;
 }
 
-type EntreesReferenceProposition = Pick<
-  PlanificateurTemporelInput,
-  "engagements" | "availability" | "skillStates" | "candidates" | "acceptedSessions"
-  | "candidateReservations"
->;
-
-function serialiserStable(valeur: unknown): string {
-  if (valeur === null) return "null";
-  if (typeof valeur === "string") return JSON.stringify(valeur);
-  if (typeof valeur === "number" || typeof valeur === "boolean") return String(valeur);
-  if (typeof valeur === "undefined") return "undefined";
-  if (Array.isArray(valeur)) return `[${valeur.map(serialiserStable).join(",")}]`;
-  if (typeof valeur === "object") {
-    return `{${Object.entries(valeur as Record<string, unknown>)
-      .sort(([gauche], [droite]) => gauche.localeCompare(droite))
-      .map(([cle, contenu]) => `${JSON.stringify(cle)}:${serialiserStable(contenu)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(String(valeur));
-}
-
-function empreinteStable(texte: string): string {
-  let hash = 2_166_136_261;
-  for (let index = 0; index < texte.length; index += 1) {
-    hash ^= texte.charCodeAt(index);
-    hash = Math.imul(hash, 16_777_619);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
-/**
- * Référence opaque et déterministe d'une même proposition.
- *
- * L'horloge et les refus sont volontairement hors empreinte : le temps qui
- * passe ou le fait d'avoir écarté la proposition ne doivent pas la rallumer.
- * Les entrées qui composent réellement le plan, elles, changent la référence.
- */
-export function referenceStableProposition(input: EntreesReferenceProposition): string {
-  return `plan-${empreinteStable(serialiserStable(input))}`;
-}
-
 interface Intervalle {
   start: number;
   end: number;

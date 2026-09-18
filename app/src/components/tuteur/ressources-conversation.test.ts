@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({ lire: vi.fn(), rattacher: vi.fn() }));
 vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDelegueAction: m.rattacher }));
 vi.mock("@/lib/store/ressource-assistant-actions", () => ({ lireRessourceAssistantAction: m.lire, identifierRessourcesAssistantAction: vi.fn() }));
 vi.mock("./modale-ressources", () => ({ ActionsRelectureRessources: () => null, RelectureRessources: () => null }));
-import { autorisationCorrespond, lectureAProposer, preparerLigne, preparationsChargees, selectionAnalyseAutomatique, rattacherApresPremiereLecture } from "./ressources-conversation";
+import { autorisationCorrespond, preparerLigne, preparationsChargees, selectionAnalyseAutomatique, rattacherApresPremiereLecture } from "./ressources-conversation";
 
 it("rattache après la première lecture seulement, jamais en réouvrant ou en reprenant une analyse historique", async () => {
   type Ligne = Parameters<typeof rattacherApresPremiereLecture>[0];
@@ -77,8 +77,28 @@ it("conserve le nom et l'analyse disponibles si la préparation réseau échoue"
   expect(fetch.mock.calls[0]).toHaveLength(1); // GET uniquement, aucune analyse payante.
 });
 
-it("n'invite pas à analyser ou actualiser un document confirmé introuvable", () => {
-  expect(lectureAProposer({ id: "ancien-lien", introuvable: true, selectionnee: false })).toBe(false);
+it("exclut un document confirmé introuvable même si une préparation précédente était disponible", async () => {
+  m.lire.mockResolvedValue({ depot: { analyses: [] } });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ disponible: true, analyseExistante: null })));
+  const ligne = await preparerLigne("ancien-lien", null);
+  expect(selectionAnalyseAutomatique([ligne])).toEqual([ligne]);
+  expect(selectionAnalyseAutomatique([{ ...ligne, introuvable: true }])).toEqual([]);
+});
+
+it("prépare les pages suivantes d'un résultat conservé sans les sélectionner pour une analyse automatique", async () => {
+  const ressource = { depot: { analyses: [{ id: "historique", statut: "terminee", creeLe: "2026-09-16", restitution: { version: 2 } }] } };
+  m.lire.mockResolvedValue(ressource);
+  const tranches = [{ pieceId: "pdf", nom: "Livret.pdf", pages: [21, 22], totalPages: 22 }];
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(Response.json({ disponible: true, analyseExistante: null, tranches }))
+    .mockResolvedValueOnce(Response.json({ disponible: false, analyseExistante: null, tranches: [] }));
+  vi.stubGlobal("fetch", fetch);
+  const ligne = await preparerLigne("livret", null);
+  expect(ligne).toMatchObject({ ressource, selectionnee: true, preparation: { tranches } });
+  expect(selectionAnalyseAutomatique([ligne])).toEqual([]);
+  expect(await preparerLigne("livret", null)).toMatchObject({ ressource, selectionnee: false });
+  expect(fetch).toHaveBeenCalledTimes(2);
+  for (const appel of fetch.mock.calls) expect(appel).toHaveLength(1); // Préparation GET, aucune analyse payante.
 });
 
 it("conserve aussi l'analyse lorsque la préparation renvoie une erreur HTTP", async () => {

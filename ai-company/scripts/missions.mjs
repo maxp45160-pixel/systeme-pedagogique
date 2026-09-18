@@ -82,6 +82,7 @@ export function validateMission(mission, expectedId) {
   if (Array.isArray(mission.checks)) {
     mission.checks.forEach((check, index) => require(object(check) && text(check.command) && ["passed", "failed", "blocked"].includes(check.result) && timestamp(check.at) && text(check.revision), `checks[${index}] : commande, résultat, date ISO et révision requis`));
   }
+  errors.push(...snapshotReferenceErrors(mission));
   if (closed(mission.status)) {
     const completion = mission.completion;
     require(object(completion) && text(completion.summary) && texts(completion.evidence, true) && completion.evidence.every(normalizeRepoPath) && timestamp(completion.at), "completion : résumé, preuves locales et date ISO requis");
@@ -168,6 +169,50 @@ export function checkMissions(repoRoot, replacement = null) {
 
 export const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
 
+// An optional pool changes storage only; hashes bind the exact serialized snapshot.
+function snapshotReferenceErrors(mission) {
+  const errors = [];
+  const pool = mission.snapshots;
+  if (pool !== undefined) {
+    if (mission.verificationVersion !== 1) errors.push("snapshots : verificationVersion 1 requise");
+    if (!object(pool)) errors.push("snapshots : objet requis");
+    else for (const [ref, snapshot] of Object.entries(pool)) {
+      if (!/^[a-f0-9]{64}$/.test(ref) || !object(snapshot) || sha256(JSON.stringify(snapshot)) !== ref) {
+        errors.push("snapshots : empreinte invalide : " + ref);
+      }
+    }
+  }
+  for (const [index, check] of (Array.isArray(mission.checks) ? mission.checks : []).entries()) {
+    if (!object(check) || !Object.hasOwn(check, "snapshotRef")) continue;
+    if (mission.verificationVersion !== 1 || Object.hasOwn(check, "snapshot")) errors.push(`checks[${index}] : snapshotRef exige la version 1 et exclut snapshot`);
+    if (typeof check.snapshotRef !== "string" || !/^[a-f0-9]{64}$/.test(check.snapshotRef)
+      || !object(pool) || !Object.hasOwn(pool, check.snapshotRef)) errors.push(`checks[${index}] : snapshotRef absent du pool ou invalide`);
+  }
+  return errors;
+}
+
+// Use after structural validation; presence never implies freshness or test execution.
+export function checkSnapshot(mission, check) {
+  return Object.hasOwn(check, "snapshotRef") ? mission.snapshots?.[check.snapshotRef] : check.snapshot;
+}
+
+// Pure representation conversion: no checkout reads, timestamps, results or proofs added.
+export function compactMissionSnapshots(mission) {
+  if (mission.verificationVersion !== 1) throw new Error("Déduplication réservée aux preuves verificationVersion 1");
+  const errors = snapshotReferenceErrors(mission);
+  if (errors.length) throw new Error(errors.join("\n"));
+  const candidate = structuredClone(mission);
+  for (const check of candidate.checks) {
+    if (!Object.hasOwn(check, "snapshot")) continue;
+    if (!object(check.snapshot)) throw new Error("snapshot : objet requis pour la déduplication");
+    const ref = sha256(JSON.stringify(check.snapshot));
+    (candidate.snapshots ??= {})[ref] = check.snapshot;
+    delete check.snapshot;
+    check.snapshotRef = ref;
+  }
+  return candidate;
+}
+
 // Evidence freshness, not proof that a command ran or that a human approved it.
 export function snapshotMission(repoRoot, mission) {
   const root = realpathSync(repoRoot);
@@ -200,7 +245,7 @@ export function snapshotMission(repoRoot, mission) {
 
 export function verificationErrors(root, mission) {
   if (mission.verificationVersion !== 1) return ["Preuves historiques déclaratives : fraîcheur non contrôlée"];
-  const errors = [];
+  const errors = snapshotReferenceErrors(mission);
   if (!texts(mission.requiredChecks, true) || new Set(mission.requiredChecks).size !== mission.requiredChecks.length) {
     return ["requiredChecks : commandes obligatoires distinctes requises"];
   }
@@ -212,7 +257,7 @@ export function verificationErrors(root, mission) {
     if (checks.length !== 1 || checks[0].result !== "passed") errors.push("Contrôle requis non réussi : " + command);
   }
   for (const check of mission.checks) {
-    if (JSON.stringify(check.snapshot) !== current) errors.push("Preuve absente ou périmée : " + check.command);
+    if (JSON.stringify(checkSnapshot(mission, check)) !== current) errors.push("Preuve absente ou périmée : " + check.command);
   }
   return errors;
 }

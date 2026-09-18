@@ -6,8 +6,9 @@ Ce document conserve les correspondances et réserves des vérifications des
 fichier local ne prouve pas son application et ne justifie jamais un rejeu.
 
 Les contrats courants vivent dans [les ADR](../../ARCHITECTURE_DECISIONS.md)
-et [ENGINE_CONTRACTS](../../ENGINE_CONTRACTS.md). Le plan global reste une
-fondation expérimentale dont la composition a été retirée le 30/08 ; le
+et [ENGINE_CONTRACTS](../../ENGINE_CONTRACTS.md). La composition du plan global
+a été retirée le 30/08, ses composants et commandes non raccordés le 18/09.
+Les helpers encore utilisés et les objets SQL historiques sont conservés ; le
 pilote documentaire et l'assistant ont leurs registres actifs dans
 [le pilote](../pilotes/DEPOT_DOCUMENTAIRE.md) et
 [l'assistant](../design/ASSISTANT_ENTREE_REFERENCE.md).

@@ -16,7 +16,6 @@ import {
   peutReprendreSeance,
   preparationInstantaneeSeance,
   resumeSeance,
-  resumeClotureSeance,
   resumeSeanceAbandonnee,
   seanceALieu,
   seanceEnCoursPour,

@@ -36,26 +36,6 @@ function analyseDepuisLigne(value: unknown): AnalyseDepot {
   return { id, documentId, empreinte: texteDepot(a.empreinte, 64), statut: a.statut as AnalyseDepot["statut"], pages, couvertures, restitution,
     erreur: a.erreur === null || a.erreur === "" ? null : texteDepot(a.erreur, 2000), creeLe: texteDepot(a.created_at, 50), modifieLe: texteDepot(a.updated_at, 50) };
 }
-export async function creerDepotDocumentaire(note: string, cle: string): Promise<string> {
-  if (typeof note !== "string" || note.length > MAX_NOTE_DEPOT || !/^[0-9a-f-]{36}$/i.test(cle)) throw new Error("Dépôt invalide.");
-  const compte = await comptePiloteDepot();
-  const id = `depot-${createHash("sha256").update(`${compte.userId}:${cle}`).digest("hex").slice(0,32)}`;
-  const { data, error } = await compte.supabase.from("documents").select("id,contenu_md").eq("user_id", compte.userId).eq("id", id).maybeSingle();
-  if (error) throw new Error("Le dépôt ne peut pas être vérifié.");
-  if (data) {
-    if (noteDuDepot(String(data.contenu_md)) !== note) throw new Error("Cette réception contient déjà une autre note.");
-    return id;
-  }
-  try {
-    await creerDocument(id, `---\nid: ${id}\ntype: note\ntitle: Dépôt du ${new Date().toISOString().slice(0,10)}\nrole: support\ndepot_version: 1\n---\n# Dépôt\n\n${note}`, compte);
-  } catch (e) {
-    const { data: concurrent } = await compte.supabase.from("documents").select("contenu_md").eq("user_id", compte.userId).eq("id", id).maybeSingle();
-    if (!concurrent || noteDuDepot(String(concurrent.contenu_md)) !== note) throw e;
-  }
-  revalidatePath("/app");
-  return id;
-}
-
 export interface NouvelleRessourceDepot {
   nature: "note" | "fichier";
   titre: string;

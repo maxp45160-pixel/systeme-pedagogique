@@ -271,19 +271,6 @@ export const IconeChevronDroit = ({ className }: Props) => (
   </Svg>
 );
 
-/* Bascule de plein écran — quatre coins qui s'écartent, ou qui se referment. */
-export const IconeAgrandir = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5" />
-  </Svg>
-);
-
-export const IconeReduire = ({ className }: Props) => (
-  <Svg className={className}>
-    <path d="M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5" />
-  </Svg>
-);
-
 /* Repli / dépli du rail — doubles chevrons. */
 export const IconeChevronDoubleGauche = ({ className }: Props) => (
   <Svg className={className}>

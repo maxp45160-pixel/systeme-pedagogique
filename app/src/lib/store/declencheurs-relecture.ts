@@ -44,28 +44,6 @@ export async function inscrireDeclencheurDeclare(
   verifier("inscription d'un déclencheur déclaré de relecture", error);
 }
 
-/** Le dernier signal déclaré de cette famille. */
-export async function dernierDeclencheurDeclare(
-  famille: Exclude<FamilleRelecture, "maintenance">,
-): Promise<DernierDeclencheurDeclare | null> {
-  const dorsale = await dorsaleCompte();
-  const { data, error } = await dorsale.supabase
-    .from("declencheurs_relecture_referentiel")
-    .select("famille, cause, nombre, created_at")
-    .eq("user_id", dorsale.userId)
-    .eq("famille", famille)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  verifier("lecture du dernier déclencheur déclaré de relecture", error);
-
-  const ligne = (data ?? [])[0] as
-    | { famille: DernierDeclencheurDeclare["famille"]; cause: CauseDeclencheurRelecture; nombre: number; created_at: string }
-    | undefined;
-  return ligne
-    ? { famille: ligne.famille, cause: ligne.cause, nombre: ligne.nombre, creeLe: ligne.created_at }
-    : null;
-}
-
 /** Les signaux postérieurs à la dernière analyse de la famille. */
 export async function declencheursDeclaresDepuis(
   famille: Exclude<FamilleRelecture, "maintenance">,

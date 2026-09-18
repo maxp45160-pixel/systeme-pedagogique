@@ -1296,26 +1296,8 @@ export function resoudreImportsComposants(analyses: Map<string, FichierAstAnalys
   return composantsParPage;
 }
 
-/**
- * Navigation persistante du cadre partagé — rail desktop et barre mobile.
- *
- * Les pages ne déclarent pas elles-mêmes le rail : il vit dans les layouts
- * (`app/(app)/layout.tsx` rend `Sidebar` + `NavMobile` + le pied de compte).
- * Un scanner qui ne regarde que les pages et leurs composants le rend donc
- * invisible — d'où des graphes où `/aide`, `/compte` ou `/progression`
- * semblent inaccessibles alors qu'ils sont atteignables depuis toutes les
- * pages du groupe.
- *
- * Retourne, pour chaque dossier de layout (`app/(app)`, …), les destinations
- * de navigation persistante joignables depuis toute page qu'il enveloppe :
- * les liens `<Link>` du layout et de ses composants, plus les tableaux de
- * navigation déclarés en données (`destinationsPartagees`). Les `redirect`
- * du layout (`/login`, `/suspendu`) n'y entrent pas — ce sont des gardes,
- * pas des destinations.
- */
-export function resoudreNavigationPartagee(
-  analyses: Map<string, FichierAstAnalyse>,
-): Map<string, Set<string>> {
+/** Parcours local à un scan : mêmes imports pour navigation et surfaces, sans cache global. */
+function collecteurImportsTransitifs(analyses: Map<string, FichierAstAnalyse>) {
   const importVers = new Map<string, string>();
   for (const relatif of analyses.keys()) {
     const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
@@ -1341,6 +1323,31 @@ export function resoudreNavigationPartagee(
     }
     return resultats;
   }
+
+  return collecterImportsRec;
+}
+
+/**
+ * Navigation persistante du cadre partagé — rail desktop et barre mobile.
+ *
+ * Les pages ne déclarent pas elles-mêmes le rail : il vit dans les layouts
+ * (`app/(app)/layout.tsx` rend `Sidebar` + `NavMobile` + le pied de compte).
+ * Un scanner qui ne regarde que les pages et leurs composants le rend donc
+ * invisible — d'où des graphes où `/aide`, `/compte` ou `/progression`
+ * semblent inaccessibles alors qu'ils sont atteignables depuis toutes les
+ * pages du groupe.
+ *
+ * Retourne, pour chaque dossier de layout (`app/(app)`, …), les destinations
+ * de navigation persistante joignables depuis toute page qu'il enveloppe :
+ * les liens `<Link>` du layout et de ses composants, plus les tableaux de
+ * navigation déclarés en données (`destinationsPartagees`). Les `redirect`
+ * du layout (`/login`, `/suspendu`) n'y entrent pas — ce sont des gardes,
+ * pas des destinations.
+ */
+export function resoudreNavigationPartagee(
+  analyses: Map<string, FichierAstAnalyse>,
+): Map<string, Set<string>> {
+  const collecterImportsRec = collecteurImportsTransitifs(analyses);
 
   function collecterCibles(f: FichierAstAnalyse, cibles: Set<string>) {
     for (const nav of f.navigations) {
@@ -1398,31 +1405,7 @@ export function resoudreNavigationPartagee(
 export function resoudreSurfacesPartagees(
   analyses: Map<string, FichierAstAnalyse>,
 ): Map<string, Set<string>> {
-  const importVers = new Map<string, string>();
-  for (const relatif of analyses.keys()) {
-    const sansExt = relatif.replace(/\.(tsx?|jsx?)$/, "");
-    importVers.set(sansExt, relatif);
-    if (relatif.endsWith("/index.tsx") || relatif.endsWith("/index.ts")) {
-      importVers.set(sansExt.replace(/\/index$/, ""), relatif);
-    }
-  }
-
-  function collecterImportsRec(relatif: string, visites = new Set<string>()): Set<string> {
-    const resultats = new Set<string>();
-    const a = analyses.get(relatif);
-    if (!a) return resultats;
-    for (const imp of a.imports) {
-      const fichier = importVers.get(imp);
-      if (fichier && !visites.has(fichier)) {
-        visites.add(fichier);
-        resultats.add(fichier);
-        for (const sous of collecterImportsRec(fichier, visites)) {
-          resultats.add(sous);
-        }
-      }
-    }
-    return resultats;
-  }
+  const collecterImportsRec = collecteurImportsTransitifs(analyses);
 
   function estSurfaceDeCadre(f: FichierAstAnalyse, m: ModaleAst): boolean {
     if (m.estTiroir) return true;

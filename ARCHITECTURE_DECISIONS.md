@@ -6883,7 +6883,7 @@ remplacent, et aucune ne se contourne :
 
 1. **Le schéma d'outil rend l'intitulé structurellement atomique.**
    `proposer_referentiel` n'accepte plus de phrase libre mais trois champs :
-   `verbeAction` (`enum` fermé de 48 verbes observables), `objet` (50 caractères),
+   `verbeAction` (`enum` fermé de verbes observables), `objet` (50 caractères),
    `precision` (24, facultatif). **C'est l'application qui assemble la phrase.**
    Un modèle ne peut pas écrire trois verbes dans un champ qui n'en accepte
    qu'un — même mécanique que les codes, qu'il désigne sans jamais les frapper
@@ -6899,6 +6899,8 @@ tuteur pouvait remplir des champs valides et se faire rejeter, donc boucler sans
 jamais produire de branche acceptable. `OBJET_MAX` se calcule désormais depuis
 `INTITULE_MAX_ATOMIQUE` moins le verbe le plus long, et un test tient l'accord au
 pire cas.
+
+**Correction locale du 18/09/2026 (P01-0008).** Le livret ATS demande explicitement de factoriser et de simplifier, mais ces deux verbes manquaient dans `VERBES_ACTION`. Ils sont ajoutés au même enum fermé partagé par les outils, le schéma documentaire et les validateurs. Les bornes de longueur et les règles de coordination restent inchangées ; aucun protocole de mesure ni statut produit n’est modifié.
 
 ### Ce que le durcissement NE fait pas
 
@@ -8464,8 +8466,10 @@ montre nulle part.
 | Prérequis et suites proposés par le tuteur | `relations-referentiel.ts` (ADR-082) | câblé, **par compétence et sur clic** |
 | Où une compétence sert | `tags-competence.ts` (ADR-107) | câblé, **par compétence et sur clic** |
 
-`chargerCandidatsReferentiel` est appelé par rien. Quatre détecteurs tournent
-dans le vide depuis leur écriture.
+Au diagnostic initial, `chargerCandidatsReferentiel` n'avait aucun appelant.
+La relecture décrite ci-dessous a ensuite raccordé les détecteurs. La façade
+inutilisée `lib/store/candidats-referentiel.ts` a été retirée le 18/09/2026,
+sans retirer les détecteurs ni leur assemblage actif dans la relecture.
 
 Et deux manques réels s'ajoutent à cet inventaire :
 
@@ -11360,8 +11364,18 @@ violée.
 
 **Direction précisée le 10/09/2026, ADR-145.** Maxime autorise la programmation
 et la reprogrammation sous délégation dans les disponibilités déclarées. La
-relecture manuelle systématique décrite ci-dessous reste le contrat implémenté,
+relecture manuelle systématique décrite ci-dessous est le contrat historique,
 pas une exigence de la nouvelle cible. Sa traduction technique reste à définir.
+
+**Retrait autorisé le 18/09/2026.** Après présentation des fondations gelées,
+Maxime demande « vas-y supprime tout ça ». Les composants expérimentaux du
+tableau de bord et de la chronologie, le diff de revue, la frontière pure
+d'acceptation et les Server Actions du plan global sont retirés avec leurs tests
+exclusifs. Le planificateur, les candidats et les helpers utilisés par les cours
+et les séances actuelles restent. Les faits persistés, migrations, RPC et leurs
+tests historiques ne sont pas supprimés ; aucun état distant n'est revérifié
+par ce ménage. Ce retrait abandonne cette implémentation non raccordée, sans
+changer la cible de programmation déléguée ni le statut de l'ADR.
 
 **Complément du 06/09/2026, ADR-143.** Le pilote documentaire ne construit
 pas de planification supplémentaire. Il démarre directement une séance
@@ -11409,9 +11423,9 @@ pas, à lui seul, de promouvoir le statut.
 **État d'intégration au 30/08/2026.** La tentative de traduction visible de
 cette direction a été retirée par retour arrière : le tableau de bord et la
 route `/seances` ont retrouvé leur composition précédente. Les fondations de
-planification, d'acceptation, de revue et de chronologie restent présentes
-comme code expérimental, mais ne sont plus raccordées au parcours utilisateur
-et ne constituent pas une validation du plan global. L'itération 1 branche
+planification, d'acceptation, de revue et de chronologie restaient alors présentes
+comme code expérimental non raccordé, jusqu'au retrait complémentaire du 18/09
+décrit ci-dessus. Elles ne validaient pas le plan global. L'itération 1 branche
 uniquement une projection locale et lisible des `LearningSession`
 acceptées du jour ; elle ne réactive ni proposition globale, ni revue, ni
 nouvelle destination.
@@ -11435,14 +11449,11 @@ automatique silencieuse ; si la séance ne peut pas être créée après
 l'enregistrement, le compositeur existant sert de repli sans nouvel appel au
 tuteur.
 
-Le dépôt conserve le branchement expérimental qui fournit au planificateur les
-disponibilités déclarées, les recommandations historiques, les besoins
-déclarés, les échéances ouvertes et les séances déjà acceptées, puis pourrait
-proposer un lot éphémère dont la personne accepte tout ou partie. Ce chemin
-n'est pas appelé par la composition visible actuelle. Un protocole relu reste
-adapté par le même compositeur lorsqu'il est fourni par son parcours.
-L'acceptation passe par la frontière atomique existante ; aucun plan complet
-n'est persisté. La conservation distante du blueprint documentaire d'une
+Le branchement expérimental retiré le 18/09 réunissait disponibilités déclarées,
+recommandations, besoins, échéances et séances acceptées en un lot éphémère.
+Les candidats et le planificateur conservés servent encore aux parcours de cours ;
+la frontière TypeScript d'acceptation globale a été supprimée. La conservation
+distante historique du blueprint documentaire d'une
 candidate de cours est couverte par la migration additive
 `20260829190000_plan_acceptation_origine_cours.sql`, enregistrée sous la
 version Supabase `20260829174131` et vérifiée dans la définition de la RPC.
@@ -11879,6 +11890,13 @@ de l'état en cours ; aucun appel fournisseur n'est réessayé automatiquement.
 Le geste de lecture et reformulation est présenté comme « Travailler ce passage »
 avec sa consigne, et reste accessible directement sur l'original sans IA.
 
+**Repère historique — ménage du 18/09/2026.** L'accueil conversationnel
+d'ADR-145 a remplacé l'accueil quotidien décrit dans les deux paragraphes
+du 07/09 ci-dessous. Les composants `AccueilDepot` / `AccueilDuJour` et le
+chemin de création V1, sans appelants, sont retirés du code courant. Les
+lecteurs des dépôts V1/V2, les ressources récentes et les liens `?depot=…`
+sont conservés. Ce retrait ne supprime aucune donnée ni aucun budget.
+
 Révision demandée le 07/09 : l'accueil sans lien documentaire explicite
 retrouve le dernier dépôt du jour local du navigateur. Il n'affiche la saisie
 vide que sans dépôt du jour, ou via « Ajouter à ma journée » (`nouveau=1`).
@@ -11960,8 +11978,8 @@ nouvelle confirmation. Les extractions inchangées sont réutilisées après
 réservation. Aucun réessai payant silencieux. Une tentative reprise possède
 un nouvel identifiant : une ancienne exécution ne peut plus écrire son état.
 
-Précision du 15/09/2026 après le premier essai Mistral réel : la restitution
-demande explicitement `reasoning_effort: "none"` pour obtenir le JSON textuel
+Historique du 15/09/2026, remplacé en V2 par la couverture par chapitre puis le schéma P01-0008 ci-dessous : la restitution
+demandait explicitement `reasoning_effort: "none"` pour obtenir le JSON textuel
 attendu par le parseur, et une synthèse compacte dans la borne inchangée de
 2 500 jetons. La consigne privilégie trois éléments et, en V2, deux compétences,
 sans modifier les maximums de validation ni prétendre à l'exhaustivité.
@@ -11981,17 +11999,63 @@ de formule ou de sens demeure refusé. Ce diagnostic reste dans l'erreur privée
 de l'analyse, jamais dans une restitution acceptée ni dans une mesure.
 
 Le diagnostic réel du livret ATS montre une citation attribuée à la page PDF 6
-alors qu'elle figure page PDF 7, numérotée 6 dans le document. La demande de
-restitution explicite donc que chaque source recopie le couple `pieceId`/`page`
-de l'objet contenant sa citation, sans utiliser la pagination imprimée ni les
-numéros de fiche ou d'exercice. Le validateur conserve le repère PDF exact ;
-aucun déplacement de citation n'est accepté automatiquement.
+alors qu'elle figure page PDF 7, numérotée 6 dans le document. L'essai du 18/09
+montre que demander de recopier `pieceId`/`page` ne suffit pas. La correction
+locale P01-0006 a fourni au modèle un catalogue temporaire de sources avec
+`sourceId`, nature, texte et incertitude. Le serveur traduit les sorties
+`sourceId` + citation vers le couple exact `pieceId`/`page`, refuse tout identifiant
+inconnu et tout mélange de repères. Le validateur de citation exacte reste
+inchangé : aucune citation n'est déplacée vers une autre page pour être acceptée.
+Les restitutions canoniques historiques restent consultables. Le contrat de
+préparation est versionné, un ancien devis est refusé et les transcriptions
+conservées restent réutilisables sur reprise explicite. Aucun OCR ni réessai
+fournisseur automatique n'est ajouté.
+
+**Correction locale P01-0007, accord de réalisation du 18/09.** Le retest réel
+après P01-0006 a trouvé le bon passage en page 2, mais le fournisseur a réécrit
+sa formule LaTeX ; la citation a donc été refusée. Maxime autorise de faire
+sélectionner des passages puis d'en extraire la citation côté serveur.
+Le catalogue temporaire regroupe désormais, par note/page, les passages exacts
+avec leur `passageId` et l'incertitude de la source. Les lignes non blanches
+forment les passages ; une ligne dépassant 2 000 unités UTF-16 est divisée en
+extraits consécutifs, de préférence sur un espace, sans couper une paire de
+substitution Unicode. Aucun caractère d'un extrait n'est réécrit. Un passage
+peut être un fragment de formule longue, pas une garantie de formule complète.
+Le fournisseur retourne uniquement `{passageId}` dans chaque source, pour
+les éléments, l'organisation, le domaine et les compétences. Le serveur
+retrouve le repère et extrait le texte exact du passage sélectionné ; tout
+identifiant absent/inconnu ou ajout de citation/ancien repère est refusé.
+Le validateur métier reste inchangé. Une citation correcte par extraction ne
+prouve ni sa pertinence pour la proposition ni la fidélité de l'OCR.
+
+Les deux fournisseurs utilisent ce contrat `passages-extraits-v1`. Les formats
+persistés restent canoniques ; seules les analyses terminées des deux anciens
+contrats sont reconnues comme réussies. Les anciens devis sont invalidés avant
+réservation et les transcriptions restent réutilisables sur reprise explicite.
+Le catalogue entier entre dans le contrôle de taille de la requête : s'il
+dépasse la borne, refus avant appel, jamais de troncature silencieuse ni hausse
+du budget. Les tests locaux utilisent des réponses simulées.
+L'essai réel autorisé ensuite le 18/09 franchit la traduction des passages et
+la validation des éléments de synthèse, puis échoue sur une précision de
+compétence dépassant 24 caractères. Aucune restitution partielle n'est publiée ;
+le texte fautif n'est pas conservé dans l'erreur. Coût rapproché : 0,134904 €,
+sans nouvel OCR. Voir `ai-company/operations/runs/2026-09-18-ats-passages-essai.md`.
+Cela ne valide ni toutes les propositions ni le parcours complet. L'autorisation
+de cet essai est consommée ; aucun réessai n'est automatique.
 
 La reprise atteint ensuite un refus de précision trop longue : la consigne
 documentaire V2 expose désormais les bornes `OBJET_MAX`, `PRECISION_MAX` et
 `INTITULE_MAX_ATOMIQUE` importées d'`atomicite.ts`. Elles ne sont ni recopiées
 comme nombres indépendants, ni augmentées. La validation métier reste portée
 par `motifsRefusStructure` ; le modèle est informé du contrat qu'il doit respecter.
+
+**Correction et essais P01-0008, mandat du 18/09.** Maxime autorise les corrections et essais Mistral nécessaires sous un plafond cumulé de 10 €, coûts antérieurs et réservations incertaines compris ; le plafond applicatif du pilote reste inchangé. Mistral reçoit désormais un JSON Schema strict V1/V2 avec les bornes métier importées et les enums réels des passages, domaines et compétences. Qwen conserve JSON object. Le schéma entre dans le contrôle de taille avant réservation. La validation métier demeure obligatoire : le schéma contraint la forme, pas la pertinence pédagogique, les chaînes blanches ou toutes les différences de comptage Unicode.
+
+Deux essais réels produisent une restitution complète mais révèlent encore des omissions et confusions pédagogiques. La consigne précise alors gestes observables, distinction geste/méthode, recouvrements et exercice témoin. L’enum commun gagne factoriser/simplifier (ADR-086). Le mode raisonnement high a été essayé puis retiré : deux sorties ont atteint la borne de 8 192 jetons. La restitution reste en mode none. Le parseur accepte aussi des chunks text finaux si le fournisseur en renvoie ; thinking n’est ni enregistré ni affiché, tous les jetons déclarés sont décomptés. La paire temperature=0 / top_p=1 est explicite, après un refus fournisseur sur les valeurs implicites. La borne de sortie et la réservation maximale restent identiques ; troncature, réponse absente ou chunk inattendu restent des refus sans réessai implicite. Voir [documentation Mistral](https://docs.mistral.ai/studio/conversations/reasoning).
+
+Le contrôle final retire également la garde historique imposant une compétence nouvelle avec un domaine nouveau : elle contredisait l’accord P01-0002 du 16/09 autorisant le domaine d’organisation sans compétence. Les exigences de source, collisions, références et domaine nouveau principal unique restent inchangées ; aucune compétence n’est fabriquée pour débloquer un classement.
+
+La version du schéma entre dans l’empreinte du devis. Les restitutions terminées sous les contrats précédents restent réutilisables ; modifier le code ne relance jamais une réussite ni la simple réouverture. Les essais explicites repartent des transcriptions d’une analyse identifiée via le contrat de reprise existant. Détail et limites des résultats : [rapport P01-0008](ai-company/operations/runs/2026-09-18-aboutir-ats.md). Aucun classement ou compétence n’est appliqué par ces essais.
 
 La limite d'exécution applicative est de quatre minutes, celle de la route de
 cinq minutes ; une analyse restée en cours devient reprenable après cinq

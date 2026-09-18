@@ -1,7 +1,7 @@
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { DepotDocumentaire, PreparationAnalyseDepot } from "@/lib/documents/depot";
+import type { DepotDocumentaire } from "@/lib/documents/depot";
 import type { ContexteOrganisationDepot } from "@/lib/documents/organisation-depot";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -13,7 +13,6 @@ vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDe
 import { ActionsRelectureRessources, FormulaireRelectureRessources, choixInitial } from "./modale-ressources";
 import { EditeurClassementRessource } from "./choix-classement-ressource";
 import { cheminDomaineClassement } from "@/lib/documents/classement-ressources";
-import { lectureAProposer } from "./ressources-conversation";
 
 const referentiel: ContexteOrganisationDepot = {
   compteId: "compte", domaines: [
@@ -109,11 +108,6 @@ describe("relecture documentaire dans l’assistant", () => {
     ancien.analyses[0].restitution = { version: 1, modele: retour.modele, creeLe: retour.creeLe, elements: retour.elements, couvertures: retour.couvertures };
     expect(rendu(ancien)).toContain("Choisissez où ranger ce document.");
     expect(rendu(ancien)).not.toContain("à créer</span>");
-  });
-  it("conserve le consentement aux pages suivantes malgré une synthèse déjà terminée", () => {
-    const ligne = { id: depot.id, selectionnee: false, ressource: { depot, domaine: undefined, competences: [], aPreciser: [], liensVerifies: true }, preparation: { disponible: true, tranches: [{ pieceId: "pdf", nom: "Livret.pdf", pages: [21, 22], totalPages: 22 }] } as PreparationAnalyseDepot };
-    expect(lectureAProposer(ligne)).toBe(true);
-    expect(lectureAProposer({ ...ligne, preparation: { ...ligne.preparation, disponible: false, tranches: [] } })).toBe(false);
   });
   it("affiche la parenté réelle sans préfixes techniques", () => {
     expect(cheminDomaineClassement("calc", referentiel.domaines)).toBe("Mathématiques › Calcul");

@@ -28,16 +28,6 @@ export function dateCourte(date: string | null): string {
   return formatDateCourte(date);
 }
 
-export function Indicateur({ libelle, valeur, precision }: { libelle: string; valeur: string; precision: string }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-bordure bg-surface px-5 py-4 shadow-[var(--ombre-posee)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-texte-discret">{libelle}</p>
-      <p className="chiffres mt-2 truncate text-2xl font-semibold tracking-tight text-texte">{valeur}</p>
-      <p className="mt-1 text-xs leading-relaxed text-texte-discret">{precision}</p>
-    </div>
-  );
-}
-
 /**
  * Une mesure, posée sans boîte et sur deux lignes.
  */

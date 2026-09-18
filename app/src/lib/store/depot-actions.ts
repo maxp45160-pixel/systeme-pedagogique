@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 
 import {
   ajouterCorrectionDepot,
-  creerDepotDocumentaire,
   creerRessourceDocumentaire,
   lireDepotDocumentaire,
   type NouvelleRessourceDepot,
@@ -24,7 +23,6 @@ export async function supprimerDepotAction(id: string): Promise<void> {
   revalidatePath("/atelier");
 }
 
-export async function creerDepotAction(note: string, cle: string) { return creerDepotDocumentaire(note,cle); }
 export async function creerRessourceDepotAction(entree: NouvelleRessourceDepot, cle: string) { return creerRessourceDocumentaire(entree,cle); }
 export async function lireDepotAction(id: string) { return lireDepotDocumentaire(id); }
 export async function corrigerDepotAction(documentId: string, elementId: string | null, texte: string, cle: string) {

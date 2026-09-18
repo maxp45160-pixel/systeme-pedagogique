@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ lire: vi.fn(), supprimer: vi.fn(), revalider: vi.fn(),document:vi.fn(),modifier:vi.fn(),referentiel:vi.fn(), synchroniser: vi.fn(), dorsale: vi.fn() }));
-vi.mock("./depot-documents", () => ({ lireDepotDocumentaire: m.lire, creerDepotDocumentaire: vi.fn(),creerRessourceDocumentaire:vi.fn(), ajouterCorrectionDepot: vi.fn() }));
+vi.mock("./depot-documents", () => ({ lireDepotDocumentaire: m.lire, creerRessourceDocumentaire:vi.fn(), ajouterCorrectionDepot: vi.fn() }));
 vi.mock("./documents", () => ({ supprimerDocument: m.supprimer,lireDocument:m.document,modifierDocument:m.modifier, resynchroniserLiensDocument: m.synchroniser }));
 vi.mock("./referentiel",()=>({lireReferentiel:m.referentiel}));
 vi.mock("./db",()=>({dorsaleCompte:m.dorsale}));

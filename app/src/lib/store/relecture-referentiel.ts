@@ -7,7 +7,8 @@ import "server-only";
  *
  * `lib/engine/candidats-referentiel.ts` porte quatre détecteurs déterministes
  * depuis le 18/08/2026, et `chargerCandidatsReferentiel` n'était appelé **par
- * rien**. C'est le constat qui ouvre ADR-108 : quatre détecteurs tournaient dans
+ * rien** (ancienne façade retirée le 18/09/2026). C'est le constat qui ouvre
+ * ADR-108 : quatre détecteurs tournaient dans
  * le vide faute de surface. Ce module les assemble avec les quatre genres du
  * tuteur en un lot unique, et l'écran des propositions le consomme.
  *

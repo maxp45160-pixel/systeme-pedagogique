@@ -241,7 +241,7 @@ describe("prioriserCouverture — ce qui demande le plus le travail d'abord", ()
 
   it("ne mute pas l'entrée et rend vide une couverture vide", () => {
     const entree = [point("A-01", true, 4), point("B-02", false, null)];
-    const triee = prioriserCouverture(entree);
+    prioriserCouverture(entree);
     expect(entree.map((p) => p.code)).toEqual(["A-01", "B-02"]);
     expect(prioriserCouverture([])).toEqual([]);
   });

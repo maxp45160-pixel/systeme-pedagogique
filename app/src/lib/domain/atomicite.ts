@@ -97,6 +97,8 @@ export const PHRASE_MESURABILITE = `${CONDITIONS_MESURABILITE.slice(0, -1).join(
  * noms : « et ordre », « et devoir », « et hiver » se termineraient comme des
  * infinitifs. La liste fermée n'en produit aucun.
  */
+// P01-0008 : le livret ATS demande de factoriser et simplifier ; garder ces
+// gestes observables explicites évite de les omettre ou de leur substituer un autre geste.
 export const VERBES_ACTION = [
   "adapter",
   "analyser",
@@ -121,6 +123,7 @@ export const VERBES_ACTION = [
   "estimer",
   "évaluer",
   "expliquer",
+  "factoriser",
   "formuler",
   "identifier",
   "implémenter",
@@ -138,6 +141,7 @@ export const VERBES_ACTION = [
   "proposer",
   "réaliser",
   "résoudre",
+  "simplifier",
   "situer",
   "structurer",
   "synthétiser",

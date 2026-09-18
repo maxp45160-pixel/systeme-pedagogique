@@ -1,0 +1,345 @@
+{
+  "id": "MENAGE-0001",
+  "title": "Retirer les vestiges et simplifier les chemins doublés",
+  "objective": "Réaliser les quatre lots approuvés, conserver les parcours actifs, la compatibilité historique et les fondations gelées.",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-18-menage-code.md",
+    "summary": "Accord explicite de Maxime le 18/09 sur la proposition du 17/09 : « vas-y envoie ». Corrections et ménage local vérifiés ; aucun effet distant ni nouvelle dépense."
+  },
+  "status": "done",
+  "owner": "01a0ac86-510b-77f3-b6e0-69c527682bb2",
+  "scope": [
+    "app/src/components/dashboard/activite.tsx",
+    "app/src/components/dashboard/carte-seance-active.tsx",
+    "app/src/components/dashboard/bloc-echeance-prioritaire.tsx",
+    "app/src/components/dashboard/passer-seance.tsx",
+    "app/src/components/dashboard/abandonner-exercice-carte.tsx",
+    "app/src/components/intention/bouton-intention.tsx",
+    "app/src/components/intention/bouton-intention.test.ts",
+    "app/src/components/atelier/vues-synthese-atelier.tsx",
+    "app/src/lib/store/candidats-referentiel.ts",
+    "app/src/lib/store/declencheurs-relecture.ts",
+    "app/src/components/ui/explication.tsx",
+    "app/src/components/ui/icones.tsx",
+    "app/src/components/exercices/zone-reponse.tsx",
+    "app/src/components/atelier/vues-ressources-atelier.tsx",
+    "app/scripts/verify-suppression-groupee.mjs",
+    "app/src/components/depot/accueil-depot.tsx",
+    "app/src/components/depot/accueil-du-jour.tsx",
+    "app/src/lib/store/depot-actions.ts",
+    "app/src/lib/store/depot-documents.ts",
+    "app/src/lib/store/depot-documents.test.ts",
+    "app/src/components/tuteur/ressources-conversation.tsx",
+    "app/src/components/tuteur/ressources-conversation.test.ts",
+    "app/src/components/tuteur/modale-ressources.test.ts",
+    "app/src/components/competences/graphe/graphe-competences.tsx",
+    "app/src/components/dev/graphe-workflow.tsx",
+    "app/src/lib/ui/graphe-d3.ts",
+    "app/src/lib/ui/graphe-d3.test.ts",
+    "app/src/lib/dev/workflow-ast-parser.ts",
+    "app/src/lib/dev/workflow-ast-parser.test.ts",
+    "app/src/lib/domain/engagement.test.ts",
+    "app/src/lib/domain/seance.test.ts",
+    "app/src/lib/store/onboarding-parcours.test.ts",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/operations/runs/2026-09-18-menage-code.md",
+    "app/src/lib/store/propositions-referentiel.ts",
+    "app/src/lib/store/relecture-referentiel.ts",
+    "app/src/lib/store/depot-actions.test.ts",
+    "app/src/components/depot/organisation-jour.tsx",
+    "app/src/lib/documents/accueil-depot.ts",
+    "app/src/lib/documents/accueil-depot.test.ts"
+  ],
+  "inputs": [
+    "ai-company/operations/runs/2026-09-17-proposition-menage-code.md"
+  ],
+  "baseCommit": "1c7588e6a0e034681047e067906cadc09b4c91cd",
+  "acceptance": [
+    "Absence d’appelants revérifiée avant retrait ; comportements vivants et historiques conservés.",
+    "Suppression groupée attend le résultat et affiche les échecs avec preuve reproductible sans suppression réelle.",
+    "Doublons mutualisés sans nouvelle dépendance ni complexité disproportionnée.",
+    "Contrôles requis passés sur empreinte stable, documentation synchronisée."
+  ],
+  "nextAction": "Livraison locale vérifiée, disponible en revue. Publication non effectuée.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "TypeScript et ESLint sans erreur ; 4 avertissements préexistants. 240 fichiers, 2578 tests verts.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "node app/scripts/verify-zone-reponse.mjs",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "8/8 verts à la relance sans modification. Premier passage : 7/8, délai page.goto de 5 s dépassé au chargement initial, également observé avant changement. Aucun délai relevé.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "node app/scripts/verify-accessibilite.mjs",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "13/13 scénarios verts.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "node app/scripts/verify-suppression-groupee.mjs",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "3/3 scénarios verts : attente, rejet réessayable, succès partiel. Actions simulées, aucune suppression distante.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "npm run agents:test",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "61 tests verts.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "Build Next.js terminé, compilation et génération des routes réussies.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "Contrôle structurel et continuité valides ; avertissements historiques de fraîcheur conservés.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc -p app --noEmit --incremental false --noUnusedLocals --noUnusedParameters",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "Aucune déclaration inutilisée signalée.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "at": "2026-09-18T15:59:36.625Z",
+      "revision": "1c7588e6a0e034681047e067906cadc09b4c91cd + diff local MENAGE-0001",
+      "note": "Aucune erreur de whitespace.",
+      "snapshotRef": "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f"
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-18T15:59:36.625Z",
+  "completion": {
+    "summary": "Quatre lots terminés et revus : 1156 lignes applicatives nettes retirées, défaut de suppression groupée corrigé, lecteurs historiques conservés. 2578 tests applicatifs, 61 tests outillage, 24 cas navigateur et build réussis sur empreinte stable.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-menage-code.md"
+    ],
+    "at": "2026-09-18T15:59:36.625Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "node app/scripts/verify-zone-reponse.mjs",
+    "node app/scripts/verify-accessibilite.mjs",
+    "node app/scripts/verify-suppression-groupee.mjs",
+    "npm run agents:test",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "handoff": {
+    "delivered": "Quatre lots réalisés : vestiges retirés, suppression groupée corrigée, accueil et écrivain V1 retirés avec lectures historiques conservées, parcours imports et interactions graphes mutualisés.",
+    "remaining": [],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-menage-code.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  },
+  "snapshots": {
+    "6df674cf9819678f188fd5e49d73c3d3ee7c7bd5feeff96fadb11654ca3e1e5f": {
+      "contractSha256": "f500b733f35408a28e24dea4c1922807a269df842592d6064f2d661323fe1d24",
+      "files": [
+        [
+          "ai-company/operations/runs/2026-09-17-proposition-menage-code.md",
+          "5053d402a0a1b6f4b598003ddf6bdf19527b41af720755b9b6dc841847402bde"
+        ],
+        [
+          "ai-company/operations/runs/2026-09-18-menage-code.md",
+          "49b181018a0d24251c4de4afde514b1d012b5f86739331347342fd74de1111d9"
+        ],
+        [
+          "app/scripts/verify-suppression-groupee.mjs",
+          "e10f2ca178076dbd526c32d744403143e508c4e8e640358d12cfa7d176d26519"
+        ],
+        [
+          "app/src/components/atelier/vues-ressources-atelier.tsx",
+          "fcc74092016a9ea0726cb81f9670269e2b1fb1c52dc27812d8ce50ece6804295"
+        ],
+        [
+          "app/src/components/atelier/vues-synthese-atelier.tsx",
+          "fa0380ade94b536787dfe9baccbae9349a63b98437a8d087a292ab0268763262"
+        ],
+        [
+          "app/src/components/competences/graphe/graphe-competences.tsx",
+          "0dd57cbfe9ad5dfa3df7feb884e59b6723f5eb8dae52b9f2d6ed5d5da072f13f"
+        ],
+        [
+          "app/src/components/dashboard/abandonner-exercice-carte.tsx",
+          "af7f35a09a233e4d0fe09b0d7da71ddb906a8f677e603c93ae2f0aba75953c3b"
+        ],
+        [
+          "app/src/components/dashboard/activite.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/bloc-echeance-prioritaire.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/carte-seance-active.tsx",
+          null
+        ],
+        [
+          "app/src/components/dashboard/passer-seance.tsx",
+          null
+        ],
+        [
+          "app/src/components/depot/accueil-depot.tsx",
+          "24b9505b3bc52d41594cfb430f54cd3c060f5aed1b803f0aa2fd62b5509b78a8"
+        ],
+        [
+          "app/src/components/depot/accueil-du-jour.tsx",
+          null
+        ],
+        [
+          "app/src/components/depot/organisation-jour.tsx",
+          null
+        ],
+        [
+          "app/src/components/dev/graphe-workflow.tsx",
+          "20dee10b612fd4dc8b3e216c25b1ab40f0def366712b393d073f6c8b5b2a9aec"
+        ],
+        [
+          "app/src/components/exercices/zone-reponse.tsx",
+          "16253a89db707de494f62f3a9cb324d963ecd16a3ab1668094c8c271ebf4f20e"
+        ],
+        [
+          "app/src/components/intention/bouton-intention.test.ts",
+          null
+        ],
+        [
+          "app/src/components/intention/bouton-intention.tsx",
+          "c6b7065adc266ae2fb4b5de2152b9ff5429173269abc50059d516468a1e977a8"
+        ],
+        [
+          "app/src/components/tuteur/modale-ressources.test.ts",
+          "451f1037cfd4f43958f6cf0e861d1b1bdde1d9880d88da7c733872300438e2b1"
+        ],
+        [
+          "app/src/components/tuteur/ressources-conversation.test.ts",
+          "7798d1fa2f9b3d446add28fc7cf230adc5f9115638c8a31c7d5e083e9c2b3236"
+        ],
+        [
+          "app/src/components/tuteur/ressources-conversation.tsx",
+          "b748b6e7831aefde1b843decb44296a202e7521963032d743b50b3869aa3d717"
+        ],
+        [
+          "app/src/components/ui/explication.tsx",
+          "f4a9da0323b1e321792247b2aa7f1db5a20bb110972e2286d5b6fbe385b896c5"
+        ],
+        [
+          "app/src/components/ui/icones.tsx",
+          "5a85d459e412ef175dd1caf053acc464632659a21a50626d762c880af0adfbba"
+        ],
+        [
+          "app/src/lib/dev/workflow-ast-parser.test.ts",
+          "55d31cb3562966e28a1c6fa263135865de6b4d8f721961b27dd2a83474f9506d"
+        ],
+        [
+          "app/src/lib/dev/workflow-ast-parser.ts",
+          "e11553fb396cb6885ed3220a123c568f51f5f7937f97b5bf7ad328953fd1e7d3"
+        ],
+        [
+          "app/src/lib/documents/accueil-depot.test.ts",
+          null
+        ],
+        [
+          "app/src/lib/documents/accueil-depot.ts",
+          null
+        ],
+        [
+          "app/src/lib/domain/engagement.test.ts",
+          "1735cfc48a00d1526f111fbac9404847d3adf29d7294abed6b89464e21b1883b"
+        ],
+        [
+          "app/src/lib/domain/seance.test.ts",
+          "99503157ca7ed21856fc5002d136f19c9a2f68f8a2dbf15d0fa33658f7e5c709"
+        ],
+        [
+          "app/src/lib/store/candidats-referentiel.ts",
+          null
+        ],
+        [
+          "app/src/lib/store/declencheurs-relecture.ts",
+          "88cfa9d2fcd91628251bfc2a01607c28c745a92cb1db0cf9204c0b40623a8872"
+        ],
+        [
+          "app/src/lib/store/depot-actions.test.ts",
+          "eae09a1192490e5aca2b195daafc800e83eef6dea6465c68b4928eba31b48785"
+        ],
+        [
+          "app/src/lib/store/depot-actions.ts",
+          "a88af8201c5c51e7b68e5f4c5f6c17787146e8fb6068f707898c5d21d196edd4"
+        ],
+        [
+          "app/src/lib/store/depot-documents.test.ts",
+          "08da821976e092f3c4cebad461ea3b03c8b16d7db54095c4356c754a2cde7c13"
+        ],
+        [
+          "app/src/lib/store/depot-documents.ts",
+          "abb730f7f0c255a3c5fc373088a0952804e1ee0331f82b51975968b95a5b6564"
+        ],
+        [
+          "app/src/lib/store/onboarding-parcours.test.ts",
+          "ee924df13c45fc067931fc4c99da318817f24c7b936879b712504ae1bdd62706"
+        ],
+        [
+          "app/src/lib/store/propositions-referentiel.ts",
+          "95bf82d157c6ce2d9494a35bdb0258dda5e3ed7812bee46451c461e990016be2"
+        ],
+        [
+          "app/src/lib/store/relecture-referentiel.ts",
+          "1c1999ea1e9da7dfd69c9615ef3ae3c06cbcb932ab1e5785abbfc248d3740c56"
+        ],
+        [
+          "app/src/lib/ui/graphe-d3.test.ts",
+          "8d84b8cd6748dfdd6211e2d7b7ed29d5eee0abbd3a4b276060e19a0010a1d781"
+        ],
+        [
+          "app/src/lib/ui/graphe-d3.ts",
+          "51fdb67bcd239115b1316f1ffe61d45ea903aa5b78a4ce41320ba1e17643b856"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "a5e556e37e699d5bb63eaf1089d93c2472483fa4275565b103fa5cbea1f585f6"
+        ],
+        [
+          "PRODUCT.md",
+          "f48c9f44da45c9fc548230d3c0e61960cee6898e9b989ed9db2e768dcc2e2f57"
+        ]
+      ]
+    }
+  }
+}

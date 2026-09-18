@@ -434,34 +434,13 @@ libellé `pret-d-apres-les-preuves-disponibles` repose provisoirement sur le
 palier existant `5`, sans nouveau seuil de calibration, pour être réévalué avec
 des données.
 
-### Revue groupée d'un plan recalculé (lot 5)
+### Revue groupée retirée (18/09/2026)
 
-`lib/engine/revision-plan.ts` compare purement les séances `planifiee` déjà
-acceptées au plan recalculé. L'origine `candidateId` est l'identité stable de
-la comparaison ; les séances en cours, historiques ou sans durée/provenance
-restent protégées. Le diff expose `conserver`, `deplacer`, `raccourcir`,
-`annuler` et `ajouter`, avec raisons, contraintes, réserves et conflits
-impossibles. Une
-candidate non acceptée n'entre pas dans la revue (`silentCandidateIds`).
-
-`components/dashboard/modale-revue-plan.tsx` regroupe ces changements dans la
-modale existante. Fermer, modifier ou garder ferme la revue sans toucher aux
-séances ; appliquer délègue à la frontière `accepterPlan`, qui revalide puis
-écrit le lot atomiquement et idempotemment. La v0 refuse une extension de durée
-plutôt que de l'appliquer implicitement.
-
-La migration additive `20260828150000_lot_5_revision_plan.sql` décrit le fait
-de créneau `sessions.duree_planifiee_min` et l'extension de la RPC existante
-pour le raccourcissement dans la même transaction. La vérification Supabase
-réelle du 28/08/2026 voit déjà cette colonne, sa contrainte et les fonctions
-`accepter_plan`/`accepter_plan_lot3_legacy`, mais l'entrée de migration n'est
-pas dans l'historique distant (qui s'arrête à `20260825221304`). Les versions
-locales `20260828110000_interventions_seance.sql`,
-`20260828120000_lot_3_acceptation_plan.sql` et
-`20260828150000_lot_5_revision_plan.sql` sont donc non enregistrées, sans que
-la provenance de leur application puisse être inférée. Aucun rejeu ni
-réconciliation DDL n'est autorisé sans validation du workflow
-d'infrastructure.
+Sur accord de Maxime, `revision-plan.ts` et `modale-revue-plan.tsx`, non
+raccordés depuis le 30/08, ont été supprimés avec leurs tests exclusifs.
+Il n'existe plus de diff/revue groupée du plan global dans le code applicatif.
+Les objets SQL et leurs tests historiques restent ; leur état distant daté
+et les réserves de migration sont conservés dans l'ADR-139.
 
 ### Lecture « À venir » des séances (lot 6)
 
@@ -475,9 +454,10 @@ planifiée sans `planifieePour` utilise sa `date` existante. Les interventions
 sont lues par `lireInterventionsSeance` : une activité historique non
 correspondante reste en réserve et n'est jamais convertie en geste ou en effet.
 
-La projection reste une fondation expérimentale non raccordée au parcours
-visible après le retour arrière du 30/08/2026 : la route `/seances` rend encore
-le Bureau/Cahier restauré. `?vue=cahier`, `?jour=`, `?session=` et
+La projection alimente `seances-du-jour` pour le bloc « Aujourd'hui ». Son
+ancienne interface expérimentale, débranchée le 30/08, a été supprimée le
+18/09/2026 avec ses commandes. La route `/seances` garde le Bureau/Cahier.
+`?vue=cahier`, `?jour=`, `?session=` et
 `?vue=bureau` conservent donc leurs lectures et liens profonds existants. Le
 compositeur et les actions de la chronologie « À venir » ne sont pas réactivés
 par cette itération. Les actions de démarrage et de reprise utilisées par le
@@ -508,36 +488,15 @@ global. Une date invalide est refusée ; aucune durée observée, intervention o
 mesure n'est fabriquée. Après actualisation, la projection du jour relit la
 séance si son jour civil local convient.
 
-### Acceptation et matérialisation v0 (lot 3)
+### Acceptation globale retirée (18/09/2026)
 
-`lib/domain/acceptation-plan.ts` est la frontière pure qui relit une proposition
-affichée et un choix explicite. Elle refuse les candidates inconnues, les
-créneaux incohérents ou hors disponibilité, les compétences/domaines absents,
-les échéances fermées et les séances déjà `en-cours` ou terminées. Elle projette
-uniquement les candidates acceptées en `LearningSession` planifiées ; une durée
-annoncée reste dans l'intervention comme estimation et, après le lot 5, peut
-être recopiée comme `dureePlanifieeMin`, fait de créneau distinct de `dureeMin`,
-qui reste une durée réellement observée.
-
-`lib/store/plan-actions.ts` revalide le compte et les faits courants puis appelle
-une seule RPC transactionnelle. La migration additive
-`20260828120000_lot_3_acceptation_plan.sql` ajoute la provenance compacte de la
-séance et un reçu d'idempotence par compte. La vérification Supabase du
-28/08/2026 confirme que `sessions.interventions`,
-`sessions.origine_proposition`, `orchestration_command_receipts` et la RPC
-`accepter_plan(text,jsonb)` sont présents dans la base réelle, avec RLS actif
-sur `sessions`, `engagements` et `orchestration_command_receipts`. En revanche
-les versions locales `20260828110000_interventions_seance.sql`,
-`20260828120000_lot_3_acceptation_plan.sql` et
-`20260828150000_lot_5_revision_plan.sql` sont absentes de l'historique distant
-retourné par Supabase : aucun fichier n'est rejoué et leur réconciliation
-relève du workflow d'infrastructure approuvé. Le reçu ne conserve ni
-`PlanPropose`, ni `readiness`, ni observations. Les annulations sont des faits
-archivables (`abandonnee`) et les déplacements ne touchent aucune observation.
-En v0, un déplacement n'est accepté que si la durée déjà déclarée de la séance
-et une fenêtre de disponibilité couvrante sont relisibles : c'est une
-hypothèse de sûreté transactionnelle, pas une vérité pédagogique ni un nouveau
-seuil de calibration.
+La frontière pure `acceptation-plan.ts` et les Server Actions de
+`plan-actions.ts` ont été supprimées sur accord de Maxime : leurs seuls
+consommateurs appartenaient à l'interface expérimentale débranchée.
+Les chemins actifs de création, programmation ponctuelle et protocole de
+cours restent inchangés. Les données de provenance, reçus, RPC et migrations
+SQL ne sont pas supprimés ; leurs tests historiques restent exécutés.
+L'ADR-139 conserve les constats distants et limites de cette ancienne tranche.
 
 ### Ordre de décision v0
 

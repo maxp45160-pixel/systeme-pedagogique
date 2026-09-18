@@ -6,10 +6,8 @@ import {
   actionCandidateDepuisRecommandation,
   type ActionCandidate,
 } from "./action-candidate";
-import { actionCandidatesDepuisRecommandations } from "./plan-candidates";
 import {
   planifierTemps,
-  referenceStableProposition,
   type PlanificateurTemporelInput,
 } from "./planification-temporelle";
 import type { Recommandation } from "./recommend";
@@ -121,21 +119,9 @@ describe("planifierTemps — v0 pur et déterministe", () => {
     expect(planifierTemps(entree)).toEqual(planifierTemps(entree));
   });
 
-  it("conserve la référence d'une proposition et la change avec une entrée matérielle", () => {
+  it("écarte la référence refusée et permet une proposition distincte", () => {
     const entree = input();
-    const identique = { ...entree, candidates: [...entree.candidates] };
-    const modifiee = {
-      ...entree,
-      availability: [{ ...entree.availability[0], sourceRef: "agenda:soir" }],
-    };
-
-    expect(referenceStableProposition(entree)).toBe(referenceStableProposition(identique));
-    expect(referenceStableProposition(entree)).not.toBe(referenceStableProposition(modifiee));
-  });
-
-  it("écarte une proposition refusée jusqu'à la modification de ses entrées", () => {
-    const entree = input();
-    const propositionRef = referenceStableProposition(entree);
+    const propositionRef = "plan-refuse";
     const refus = [{
       propositionRef,
       observedAt: NOW,
@@ -150,7 +136,7 @@ describe("planifierTemps — v0 pur et déterministe", () => {
       ...entree,
       availability: [{ ...entree.availability[0], sourceRef: "agenda:soir" }],
     };
-    const nouvelleRef = referenceStableProposition(entreeModifiee);
+    const nouvelleRef = "plan-distinct";
     const reproposee = planifierTemps({
       ...entreeModifiee,
       propositionRef: nouvelleRef,
@@ -381,34 +367,5 @@ describe("adaptation des recommandations historiques", () => {
     } as unknown as Recommandation;
 
     expect(actionCandidateDepuisRecommandation(recommandation)?.intervention).toBe("diagnose");
-  });
-
-  it("ne repropose pas une candidate déjà acceptée et active", () => {
-    const recommandation = {
-      etat: { skill: { code: "DEV-01" } },
-      valeur: 1,
-      facteurs: [],
-      raison: "à travailler",
-      exercice: { id: "ex-1", titre: "Résoudre", competences: ["DEV-01"], dureeEstimeeMin: 30 },
-      difficulteCible: 2,
-      dureeEstimeeMin: 30,
-      calibration: null,
-    } as unknown as Recommandation;
-
-    expect(actionCandidatesDepuisRecommandations([recommandation], [session({
-      origineProposition: {
-        propositionRef: "plan-1",
-        candidateId: "legacy-exercise:ex-1",
-        source: "legacy-exercise",
-      },
-    })])).toEqual([]);
-    expect(actionCandidatesDepuisRecommandations([recommandation], [session({
-      statut: "terminee",
-      origineProposition: {
-        propositionRef: "plan-1",
-        candidateId: "legacy-exercise:ex-1",
-        source: "legacy-exercise",
-      },
-    })])).toHaveLength(1);
   });
 });

@@ -75,6 +75,19 @@ describe("organisation V2 strictement proposée",()=>{
   };
   const referentiel={domaines:[{id:"philo",nom:"Philosophie"}],competences:[{code:"PHI-01",intitule:"Analyser un argument philosophique"}]};
 
+  it("accepte un domaine d'organisation sourcé sans fabriquer de compétence",()=>{
+    const note="Documents de contexte en géologie";
+    const sources=[{pieceId:null,page:null,citation:note}];
+    const domaine={mode:"nouveau",nom:"Géologie",description:"Contexte documentaire",justification:"Le sujet est déclaré.",sources};
+    const proposition={organisation:{...base,domaine,competences:[],sources}};
+    expect(validerOrganisationDepot(proposition,"doc",note,[],referentiel)).toMatchObject({domaine:{...domaine,sources:[{documentId:"doc",citation:note}]},competences:[]});
+    expect(()=>validerOrganisationDepot({organisation:{...proposition.organisation,domaine:{...domaine,sources:[{...sources[0],citation:"source absente"}]}}},"doc",note,[],referentiel)).toThrow("citation");
+  });
+  it("refuse encore une compétence qui invente un autre domaine nouveau",()=>{
+    const domaine={mode:"nouveau",nom:"Argumentation",description:"Discussion",justification:"Sujet explicite",sources:[preuve]};
+    const competence={mode:"nouvelle",verbeAction:"analyser",objet:"un argument",palier:"fondamentaux",importance:0.5,domaine:{mode:"nouveau",nom:"Autre domaine"},justification:"Geste demandé",sources:[preuve]};
+    expect(()=>validerOrganisationDepot({organisation:{...base,domaine,competences:[competence]}},"doc",preuve.citation,[],referentiel)).toThrow("nouveau domaine principal");
+  });
   it("accepte uniquement les identifiants et codes fournis par le serveur",()=>{
     const resultat=validerOrganisationDepot({organisation:base},"doc","Analyser un argument philosophique",[],referentiel);
     expect(resultat.competences[0]).toMatchObject({mode:"existante",code:"PHI-01"});
