@@ -27,7 +27,7 @@ import {
   ligneCompetenceSeance,
   ligneExerciceSeance,
 } from "@/lib/documents/journal-seance";
-import { erreurFichierPiece, estMimePieceJointe, MIME_PDF } from "@/lib/documents/pieces-jointes";
+import { erreurFichierPiece, MIME_PDF } from "@/lib/documents/pieces-jointes";
 import { televerserFichier } from "@/lib/documents/televersement-fichier";
 import { composerSujetLecture } from "@/lib/documents/extraction-pdf";
 import { composerSujetFiche } from "@/lib/documents/matiere-fiche";
@@ -754,7 +754,7 @@ export function WorkspaceDocument({
                 {pieces.length > 0 && (
                   <ul className="mt-3 space-y-2">
                     {pieces.map((piece) => {
-                      const estImage = estMimePieceJointe(piece.mimeType) && piece.mimeType !== "application/pdf";
+                      const estImage = piece.mimeType.startsWith("image/");
                       return (
                         <li key={piece.id} className="flex items-center gap-2">
                           {estImage && piece.url ? (

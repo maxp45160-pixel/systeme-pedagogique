@@ -9,6 +9,13 @@ import {
 } from "./pieces-jointes";
 
 describe("pièces jointes documentaires", () => {
+  it("accepte un EPUB dans les mêmes limites que les autres originaux", () => {
+    expect(estMimePieceJointe("application/epub+zip")).toBe(true);
+    expect(mimeDepuisNomFichier("Livre.EPUB")).toBe("application/epub+zip");
+    expect(extensionPourMime("application/epub+zip")).toBe(".epub");
+    expect(erreurFichierPiece({ name:"livre.epub", type:"", size:MAX_PIECE_OCTETS })).toBeNull();
+    expect(erreurFichierPiece({ name:"livre.epub", type:"application/epub+zip", size:MAX_PIECE_OCTETS + 1 })).toMatch(/10 Mo/);
+  });
   it("n'accepte que les types MIME du contrat", () => {
     expect(estMimePieceJointe("application/pdf")).toBe(true);
     expect(estMimePieceJointe("image/jpeg")).toBe(true);
@@ -47,7 +54,7 @@ describe("pièces jointes documentaires", () => {
   it("refuse les formats hors contrat et les tailles impossibles", () => {
     expect(
       erreurFichierPiece({ name: "virus.exe", type: "application/x-msdownload", size: 100 }),
-    ).toMatch(/PDF et les images/);
+    ).toMatch(/PDF, EPUB et les images/);
     expect(erreurFichierPiece({ name: "vide.png", type: "image/png", size: 0 })).toMatch(/1 octet et 10 Mo/);
     expect(
       erreurFichierPiece({ name: "lourd.pdf", type: "application/pdf", size: MAX_PIECE_OCTETS + 1 }),

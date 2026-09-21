@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourcesRestitution, traduireSourcesRestitution } from "./sources-restitution";
-import { validerElementsDepot } from "./depot-validation";
+import { validerElementsDepot, validerPagesDepot, validerCouverturesDepot } from "./depot-validation";
 
 const phrase = "La base en vidéos : cours et exercices";
 const formule = String.raw`- Simplifier: pour \( b \) et \( c \) non nuls, \( \frac{a \times c}{b \times c} = \frac{a}{b} \)`;
@@ -13,6 +13,18 @@ const pages = [
 const element = (source: unknown) => ({ elements: [{ nature: "sujet", texte: "Calcul", sources: [source] }] });
 
 describe("passages de restitution", () => {
+  it("conserve le repère EPUB issu de l'extraction jusqu'à la citation validée", () => {
+    const section = { chemin:"Livre/chapitre.xhtml", titre:"Chapitre réel", limites:["Illustration non analysée."] };
+    const extraits = [{ pieceId:"livre", page:1, texte:"Une phrase sourcée.", incertain:true, section }];
+    expect(validerPagesDepot(extraits)).toEqual(extraits);
+    const couverture = { pieceId:"livre", nom:"Livre.epub", totalPages:2, pagesLues:[1], unite:"section" };
+    expect(validerCouverturesDepot([couverture])).toEqual([couverture]);
+    const brut = traduireSourcesRestitution(element({ passageId:"passage-0" }), "", extraits);
+    expect(validerElementsDepot(brut, "doc", "", extraits, "id")[0].sources[0]).toEqual({ documentId:"doc", pieceId:"livre", page:1, citation:"Une phrase sourcée.", section });
+    const faux = element({ pieceId:"livre", page:1, citation:"Une phrase sourcée.", section:{...section, chemin:"autre.xhtml"} });
+    expect(() => validerElementsDepot(faux, "doc", "", extraits, "id")).toThrow(/section citée/);
+    expect(() => validerPagesDepot([{...extraits[0], section:{...section, chemin:"../autre.xhtml"}}])).toThrow(/section EPUB/);
+  });
   it("extrait la formule ATS exactement, sans demander de recopie au modèle", () => {
     const catalogue = sourcesRestitution("", pages);
     const passage = catalogue.sources[1].passages.find((p) => p.texte === formule)!;

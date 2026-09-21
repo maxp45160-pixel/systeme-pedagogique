@@ -4,6 +4,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { analysePourClassement, validerChoixClassementRessources, type ChoixClassementRessource } from "@/lib/documents/classement-ressources";
 import type { DepotDocumentaire, CompetenceProposeeDepot } from "@/lib/documents/depot";
+import { appliquerCorrectionsClassement } from "@/lib/documents/corrections-classement";
+import { lireConfirmationClassement as lireConfirmation, type ConfirmationClassement as Confirmation } from "@/lib/documents/confirmation-classement";
 import { appliquerRangementDepot, type ContexteOrganisationDepot } from "@/lib/documents/organisation-depot";
 import { definirChampsFrontMatter } from "@/lib/documents/markdown";
 import { validerRangementActif } from "@/lib/documents/validation-rangement";
@@ -18,23 +20,13 @@ import { creerBranche, deplacerDomaine, taguerCompetences } from "./referentiel-
 import { verifier } from "./supabase-backend";
 
 type NouvelleCompetence = Extract<CompetenceProposeeDepot, { mode: "nouvelle" }>;
-interface Confirmation {
-  cle: string;
-  base: string;
-  analyseId: string;
-  terminee: boolean;
-  tentativeId?: string;
-  domaineId?: string;
-  codes?: string[];
-  choixPrealable?: string;
-}
 export interface ResultatClassementRessource {
   documentId: string;
   statut: "confirmee" | "echec";
   ressource?: DepotDocumentaire;
   erreur?: string;
 }
-const normalise = (s: string) => s.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+const normalise = (s: string) => s.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
 const empreinte = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const baseRessource = (d: DepotDocumentaire) => empreinte([d.titre, d.type, d.domaineId ?? "", [...d.competencesLiees].sort()]);
 // La version change à chaque étape de la confirmation. Cette empreinte permet
@@ -87,13 +79,6 @@ async function creerDomaineConfirme(choix: ChoixClassementRessource, cle: string
   revalidatePath("/", "layout");
   return commande.domaine.id;
 }
-function lireConfirmation(v: unknown): Confirmation | null {
-  if (typeof v !== "string" || v.length > 10000) return null;
-  try {
-    const c = JSON.parse(Buffer.from(v, "base64url").toString("utf8"));
-    return c && typeof c.cle === "string" && /^[a-f0-9]{64}$/.test(c.cle) && typeof c.base === "string" && /^[a-f0-9]{64}$/.test(c.base) && typeof c.analyseId === "string" && typeof c.terminee === "boolean" && (c.choixPrealable === undefined || (typeof c.choixPrealable === "string" && /^[a-f0-9]{64}$/.test(c.choixPrealable))) && (c.domaineId === undefined || typeof c.domaineId === "string") && (c.codes === undefined || (Array.isArray(c.codes) && c.codes.every((code: unknown) => typeof code === "string"))) ? c : null;
-  } catch { return null; }
-}
 
 /** Inclut les ressources historiques V1 : leur analyse reste classable sans OCR neuf. */
 export async function lireClassementRessourcesAction(documentIds: string[]): Promise<{ ressources: DepotDocumentaire[]; referentiel: ContexteOrganisationDepot }> {
@@ -112,11 +97,14 @@ export async function lireClassementRessourcesAction(documentIds: string[]): Pro
 
 function propositionsSelectionnees(depot: DepotDocumentaire, choix: ChoixClassementRessource): NouvelleCompetence[] {
   const restitution = analysePourClassement(depot, choix.analyseId).restitution!;
-  return choix.propositions.map((i) => {
-    const p = restitution.version === 2 ? restitution.organisation.competences[i] : undefined;
+  const corrigees = appliquerCorrectionsClassement(restitution.version === 2 ? restitution.organisation.competences : [], choix.corrections);
+  const selection = choix.propositions.map((i) => {
+    const p = corrigees[i];
     if (!p || p.mode !== "nouvelle") throw new Error("Une compétence choisie n'est pas une proposition nouvelle de cette analyse.");
     return p;
   });
+  if (new Set(selection.map((p) => normalise(p.intitule))).size !== selection.length) throw new Error("Plusieurs compétences sélectionnées ont le même intitulé. Gardez une seule proposition.");
+  return selection;
 }
 
 function verifierReferentiel(choix: ChoixClassementRessource, propositions: NouvelleCompetence[], r: Referentiel, domaineRepris?: string) {
@@ -176,7 +164,7 @@ function prefixeDisponible(nom: string, r: Referentiel) {
 
 async function confirmerUneRessource(choix: ChoixClassementRessource, domaineCreeDansLot?: string): Promise<DepotDocumentaire> {
   const charge = await chargerChoix(choix, domaineCreeDansLot);
-  let confirmation: Confirmation = charge.confirmation ?? { cle: charge.cle, base: baseRessource(charge.depot), choixPrealable: empreinteChoix(charge.document.frontmatter), analyseId: choix.analyseId, terminee: false, ...(domaineCreeDansLot ? { domaineId: domaineCreeDansLot } : {}) };
+  let confirmation: Confirmation = charge.confirmation ?? { cle: charge.cle, base: baseRessource(charge.depot), choixPrealable: empreinteChoix(charge.document.frontmatter), analyseId: choix.analyseId, terminee: false, ...(choix.corrections?.length ? { corrections: choix.corrections } : {}), ...(domaineCreeDansLot ? { domaineId: domaineCreeDansLot } : {}) };
   if (confirmation.terminee) {
     if (charge.depot.domaineId !== confirmation.domaineId || empreinte([...charge.depot.competencesLiees].sort()) !== empreinte(confirmation.codes ?? [])) throw new Error("Le classement a été corrigé depuis cette confirmation. Actualisez la ressource.");
     await resynchroniserLiensDocument(choix.documentId);

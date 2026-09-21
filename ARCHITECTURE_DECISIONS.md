@@ -12587,6 +12587,46 @@ Cette correction ne valide ni recherche dans le contenu intégral, ni organisati
 notionnelle, ni toute l'exigence P01-07. Autorité, critères et périmètre dans
 [le mandat](ai-company/operations/runs/2026-09-16-p01-retrouver-mandat.md).
 
+### Réalisation locale du 18/09/2026 — P01-0010, qualité générique et correction ciblée
+
+**Autorité :** après recadrage « le livret ATS c un test [...] Faut traiter le
+générique », Maxime approuve par « parfait, fais ça » la recette multi-documents,
+les corrections de causes communes et la correction ciblée. Ce mandat de
+réalisation ne valide ni une performance fournisseur ni toute l'exigence P01-06.
+
+Les consignes de pertinence sont partagées entre Mistral et Qwen ; le schéma
+strict reste propre au fournisseur qui le supporte. Une nouvelle réponse qui
+répète un code ou un intitulé identique après normalisation est refusée, jamais
+dédupliquée silencieusement. Le lecteur historique conserve ces répétitions et
+leurs indices, avec les autres validations inchangées. La version du contrat de
+qualité entre dans les devis V2 des deux fournisseurs ; un devis périmé est
+refusé avant réservation, une réussite historique reste consultable sans appel.
+
+La personne peut corriger le geste, l'objet et la précision d'une proposition
+nouvelle avant création. Elle ne modifie ni citation, ni code, ni palier, ni
+importance via ce geste. Le brouillon existant `classement_brouillon` conserve
+ces déclarations par analyse et indice, y compris temporairement décochées,
+avec le domaine et les autres sélections. La validation partagée s'applique
+côté serveur, avant effets ; la confirmation n'applique que les propositions
+sélectionnées. L'empreinte de confirmation comprend les corrections et son reçu
+en garde la trace après effacement du brouillon. Une correction d'une autre
+analyse ne se réapplique pas à un nouvel indice. L'analyse et ses sources ne
+sont pas réécrites ; aucun nouvel objet persistant ni migration n'est nécessaire.
+
+Cela complète la création depuis les propositions sélectionnées décrite plus
+haut : l'intitulé peut désormais provenir de leur correction humaine explicite.
+Les garanties de version, de reprise et les limites de transaction par ressource
+restent applicables. Un domaine d'organisation d'usage indéterminé est aussi
+accepté dans ce brouillon, conformément à P01-0002, sans usage académique inféré.
+
+Les fixtures de recette sont synthétiques et ne simulent pas une preuve de
+qualité du fournisseur. Elles exposent notamment les domaines inadéquats,
+gestes non étayés et recouvrements que la validation technique seule ne sait pas
+rejeter. Pas de filtre sémantique présenté comme infaillible, de second appel
+LLM automatique, de nouvelle mesure ou de validation humaine générale.
+Résultats, limites et conditions d'une évaluation réelle dans le
+[rapport P01-0010](ai-company/operations/runs/2026-09-18-qualite-documentaire.md).
+
 ## Comment modifier ce registre
 
 
@@ -12597,3 +12637,18 @@ notionnelle, ni toute l'exigence P01-07. Autorité, critères et périmètre dan
 3. Une ❓ question ouverte doit nommer **qui doit trancher** et **ce qui bloque**.
 4. Aucune analyse produite par une session Claude ne devient ✅ sans validation
    humaine explicite.
+
+
+### Accord et réalisation locale du 19/09/2026 — P01-0011, classification et contexte
+
+Maxime autorise le jalon multi-format et le dialogue contenu/contexte, ainsi que fflate et fast-xml-parser. Les deux critères de compétences sont strictement moins de 5 % de propositions incorrectes/injustifiées et moins de 5 % de compétences attendues manquées. Ce sont des exigences de recette, sans performance fournisseur démontrée. [Mandat et preuve](ai-company/operations/runs/2026-09-19-classification-dialogue.md).
+
+Les EPUB utilisent la pièce jointe existante et conservent leur original. La décompression bornée lit le container, le manifeste et le spine ; les chemins de sections restent des repères de sections, jamais des pages PDF. Le traitement est textuel : illustrations, formules non textuelles, contenus illisibles ou hors borne ne sont pas réputés compris. Le cache reste lié aux octets originaux ; aucune étape OCR payante pour EPUB, la restitution garde envTuteur et le consentement documentaire. Les PDF/images/manuscrits conservent leur pipeline OCR. La migration `20260918221339_autoriser_epub_documentaire.sql` est préparée, NON APPLIQUÉE ; contrainte MIME et bucket distants relus le 19/09, sans modification RLS, droits ou plafond de taille.
+
+La restitution peut proposer pour un nouveau domaine un parent issu de l’enum des domaines actifs ; le sous-domaine proposé reste soumis au contrôle ciblé avant création. L’ancienne absence de parent reste lisible. Une suggestion ne réintroduit pas un parent que la personne avait écarté.
+
+« En discuter » prépare des extraits visibles à relire avant envoi. Les fils documentaires sont isolés par compte et ressource dans la session navigateur et ne sont pas réinjectés au retour au chat général. Les déclarations personnelles exactes et datées se conservent dans le frontmatter existant, sous les contrôles de compte/version et de reprise. Aucun état dérivé « compris », niveau ou plan n’est stocké. La création directe de compétences par l’ancien dialogue est retirée : la fenêtre de classement canonique conserve les corrections humaines. « Organiser ce texte » permet de confier explicitement une pensée comme ressource avec le même consentement ; une conversation ordinaire ne crée pas automatiquement une ressource.
+
+L’évaluateur offline consomme des références et jugements humains : il sépare erreurs et omissions, formats et fonctions, et rend UNKNOWN sans preuves suffisantes. Le gabarit synthétique n’est jamais une validation humaine. L’extraction reste bornée par tranche et par réponse ; aucune couverture de pages n’atteste l’exhaustivité des compétences.
+
+« Lire la suite » expose le fournisseur, les unités exactes et le plafond de coût de la tranche suivante ; aucun enchaînement payant automatique. Le classement V2 courant doit être confirmé par la personne avant une nouvelle tranche, sans brouillon en attente. Les réessais d'échec de la même tranche restent possibles sur geste explicite. L'historique reste consultable. La borne de 30 propositions par analyse demeure ; les liens acceptés sur plusieurs lectures peuvent s'accumuler jusqu'à 1 000 par ressource. Cette borne technique et l'absence de pagination sémantique dans une tranche ne permettent pas d'affirmer « toutes les compétences » sans recette humaine.

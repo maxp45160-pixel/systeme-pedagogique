@@ -1119,3 +1119,14 @@ une étape préalable de classification ; son succès ne prouve pas que toute la
 mission longitudinale est remplie. Prochaine tâche : préciser « classification
 qui marche bien » en comportements et critères vérifiables dans P-01. Aucune
 validation de qualité réelle ni de seuil chiffré n'est donnée par cet arbitrage.
+
+
+## Arbitrage humain — qualité de classification et dialogue, 19/09/2026
+
+Maxime fixe le jalon : PDF, EPUB, images, notes manuscrites et formulations libres ; sujet précis et domaine, compétences présentes dans la ressource, rattachement et proposition de place du domaine nouveau dans la hiérarchie existante. Les prérequis restent facultatifs. Le dialogue doit clarifier le contenu puis son rôle dans la vie et le travail de la personne.
+
+Il confirme la proposition de distinguer strictement moins de 5 % de propositions de compétences incorrectes/injustifiées ET moins de 5 % de compétences attendues oubliées, puis autorise : « oui, si tout est clair vous pouvez commencer à implémenter tout ça ! ». La source humaine est la tâche CODIR 01a0b679-7255-7cc0-b202-cebf024db4e6. Il autorise ensuite explicitement les bibliothèques locales fflate et fast-xml-parser.
+
+Les compétences restent des capacités décrites ou demandées par la ressource, jamais une mesure de maîtrise personnelle. Une ressource peut ne contenir aucune compétence identifiable. L’analyse signale sa couverture et ses limites ; le contexte personnel provient des mots de la personne. Une question doit réduire une ambiguïté importante ; la personne peut laisser un point ouvert. Aucune programmation de séances ne découle du seul contexte.
+
+Le seuil est un critère accepté, pas un résultat acquis. La recette se juge sur références humaines et support entier, avec résultats distincts par format ; propositions et omissions sont évaluées avant correction manuelle, avec effort de clarification visible. P01-0011 porte la réalisation locale et ses limites dans le rapport du 19/09.

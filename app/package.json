@@ -19,6 +19,8 @@
     "@supabase/supabase-js": "^2.110.8",
     "@types/d3-force": "^3.0.10",
     "d3-force": "^3.0.0",
+    "fast-xml-parser": "5.11.1",
+    "fflate": "0.8.3",
     "katex": "^0.18.4",
     "next": "16.3.0",
     "react": "19.2.4",

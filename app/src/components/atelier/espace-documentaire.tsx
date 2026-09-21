@@ -2081,7 +2081,7 @@ export function EspaceDocumentaire({
                     ) : piecesJointes.length > 0 ? (
                       <ul className="mt-2.5 space-y-1.5">
                         {piecesJointes.map((piece) => {
-                          const estImage = estMimePieceJointe(piece.mimeType) && piece.mimeType !== "application/pdf";
+                          const estImage = piece.mimeType.startsWith("image/");
                           return (
                             <li key={piece.id} className="flex items-center gap-2 rounded-md border border-bordure bg-surface-2/40 px-2.5 py-2 text-xs">
                               {estImage && piece.url ? (

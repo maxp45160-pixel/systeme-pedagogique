@@ -1,10 +1,12 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const m = vi.hoisted(() => ({ lire: vi.fn(), rattacher: vi.fn() }));
 vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDelegueAction: m.rattacher }));
 vi.mock("@/lib/store/ressource-assistant-actions", () => ({ lireRessourceAssistantAction: m.lire, identifierRessourcesAssistantAction: vi.fn() }));
 vi.mock("./modale-ressources", () => ({ ActionsRelectureRessources: () => null, RelectureRessources: () => null }));
-import { autorisationCorrespond, preparerLigne, preparationsChargees, selectionAnalyseAutomatique, rattacherApresPremiereLecture } from "./ressources-conversation";
+import { autorisationCorrespond, preparerLigne, preparationsChargees, selectionAnalyseAutomatique, rattacherApresPremiereLecture, etatLectureSuivante, selectionReprise, descriptionLecture, syntheseAReprendre, SectionsNonAnalysees } from "./ressources-conversation";
 
 it("rattache après la première lecture seulement, jamais en réouvrant ou en reprenant une analyse historique", async () => {
   type Ligne = Parameters<typeof rattacherApresPremiereLecture>[0];
@@ -154,4 +156,67 @@ it("prépare la reprise de synthèse échouée à partir du dernier résultat co
   expect(fetch.mock.calls[0][0]).toContain("syntheseDe=ancien-resultat");
   expect(ligne.selectionnee).toBe(true);
   expect(selectionAnalyseAutomatique([ligne])).toEqual([]);
+});
+
+function ligneSuivante() {
+  return { id: "livret", selectionnee: true, ressource: { depot: {
+    titre: "Livret", analyses: [{ id: "premiere", statut: "terminee", creeLe: "2026-09-19", restitution: { version: 2 } }],
+    rangementAnalyseId: "premiere", rangementOrigine: "personne",
+  } }, preparation: { disponible: true, analyseExistante: null, pagesRestantes: 0, coutMaximumMicroEuros: 123456,
+    tranches: [{ pieceId: "p", nom: "Livret.pdf", totalPages: 22, pages: [21, 22] }],
+  } } as unknown as Parameters<typeof etatLectureSuivante>[0];
+}
+
+it("la suite exige un choix humain confirmé et ne rejoint ni lancement automatique ni reprise", () => {
+  const ligne = ligneSuivante();
+  expect(etatLectureSuivante(ligne)).toBe("disponible"); // pagesRestantes=0 : deux pages sont encore préparées.
+  expect(selectionAnalyseAutomatique([ligne])).toEqual([]);
+  expect(selectionReprise([ligne])).toEqual([]);
+  for (const modification of [{ rangementOrigine: "assistant" }, { rangementAnalyseId: "autre" }, { brouillonClassement: { analyseId: "premiere" } }]) {
+    const changee = { ...ligne, ressource: { ...ligne.ressource!, depot: { ...ligne.ressource!.depot, ...modification } } } as typeof ligne;
+    expect(etatLectureSuivante(changee)).toBe("a-confirmer");
+  }
+});
+
+it("n'offre jamais comme suite une réussite existante, synthèse ou tranche vide", () => {
+  const ligne = ligneSuivante();
+  for (const modification of [{ analyseExistante: { statut: "terminee" } }, { syntheseDe: "premiere" }, { tranches: [] }]) {
+    expect(etatLectureSuivante({ ...ligne, preparation: { ...ligne.preparation!, ...modification } } as typeof ligne)).toBe("absente");
+  }
+  expect(etatLectureSuivante({ ...ligne, preparation: { ...ligne.preparation!, disponible: false } })).toBe("indisponible");
+  expect(etatLectureSuivante({ ...ligne, preparation: { ...ligne.preparation!, coutMaximumMicroEuros: NaN } })).toBe("indisponible");
+});
+
+it("présente les pages ou sections exactes, le fournisseur et le plafond sans arrondi minorant", () => {
+  const preparation = ligneSuivante().preparation!;
+  expect(descriptionLecture(preparation)).toBe("Mistral · Livret.pdf : pages 21, 22 · au maximum 0.123456 €.");
+  expect(descriptionLecture({ ...preparation, fournisseur: "qwen", coutMaximumMicroDollars: 123457,
+    tranches: [{ ...preparation.tranches[0], nom: "Livre.epub", unite: "section" }],
+  })).toBe("Qwen · Livre.epub : sections 21, 22 · au maximum 0.123457 $.");
+});
+
+it("après échec de la tranche suivante, reprend les pages manquantes et jamais la synthèse précédente", () => {
+  const ligne = ligneSuivante();
+  ligne.ressource!.depot.analyses[0].couvertures = [{ pieceId: "p", nom: "Livret.pdf", totalPages: 22, pagesLues: Array.from({ length: 20 }, (_, i) => i + 1) }];
+  ligne.ressource!.depot.analyses.push({ ...ligne.ressource!.depot.analyses[0], id: "suivante", creeLe: "2026-09-20", statut: "echec", restitution: null });
+  expect(syntheseAReprendre(ligne.ressource!)).toBeUndefined();
+  expect(etatLectureSuivante(ligne)).toBe("absente");
+  expect(selectionReprise([ligne])).toEqual([ligne]);
+});
+
+it("annonce les sections sans texte avant la lecture et les conserve visibles après épuisement", () => {
+  const preparation = { ...ligneSuivante().preparation!, sectionsNonAnalysees: [{ pieceId: "p", nom: "Livre.epub", sections: [
+    { chemin: "OPS/planches/figure.xhtml", titre: "Planche des vecteurs", limites: ["Illustration non analysée."] },
+  ] }] };
+  const avant = renderToStaticMarkup(createElement(SectionsNonAnalysees, { preparation }));
+  const apres = renderToStaticMarkup(createElement(SectionsNonAnalysees, { preparation: { ...preparation, disponible: false, tranches: [], pagesRestantes: 0 } }));
+  expect(apres).toBe(avant);
+  for (const texte of ["Sections non analysées", "Livre.epub", "Planche des vecteurs", "OPS/planches/figure.xhtml", "Illustration non analysée.", "n’ont pas été analysés"]) expect(apres).toContain(texte);
+  expect(apres).not.toContain("<button");
+  expect(descriptionLecture(preparation)).toContain("1 section(s) sans texte restent non analysées");
+  expect(preparation.tranches[0].pages).toEqual([21, 22]);
+});
+
+it("n'affiche aucune exclusion fictive quand toutes les sections ont du texte", () => {
+  expect(renderToStaticMarkup(createElement(SectionsNonAnalysees, { preparation: ligneSuivante().preparation! }))).toBe("");
 });

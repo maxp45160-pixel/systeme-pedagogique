@@ -54,6 +54,8 @@ const LIBELLE_OUTIL: Record<string, string> = {
 
 import { ChatInput } from "./chat-input";
 import { RessourcesConversation } from "./ressources-conversation";
+import type { DepotDocumentaire } from "@/lib/documents/depot";
+import { composerDialogueDocumentaire } from "@/lib/documents/dialogue-documentaire";
 import type { AutorisationAnalyseDepot } from "@/lib/documents/conversation-ressources";
 import { lireRessourceAssistantAction } from "@/lib/store/ressource-assistant-actions";
 import { MessageBulle, type Message } from "./message-bulle";
@@ -204,11 +206,20 @@ function ChatHydrate({
   };
 
   /** Un fil par exercice, un fil général hors exercice — voir la fonction. */
-  const cleConversation = modeAccueil ? cleParCompte("conversation-accueil", compteId) : cleConversationTuteur(compteId, exerciceCible);
+  const cleConversationGenerale = modeAccueil ? cleParCompte("conversation-accueil", compteId) : cleConversationTuteur(compteId, exerciceCible);
   const cleEnvoi = cleParCompte("accueil-envoi", compteId);
   const router = useRouter();
   const [envoiEnAttente, setEnvoiEnAttente] = useState<{ tourId: string; messages: Message[]; ressource?: { id: string; version: string; titre: string } } | null>(() => modeAccueil ? lireSession(cleEnvoi) : null);
   const [ressourceCible, setRessourceCible] = useState<{ id: string; version: string; titre: string } | null>(() => envoiEnAttente?.ressource ?? null);
+  const cleDialogue = (id: string) => cleParCompte(`conversation-ressource:${id}`, compteId);
+  const cleConversation = ressourceCible ? cleDialogue(ressourceCible.id) : cleConversationGenerale;
+  const [amorceDocumentaire, setAmorceDocumentaire] = useState("");
+  const [depotEnCours, setDepotEnCours] = useState(false);
+  const verrouDepot = useRef(false);
+  const signalerEtatDepot = useCallback((occupe: boolean) => {
+    verrouDepot.current = occupe;
+    setDepotEnCours(occupe);
+  }, []);
   const [revisionRessources, setRevisionRessources] = useState(0);
   const actualiserRessourceCible = useCallback(async (id: string) => {
     try {
@@ -254,6 +265,18 @@ function ChatHydrate({
   const [enCours, setEnCours] = useState(false);
   const [avis, setAvis] = useState<{ ton: "info" | "alerte" | "danger"; texte: string } | null>(null);
   const [usage, setUsage] = useState<string | null>(null);
+  function changerConversationDocumentaire(cible: DepotDocumentaire | null) {
+    if (enCours || envoiEnAttente || verrouDepot.current) return;
+    ecrireSession(cleConversation, messages);
+    const cle = cible ? cleDialogue(cible.id) : cleConversationGenerale;
+    const historique = lireSession<Message[]>(cle)?.slice(-MAX_MESSAGES_FENETRE) ?? [];
+    setMessages(historique);
+    messagesRef.current = historique;
+    setRessourceCible(cible ? { id: cible.id, version: cible.modifieLe, titre: cible.titre } : null);
+    setAmorceDocumentaire(cible && !historique.length ? composerDialogueDocumentaire(cible) : "");
+    setRelectureOuverte(false);
+    setAvis(null);
+  }
   /** Outil que le tuteur est en train de remplir, `null` sinon. */
   const [outilEnCours, setOutilEnCours] = useState<string | null>(null);
   /** Branche en attente de validation — ouvre la modale. */
@@ -737,7 +760,7 @@ function ChatHydrate({
    * repli d'une conversation vide. Le tiroir est remonté à chaque ouverture :
    * le brouillon est donc proposé une fois, sans être envoyé automatiquement.
    */
-  const saisieInitiale =
+  const saisieInitiale = ressourceCible ? amorceDocumentaire :
     amorce ?? (messages.length === 0 && competenceCiblee ? `Explique-moi ${competenceCiblee}.` : "");
 
   const cheminCourant = usePathname();
@@ -822,7 +845,7 @@ function ChatHydrate({
     <div className="space-y-6 [&>*]:min-w-0">
       {modeAccueil && ressourcesInitiales && ressourcesInitiales.length > 0 && <Bouton variante="secondaire" taille="petite" onClick={() => ouvrirRessources(ressourcesInitiales)}>Revoir les ressources ouvertes</Bouton>}
       {modeAccueil && messages.length > 0 && <div className="flex justify-end">
-        <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente)} onClick={() => { setMessages([]); setRessourceCible(null); effacerSession(cleConversation); setAvis(null); }}>Nouvel échange</Bouton>
+        <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente) || depotEnCours} onClick={() => { if (verrouDepot.current) return; setMessages([]); messagesRef.current = []; setAmorceDocumentaire(""); effacerSession(cleConversation); setAvis(null); }}>Nouvel échange</Bouton>
       </div>}
       <div>
         <div className="flex h-[min(70vh,620px)] flex-col rounded-carte border border-bordure-controle bg-surface">
@@ -899,16 +922,18 @@ function ChatHydrate({
           </div>}
           {/* Saisie — composant isolé (Fix 1) */}
           {modeAccueil && ressourceCible && <div className="border-t border-bordure px-4 py-2 text-sm">
-            <p>Votre prochain message concerne « {ressourceCible.titre} ». Décrivez la correction ou les compétences proposées à ajouter. Seuls le classement et les intitulés proposés sont transmis au modèle, pas le document.</p>
-            <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente)} onClick={() => setRessourceCible(null)}>Revenir à la discussion générale</Bouton>
+            <p>Échange sur « {ressourceCible.titre} ». Relisez les extraits avant de les envoyer. Vous pouvez préciser leur sens, votre contexte et votre intention, ou laisser un point ouvert. Cet échange reste séparé de la discussion générale.</p>
+            <Bouton variante="discret" taille="petite" disabled={enCours || Boolean(envoiEnAttente) || depotEnCours} onClick={() => changerConversationDocumentaire(null)}>Revenir à la discussion générale</Bouton>
           </div>}
           <ChatInput
+            key={ressourceCible?.id ?? "general"}
+            onEtatDepot={signalerEtatDepot}
             focusSignal={ressourceCible ? `${ressourceCible.id}:${ressourceCible.version}` : undefined}
             depotBloque={Boolean(envoiEnAttente) || Boolean(ressourceCible)}
             fournisseurDocumentaire={configClient?.fournisseur === "qwen" ? "qwen" : "mistral"}
             onDepotConserve={modeAccueil ? (texte, recu, ressources, autorisation) => {
               setMessages((precedents) => [...precedents,
-                { role: "user", content: texte || "Pièces jointes partagées" },
+                { role: "user", content: texte ? "Texte conservé comme ressource" : "Pièces jointes partagées" },
                 { role: "assistant", content: recu, ressources },
               ]);
               ouvrirRessources(ressources, autorisation);
@@ -933,7 +958,7 @@ function ChatHydrate({
         </div>
       </div>
 
-      {modeAccueil && ressourcesAffichees.length > 0 && <RessourcesConversation compteId={compteId} references={ressourcesAffichees} ouverte={relectureOuverte} onFermer={() => setRelectureOuverte(false)} onRetirerReference={retirerReferenceIndisponible} revision={revisionRessources} autorisationAnalyse={autorisationAnalyse} />}
+      {modeAccueil && ressourcesAffichees.length > 0 && <RessourcesConversation compteId={compteId} references={ressourcesAffichees} ouverte={relectureOuverte} onFermer={() => setRelectureOuverte(false)} onRetirerReference={retirerReferenceIndisponible} revision={revisionRessources} autorisationAnalyse={autorisationAnalyse} onDiscuter={changerConversationDocumentaire} />}
 
       {/*
         Contexte réellement transmis.

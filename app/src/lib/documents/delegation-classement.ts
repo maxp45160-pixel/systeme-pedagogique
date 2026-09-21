@@ -66,6 +66,9 @@ export function evaluerDelegationClassement(
     return { statut: "a-controler", raison: "Le rattachement doit être justifié par des sources de cette ressource." };
   }
   if (propose.mode === "nouveau") {
+    // La proposition de parent est relue avant de créer un sous-domaine :
+    // ne pas perdre cette hiérarchie en créant silencieusement une racine.
+    if (propose.parentId) return { statut: "a-controler", raison: "Un sous-domaine est proposé. Vérifiez son emplacement avant sa création." };
     const nom = propose.nom.trim();
     if (nom.length < 3 || nom.length > 80 || /[\r\n]/.test(nom) || !slugifier(nom)) {
       return { statut: "a-controler", raison: "Le nom du domaine proposé demande votre contrôle." };

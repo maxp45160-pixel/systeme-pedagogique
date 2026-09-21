@@ -36,7 +36,7 @@ function verifierIdentifiantDocument(id: string): string {
 function normaliserNomPiece(nom: string, mimeDeclare: MimePieceJointe): string {
   const dernierSegment = nom.trim().replace(/^.*[\\/]/, "");
   if (!dernierSegment || !mimeDepuisNomFichier(dernierSegment)) {
-    throw new Error("Le nom du fichier doit porter une extension reconnue (.pdf, .jpg, .png ou .webp).");
+    throw new Error("Le nom du fichier doit porter une extension reconnue (.pdf, .epub, .jpg, .png ou .webp).");
   }
   const mimeParExtension = mimeDepuisNomFichier(dernierSegment);
   if (mimeParExtension !== mimeDeclare) {
@@ -51,7 +51,7 @@ function echapperRegExp(valeur: string): string {
 }
 
 function cheminAttendu(userId: string, documentId: string, chemin: string): boolean {
-  const motif = new RegExp(`^${echapperRegExp(userId)}/${echapperRegExp(documentId)}/[0-9a-f-]{36}\\.(pdf|jpg|jpeg|png|webp)$`, "i");
+  const motif = new RegExp(`^${echapperRegExp(userId)}/${echapperRegExp(documentId)}/[0-9a-f-]{36}\\.(pdf|epub|jpg|jpeg|png|webp)$`, "i");
   return motif.test(chemin);
 }
 
@@ -103,7 +103,7 @@ export async function preparerTeleversementPiece(
   mimeType: MimePieceJointe,
 ): Promise<{ chemin: string; token: string }> {
   if (!estMimePieceJointe(mimeType)) {
-    throw new Error("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
+    throw new Error("Seuls les fichiers PDF, EPUB et les images JPEG, PNG ou WebP peuvent être attachés.");
   }
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);
@@ -125,7 +125,7 @@ export async function enregistrerPieceJointe(
   mimeType: MimePieceJointe,
 ): Promise<PieceJointeDocument> {
   if (!estMimePieceJointe(mimeType)) {
-    throw new Error("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
+    throw new Error("Seuls les fichiers PDF, EPUB et les images JPEG, PNG ou WebP peuvent être attachés.");
   }
   const dorsale = await dorsaleCompte();
   const identifiant = await verifierNoteSupport(documentId, dorsale);

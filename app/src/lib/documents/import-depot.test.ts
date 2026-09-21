@@ -14,6 +14,11 @@ function dossier(nom: string, lots: FileSystemEntry[][]): FileSystemEntry {
   } } as unknown as FileSystemEntry;
 }
 describe("import cumulatif de documents", () => {
+  it("ajoute un EPUB aux PDF et manuscrits sans les remplacer ni accepter un ZIP générique", () => {
+    const resultat = fusionnerImports([fichier("photo.png")], [fichier("cours.pdf"), fichier("livre.epub"), fichier("archive.zip")]);
+    expect(resultat.fichiers.map((f) => f.fichier.name)).toEqual(["photo.png", "cours.pdf", "livre.epub"]);
+    expect(resultat.refuses).toEqual(["archive.zip : format non pris en charge"]);
+  });
   it("ajoute plusieurs sélections sans remplacer les précédentes", () => {
     const premier = fusionnerImports([], [fichier("a.pdf"), fichier("b.pdf")]);
     expect(fusionnerImports(premier.fichiers, [fichier("c.pdf")]).fichiers.map(f => f.relatif)).toEqual(["a.pdf", "b.pdf", "c.pdf"]);

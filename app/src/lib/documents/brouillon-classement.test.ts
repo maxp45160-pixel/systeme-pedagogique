@@ -17,6 +17,13 @@ it("conserve un choix humain incomplet sans le rendre confirmable", () => {
 it("conserve un rejet explicite du domaine et n'en fabrique pas un", () => {
   expect(validerEntreeBrouillonClassement({ ...entree, domaine: null }).domaine).toBeNull();
 });
+
+it("conserve le domaine d'organisation sans usage déduit et refuse son cadre académique", () => {
+  const choix = { ...entree, domaine: { mode: "nouveau", nom: "Physique", usage: { type: "indetermine" } } };
+  expect(validerEntreeBrouillonClassement(choix)).toEqual(choix);
+  expect(validerChoixClassementRessources([choix])).toEqual([choix]);
+  expect(() => validerEntreeBrouillonClassement({ ...choix, domaine: { ...choix.domaine, usage: { type: "indetermine", anneeAcademique: "2026" } } })).toThrow("réservé à un module");
+});
 it("passe réellement dans le frontmatter sans perdre les caractères ni toucher le texte source", () => {
   const brouillon = { analyseId: entree.analyseId, domaine: entree.domaine, codes: [], propositions: [], modifieLe: "2026-09-15T22:00:00Z", origine: "personne" as const };
   const md = definirChampsFrontMatter("---\ntitle: Original\n---\nTexte source inchangé.", { classement_brouillon: encoderBrouillonClassement(brouillon) });

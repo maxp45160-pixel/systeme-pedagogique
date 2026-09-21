@@ -36,6 +36,85 @@ function rendu(ressource = depot) { return renderToStaticMarkup(createElement(Fr
 )); }
 
 describe("relecture documentaire dans l’assistant", () => {
+  it("préremplit le parent proposé sans inventer de parent pour une ancienne analyse", () => {
+    const ressource = structuredClone(depot);
+    const retour = ressource.analyses[0].restitution!;
+    if (retour.version !== 2) throw new Error("Fixture V2 attendue");
+    retour.organisation.domaine = { mode: "nouveau", nom: "Algèbre", parentId: "math", description: "Calcul", justification: "Sujet du cours", sources: [] };
+    expect(choixInitial(ressource, referentiel)).toMatchObject({ destination: "nouveau", nom: "Algèbre", parentId: "math" });
+    delete retour.organisation.domaine.parentId;
+    expect(choixInitial(ressource, referentiel).parentId).toBe("");
+  });
+
+  it.each(["analyse", "ancienne-analyse"])("préserve le choix humain d'une racine malgré le parent proposé (brouillon %s)", (analyseId) => {
+    const ressource = structuredClone(depot);
+    const retour = ressource.analyses[0].restitution!;
+    if (retour.version !== 2) throw new Error("Fixture V2 attendue");
+    retour.organisation.domaine = { mode: "nouveau", nom: "Algèbre", parentId: "math", description: "Calcul", justification: "Sujet du cours", sources: [] };
+    ressource.brouillonClassement = { analyseId, domaine: { mode: "nouveau", nom: "Algèbre" }, codes: [], propositions: [], origine: "personne", modifieLe: ressource.modifieLe };
+    expect(choixInitial(ressource, referentiel)).toMatchObject({ destination: "nouveau", parentId: "" });
+    expect(retour.organisation.domaine.parentId).toBe("math");
+    ressource.brouillonClassement.domaine = { mode: "nouveau", nom: "Algèbre", parentId: "calc" };
+    expect(choixInitial(ressource, referentiel).parentId).toBe("calc");
+  });
+
+  it("propose la discussion après relecture et affiche les déclarations sans les envoyer au rendu", () => {
+    const onDiscuter = vi.fn();
+    const ressource: DepotDocumentaire = { ...depot, contextePersonnel: {
+      contexte: { texte: "Ce cours fait partie de ma licence.", declareLe: "2026-09-19T00:00:00Z" },
+      intention: { texte: "Je veux préparer le TD.", declareLe: "2026-09-19T00:00:00Z" },
+    } };
+    const html = renderToStaticMarkup(createElement(FormulaireRelectureRessources, { depots: [ressource], referentiel, occupe: false, autres: 0, formulaireId: "relecture", onEtatActions: () => undefined, onDiscuter }));
+    expect(html).toContain("Votre contexte :");
+    expect(html).toContain("Ce cours fait partie de ma licence.");
+    expect(html).toContain("Votre intention :");
+    expect(html).toContain("Je veux préparer le TD.");
+    expect(html).toContain("En discuter");
+    expect(html).toContain("Relisez les extraits préparés avant de les envoyer");
+    expect(onDiscuter).not.toHaveBeenCalled();
+    expect(rendu()).not.toContain("En discuter");
+  });
+
+  it("nomme les sections EPUB sans fabriquer des pages et montre les limites de lecture", () => {
+    const ressource = structuredClone(depot);
+    const analyse = ressource.analyses[0];
+    const retour = analyse.restitution!;
+    if (retour.version !== 2) throw new Error("Fixture V2 attendue");
+    const section = { chemin: "chapitres/algebre.xhtml", titre: "Algèbre", limites: ["Une formule doit être relue dans l’original."] };
+    const source = { documentId: "livret", pieceId: "epub", page: 1, section, citation: "Développer cette expression" };
+    analyse.pages = [{ pieceId: "epub", page: 1, texte: source.citation, incertain: true, section }];
+    retour.couvertures = [{ pieceId: "epub", nom: "Cours.epub", unite: "section", totalPages: 3, pagesLues: [1] }];
+    retour.elements = [{ id: "sujet", nature: "sujet", texte: "Algèbre", sources: [source] }];
+    retour.organisation.competences = [{ mode: "nouvelle", intitule: "Développer une expression", verbeAction: "développer", objet: "une expression", palier: "fondamentaux", importance: 1, domaine: { mode: "existant", id: "calc" }, justification: "Geste demandé", sources: [source] }];
+    const html = rendu(ressource);
+    expect(html).toContain("1 section(s) extraite(s) sur 3");
+    expect(html).toContain("section « Algèbre » (chapitres/algebre.xhtml)");
+    expect(html).toContain("Une formule doit être relue dans l’original.");
+    expect(html).not.toContain("Page 1");
+    expect(html).not.toContain("page 1");
+  });
+
+  it("reprend la correction humaine de la même analyse sans modifier les sources ni les autres choix", () => {
+    const ressource = structuredClone(depot);
+    const retour = ressource.analyses[0].restitution!;
+    if (retour.version !== 2) throw new Error("Fixture V2 attendue");
+    retour.organisation.competences = [{ mode:"nouvelle", intitule:"Calculer une vitesse", verbeAction:"calculer", objet:"une vitesse", palier:"fondamentaux", importance:1, domaine:{mode:"existant",id:"calc"}, justification:"Vitesse", sources:[{documentId:"livret",page:2,citation:"Calculez la vitesse moyenne"}] }];
+    ressource.brouillonClassement = { analyseId:"analyse", domaine:{mode:"existant",id:"calc"}, codes:[], propositions:[0], corrections:[{indice:0,verbeAction:"calculer",objet:"une vitesse moyenne"}], origine:"personne",modifieLe:ressource.modifieLe };
+    expect(choixInitial(ressource,referentiel)).toMatchObject({destination:"calc",propositions:[0],corrections:ressource.brouillonClassement.corrections});
+    const html = rendu(ressource);
+    expect(html).toContain("Votre correction");
+    expect(html).toContain("Calculer une vitesse moyenne");
+    expect(html).toContain("Calculez la vitesse moyenne");
+    expect(retour.organisation.competences[0]).toMatchObject({intitule:"Calculer une vitesse"});
+    ressource.correctionsClassement = { analyseId:"analyse", corrections:ressource.brouillonClassement.corrections! };
+    const confirme = { ...ressource, brouillonClassement:undefined, rangementRevuLe:"2026-09-18", rangementAnalyseId:"analyse", rangementOrigine:"personne" as const, rangementStatut:"rangee" as const };
+    expect(choixInitial(confirme,referentiel).corrections).toEqual(ressource.correctionsClassement.corrections);
+    expect(rendu(confirme)).toContain("Votre correction · Proposition d’origine");
+    expect(rendu(confirme)).toContain("Calculer une vitesse moyenne");
+    ressource.brouillonClassement.analyseId = "ancienne";
+    ressource.correctionsClassement.analyseId = "ancienne";
+    expect(choixInitial(ressource,referentiel).corrections).toEqual([]);
+  });
   it("montre une synthèse, le chemin humain et une seule confirmation avec accès différé", () => {
     const html = rendu();
     expect(html).toContain("Le livret traite du calcul algébrique.");

@@ -1,11 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks=vi.hoisted(()=>({env:vi.fn(),cout:vi.fn(),fetch:vi.fn()}));
+const mocks=vi.hoisted(()=>({env:vi.fn(),cout:vi.fn(),fetch:vi.fn(),qwen:vi.fn()}));
+vi.mock("./qwen-appel",()=>({appelerQwen:mocks.qwen}));
 vi.mock("./env-requete",()=>({envTuteur:mocks.env}));
 vi.mock("@/lib/store/depot-budget",()=>({finaliserCoutDepot:mocks.cout}));
 import { corpsRestitutionDepot, lireOcrDepot, restituerDepot } from "./depot-mistral";
+import { restituerQwen } from "./depot-qwen";
 import { OBJET_MAX, PRECISION_MAX, INTITULE_MAX_ATOMIQUE } from "@/lib/domain/atomicite";
 beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal("fetch",mocks.fetch);mocks.env.mockResolvedValue({ok:true,env:{MISTRAL_API_KEY:"test-key"}});});
 describe("Mistral documentaire",()=>{
+  it("transmet le même contrat qualité aux deux fournisseurs réels, sans relance",async()=>{
+    const referentiel={domaines:[],competences:[]};
+    const resultat={choices:[{finish_reason:"stop",message:{content:'{"elements":[]}'}}],usage:{prompt_tokens:100,completion_tokens:30}};
+    mocks.fetch.mockResolvedValue(Response.json(resultat));
+    mocks.qwen.mockResolvedValue(resultat);
+    await restituerDepot("Une question personnelle sans exercice",[],"op",referentiel);
+    await restituerQwen("Une question personnelle sans exercice",[],{fournisseur:"qwen",cle:"test-factice"},referentiel);
+    const mistral=JSON.parse(mocks.fetch.mock.calls[0][1].body);
+    const qwen=mocks.qwen.mock.calls[0][1];
+    expect(mistral.messages).toEqual(qwen.messages);
+    expect(qwen.messages[0].content).toContain("conservez le geste demandé et son objet");
+    expect(qwen.messages[0].content).toContain("retournez alors competences:[]");
+    expect(qwen.messages[0].content).toContain("ne répétez ni un code existant ni un même intitulé nouveau");
+    expect(mistral.response_format.type).toBe("json_schema");
+    expect(qwen.response_format.type).toBe("json_object");
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.qwen).toHaveBeenCalledTimes(1);
+  });
   it("refuse un catalogue trop volumineux sans tronquer ni réserver un appel",async()=>{
     // Texte court, mais très nombreux passages : contrôler le corps final, pas le seul texte.
     await expect(restituerDepot("x\n".repeat(3000),[],"op")).rejects.toThrow("trop denses");

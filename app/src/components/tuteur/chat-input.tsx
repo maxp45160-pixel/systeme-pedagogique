@@ -38,12 +38,14 @@ export const ChatInput = memo(function ChatInput({
   usage,
   saisieInitiale,
   onDepotConserve,
+  onEtatDepot,
   depotBloque = false,
   focusSignal,
   fournisseurDocumentaire = "mistral",
 }: {
   onEnvoyer: (texte: string) => void | boolean | Promise<void | boolean>;
   onDepotConserve?: (texte: string, recu: string, ressources: string[], autorisation?: AutorisationAnalyseDepot) => void;
+  onEtatDepot?: (occupe: boolean) => void;
   fournisseurDocumentaire?: AutorisationAnalyseDepot["fournisseur"];
   depotBloque?: boolean;
   focusSignal?: string;
@@ -58,6 +60,7 @@ export const ChatInput = memo(function ChatInput({
   saisieInitiale: string;
 }) {
   const [saisie, setSaisie] = useState(saisieInitiale);
+  const [organiserTexte, setOrganiserTexte] = useState(false);
   const [saisieInitialePrecedente, setSaisieInitialePrecedente] = useState(saisieInitiale);
   const champRef = useRef<HTMLDivElement>(null);
   const accordDepot = useRef<AutorisationAnalyseDepot | undefined>(undefined);
@@ -69,15 +72,15 @@ export const ChatInput = memo(function ChatInput({
   async function soumettre() {
     if (bloque || verrouEnvoi.current) return;
     const texte = saisie.trim();
-    const avecFichiers = Boolean(onDepotConserve && pieces.fichiers.length);
+    const avecFichiers = Boolean(onDepotConserve && (pieces.fichiers.length || (organiserTexte && texte)));
     if (avecFichiers && depotBloque) return;
     if (!avecFichiers && (!texte || cleAbsente)) return;
     verrouEnvoi.current = true;
-    if (avecFichiers) accordDepot.current = autorisation;
+    if (avecFichiers) { accordDepot.current = autorisation; onEtatDepot?.(true); }
     try {
       const accepte = avecFichiers ? await pieces.envoyer(texte) : await onEnvoyer(texte);
-      if (accepte !== false) setSaisie("");
-    } finally { verrouEnvoi.current = false; }
+      if (accepte !== false) { setSaisie(""); setOrganiserTexte(false); }
+    } finally { verrouEnvoi.current = false; if (avecFichiers) onEtatDepot?.(false); }
   }
 
   if (saisieInitiale !== saisieInitialePrecedente) {
@@ -102,6 +105,7 @@ export const ChatInput = memo(function ChatInput({
       */}
       <div className="mb-2 flex items-center justify-between">
         {onDepotConserve ? pieces.interfacePieces(bloque || depotBloque) : <span/>}
+        {onDepotConserve && !pieces.fichiers.length && !depotBloque && <Bouton taille="petite" variante="discret" disabled={bloque} aria-pressed={organiserTexte} onClick={() => setOrganiserTexte((v) => !v)}>{organiserTexte ? "Revenir au message" : "Organiser ce texte"}</Bouton>}
         <PaletteFormules
           onInserer={(latex, recul) => insererFormuleDansEditeur(champRef.current, latex, recul)}
           desactivee={bloque}
@@ -109,7 +113,7 @@ export const ChatInput = memo(function ChatInput({
       </div>
       {onDepotConserve && pieces.liste}
       {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">Après lecture, Twiny peut rattacher chaque nouveau document à un domaine adapté, créé si nécessaire sans compétence obligatoire. Les cas à préciser et les compétences restent à votre choix ; le rangement effectué reste corrigeable.</p>}
-      {onDepotConserve && pieces.fichiers.length > 0 && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">En préparant votre proposition, vous envoyez ces fichiers (jusqu’aux 20 premières pages de chacun) et votre texte à {fournisseurDocumentaire === "qwen" ? "Qwen (Alibaba Cloud)" : "Mistral"}. Coût maximal : {fournisseurDocumentaire === "qwen" ? (autorisation.coutMaximum/1_000_000).toLocaleString("fr-FR",{style:"currency",currency:"USD",maximumFractionDigits:3}) : eurosDocumentaires(autorisation.coutMaximum)}.</p>}
+      {onDepotConserve && (pieces.fichiers.length > 0 || organiserTexte) && <p className="mb-3 text-xs leading-relaxed text-texte-attenue">En préparant votre proposition, vous conservez votre texte et vos fichiers comme ressources. Leur lecture (jusqu’aux 20 premières pages par fichier, ou 20 sections textuelles par EPUB) est transmise à {fournisseurDocumentaire === "qwen" ? "Qwen (Alibaba Cloud)" : "Mistral"}. Les illustrations et formules non textuelles des EPUB restent à relire dans l’original. Coût maximal : {fournisseurDocumentaire === "qwen" ? (autorisation.coutMaximum/1_000_000).toLocaleString("fr-FR",{style:"currency",currency:"USD",maximumFractionDigits:3}) : eurosDocumentaires(autorisation.coutMaximum)}.</p>}
 
       {/*
         Point d'entrée du focus quand le chat est monté dans une modale.
@@ -171,11 +175,11 @@ export const ChatInput = memo(function ChatInput({
           ) : (
             <Bouton
               onClick={() => void soumettre()}
-              disabled={pieces.fichiers.length ? depotBloque : !saisie.trim() || cleAbsente}
+              disabled={pieces.fichiers.length || organiserTexte ? depotBloque || (!pieces.fichiers.length && !saisie.trim()) : !saisie.trim() || cleAbsente}
               variante="principal"
               taille="petite"
             >
-              {pieces.fichiers.length ? "Préparer ma proposition" : "Envoyer"}
+              {pieces.fichiers.length || organiserTexte ? "Préparer ma proposition" : "Envoyer"}
             </Bouton>
           )}
         </div>

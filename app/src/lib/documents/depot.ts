@@ -2,11 +2,15 @@ import type { CreationDomaineDeleguee } from "./creation-domaine-deleguee";
 import type { PieceJointeDocument } from "./types-documents";
 import type { Palier } from "@/lib/domain/types";
 import type { BrouillonClassementRessource } from "./brouillon-classement";
+import type { CorrectionCompetenceClassement } from "./corrections-classement";
 import type { VerbeAction } from "@/lib/domain/atomicite";
+import type { ContextePersonnelRessource } from "./contexte-ressource";
 
 /** Contrats documentaires du pilote. Aucun de ces contenus ne mesure l'apprenant. */
 export const VERSION_DEPOT = 1;
 export const VERSION_RESSOURCE_DEPOT = 2;
+/** Invalide les devis non exécutés lorsque le contrat partagé de proposition change. */
+export const VERSION_QUALITE_RESTITUTION = "propositions-hierarchie-v2";
 export const SECTION_COMPETENCES_RESSOURCE = "Compétences liées";
 export const MODELE_OCR_DEPOT = "mistral-ocr-4-1";
 export const MODELE_RESTITUTION_DEPOT = "mistral-medium-3-5";
@@ -23,7 +27,10 @@ export function limiteSortieRestitution(version: 1 | 2): number {
 export const MAX_COMPETENCES_ORGANISATION_DEPOT = 30;
 export const BUDGET_DEPOT_MICRO_EUROS = 5_000_000;
 
+export interface SectionDepot { chemin: string; titre: string; limites?: string[] }
+
 export interface SourceDepot {
+  section?: SectionDepot;
   documentId: string;
   pieceId?: string;
   /** Numéro affiché à la personne, à partir de 1. Absent pour la note libre. */
@@ -32,6 +39,7 @@ export interface SourceDepot {
 }
 
 export interface PageExtraiteDepot {
+  section?: SectionDepot;
   pieceId: string;
   page: number;
   texte: string;
@@ -41,6 +49,7 @@ export interface PageExtraiteDepot {
 }
 
 export interface CouvertureDepot {
+  unite?: "section";
   pieceId: string;
   nom: string;
   totalPages: number;
@@ -75,7 +84,7 @@ export type DomaineReferenceDepot =
 
 export type DomaineProposeDepot =
   | ({ mode: "existant"; id: string } & PropositionSourceeDepot)
-  | ({ mode: "nouveau"; nom: string; description: string } & PropositionSourceeDepot);
+  | ({ mode: "nouveau"; nom: string; description: string; parentId?: string } & PropositionSourceeDepot);
 
 export type CompetenceProposeeDepot =
   | ({ mode: "existante"; code: string } & PropositionSourceeDepot)
@@ -134,6 +143,7 @@ export interface AnalyseDepot {
 }
 
 export interface DepotDocumentaire {
+  contextePersonnel?: ContextePersonnelRessource;
   id: string;
   version: 1 | 2;
   titre: string;
@@ -150,6 +160,7 @@ export interface DepotDocumentaire {
   rangementStatut?: "rangee" | "a-trier";
   rangementOrigine?: "assistant" | "personne";
   brouillonClassement?: BrouillonClassementRessource;
+  correctionsClassement?: { analyseId: string; corrections: CorrectionCompetenceClassement[] };
   creationDomaineDeleguee?: CreationDomaineDeleguee;
   competencesLiees: string[];
   pieces: PieceJointeDocument[];
@@ -170,6 +181,8 @@ export interface ResumeDepotDocumentaire {
 }
 
 export interface TrancheDepot {
+  unite?: "section";
+  sections?: SectionDepot[];
   pieceId: string;
   nom: string;
   totalPages: number;
@@ -185,6 +198,8 @@ export interface PreparationAnalyseDepot {
   documentId: string;
   empreinte: string;
   tranches: TrancheDepot[];
+  /** Sections sans texte extractible : jamais comptées comme analysées. */
+  sectionsNonAnalysees?: { pieceId: string; nom: string; sections: SectionDepot[] }[];
   noteIncluse: boolean;
   pagesRestantes: number;
   coutMaximumMicroEuros: number;

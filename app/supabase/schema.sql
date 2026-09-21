@@ -775,7 +775,7 @@ CREATE TABLE IF NOT EXISTS public.document_attachments (
   storage_path TEXT NOT NULL,
   file_name    TEXT NOT NULL,
   mime_type    TEXT NOT NULL DEFAULT 'application/pdf'
-    CHECK (mime_type IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp')),
+    CHECK (mime_type IN ('application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/epub+zip')),
   size_bytes   BIGINT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 10485760),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, id),
@@ -834,7 +834,7 @@ CREATE POLICY "pieces_jointes_suppression_compte"
 -- publique. Depuis le 22/08/2026 : PDF et images (acceptation passive P2).
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('document-support', 'document-support', false, 10485760,
-        ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp']::text[])
+        ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/epub+zip']::text[])
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   public = false,

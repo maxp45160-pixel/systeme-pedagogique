@@ -10,10 +10,12 @@
 
 export const BUCKET_PIECES_JOINTES = "document-support";
 export const MIME_PDF = "application/pdf";
+export const MIME_EPUB = "application/epub+zip";
 
 /** Types MIME acceptés à l'attachement d'une fiche support. */
 export const MIMES_PIECES_JOINTES = [
   "application/pdf",
+  "application/epub+zip",
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -25,6 +27,7 @@ export const MAX_PIECE_OCTETS = 10 * 1024 * 1024;
 
 const EXTENSIONS_PAR_MIME: Record<MimePieceJointe, readonly string[]> = {
   "application/pdf": [".pdf"],
+  "application/epub+zip": [".epub"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
   "image/webp": [".webp"],
@@ -63,7 +66,7 @@ export function erreurFichierPiece(fichier: { name: string; type: string; size: 
     ? fichier.type
     : mimeDepuisNomFichier(fichier.name);
   if (!mime) {
-    return "Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.";
+    return "Seuls les fichiers PDF, EPUB et les images JPEG, PNG ou WebP peuvent être attachés.";
   }
   if (fichier.size <= 0 || fichier.size > MAX_PIECE_OCTETS) {
     return "Le fichier doit peser entre 1 octet et 10 Mo.";

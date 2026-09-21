@@ -26,6 +26,73 @@ function ajouterCompetence(domaine: string, intitule: string) {
   skills.push(skillDeTest(code, domaine, "fondamentaux", 0.5, 0, [], { intitule }));
   return code;
 }
+
+const correctionTitre = { indice: 0, verbeAction: "calculer", objet: "une proportion" };
+
+it("crée l'intitulé corrigé, garde sa déclaration et reprend sans doubler ni modifier l'analyse", async () => {
+  const c = { ...choix(), corrections: [correctionTitre] };
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(skills.map((s) => s.intitule)).toEqual(["Calculer une proportion"]);
+  const recu = JSON.parse(Buffer.from(String(parserFrontMatter(docs.get("doc")!.md).frontMatter.classement_confirmation), "base64url").toString("utf8"));
+  expect(recu.corrections).toEqual([correctionTitre]);
+  expect((await m.depot("doc")).analyses[0].restitution.organisation.competences[0].intitule).toBe("Calculer une probabilité");
+  const ecritures = m.modifier.mock.calls.length;
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(m.creer).toHaveBeenCalledTimes(1);
+  expect(m.modifier).toHaveBeenCalledTimes(ecritures);
+  await expect(confirmerClassementRessourcesAction([{ ...c, corrections: [{ ...correctionTitre, objet: "une remise" }] }])).rejects.toThrow("modifiée");
+});
+
+it("reprend le titre corrigé après création dont la réponse est perdue", async () => {
+  const creer = m.creer.getMockImplementation()!;
+  m.creer.mockImplementationOnce(async (...args) => { await creer(...args); throw new Error("Réponse perdue"); });
+  const c = { ...choix(), corrections: [correctionTitre] };
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("echec");
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(skills.map((s) => s.intitule)).toEqual(["Calculer une proportion"]);
+  expect(m.creer).toHaveBeenCalledTimes(1);
+});
+
+it("prévalide les corrections de tout le lot avant effets", async () => {
+  await expect(confirmerClassementRessourcesAction([choix(), { ...choix("doc2"), corrections: [{ ...correctionTitre, indice: 9 }] }])).rejects.toThrow("proposition nouvelle");
+  await expect(confirmerClassementRessourcesAction([{ ...choix(), corrections: [{ ...correctionTitre, verbeAction: "comprendre" }] }])).rejects.toThrow("invalide");
+  expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled(); expect(m.rpc).not.toHaveBeenCalled();
+});
+
+it("refuse des intitulés sélectionnés rendus identiques par une correction", async () => {
+  const lire = m.depot.getMockImplementation()!;
+  m.depot.mockImplementation(async (...args) => {
+    const depot = await lire(...args);
+    depot.analyses[0].restitution.organisation.competences.push({ ...depot.analyses[0].restitution.organisation.competences[0], intitule: "Calculer une proportion" });
+    return depot;
+  });
+  await expect(confirmerClassementRessourcesAction([{ ...choix(), propositions: [0, 1], corrections: [correctionTitre] }])).rejects.toThrow("même intitulé");
+  expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled();
+});
+
+it("refuse les doublons canoniques Unicode avant tout effet", async () => {
+  const lire = m.depot.getMockImplementation()!;
+  m.depot.mockImplementation(async (...args) => {
+    const depot = await lire(...args);
+    depot.analyses[0].restitution.organisation.competences.push({ ...depot.analyses[0].restitution.organisation.competences[0] });
+    return depot;
+  });
+  const corrections = [{ ...correctionTitre, objet: "une accélération" }, { ...correctionTitre, indice: 1, objet: "une acce\u0301le\u0301ration" }];
+  await expect(confirmerClassementRessourcesAction([{ ...choix(), propositions: [0, 1], corrections }])).rejects.toThrow("même intitulé");
+  expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled(); expect(m.rpc).not.toHaveBeenCalled();
+});
+
+it("refuse une collision corrigée avec une archive et réutilise un homonyme actif unique", async () => {
+  const code = ajouterCompetence("math", "Calculer une proportion");
+  skills[0].archive = true;
+  const c = { ...choix(), corrections: [correctionTitre] };
+  await expect(confirmerClassementRessourcesAction([c])).rejects.toThrow("archivée");
+  expect(m.modifier).not.toHaveBeenCalled();
+  skills[0].archive = false;
+  expect((await confirmerClassementRessourcesAction([c])).resultats[0].statut).toBe("confirmee");
+  expect(m.creer).not.toHaveBeenCalled();
+  expect(m.taguer).toHaveBeenCalledWith("math", [code], true);
+});
 beforeEach(() => {
   vi.resetAllMocks(); compteur = 0; panneApresCreation = false;
   domaines = [domaineDeTest("math", "Mathématiques", "MAT", 0)]; skills = []; recus = new Map();

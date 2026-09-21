@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
+import { strToU8, zipSync } from "fflate";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DepotDocumentaire, PageExtraiteDepot } from "@/lib/documents/depot";
 import { MODELE_OCR_DEPOT, MODELE_RESTITUTION_DEPOT } from "@/lib/documents/depot";
-const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn(),referentiel:vi.fn()}));
+import { CONTRAT_SOURCES_RESTITUTION } from "@/lib/documents/sources-restitution";
+import { coutQwen } from "@/lib/tutor/qwen-config";
+import { VERSION_SCHEMA_RESTITUTION_DEPOT } from "@/lib/tutor/schema-restitution-depot";
+const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn(),referentiel:vi.fn(),budgetQwen:vi.fn(),ocrQwen:vi.fn(),restituerQwen:vi.fn()}));
+vi.mock("./qwen-budget",()=>({budgetQwen:m.budgetQwen}));
+vi.mock("@/lib/tutor/depot-qwen",()=>({lireOcrQwen:m.ocrQwen,restituerQwen:m.restituerQwen}));
 vi.mock("./depot-budget",()=>({budgetRestantDepot:m.budget,configurationDepotDisponible:m.configuration}));
 vi.mock("./depot-documents",()=>({lireDepotDocumentaire:m.lire,lireSourceDepot:m.source,commencerAnalyseDepot:m.claim,modifierAnalyseDepot:m.modifier}));
 vi.mock("@/lib/tutor/depot-mistral",()=>({lireOcrDepot:m.ocr,restituerDepot:m.restituer}));
@@ -18,6 +24,7 @@ beforeEach(()=>{
   depot={id:"d",version:1,titre:"Notes",note:"Question sur le cours",creeLe:"2026-09-06",modifieLe:"2026-09-06",type:"note",competencesLiees:[],pieces:[],analyses:[],corrections:[]};
   m.lire.mockImplementation(async()=>depot);
   m.budget.mockResolvedValue(5_000_000);m.configuration.mockReturnValue(true);
+  m.budgetQwen.mockResolvedValue({restant:5_000_000});
   m.claim.mockResolvedValue({analyse:{id:"a"},tentative:"t",nouvelle:true});
   m.source.mockResolvedValue({octets,mimeType:"application/pdf",nom:"Notes.pdf"});
   m.pdf.mockResolvedValue({numPages:2,cleanup:vi.fn()});
@@ -26,11 +33,177 @@ beforeEach(()=>{
   m.referentiel.mockResolvedValue({domaines:[{id:"physique",nom:"Physique",description:"Sciences",archive:false}],actifs:[{code:"PHY-01",intitule:"Analyser une situation physique",domaine:"physique"}]});
 });
 function ajouterPdf(){depot.pieces=[{id:"p",nom:"Notes.pdf",mimeType:"application/pdf",tailleOctets:3} as DepotDocumentaire["pieces"][number]];}
+function ajouterEpub(contenus: string[] = ["<p>Texte EPUB</p>"]) {
+  const archive = zipSync(Object.fromEntries(Object.entries({
+    mimetype:"application/epub+zip",
+    "META-INF/container.xml":'<container><rootfiles><rootfile full-path="livre.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
+    "livre.opf":`<package><manifest>${contenus.map((_, i) => `<item id="s${i}" href="s${i}.xhtml" media-type="application/xhtml+xml"/>`).join("")}</manifest><spine>${contenus.map((_, i) => `<itemref idref="s${i}"/>`).join("")}</spine></package>`,
+    ...Object.fromEntries(contenus.map((texte, i) => [`s${i}.xhtml`, `<html><head><title>Section ${i}</title></head><body>${texte}</body></html>`])),
+  }).map(([nom, texte]) => [nom, strToU8(texte)])));
+  depot.pieces = [{ id:"p", nom:"Livre.epub", mimeType:"application/epub+zip", tailleOctets:archive.length } as DepotDocumentaire["pieces"][number]];
+  m.source.mockResolvedValue({octets:archive, mimeType:"application/epub+zip", nom:"Livre.epub"});
+  return archive;
+}
 function lectureTerminee() {
   ajouterPdf(); depot.version=2;
   depot.analyses=[{id:"ancienne",empreinte:"ancienne-empreinte",statut:"terminee",pages:[page,{...page,page:2}],restitution:{version:2}} as DepotDocumentaire["analyses"][number]];
 }
+function lectureV2AvecSuite() {
+  lectureTerminee();
+  depot.analyses[0].creeLe = "2026-09-19T00:00:00Z";
+  m.pdf.mockResolvedValue({numPages:3,cleanup:vi.fn()});
+  m.ocr.mockResolvedValue([{...page,page:3}]);
+  m.restituer.mockResolvedValue({elements:[],organisation:{titreSuggere:"Notes",typeSuggere:"note",domaine:null,competences:[],justification:"Note",sources:[{citation:depot.note}]}});
+}
 describe("orchestration documentaire persistante",()=>{
+  it.each([
+    {},
+    {rangementAnalyseId:"ancienne",rangementOrigine:"assistant"},
+    {rangementAnalyseId:"autre-analyse",rangementOrigine:"personne"},
+    {rangementAnalyseId:"ancienne",rangementOrigine:"personne",brouillonClassement:{analyseId:"ancienne",domaine:null,codes:[],propositions:[],modifieLe:"2026-09-19",origine:"personne"}},
+  ] as Partial<DepotDocumentaire>[])("refuse la suite sans confirmation humaine courante et sans effets : %j", async (classement) => {
+    lectureV2AvecSuite(); Object.assign(depot,classement);
+    const avant = JSON.stringify(depot);
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.tranches[0].pages).toEqual([3]);
+    await expect(analyserDepot("d",preparation.empreinte,20,false)).rejects.toThrow(/Confirmez d’abord/);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled(); expect(m.modifier).not.toHaveBeenCalled();
+    expect(JSON.stringify(depot)).toBe(avant);
+  });
+  it("la confirmation de la dernière réussite permet de lire la tranche suivante", async () => {
+    lectureV2AvecSuite(); depot.rangementAnalyseId="ancienne"; depot.rangementOrigine="personne";
+    const p=await preparerAnalyseDepot("d");
+    await analyserDepot("d",p.empreinte,20,false);
+    expect(m.claim).toHaveBeenCalledTimes(1);
+    expect(m.ocr.mock.calls[0][0].pages).toEqual([3]);
+    expect(m.restituer).toHaveBeenCalledTimes(1);
+    expect(m.modifier).toHaveBeenLastCalledWith("a","t",expect.objectContaining({statut:"terminee"}));
+  });
+  it("vérifie la réussite la plus récente même si le tableau est dans un autre ordre", async () => {
+    lectureV2AvecSuite();
+    depot.analyses.push({...depot.analyses[0],id:"plus-recente",creeLe:"2026-09-19T01:00:00Z"});
+    depot.rangementAnalyseId="ancienne"; depot.rangementOrigine="personne";
+    const p=await preparerAnalyseDepot("d");
+    await expect(analyserDepot("d",p.empreinte,20,false)).rejects.toThrow(/Confirmez d’abord/);
+    expect(m.claim).not.toHaveBeenCalled();
+    depot.rangementAnalyseId="plus-recente";
+    await analyserDepot("d",p.empreinte,20,false);
+    expect(m.claim).toHaveBeenCalledTimes(1);
+  });
+  it("le paramètre reprise seul ne contourne pas la confirmation", async () => {
+    lectureV2AvecSuite(); const p=await preparerAnalyseDepot("d");
+    await expect(analyserDepot("d",p.empreinte,20,true)).rejects.toThrow(/Confirmez d’abord/);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it.each(["echec","interrompue"] as const)("conserve le réessai explicite d'une tranche %s de même empreinte", async (statut) => {
+    lectureV2AvecSuite(); const p=await preparerAnalyseDepot("d");
+    depot.analyses.push({...depot.analyses[0],id:"reprise",empreinte:p.empreinte,statut,pages:[{...page,page:3}],restitution:null,creeLe:"2026-09-19T01:00:00Z"});
+    await analyserDepot("d",p.empreinte,20,true);
+    expect(m.claim).toHaveBeenCalledWith("d",p.empreinte,true);
+    expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).toHaveBeenCalledTimes(1);
+  });
+  it("Qwen restitue l'EPUB sans conversion d'image ni coût OCR", async () => {
+    const horloge = vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-09-19T00:00:00Z"));
+    try {
+      ajouterEpub(); m.restituerQwen.mockResolvedValue({elements:[]});
+      const preparation = await preparerAnalyseDepot("d",20,true);
+      expect(preparation.coutMaximumMicroDollars).toBe(coutQwen(100000,2500));
+      await analyserDepot("d",preparation.empreinte,20,false,undefined,{fournisseur:"qwen",cle:"cle-test-locale"});
+      expect(m.ocrQwen).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.pdf).not.toHaveBeenCalled();
+      expect(m.restituerQwen).toHaveBeenCalledTimes(1);
+    } finally { horloge.mockRestore(); }
+  });
+  it("prépare les sections EPUB localement avec coût OCR nul et sans effet payant", async () => {
+    ajouterEpub(["<p>Texte.</p><img src='dessin.png'/>"]);
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.tranches[0]).toMatchObject({unite:"section", pages:[1], sections:[{ chemin:"s0.xhtml", titre:"Section 0", limites:expect.any(Array) }]});
+    expect(preparation.coutMaximumMicroEuros).toBe(337500);
+    expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled(); expect(m.claim).not.toHaveBeenCalled(); expect(m.pdf).not.toHaveBeenCalled();
+    await analyserDepot("d", preparation.empreinte, 20, false);
+    expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).toHaveBeenCalledTimes(1);
+    expect(m.restituer.mock.calls[0][1][0]).toMatchObject({page:1, texte:"Texte.", incertain:true, section:{chemin:"s0.xhtml"}});
+    expect(m.modifier).toHaveBeenCalledWith("a", "t", expect.objectContaining({ couvertures:[expect.objectContaining({unite:"section", pagesLues:[1]})] }));
+  });
+  it("poursuit les sections restantes sans relire celles déjà traitées", async () => {
+    ajouterEpub(Array.from({length:22}, (_, i) => `<p>Contenu ${i}</p>`));
+    const premiere = await preparerAnalyseDepot("d");
+    expect(premiere.pagesRestantes).toBe(2);
+    await analyserDepot("d", premiere.empreinte, 20, false);
+    const pagesLues = m.modifier.mock.calls.find((c) => c[2].pages?.length === 20)![2].pages;
+    depot.analyses = [{ id:"terminee", empreinte:premiere.empreinte, statut:"terminee", pages:pagesLues } as DepotDocumentaire["analyses"][number]];
+    const suite = await preparerAnalyseDepot("d");
+    expect(suite.disponible).toBe(true); expect(suite.tranches[0].pages).toEqual([21,22]); expect(suite.pagesRestantes).toBe(0);
+    expect(suite.tranches[0].sections?.map((s) => s.chemin)).toEqual(["s20.xhtml", "s21.xhtml"]);
+    expect(m.ocr).not.toHaveBeenCalled();
+  });
+  it("borne le texte cumulé des sections et annonce celles non traitées", async () => {
+    ajouterEpub([`<p>${"a".repeat(30000)}</p>`, `<p>${"b".repeat(30000)}</p>`]);
+    const p = await preparerAnalyseDepot("d");
+    expect(p.tranches[0].pages).toEqual([1]); expect(p.pagesRestantes).toBe(1);
+    expect(m.claim).not.toHaveBeenCalled();
+  });
+  it("un EPUB graphique conserve ses limites mais ne déclenche aucune restitution vide", async () => {
+    ajouterEpub(["<img src='page.png'/>"]); depot.note="";
+    const p=await preparerAnalyseDepot("d");
+    expect(p.disponible).toBe(false); expect(p.motifIndisponible).toMatch(/aucun texte/);
+    expect(p.tranches).toEqual([]);
+    expect(p.sectionsNonAnalysees?.[0].sections[0].limites).toHaveLength(2);
+    await expect(analyserDepot("d",p.empreinte,20,false)).rejects.toThrow(/aucun texte/);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it("vingt sections graphiques ne bloquent pas le texte suivant et ne deviennent jamais lues", async () => {
+    ajouterEpub([...Array.from({length:20}, () => "<img src='dessin.png'/>"), "<p>Le texte est ici.</p>"]);
+    depot.note=""; m.restituer.mockResolvedValue({elements:[]});
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.disponible).toBe(true);
+    expect(preparation.tranches[0]).toMatchObject({totalPages:21,pages:[21],sections:[{chemin:"s20.xhtml"}]});
+    expect(preparation.sectionsNonAnalysees?.[0].sections).toHaveLength(20);
+    expect(preparation.pagesRestantes).toBe(0);
+    await analyserDepot("d",preparation.empreinte,20,false);
+    const sauvegarde = m.modifier.mock.calls.find((c) => c[2].pages?.length)![2];
+    expect(sauvegarde.pages.map((p:PageExtraiteDepot) => p.page)).toEqual([21]);
+    expect(sauvegarde.couvertures).toEqual([{pieceId:"p",nom:"Livre.epub",totalPages:21,pagesLues:[21],unite:"section"}]);
+    expect(m.ocr).not.toHaveBeenCalled();
+    depot.analyses=[{id:"terminee",empreinte:preparation.empreinte,statut:"terminee",pages:sauvegarde.pages} as DepotDocumentaire["analyses"][number]];
+    const fin = await preparerAnalyseDepot("d");
+    expect(fin.disponible).toBe(false); expect(fin.tranches).toEqual([]); expect(fin.pagesRestantes).toBe(0);
+    expect(fin.sectionsNonAnalysees?.[0].sections).toHaveLength(20);
+    expect(fin.motifIndisponible).toMatch(/restent non analysées/);
+    expect(fin.motifIndisponible).not.toMatch(/Tous les extraits/);
+    expect((await preparerAnalyseDepot("d")).sectionsNonAnalysees).toEqual(fin.sectionsNonAnalysees);
+    expect(m.claim).toHaveBeenCalledTimes(1); expect(m.restituer).toHaveBeenCalledTimes(1);
+  });
+  it("une note jointe reste analysable sans prétendre lire l'EPUB graphique", async () => {
+    ajouterEpub(["<img src='dessin.png'/>"]);
+    const p=await preparerAnalyseDepot("d");
+    expect(p.disponible).toBe(true); expect(p.tranches).toEqual([]); expect(p.sectionsNonAnalysees).toHaveLength(1);
+    await analyserDepot("d",p.empreinte,20,false);
+    expect(m.restituer.mock.calls[0][1]).toEqual([]); expect(m.ocr).not.toHaveBeenCalled();
+    expect(m.modifier).toHaveBeenLastCalledWith("a","t",expect.objectContaining({statut:"terminee"}));
+  });
+  it("une modification d'EPUB invalide le devis avant réservation", async () => {
+    ajouterEpub(); const p=await preparerAnalyseDepot("d");
+    ajouterEpub(["<p>Texte modifié</p>"]);
+    await expect(analyserDepot("d",p.empreinte,20,false)).rejects.toThrow(/changé/);
+    expect(m.claim).not.toHaveBeenCalled();
+  });
+  function empreinteV2Precedente() {
+    return createHash("sha256").update(JSON.stringify({ version:2,sortieMax:8192,note:depot.note,sources:[],tranches:[],ocr:MODELE_OCR_DEPOT,modele:MODELE_RESTITUTION_DEPOT,references:CONTRAT_SOURCES_RESTITUTION,schema:VERSION_SCHEMA_RESTITUTION_DEPOT })).digest("hex");
+  }
+  it("refuse le devis V2 précédent avant tout effet lorsque les règles communes changent", async () => {
+    depot.version = 2;
+    await expect(analyserDepot("d", empreinteV2Precedente(), 20, false)).rejects.toThrow("changé");
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it("conserve une réussite V2 précédente sans relancer l’analyse après changement des règles", async () => {
+    depot.version = 2;
+    depot.analyses = [{ id: "terminee-v2", documentId:"d", empreinte:empreinteV2Precedente(), statut:"terminee", pages:[], couvertures:[], erreur:null, creeLe:"2026-09-18", modifieLe:"2026-09-18", restitution: { version:2, modele:MODELE_RESTITUTION_DEPOT, creeLe:"2026-09-18", couvertures:[], elements:[], organisation:{titreSuggere:"Notes",typeSuggere:"note",domaine:null,competences:[],justification:"Note",sources:[]} } }];
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.analyseExistante?.id).toBe("terminee-v2");
+    expect(preparation.disponible).toBe(false);
+    expect(await analyserDepot("d", preparation.empreinte, 20, false)).toEqual(depot);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+  });
   function empreinteHistoriqueNote(references?: string) {
     return createHash("sha256").update(JSON.stringify({version:1,sortieMax:2500,note:depot.note,sources:[],tranches:[],ocr:MODELE_OCR_DEPOT,modele:MODELE_RESTITUTION_DEPOT,...(references ? {references} : {})})).digest("hex");
   }

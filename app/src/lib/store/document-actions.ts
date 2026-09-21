@@ -1,4 +1,5 @@
 "use server";
+import type { MimePieceJointe } from "@/lib/documents/pieces-jointes";
 
 import { revalidatePath } from "next/cache";
 import {
@@ -238,7 +239,7 @@ export async function renommerDocumentAction(
 export async function preparerTeleversementPieceAction(
   documentId: string,
   nom: string,
-  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp",
+  mimeType: MimePieceJointe,
 ): Promise<{ chemin: string; token: string }> {
   return preparerTeleversementPiece(documentId, nom, mimeType);
 }
@@ -248,7 +249,7 @@ export async function enregistrerPieceJointeAction(
   chemin: string,
   nom: string,
   tailleOctets: number,
-  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp",
+  mimeType: MimePieceJointe,
 ) {
   return enregistrerPieceJointe(documentId, chemin, nom, tailleOctets, mimeType);
 }

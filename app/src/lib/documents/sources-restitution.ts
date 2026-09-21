@@ -1,4 +1,4 @@
-import type { PageExtraiteDepot } from "./depot";
+import type { PageExtraiteDepot, SectionDepot } from "./depot";
 import { listeDepot, objetDepot, texteDepot, validerPagesDepot } from "./depot-validation";
 
 export const CONTRAT_SOURCES_RESTITUTION = "passages-extraits-v1";
@@ -27,18 +27,18 @@ function passagesExacts(texte: string): string[] {
 
 /** Identifiants temporaires de requête : aucune pagination n'est confiée au modèle. */
 export function sourcesRestitution(note: string, pages: PageExtraiteDepot[]) {
-  const references = new Map<string, { pieceId: string | null; page: number | null; citation: string }>();
-  const sources: { nature: "note" | "page"; passages: { passageId: string; texte: string }[]; incertain: boolean }[] = [];
-  const ajouter = (nature: "note" | "page", texte: string, incertain: boolean, pieceId: string | null, page: number | null) => {
+  const references = new Map<string, { pieceId: string | null; page: number | null; citation: string; section?: SectionDepot }>();
+  const sources: { nature: "note" | "page" | "section"; passages: { passageId: string; texte: string }[]; incertain: boolean }[] = [];
+  const ajouter = (nature: "note" | "page" | "section", texte: string, incertain: boolean, pieceId: string | null, page: number | null, section?: SectionDepot) => {
     const passages = passagesExacts(texte).map((citation) => {
       const passageId = `passage-${references.size.toString(36)}`;
-      references.set(passageId, { pieceId, page, citation });
+      references.set(passageId, { pieceId, page, citation, ...(section ? { section } : {}) });
       return { passageId, texte: citation };
     });
     sources.push({ nature, passages, incertain });
   };
   if (note.trim()) ajouter("note", note, false, null, null);
-  for (const p of validerPagesDepot(pages)) ajouter("page", p.texte, p.incertain, p.pieceId, p.page);
+  for (const p of validerPagesDepot(pages)) ajouter(p.section ? "section" : "page", p.texte, p.incertain, p.pieceId, p.page, p.section);
   return { sources, references };
 }
 

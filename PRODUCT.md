@@ -1,6 +1,6 @@
 # PRODUCT.md — Système pédagogique
 
-## État courant — 16/09/2026
+## État courant — 19/09/2026
 
 Le noyau relie exercices, tentatives, observations sourcées et recommandations.
 L'expérience vise d'abord les étudiants, avec un référentiel durable par compte,
@@ -8,6 +8,7 @@ des modules académiques et des échéances déclarées. Les contrats et retrait
 figurent dans les sections ci-dessous ; leur historique technique reste dans
 [les ADR](ARCHITECTURE_DECISIONS.md).
 
+- **Jalon classification précisé le 19/09.** PDF, EPUB, images, manuscrits et texte libre sont attendus. Sujet, compétences sourcées, domaine et hiérarchie sont à clarifier avec le contexte personnel. Moins de 5 % de propositions de compétences incorrectes ET moins de 5 % de compétences attendues oubliées : critères humains acceptés, qualité réelle non encore mesurée. P01-0011 ajoute localement lecteur EPUB textuel borné, parent proposé, dialogue ciblé et évaluateur offline. Activation distante EPUB en attente de la migration préparée `20260918221339_autoriser_epub_documentaire.sql`. [État, preuves et limites](ai-company/operations/runs/2026-09-19-classification-dialogue.md).
 - **Entrée conversationnelle en pilote.** Une même saisie accueille texte,
   fichiers et dossiers ; chaque ressource conserve son original. Depuis la demande
   de fluidité du 16/09, « Préparer ma proposition » autorise en un geste le dépôt
@@ -64,6 +65,12 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   erreur de chargement et peut être retiré de l'échange.
   Les compétences proposées sont directement visibles et sélectionnables,
   avec leurs pages sources ; les citations se consultent séparément.
+  **Correction ciblée locale P01-0010 (18/09).** Avant création, une nouvelle
+  compétence proposée peut être reformulée (geste, objet, précision). La correction
+  humaine se conserve dans le brouillon du document, sans réanalyse ni création,
+  avec ses autres choix. La confirmation utilise cet intitulé corrigé et conserve
+  sa trace ; la proposition et ses sources d'origine restent inchangées. Une
+  nouvelle analyse ne reprend jamais une correction par son ancien indice.
   Le parcours normal retire les boutons « Compléter », « Actualiser » et
   « Classifier ». Une erreur affiche une reprise explicite et son coût ; la
   reprise de synthèse réutilise les transcriptions conservées sans refaire l'OCR.
@@ -97,6 +104,13 @@ figurent dans les sections ci-dessous ; leur historique technique reste dans
   notamment pour une proposition générale sur les vecteurs. Détails et limites :
   [rapport P01-0008](ai-company/operations/runs/2026-09-18-aboutir-ats.md). Cette vérification
   locale ne vaut pas validation humaine du parcours complet ou du corpus.
+  P01-0010 partage les mêmes règles de proposition entre Mistral et Qwen et refuse
+  les compétences identiques répétées dans les nouvelles réponses, sans effacer
+  ni déplacer les anciennes propositions. Les anciens résultats restent lisibles.
+  Sa recette synthétique couvre plusieurs matières et distingue erreurs techniques
+  refusées et erreurs de sens encore recevables par le validateur. Elle ne prouve
+  ni la qualité d'un fournisseur réel ni un gain mesuré de pertinence :
+  [résultats et limites](ai-company/operations/runs/2026-09-18-qualite-documentaire.md).
   Le ménage local du 18/09 retire les composants de l'ancien accueil quotidien
   et l'ancien chemin de création de dépôts V1, devenus sans appelants. Les
   ressources récentes et les liens vers les dépôts historiques restent

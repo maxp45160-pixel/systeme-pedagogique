@@ -39,7 +39,7 @@ export async function televerserFichier(
   if (erreur) throw new Error(erreur);
 
   const mime = mimeDuFichier(fichier);
-  if (!mime) throw new Error("Seuls les fichiers PDF et les images JPEG, PNG ou WebP peuvent être attachés.");
+  if (!mime) throw new Error("Seuls les fichiers PDF, EPUB et les images JPEG, PNG ou WebP peuvent être attachés.");
 
   const client = createNavigateurClient();
   if (!client) throw new Error("Supabase n'est pas configuré.");

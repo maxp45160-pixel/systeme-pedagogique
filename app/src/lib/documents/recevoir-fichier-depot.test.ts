@@ -21,6 +21,13 @@ describe("réception V2 commune au dépôt et à la conversation", () => {
     expect(m.upload.mock.invocationCallOrder[0]).toBeLessThan(m.enregistrer.mock.invocationCallOrder[0]);
     expect(m.enregistrer).toHaveBeenCalledWith("doc-1", "compte/doc-1/pdf", "Semestre · cours.pdf", 4, "application/pdf");
   });
+  it("transfère l'EPUB original avec son MIME, sans conversion ni analyse", async () => {
+    const f = { ...entree(), fichier:new File(["original"], "livre.epub", {type:"application/epub+zip"}), relatif:"Livre/livre.epub" };
+    await recevoirFichierDepot(f);
+    expect(m.preparer).toHaveBeenCalledWith("doc-1", "livre.epub", "application/epub+zip");
+    expect(m.upload).toHaveBeenCalledWith("compte/doc-1/pdf", "test", f.fichier, { contentType:"application/epub+zip" });
+    expect(m.enregistrer).toHaveBeenCalledWith("doc-1", "compte/doc-1/pdf", "Livre · livre.epub", 8, "application/epub+zip");
+  });
   it("reprend le rattachement sans recréer ni retransférer l'original", async () => {
     const f = entree(); m.enregistrer.mockRejectedValueOnce(new Error("réseau"));
     await expect(recevoirFichierDepot(f)).rejects.toThrow("réseau");

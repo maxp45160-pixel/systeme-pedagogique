@@ -11,8 +11,7 @@ arbitrées ne valident pas automatiquement les comportements ci-dessous.
 Maxime confie cours/exercices PDF numériques ou scannés, notes manuscrites issues
 de reMarkable, texte et pensées. Il veut une mémoire longitudinale personnelle,
 une organisation intelligente et des rapprochements utiles pour réussir ses études,
-être créatif dans ses approches et élargir sa vue d'ensemble. Les photos restent
-une option ; aucun connecteur reMarkable ni collecte passive n'est décidé.
+être créatif dans ses approches et élargir sa vue d'ensemble. PDF, EPUB, images, manuscrits et texte libre sont demandés depuis le 19/09 ; aucun connecteur reMarkable ni collecte passive n'est décidé.
 
 Résultat proposé : après un apport, Maxime comprend ce que Twiny en a retenu,
 peut comprendre et corriger l'organisation déléguée, arbitrer les cas signalés,
@@ -74,6 +73,8 @@ proposés ; aucun questionnaire systématique ni notification n'est décidé.
 | P01-05 | Organiser | Effectuer l'organisation réversible dans le périmètre délégué ; distinguer effets accomplis et rapprochements hypothétiques. Expliquer les liens qui changent la lecture du sujet. |
 | P01-06 | Contrôler | Solliciter les ambiguïtés et changements importants ; permettre correction ciblée, acceptation/refus ou report des points en attente. Les choix antérieurs ne sont pas réécrits silencieusement. |
 | P01-07 | Retrouver | Donner accès à l'apport dans la mémoire conservée ; relier vue globale, vue du sujet et source précise. Une simple disposition visuelle nouvelle ne compte pas comme apport. |
+| P01-09 | Dialoguer | Clarifier le contenu explicitement partagé puis le rôle et l’intention déclarés ; réutiliser ce qui est déjà connu, permettre de laisser un point ouvert, conserver les déclarations et isoler le fil documentaire. Accord du 19/09. |
+| P01-10 | Évaluer | Sur références humaines, moins de 5 % de propositions de compétences incorrectes/injustifiées ET moins de 5 % de compétences attendues oubliées. Distinguer formats, sujet, rattachement et hiérarchie ; une couverture partielle ne valide pas le support entier. Accord du 19/09. |
 | P01-08 | Challenger | Proposer une invitation facultative lorsque son intérêt est étayé par les sources et une intention déclarée. Répondre, garder pour plus tard ou ignorer ne conditionne pas la conservation. |
 
 Le nombre de propositions affichées et leur présentation restent à concevoir.
@@ -176,15 +177,14 @@ humaines : PDF numérique, scan avec formule, manuscrit, pensée libre, doublon 
 deux passages proches aux conditions différentes. Pages/mois modestes ne permettent
 pas de déduire le volume exact du premier corpus. Tout essai payant exige son accord.
 Mesures utiles : fidélité, liens utiles/manqués/abusifs, effort de correction,
-couverture, coût réel et temps jusqu'à une mémoire utilisable. Seuils à arbitrer
-après observation ; nombre de nœuds et nombre de tests verts ne valident pas la valeur.
+couverture, coût réel et temps jusqu'à une mémoire utilisable. Seuils de compétences fixés le 19/09 dans P01-10 ; corpus et résultats restent à établir ; nombre de nœuds et nombre de tests verts ne valident pas la valeur.
 
 ## Priorités et décisions encore ouvertes
 
 **Dernière priorité humaine du 16/09 : classification d'abord ; travail proposé
 ensuite, lorsqu'elle fonctionne bien.** Le rôle futur du moteur dans le suivi
 des compétences ne justifie pas de l'exiger au premier jalon. Définir la recette
-de classification est la prochaine étape du cadrage ; les seuils restent ouverts.
+de classification est la prochaine étape du cadrage ; les deux seuils de compétences sont fixés depuis le 19/09, sans preuve de réussite à ce jour.
 
 **Ordre proposé, pas une file de développement autorisée :**
 

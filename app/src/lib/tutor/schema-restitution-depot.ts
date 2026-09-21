@@ -3,7 +3,7 @@ import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { OBJET_MAX, PRECISION_MAX, VERBES_ACTION } from "@/lib/domain/atomicite";
 
 /** Version du contrat fournisseur, indépendante des restitutions déjà enregistrées. */
-export const VERSION_SCHEMA_RESTITUTION_DEPOT = "restitution-json-schema-v1";
+export const VERSION_SCHEMA_RESTITUTION_DEPOT = "restitution-json-schema-v2";
 
 interface Schema {
   type?: "object" | "array" | "string" | "number" | "null";
@@ -61,7 +61,7 @@ export function fabriquerSchemaRestitutionDepot(passageIds: string[], referentie
   const domaine = variantes([
     { type: "null" },
     ...(ids.length ? [objet({ ...domaineExistant, ...sourcee })] : []),
-    objet({ ...domaineNouveau, description: texte(700), ...sourcee }),
+    objet({ ...domaineNouveau, description: texte(700), parentId: ids.length ? { anyOf: [choix(ids), { type: "null" }] } : { type: "null" }, ...sourcee }),
   ]);
   const competence = variantes([
     ...(codes.length ? [objet({ mode: choix(["existante"]), code: choix(codes), ...sourcee })] : []),

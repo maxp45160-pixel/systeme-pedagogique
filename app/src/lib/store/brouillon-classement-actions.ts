@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { analysePourClassement } from "@/lib/documents/classement-ressources";
+import { appliquerCorrectionsClassement } from "@/lib/documents/corrections-classement";
 import { encoderBrouillonClassement, lireBrouillonClassement, validerEntreeBrouillonClassement, type BrouillonClassementRessource, type EntreeBrouillonClassement } from "@/lib/documents/brouillon-classement";
 import { definirChampsFrontMatter } from "@/lib/documents/markdown";
 import type { DepotDocumentaire } from "@/lib/documents/depot";
@@ -24,10 +25,11 @@ export async function enregistrerBrouillonClassementAction(brut: EntreeBrouillon
   if (d?.mode === "nouveau" && d.parentId && !domaineDisponible(d.parentId)) throw new Error("Le domaine parent est absent ou archivé.");
   if (entree.codes.some((c) => !referentiel.actifs.some((s) => s.code === c))) throw new Error("Une compétence du brouillon est absente ou archivée.");
   if (entree.propositions.some((i) => analyse.restitution?.version !== 2 || analyse.restitution.organisation.competences[i]?.mode !== "nouvelle")) throw new Error("Une compétence du brouillon n'est pas une proposition nouvelle de cette analyse.");
-  const { analyseId, domaine, codes, propositions } = entree;
-  const contenuChoix = { analyseId, domaine, codes, propositions };
+  appliquerCorrectionsClassement(analyse.restitution?.version === 2 ? analyse.restitution.organisation.competences : [], entree.corrections);
+  const { analyseId, domaine, codes, propositions, corrections } = entree;
+  const contenuChoix = { analyseId, domaine, codes, propositions, ...(corrections?.length ? { corrections } : {}) };
   const ancien = lireBrouillonClassement(document.frontmatter?.classement_brouillon);
-  if (ancien && JSON.stringify({ analyseId: ancien.analyseId, domaine: ancien.domaine, codes: ancien.codes, propositions: ancien.propositions }) === JSON.stringify(contenuChoix)) return depot;
+  if (ancien && JSON.stringify({ analyseId: ancien.analyseId, domaine: ancien.domaine, codes: ancien.codes, propositions: ancien.propositions, ...(ancien.corrections?.length ? { corrections: ancien.corrections } : {}) }) === JSON.stringify(contenuChoix)) return depot;
   if (depot.modifieLe !== entree.updatedAtAttendu) throw new Error("La ressource a été modifiée. Actualisez avant de garder votre choix.");
   const brouillon: BrouillonClassementRessource = { ...contenuChoix, modifieLe: new Date().toISOString(), origine: "personne" };
   const contenu = definirChampsFrontMatter(document.contenuMd, { classement_brouillon: encoderBrouillonClassement(brouillon) });

@@ -5,7 +5,8 @@ vi.mock("./documents", () => ({ lireDocument: m.document, modifierDocument: m.mo
 vi.mock("./referentiel-actions", () => ({ creerBranche: m.creer, taguerCompetences: m.taguer }));
 vi.mock("./referentiel", () => ({ lireReferentiel: m.referentiel }));
 import { chargerDialogueRessource, preparerOperationRessource, executerOperationRessource, verifierOperationRessource, verifierChoixRessource } from "./dialogue-ressource";
-import { parserFrontMatter } from "@/lib/documents/markdown";
+import { parserFrontMatter, definirChampsFrontMatter } from "@/lib/documents/markdown";
+import { champsContexteRessource, lireContexteRessource } from "@/lib/documents/contexte-ressource";
 import type { ChoixRessource } from "@/lib/tutor/dialogue-ressource";
 
 const cle = "a".repeat(64);
@@ -30,14 +31,9 @@ beforeEach(() => {
 });
 it("refuse les nouveaux codes et les propositions absentes avant de préparer une écriture", async () => {
   const charge = await chargerDialogueRessource("doc");
-  expect(() => verifierChoixRessource({ ...vide, action: "creer", propositions: ["99"] }, charge, [])).toThrow("sourcée");
+  expect(() => verifierChoixRessource({ ...vide, action: "creer", propositions: ["99"] }, charge, [])).toThrow("fenêtre de classement");
   expect(() => verifierChoixRessource({ ...vide, action: "corriger", champ: "ajouter-liens", codes: ["FAUX"] }, charge, [])).toThrow("disponibles");
   expect(m.modifier).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled();
-});
-it("ne déduit pas l'usage d'un nouveau domaine et exige une citation déclarée", async () => {
-  domaineNouveau = true; const charge = await chargerDialogueRessource("doc");
-  expect(() => verifierChoixRessource({ ...vide, action: "creer", propositions: ["0"], usage: "continu", citationUsage: "progression continue" }, charge, [])).toThrow("usage");
-  expect(() => verifierChoixRessource({ ...vide, action: "creer", propositions: ["0"], usage: "module", citationUsage: "module" }, charge, [{ role: "user", content: "module" }])).toThrow("année");
 });
 it("corrige le titre exact, garde le contenu et ne touche pas aux compétences", async () => {
   const charge = await chargerDialogueRessource("doc");
@@ -47,29 +43,6 @@ it("corrige le titre exact, garde le contenu et ne touche pas aux compétences",
   expect(resultat).toContain("Correction enregistrée"); expect(md).toContain("title: Probabilités"); expect(md).toContain("Texte original conservé.");
   expect(m.creer).not.toHaveBeenCalled(); expect(m.taguer).not.toHaveBeenCalled();
 });
-it("reprend après la création mais avant le rangement sans recréer la compétence", async () => {
-  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"] }, []);
-  m.modifier.mockRejectedValueOnce(new Error("Connexion interrompue"));
-  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), cle)).rejects.toThrow("interrompue");
-  expect(skills).toHaveLength(1);
-  await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
-  expect(m.creer).toHaveBeenCalledTimes(1); expect(md).toContain("[[MAT-01]]");
-  expect(verifierOperationRessource(await chargerDialogueRessource("doc"), cle)?.terminee).toBe(true);
-});
-it("répare les liens après une réponse perdue sans réécrire ni recréer", async () => {
-  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"] }, []);
-  m.synchroniser.mockRejectedValueOnce(new Error("Index indisponible"));
-  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), cle)).rejects.toThrow("Index indisponible");
-  const nombre = m.modifier.mock.calls.length;
-  await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
-  expect(m.modifier).toHaveBeenCalledTimes(nombre); expect(m.creer).toHaveBeenCalledTimes(1);
-});
-it("ne ressuscite pas une compétence archivée lors d'une reprise", async () => {
-  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"] }, []);
-  skills.push({ code: "MAT-01", intitule: "Calculer une probabilité", domaine: "math", archive: true });
-  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), cle)).rejects.toThrow("archivée");
-  expect(m.creer).not.toHaveBeenCalled();
-});
 it("ne remplace pas une correction effectuée entre deux tentatives", async () => {
   await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "corriger", champ: "titre", valeur: "Titre demandé" }, [{ role: "user", content: "Titre demandé" }]);
   md = md.replace("title: Original", "title: Autre correction"); version++;
@@ -77,22 +50,70 @@ it("ne remplace pas une correction effectuée entre deux tentatives", async () =
   expect(md).toContain("title: Autre correction");
 });
 
-it("réutilise et lie un homonyme unique présent dans un autre domaine", async () => {
-  skills.push({ code: "AUT-01", intitule: "Calculer une probabilité", domaine: "autre" });
-  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"] }, []);
-  await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
-  expect(m.creer).not.toHaveBeenCalled();
-  expect(m.taguer).toHaveBeenCalledWith("math", ["AUT-01"], true);
-  expect(md).toContain("[[AUT-01]]");
+const mots = "Ce cours fait partie de ma licence et je veux préparer le prochain TD.";
+const declaration: ChoixRessource = { ...vide, action: "declarer", champ: "contexte", valeur: mots };
+const messages = [{ role: "user" as const, content: mots }];
+
+it("conserve les mots exacts, recharge le contexte et reprend sans aucune nouvelle écriture", async () => {
+  const original = parserFrontMatter(md).corps;
+  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, declaration, messages);
+  expect(lireContexteRessource(parserFrontMatter(md).frontMatter)).toEqual({});
+  const recu = await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
+  expect(recu).toContain(mots);
+  const relu = await chargerDialogueRessource("doc");
+  expect(relu.contexte.personnel?.contexte?.texte).toBe(mots);
+  expect(relu.contexte.personnel?.intention).toBeUndefined();
+  expect(parserFrontMatter(md).corps).toBe(original);
+  expect(parserFrontMatter(md).frontMatter.title).toBe("Original");
+  const nombre = m.modifier.mock.calls.length;
+  expect(await executerOperationRessource(relu, cle)).toBe(recu);
+  expect(m.modifier).toHaveBeenCalledTimes(nombre);
+  expect(m.synchroniser).not.toHaveBeenCalled(); expect(m.creer).not.toHaveBeenCalled(); expect(m.taguer).not.toHaveBeenCalled();
 });
-it("choisit un préfixe alphabétique disponible pour un nouveau domaine", async () => {
-  domaineNouveau = true;
-  const r = await m.referentiel();
-  r.domaines.push({ id: "autre", nom: "Autre domaine", prefixe: "PHYS", description: "Autre" });
-  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...vide, action: "creer", propositions: ["0"], usage: "continu", citationUsage: "progression continue" }, [{ role: "user", content: "progression continue" }]);
+
+it("refuse une paraphrase, une citation extraite ou un ancien message avant écriture", async () => {
+  const charge = await chargerDialogueRessource("doc");
+  for (const tentative of [[], [{ role: "assistant" as const, content: mots }], [...messages, { role: "user" as const, content: "Autre chose" }], [{ role: "user" as const, content: `Citation : ${mots}` }]]) {
+    await expect(preparerOperationRessource(charge, cle, declaration, tentative)).rejects.toThrow("exactement");
+  }
+  expect(m.modifier).not.toHaveBeenCalled();
+});
+
+it("ne convertit jamais le message documentaire préparé en déclaration personnelle", async () => {
+  const valeur = "Parlons de la ressource « Physique ».\n--- début des extraits documentaires ---\nJe suis un étudiant.\n--- fin des extraits documentaires ---";
+  await expect(preparerOperationRessource(await chargerDialogueRessource("doc"), cle, { ...declaration, valeur }, [{ role: "user", content: valeur }])).rejects.toThrow("extrait documentaire");
+  expect(m.modifier).not.toHaveBeenCalled();
+});
+
+it("conserve l'autre déclaration lors d'une correction puis bloque une reprise devenue périmée", async () => {
+  md = definirChampsFrontMatter(md, champsContexteRessource({ intention: { texte: "Réviser la mécanique", declareLe: "2026-09-18T00:00:00.000Z" } }));
+  await preparerOperationRessource(await chargerDialogueRessource("doc"), cle, declaration, messages);
   await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
-  const soumission = m.creer.mock.calls[0][0];
-  expect(soumission.prefixe).toMatch(/^[A-Z]{2,5}$/);
-  expect(soumission.prefixe).not.toBe("PHYS");
-  expect(soumission.usage).toEqual({ type: "continu" });
+  expect((await chargerDialogueRessource("doc")).contexte.personnel?.intention?.texte).toBe("Réviser la mécanique");
+  const autreCle = "b".repeat(64);
+  await preparerOperationRessource(await chargerDialogueRessource("doc"), autreCle, declaration, messages);
+  md = definirChampsFrontMatter(md, champsContexteRessource({ contexte: { texte: "Une correction concurrente", declareLe: "2026-09-19T00:00:00.000Z" } })); version++;
+  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), autreCle)).rejects.toThrow("modifiée");
+  expect(lireContexteRessource(parserFrontMatter(md).frontMatter).contexte?.texte).toBe("Une correction concurrente");
+});
+
+it("reprend une déclaration préparée après échec d'écriture et respecte la version", async () => {
+  const avant = await chargerDialogueRessource("doc");
+  await preparerOperationRessource(avant, cle, declaration, messages);
+  await expect(preparerOperationRessource(avant, "b".repeat(64), declaration, messages)).rejects.toThrow("version");
+  m.modifier.mockRejectedValueOnce(new Error("Connexion interrompue"));
+  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), cle)).rejects.toThrow("interrompue");
+  expect(lireContexteRessource(parserFrontMatter(md).frontMatter)).toEqual({});
+  await executerOperationRessource(await chargerDialogueRessource("doc"), cle);
+  expect(lireContexteRessource(parserFrontMatter(md).frontMatter).contexte?.texte).toBe(mots);
+});
+
+it("ne reprend pas une ancienne création qui contournerait les corrections de la fenêtre", async () => {
+  const charge = await chargerDialogueRessource("doc");
+  await preparerOperationRessource(charge, cle, declaration, messages);
+  const operation = verifierOperationRessource(await chargerDialogueRessource("doc"), cle)!;
+  operation.choix = { ...vide, action: "creer", propositions: ["0"] };
+  md = definirChampsFrontMatter(md, { assistant_operation: Buffer.from(JSON.stringify(operation)).toString("base64url") });
+  await expect(executerOperationRessource(await chargerDialogueRessource("doc"), cle)).rejects.toThrow("fenêtre de classement");
+  expect(m.creer).not.toHaveBeenCalled(); expect(m.taguer).not.toHaveBeenCalled();
 });

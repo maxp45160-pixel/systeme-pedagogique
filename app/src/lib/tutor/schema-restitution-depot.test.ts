@@ -112,7 +112,7 @@ describe("schéma de restitution documentaire", () => {
     const domaine = { mode: "nouveau", nom: "Mathématiques" };
     const value = restitution();
     expect(sansReferentiel({ ...value, organisation: {
-      ...value.organisation, domaine: { ...domaine, description: "Cours de mathématiques", ...sourcee },
+      ...value.organisation, domaine: { ...domaine, description: "Cours de mathématiques", parentId: null, ...sourcee },
       competences: [{ ...nouvelle(), domaine }],
     } })).toBe(true);
   });

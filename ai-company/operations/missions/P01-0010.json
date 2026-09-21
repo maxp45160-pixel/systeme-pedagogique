@@ -1,0 +1,273 @@
+{
+  "id": "P01-0010",
+  "title": "Fiabiliser les propositions documentaires et leur correction ciblée",
+  "objective": "Recette multi-documents, correction des défauts communs de proposition et édition ciblée conservée sans réanalyse",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-18-qualite-documentaire.md",
+    "summary": "Maxime approuve le chantier générique par « parfait, fais ça » : recette représentative, corrections causes communes, correction ciblée sans perte choix. Aucun appel payant ni déploiement."
+  },
+  "status": "done",
+  "owner": "01a0b62a-497b-7af2-8106-3ffd62751d19",
+  "scope": [
+    "app/src/lib/documents/classement-ressources.ts",
+    "app/src/lib/documents/classement-ressources.test.ts",
+    "app/src/lib/documents/brouillon-classement.ts",
+    "app/src/lib/documents/brouillon-classement.test.ts",
+    "app/src/lib/documents/corrections-classement.ts",
+    "app/src/lib/documents/corrections-classement.test.ts",
+    "app/src/lib/store/classement-ressources-actions.ts",
+    "app/src/lib/store/classement-ressources-actions.test.ts",
+    "app/src/lib/store/brouillon-classement-actions.ts",
+    "app/src/lib/store/brouillon-classement-actions.test.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-mistral.test.ts",
+    "app/src/lib/tutor/depot-qwen.ts",
+    "app/src/lib/tutor/depot-qwen.test.ts",
+    "app/src/lib/documents/depot-validation.ts",
+    "app/src/lib/documents/depot-validation.test.ts",
+    "app/src/lib/documents/fixtures/qualite-documentaire.ts",
+    "app/src/lib/documents/qualite-documentaire.test.ts",
+    "app/src/components/tuteur/modale-ressources.tsx",
+    "app/src/components/tuteur/modale-ressources.test.ts",
+    "app/src/components/tuteur/correction-competence-proposee.tsx",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/operations/runs/2026-09-18-qualite-documentaire.md",
+    "ai-company/operations/missions/P01-0010.json",
+    "app/src/lib/store/depot-analyse.ts",
+    "app/src/lib/store/depot-analyse.test.ts",
+    "app/src/lib/documents/depot.ts",
+    "ai-company/operations/missions/UX-0001.json",
+    "app/src/lib/store/depot-documents.ts",
+    "app/src/lib/store/depot-documents.test.ts",
+    "app/src/lib/documents/confirmation-classement.ts",
+    "app/src/lib/store/brouillon-classement-lecture.test.ts"
+  ],
+  "inputs": [
+    "app/src/lib/domain/atomicite.ts",
+    "app/src/lib/tutor/schema-restitution-depot.ts"
+  ],
+  "baseCommit": "536340d1e4fa6bcb35858258a2e71cea009169ed",
+  "acceptance": [
+    "Recette synthétique représentative de plusieurs matières avec cas limites et limites sémantiques explicites",
+    "Les deux fournisseurs reçoivent les mêmes règles métier et les propositions identiques sont refusées sans suppression silencieuse",
+    "Une proposition nouvelle peut être reformulée, conservée et confirmée sans modifier sources ni autres choix, avec contrôles serveur et protection des reprises",
+    "Vérifications ciblées et globales, preuve navigateur et documentation synchronisée"
+  ],
+  "nextAction": "Livraison locale vérifiée ; aucun appel payant ni déploiement. Gain fournisseur réel à mesurer séparément sur un corpus humain autorisé.",
+  "blocker": null,
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-18T21:07:51.592Z",
+      "revision": "536340d1e4fa6bcb35858258a2e71cea009169ed + diff P01-0010 local",
+      "snapshotRef": "bccbdda6b3ed771fbeb8a87f5386cada8c91bd181a88e1158f8e1ac04c2db423",
+      "note": "2628 tests / 238 fichiers verts ; TypeScript et ESLint sans erreur, 4 avertissements préexistants"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-18T21:07:51.592Z",
+      "revision": "536340d1e4fa6bcb35858258a2e71cea009169ed + diff P01-0010 local",
+      "snapshotRef": "bccbdda6b3ed771fbeb8a87f5386cada8c91bd181a88e1158f8e1ac04c2db423",
+      "note": "Build Next.js réussi ; compilation, TypeScript et génération des routes"
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-18T21:07:51.592Z",
+      "revision": "536340d1e4fa6bcb35858258a2e71cea009169ed + diff P01-0010 local",
+      "snapshotRef": "bccbdda6b3ed771fbeb8a87f5386cada8c91bd181a88e1158f8e1ac04c2db423",
+      "note": "20 missions cohérentes ; continuité valide ; avertissements historiques conservés"
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-18T21:07:51.592Z",
+  "completion": {
+    "summary": "Chantier générique local livré : recette synthétique 12 cas, consignes partagées, doublons refusés, correction ciblée persistée et traçable, reprise/historique préservés. QA indépendante corrigée puis contre-vérifiée ; 2628 tests et build passent. Aucune validation humaine générale de la classification.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-qualite-documentaire.md"
+    ],
+    "at": "2026-09-18T21:07:51.592Z"
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-04",
+      "scope": "Qualité des propositions sourcees et recette générique"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-06",
+      "scope": "Correction humaine ciblée sans réanalyse"
+    }
+  ],
+  "handoff": {
+    "delivered": "Règles fournisseur communes, refus des répétitions, recette synthétique 12 cas, correction ciblée avec brouillon et trace confirmée, compatibilité historique et devis versionnés",
+    "remaining": [
+      "Gain sémantique fournisseur réel non mesuré : nécessiterait corpus humain et essai payant explicitement autorisé",
+      "Aucune validation générale de classification ou déploiement"
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-qualite-documentaire.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  },
+  "snapshots": {
+    "bccbdda6b3ed771fbeb8a87f5386cada8c91bd181a88e1158f8e1ac04c2db423": {
+      "contractSha256": "6bd2e2931c3f7ab6017ae8accf69412dbbf31a45dd97aee144e22aad852b6b6e",
+      "files": [
+        [
+          "ai-company/operations/missions/UX-0001.json",
+          "14c25c273ab40e6661acdb6dd7d01da54b5ed05b91dcc1e4637ec65b4efc6dd1"
+        ],
+        [
+          "ai-company/operations/runs/2026-09-18-qualite-documentaire.md",
+          "a2d6184fbe82934d10ecf207bd0658c22bb97c53fef3e39e29ad984803d60629"
+        ],
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "9210d25eaf6b64dd6eab8c551a9421d6f70f74c1273fbe47dae672c955db7641"
+        ],
+        [
+          "app/src/components/tuteur/correction-competence-proposee.tsx",
+          "0d705ba269472b5aa194f753678e43135e94a867735328909400831dbb3fbf85"
+        ],
+        [
+          "app/src/components/tuteur/modale-ressources.test.ts",
+          "442655cbe87de3ab7def223afbedbf8212061370f6db8cefb4d1b291197e507f"
+        ],
+        [
+          "app/src/components/tuteur/modale-ressources.tsx",
+          "bad50a5ca6e3d1ab8155dc786fd0b1ab89243ff8ee01e82bd8cf06605970abe2"
+        ],
+        [
+          "app/src/lib/documents/brouillon-classement.test.ts",
+          "ac878dceec20a34d2cafa95390b24ac052236dbb329420f41027b492fc5ed613"
+        ],
+        [
+          "app/src/lib/documents/brouillon-classement.ts",
+          "29849922acc6549a93563824ed79af2925e08e05c62bc192f048e83ce8cd5e9a"
+        ],
+        [
+          "app/src/lib/documents/classement-ressources.test.ts",
+          "57faba35bd4e1a6e7f2e84551988d56a3406e041187a5ca4fab94967cb10bec7"
+        ],
+        [
+          "app/src/lib/documents/classement-ressources.ts",
+          "db031ec6665b2e0d47e717b76aee90304a324eec272bfff2ce76f59c5aee94af"
+        ],
+        [
+          "app/src/lib/documents/confirmation-classement.ts",
+          "d633b4ecb560804db891d1f531fe71d73cb23038c97f0594045c1053b4e53aa0"
+        ],
+        [
+          "app/src/lib/documents/corrections-classement.test.ts",
+          "f76e6f439f8ce0708160910a370225fb6e4317521f1325f7e9e8b9b6fa07148a"
+        ],
+        [
+          "app/src/lib/documents/corrections-classement.ts",
+          "89f97d11ec5c114bd067898684cbbb5818082bb30ddab4706b15b8746eb30f48"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.test.ts",
+          "38f7e8d17dd72057393643508160ff3d5402d9fdd91937bc4c7a598f4c868565"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.ts",
+          "9a53420c645f1a72cd007b39b05d055c96e50206378644384bb03106d4055f78"
+        ],
+        [
+          "app/src/lib/documents/depot.ts",
+          "bb871a5bfb9dc7b9c5b70790964410ca59f4cb14e4c71b8647f5beb3173b2bcb"
+        ],
+        [
+          "app/src/lib/documents/fixtures/qualite-documentaire.ts",
+          "40bea931e71c3d3ce5a7ed0cf4cb66ddbd360e54337742c09fe980f101ec0107"
+        ],
+        [
+          "app/src/lib/documents/qualite-documentaire.test.ts",
+          "0efa365bc14a5294610e421cb5f2d5f9b186a25582ce4b10285664424bed3664"
+        ],
+        [
+          "app/src/lib/domain/atomicite.ts",
+          "395971af99020c3edeba700bb84bab3868e2419171980ba5a519f6f1c0288a75"
+        ],
+        [
+          "app/src/lib/store/brouillon-classement-actions.test.ts",
+          "92fb405c804cf804a0eeb496c34e3ad2d628cb2141b52e95ea21691660c7784c"
+        ],
+        [
+          "app/src/lib/store/brouillon-classement-actions.ts",
+          "4d596ae5dfc27170ec3ce6131637ea116b87100c1deba42dbb378e7f53c5c262"
+        ],
+        [
+          "app/src/lib/store/brouillon-classement-lecture.test.ts",
+          "4b058cf1a10ece37bd9e60c9e8617aaddbb3e99fd1e9874bb2a490bbf8941299"
+        ],
+        [
+          "app/src/lib/store/classement-ressources-actions.test.ts",
+          "d10169661f26a14e8168825b54b66cee2dbfade643d84c5e5530022a5c92afea"
+        ],
+        [
+          "app/src/lib/store/classement-ressources-actions.ts",
+          "edcc32ad61fc34c937c09c7ca973a870503b42786dfd0a7bd3f314193d8aab08"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.test.ts",
+          "9806e429cb48d85b5dd278f37ca22082e7ab039573aba44e487ba1b0264f406c"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.ts",
+          "a0836b67ecef21cfc6c43586510b316c2af2697274bd95a8e552ce6db41ed45f"
+        ],
+        [
+          "app/src/lib/store/depot-documents.test.ts",
+          "14b1b208f708219755768412992e993bbe3228cde9b86f5a29c237ba6877103c"
+        ],
+        [
+          "app/src/lib/store/depot-documents.ts",
+          "4636671fecda19d83d67bdf9a3d60d4f5c36ce275e11057611ac994370519bf3"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.test.ts",
+          "159165233a99828d4bb60754381b0dc1f29dec57a8387d056de5c8e59c40badd"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.ts",
+          "3eda57ef9ac43da1758c8990d6c476f09b3128354ee6baecb32cd3a86effed04"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.test.ts",
+          "8f591bc7c82f9cfe6710013abd4f5644a9c19615056ce6c8e3737f2b56466c7a"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.ts",
+          "1a713d853ad129915fa213eb3b3eb21dc4788ad850b7e7b64293a8771734c297"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.ts",
+          "0879ca015e188c4820b116c48c81c81f5b4e46c5924fccd70ee8a3240cb4452f"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "5569f994829e7562626115d9c6ca5a9a2011840d7af0849ca005b6bec6fd2f04"
+        ],
+        [
+          "PRODUCT.md",
+          "8f4d51adfeadf8e9c2266d6d2f71a13a1fb4e1a1044a4456891abc3377d3a1e1"
+        ]
+      ]
+    }
+  }
+}

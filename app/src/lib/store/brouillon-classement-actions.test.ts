@@ -64,3 +64,32 @@ it("revérifie l'analyse après les validations du référentiel et avant l'écr
   await expect(enregistrerBrouillonClassementAction(entree)).rejects.toThrow("analyse");
   expect(m.modifier).not.toHaveBeenCalled();
 });
+
+it("conserve une correction décochée à la réouverture et reprend une réponse perdue sans réécriture", async () => {
+  const corrections = [{ indice: 0, verbeAction: "calculer", objet: "un pourcentage" }];
+  const commande = { ...entree, propositions: [], corrections };
+  const retour = await enregistrerBrouillonClassementAction(commande);
+  expect(retour.brouillonClassement).toMatchObject({ analyseId: "a", propositions: [], corrections });
+  expect(retour.analyses[0].restitution).toMatchObject({ organisation: { competences: [{ intitule: "Calculer une proportion" }] } });
+  expect((await enregistrerBrouillonClassementAction(commande)).brouillonClassement?.corrections).toEqual(corrections);
+  expect(m.modifier).toHaveBeenCalledTimes(1);
+  await expect(enregistrerBrouillonClassementAction({ ...commande, corrections: [{ ...corrections[0], objet: "une remise" }] })).rejects.toThrow("modifiée");
+  expect((await m.depot()).brouillonClassement.corrections).toEqual(corrections);
+});
+
+it("refuse une correction invalide ou d'un indice absent avant toute écriture", async () => {
+  for (const correction of [{ indice: 0, verbeAction: "comprendre", objet: "un texte" }, { indice: 5, verbeAction: "calculer", objet: "un coût" }]) {
+    await expect(enregistrerBrouillonClassementAction({ ...entree, corrections: [correction] })).rejects.toThrow();
+  }
+  expect(m.modifier).not.toHaveBeenCalled();
+});
+
+it("une nouvelle analyse ne remappe pas le brouillon corrigé conservé", async () => {
+  const corrections = [{ indice: 0, verbeAction: "calculer", objet: "un pourcentage" }];
+  await enregistrerBrouillonClassementAction({ ...entree, corrections });
+  const depot = await m.depot();
+  m.depot.mockResolvedValue({ ...depot, analyses: [...depot.analyses, { id: "b", creeLe: "2026-09-18", statut: "terminee", restitution: { version: 2, organisation: { competences: [] } } }] });
+  await expect(enregistrerBrouillonClassementAction({ ...entree, updatedAtAttendu: "v2", corrections })).rejects.toThrow("analyse");
+  expect(lireBrouillonClassement(parserFrontMatter(md).frontMatter.classement_brouillon)?.corrections).toEqual(corrections);
+  expect(m.modifier).toHaveBeenCalledTimes(1);
+});

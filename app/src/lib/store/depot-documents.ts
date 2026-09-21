@@ -12,6 +12,8 @@ import { objetDepot, texteDepot, validerCouverturesDepot, validerPagesDepot, val
 import { extraireLiensMarkdown } from "@/lib/documents/markdown";
 import { lireValeursSections, sansSections } from "@/lib/documents/sections-markdown";
 import { lireBrouillonClassement } from "@/lib/documents/brouillon-classement";
+import { lireConfirmationClassement } from "@/lib/documents/confirmation-classement";
+import { lireContexteRessource } from "@/lib/documents/contexte-ressource";
 
 export function noteDuDepot(markdown: string): string {
   return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(/^\s*# [^\n]*\n\n?/, "");
@@ -30,7 +32,8 @@ function analyseDepuisLigne(value: unknown): AnalyseDepot {
       elements: validerElementsDepot(r, documentId, typeof a.note_source === "string" ? a.note_source : "", pages, id), couvertures: validerCouverturesDepot(r.couvertures) };
     if (r.version === 1) restitution = { version: 1, ...commun };
     else if (r.version === 2) restitution = { version: 2, ...commun,
-      organisation: validerOrganisationDepot(r, documentId, typeof a.note_source === "string" ? a.note_source : "", pages) };
+      // Les anciennes propositions restent lisibles ; les nouveaux doublons sont refusés à l'analyse.
+      organisation: validerOrganisationDepot(r, documentId, typeof a.note_source === "string" ? a.note_source : "", pages, undefined, { autoriserDoublonsHistoriques: true }) };
     else throw new Error("Version de restitution inconnue.");
   }
   return { id, documentId, empreinte: texteDepot(a.empreinte, 64), statut: a.statut as AnalyseDepot["statut"], pages, couvertures, restitution,
@@ -104,7 +107,9 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
   const champ = (nom: string) => typeof frontmatter[nom] === "string" && frontmatter[nom].trim() ? frontmatter[nom].trim() : undefined;
   const sectionCompetences = lireValeursSections(document.contenuMd, [SECTION_COMPETENCES_RESSOURCE])[SECTION_COMPETENCES_RESSOURCE] ?? "";
   const brouillonClassement = lireBrouillonClassement(frontmatter.classement_brouillon);
+  const confirmation = lireConfirmationClassement(frontmatter.classement_confirmation);
   return { id, version, titre: document.titre ?? "Dépôt", note, creeLe: document.createdAt ?? "", modifieLe: document.updatedAt ?? "", type: document.type ?? "note",
+    contextePersonnel: lireContexteRessource(frontmatter),
     ...(champ("domaine") ? { domaineId: champ("domaine") } : {}),
     ...(champ("source_relative_path") ? { sourceRelativePath: champ("source_relative_path") } : {}),
     ...(champ("referentiel_revu_le") ? { referentielRevuLe: champ("referentiel_revu_le") } : {}),
@@ -114,6 +119,7 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
     ...(champ("rangement_statut") === "rangee" || champ("rangement_statut") === "a-trier" ? { rangementStatut: champ("rangement_statut") as "rangee"|"a-trier" } : {}),
     ...(champ("rangement_origine") === "assistant" || champ("rangement_origine") === "personne" ? { rangementOrigine: champ("rangement_origine") as "assistant" | "personne" } : {}),
     ...(brouillonClassement ? { brouillonClassement } : {}),
+    ...(confirmation?.terminee && confirmation.corrections?.length ? { correctionsClassement: { analyseId: confirmation.analyseId, corrections: confirmation.corrections } } : {}),
     creationDomaineDeleguee: lireCreationDomaineDeleguee(frontmatter.classement_creation_deleguee),
     competencesLiees: extraireLiensMarkdown(sectionCompetences).map(({ cible }) => cible), pieces,
     analyses: (analyses.data ?? []).map(analyseDepuisLigne),

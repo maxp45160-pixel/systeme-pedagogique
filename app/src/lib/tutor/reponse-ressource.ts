@@ -17,7 +17,7 @@ export async function repondreRessource(request: Request, envoi: EnvoiAccueil, c
     const cle = createHash("sha256").update(`${cleEnvoiAccueil(envoi)}:${id}:${c.version}`).digest("hex");
     const operation = verifierOperationRessource(charge, cle);
     if (envoi.verifier) {
-      const liens = operation?.terminee && (await lireRessourceAssistantAction(id)).liensVerifies;
+      const liens = operation?.terminee && (operation.choix?.action === "declarer" || (await lireRessourceAssistantAction(id)).liensVerifies);
       return Response.json({ message: liens ? operation!.recu : null });
     }
     if (!operation && charge.depot.modifieLe !== c.version) return Response.json({ message: "Cette ressource a changé. Sélectionnez à nouveau Corriger ou compléter avant de reformuler la demande." }, { status: 409 });
@@ -29,7 +29,7 @@ export async function repondreRessource(request: Request, envoi: EnvoiAccueil, c
     if (!resolu.ok) return resolu.reponse;
     return repondreParFluxSse(request, async (envoyer, signal) => {
       const borne = AbortSignal.any([signal, AbortSignal.timeout(45000)]);
-      envoyer("tronque", { message: "Je vérifie votre correction…" });
+      envoyer("tronque", { message: "Je lis votre message…" });
       const choix = await comprendreRessource(resolu.moteur, envoi.messages, charge.contexte, borne);
       if (choix.action === "repondre") envoyer("texte", { delta: `${choix.reponse}\n\nAucune modification effectuée.` });
       else {

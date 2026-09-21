@@ -75,6 +75,30 @@ describe("organisation V2 strictement proposée",()=>{
   };
   const referentiel={domaines:[{id:"philo",nom:"Philosophie"}],competences:[{code:"PHI-01",intitule:"Analyser un argument philosophique"}]};
 
+  it("refuse les doublons nouveaux malgré casse, blancs et Unicode, sans modifier la réponse",()=>{
+    const nouvelle={mode:"nouvelle",verbeAction:"analyser",objet:"une idée",palier:"fondamentaux",importance:0.5,domaine:{mode:"existant",id:"philo"},justification:"Geste proposé",sources:[preuve]};
+    const reponse={organisation:{...base,competences:[nouvelle,{...nouvelle,objet:" UNE  IDE\u0301E "}]}};
+    const avant=structuredClone(reponse);
+    expect(()=>validerOrganisationDepot(reponse,"doc",preuve.citation,[],referentiel)).toThrow("plusieurs fois");
+    expect(reponse).toEqual(avant);
+  });
+
+  it("garde deux gestes distincts sur le même objet même s'ils citent le même passage",()=>{
+    const nouvelle={mode:"nouvelle",verbeAction:"analyser",objet:"une idée",palier:"fondamentaux",importance:0.5,domaine:{mode:"existant",id:"philo"},justification:"Geste proposé",sources:[preuve]};
+    const resultat=validerOrganisationDepot({organisation:{...base,competences:[nouvelle,{...nouvelle,verbeAction:"expliquer"}]}},"doc",preuve.citation,[],referentiel);
+    expect(resultat.competences.map(c=>c.mode === "nouvelle" && c.intitule)).toEqual(["Analyser une idée","Expliquer une idée"]);
+  });
+
+  it("relit les anciens doublons uniquement sur demande explicite, en conservant les indices et les sources",()=>{
+    const reponse={organisation:{...base,competences:[base.competences[0],base.competences[0]]}};
+    expect(()=>validerOrganisationDepot(reponse,"doc",preuve.citation,[])).toThrow("plusieurs fois");
+    const resultat=validerOrganisationDepot(reponse,"doc",preuve.citation,[],undefined,{autoriserDoublonsHistoriques:true});
+    expect(resultat.competences).toHaveLength(2);
+    expect(resultat.competences[0]).toEqual(resultat.competences[1]);
+    const falsifie={organisation:{...reponse.organisation,competences:[{...base.competences[0],sources:[{...preuve,citation:"Citation absente"}]}]}};
+    expect(()=>validerOrganisationDepot(falsifie,"doc",preuve.citation,[],undefined,{autoriserDoublonsHistoriques:true})).toThrow("citation");
+  });
+
   it("accepte un domaine d'organisation sourcé sans fabriquer de compétence",()=>{
     const note="Documents de contexte en géologie";
     const sources=[{pieceId:null,page:null,citation:note}];

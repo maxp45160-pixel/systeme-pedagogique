@@ -28,3 +28,26 @@ it("ne transforme pas un brouillon illisible en retour silencieux à une proposi
   m.document.mockResolvedValue({ contenuMd: "---\ndepot_version: 2\n---\n# Livret", frontmatter: { depot_version: 2, classement_brouillon: "%zz" } });
   await expect(lireDepotDocumentaire("doc")).rejects.toThrow("pas été remplacé");
 });
+
+const correction = { indice: 0, verbeAction: "calculer", objet: "une proportion" };
+const recu = (overrides = {}) => Buffer.from(JSON.stringify({ cle: "a".repeat(64), base: "b".repeat(64), analyseId: "analyse-originale", terminee: true, corrections: [correction], ...overrides })).toString("base64url");
+
+it("expose les corrections confirmées après effacement du brouillon sans réécrire les sources", async () => {
+  const contenuMd = definirChampsFrontMatter("---\ntitle: Livret\nrole: support\ndepot_version: 2\n---\n# Livret\n\nTexte original.", { classement_brouillon: "", classement_confirmation: recu() });
+  m.document.mockResolvedValue({ contenuMd, frontmatter: parserFrontMatter(contenuMd).frontMatter });
+  const depot = await lireDepotDocumentaire("doc");
+  expect(depot.brouillonClassement).toBeUndefined();
+  expect(depot.correctionsClassement).toEqual({ analyseId: "analyse-originale", corrections: [correction] });
+  expect(depot.note).toBe("Texte original.");
+  expect(depot.analyses).toEqual([]);
+});
+
+it.each([{ terminee: false }, { corrections: undefined }])("n'expose pas comme confirmée une correction interrompue ou absente", async (overrides) => {
+  m.document.mockResolvedValue({ contenuMd: "---\ndepot_version: 2\n---\n# Livret", frontmatter: { depot_version: 2, classement_confirmation: recu(overrides) } });
+  expect((await lireDepotDocumentaire("doc")).correctionsClassement).toBeUndefined();
+});
+
+it.each([recu({ corrections: [{ ...correction, verbeAction: "comprendre" }] }), recu({ corrections: [{ ...correction, sources: [] }] }), recu({ analyseId: "" }), "%zz"])("refuse un reçu humain altéré au lieu de revenir au modèle", async (confirmation) => {
+  m.document.mockResolvedValue({ contenuMd: "---\ndepot_version: 2\n---\n# Livret", frontmatter: { depot_version: 2, classement_confirmation: confirmation } });
+  await expect(lireDepotDocumentaire("doc")).rejects.toThrow("corrections humaines");
+});

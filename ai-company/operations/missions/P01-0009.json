@@ -1,0 +1,66 @@
+{
+  "id": "P01-0009",
+  "title": "Contrôler et appliquer le classement ATS conservé",
+  "objective": "Contrôler les propositions ATS avec leurs sources, obtenir les choix de Maxime et vérifier leur application, conservation et retrouvabilité",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-18-recette-ats.md",
+    "summary": "Accord du 18/09 : vas-y fais ça, pour la recette proposée sur ATS existant avec choix humains avant application. Aucun appel payant ni publication."
+  },
+  "status": "cancelled",
+  "owner": "01a0b62a-497b-7af2-8106-3ffd62751d19",
+  "scope": [
+    "ai-company/operations/runs/2026-09-18-recette-ats.md",
+    "ai-company/operations/missions/P01-0009.json"
+  ],
+  "inputs": [
+    "PRODUCT.md",
+    "ai-company/product/parcours-depot-memoire.md"
+  ],
+  "baseCommit": "536340d1e4fa6bcb35858258a2e71cea009169ed",
+  "acceptance": [
+    "Les 16 propositions et leurs passages sont contrôlés et les réserves explicitées",
+    "Les choix précis sont retenus par Maxime avant application",
+    "Le classement retenu est appliqué, conservé après rechargement et retrouvé dans Mes cours sans nouvel appel payant"
+  ],
+  "nextAction": "Mission spécifique arrêtée sur recadrage de Maxime ; recommander la suite générique sans appliquer le classement ATS",
+  "blocker": null,
+  "checks": [],
+  "externalActions": [],
+  "updatedAt": "2026-09-18T20:44:57.806Z",
+  "completion": {
+    "at": "2026-09-18T20:44:57.806Z",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-recette-ats.md"
+    ],
+    "summary": "Annulée sur demande de Maxime : ATS est un cas de test, la suite doit traiter le générique. Aucun classement appliqué."
+  },
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run agents:check"
+  ],
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-06",
+      "scope": "Contrôle ciblé des propositions ATS avant confirmation"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-07",
+      "scope": "Retrouvabilité du livret ATS après application du choix humain"
+    }
+  ],
+  "handoff": {
+    "delivered": "Contrôle des 16 sources affichées, avis QA 15 retenables et 1 à écarter, 80 tests ciblés verts, retrouvabilité avant application constatée",
+    "remaining": [
+      "Recette après application non exécutée et non poursuivie : recadrage humain vers le générique"
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-18-recette-ats.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  }
+}

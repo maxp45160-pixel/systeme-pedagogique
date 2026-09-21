@@ -9,12 +9,25 @@ vi.mock("./depot-budget", () => ({ comptePiloteDepot: async () => ({ userId: "co
 } } }) }));
 import { encoderCreationDomaineDeleguee } from "@/lib/documents/creation-domaine-deleguee";
 import { lireDepotDocumentaire } from "./depot-documents";
+import { CORPUS_QUALITE_DOCUMENTAIRE } from "@/lib/documents/fixtures/qualite-documentaire";
 
 beforeEach(() => {
   m.analyses = [];
   m.corrections = [];
   m.frontmatter = { depot_version: "2" };
   m.markdown = "# Livret\n";
+});
+
+it("relit les doublons historiques sans déplacer les indices ni réécrire les sources", async () => {
+  const cas = CORPUS_QUALITE_DOCUMENTAIRE.find((c) => c.id === "doublon-code")!;
+  const documentId = cas.reponse.organisation.sources[0].documentId;
+  m.analyses = [{ id:"historique",document_id:documentId,empreinte:"historique",statut:"terminee",pages:cas.pages,couvertures:[],note_source:cas.note,erreur:null,created_at:"2026-09-16",updated_at:"2026-09-16",
+    restitution:{version:2,modele:"historique",creeLe:"2026-09-16",couvertures:[],elements:[{nature:"sujet",texte:cas.matiere,sources:cas.reponse.organisation.sources}],organisation:cas.reponse.organisation} }];
+  const restitution = (await lireDepotDocumentaire(documentId)).analyses[0].restitution;
+  expect(restitution?.version).toBe(2);
+  if (restitution?.version !== 2) throw new Error("Restitution V2 attendue");
+  expect(restitution.organisation.competences).toHaveLength(2);
+  expect(restitution.organisation.competences.map((c) => c.sources)).toEqual(cas.reponse.organisation.competences.map((c) => c.sources));
 });
 
 it("relit un dépôt V1 historique avec sa note, sa restitution sourcée et sa correction humaine", async () => {

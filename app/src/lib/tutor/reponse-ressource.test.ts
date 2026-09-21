@@ -45,3 +45,17 @@ it("persiste la commande avant de relire et appliquer ses effets", async () => {
   expect(m.charger).toHaveBeenCalledTimes(2);
   expect(m.preparer.mock.invocationCallOrder[0]).toBeLessThan(m.executer.mock.invocationCallOrder[0]);
 });
+
+it("retrouve une déclaration terminée sans consulter ni réparer les liens", async () => {
+  m.verifier.mockReturnValue({ terminee: true, choix: { action: "declarer" }, recu: "J’ai conservé vos mots." });
+  expect(await (await repondreRessource(requete(), { ...envoi, verifier: true }, cible)).json()).toEqual({ message: "J’ai conservé vos mots." });
+  expect(m.lire).not.toHaveBeenCalled(); expect(m.executer).not.toHaveBeenCalled(); expect(m.moteur).not.toHaveBeenCalled();
+});
+
+it("émet uniquement le reçu serveur après persistance d'une déclaration", async () => {
+  m.comprendre.mockResolvedValue({ action: "declarer", reponse: "Fausse promesse du modèle" });
+  m.executer.mockResolvedValue("J’ai conservé votre intention dans vos mots.");
+  const texte = await (await repondreRessource(requete(), envoi, cible)).text();
+  expect(texte).toContain("J’ai conservé votre intention"); expect(texte).not.toContain("Fausse promesse");
+  expect(m.preparer.mock.invocationCallOrder[0]).toBeLessThan(m.executer.mock.invocationCallOrder[0]);
+});

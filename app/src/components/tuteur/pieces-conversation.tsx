@@ -66,7 +66,7 @@ export function usePiecesConversation(onConserver?: (texte: string, recu: string
   }
   function interfacePieces(desactive: boolean) {
     return <>
-      <input ref={selection} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp" className="hidden" aria-label="Choisir des pièces jointes" onChange={(e) => { if (e.target.files) ajouter(depuisSelection(e.target.files)); e.target.value = ""; }} />
+      <input ref={selection} type="file" multiple accept=".pdf,.epub,.png,.jpg,.jpeg,.webp" className="hidden" aria-label="Choisir des pièces jointes" onChange={(e) => { if (e.target.files) ajouter(depuisSelection(e.target.files)); e.target.value = ""; }} />
       <input ref={dossier} type="file" multiple {...{ webkitdirectory: "" }} className="hidden" aria-label="Choisir un dossier" onChange={(e) => { if (e.target.files) ajouter(depuisSelection(e.target.files)); e.target.value = ""; }} />
       <div className="flex gap-1">
         <Bouton taille="petite" variante="discret" disabled={desactive || occupe} onClick={() => selection.current?.click()}><IconePlus className="mr-1 size-4"/>Joindre</Bouton>

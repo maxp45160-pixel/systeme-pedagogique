@@ -2,6 +2,7 @@ import { MAX_PAGES_ANALYSE_DEPOT, MAX_SORTIE_RESTITUTION, MAX_COMPETENCES_ORGANI
 import { FORMATS_PAR_ROLE, formatAutorise } from "./roles-note";
 import { composerIntitule, motifsRefusStructure, VERBES_ACTION, type IntituleStructure } from "@/lib/domain/atomicite";
 import type { Palier } from "@/lib/domain/types";
+import type { SectionDepot } from "./depot";
 
 export function objetDepot(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Réponse documentaire invalide.");
@@ -19,6 +20,15 @@ export function listeDepot(value: unknown): unknown[] {
   if (!Array.isArray(value)) throw new Error("Liste documentaire invalide.");
   return value;
 }
+function validerSectionDepot(value: unknown): SectionDepot | undefined {
+  if (value === undefined) return undefined;
+  const s = objetDepot(value);
+  const chemin = texteDepot(s.chemin, 500);
+  if (/[\\\u0000-\u001f:?#]/u.test(chemin) || chemin.split("/").some((p) => !p || p === "." || p === "..")) throw new Error("Repère de section EPUB invalide.");
+  const limites = s.limites === undefined ? [] : listeDepot(s.limites).map((l) => texteDepot(l, 500));
+  if (limites.length > 5) throw new Error("Trop de limites de lecture EPUB.");
+  return { chemin, titre: texteDepot(s.titre, 200), ...(limites.length ? { limites } : {}) };
+}
 export function validerPagesDepot(value: unknown): PageExtraiteDepot[] {
   const seen = new Set<string>();
   return listeDepot(value).map((item) => {
@@ -28,7 +38,8 @@ export function validerPagesDepot(value: unknown): PageExtraiteDepot[] {
     if (seen.has(`${pieceId}:${page}`) || typeof p.texte !== "string" || p.texte.length > 1_000_000 || typeof p.incertain !== "boolean") throw new Error("Page extraite invalide.");
     seen.add(`${pieceId}:${page}`);
     const empreinteSource = p.empreinteSource === undefined ? undefined : texteDepot(p.empreinteSource,64);
-    return { pieceId, page, texte: p.texte, incertain: p.incertain, ...(empreinteSource ? { empreinteSource } : {}) };
+    const section = validerSectionDepot(p.section);
+    return { pieceId, page, texte: p.texte, incertain: p.incertain, ...(empreinteSource ? { empreinteSource } : {}), ...(section ? { section } : {}) };
   });
 }
 export function validerCouverturesDepot(value: unknown): CouvertureDepot[] {
@@ -37,7 +48,8 @@ export function validerCouverturesDepot(value: unknown): CouvertureDepot[] {
     const totalPages = entierDepot(c.totalPages);
     const pagesLues = listeDepot(c.pagesLues).map((p) => entierDepot(p));
     if (new Set(pagesLues).size !== pagesLues.length || pagesLues.some((p) => p > totalPages)) throw new Error("Couverture invalide.");
-    return { pieceId: texteDepot(c.pieceId, 100), nom: texteDepot(c.nom, 160), totalPages, pagesLues };
+    if (c.unite !== undefined && c.unite !== "section") throw new Error("Unité de couverture invalide.");
+    return { pieceId: texteDepot(c.pieceId, 100), nom: texteDepot(c.nom, 160), totalPages, pagesLues, ...(c.unite === "section" ? { unite: "section" as const } : {}) };
   });
 }
 const normaliserCitation = (value: string) => value.normalize("NFC").replace(/\s+/g, " ").trim();
@@ -51,7 +63,9 @@ export function validerSourceDepot(value: unknown, documentId: string, note: str
   if (s.documentId !== undefined && s.documentId !== documentId) throw new Error("La source appartient à un autre document.");
   if (Boolean(pieceId) !== (page !== undefined)) throw new Error("Le fichier et la page doivent être désignés ensemble.");
   if (pieceId && !pages.some((p) => p.pieceId === pieceId)) throw new Error("Le fichier cité ne fait pas partie des pages lues.");
-  const matiere = pieceId ? pages.find((p) => p.pieceId === pieceId && p.page === page)?.texte : note;
+  const extraite = pieceId ? pages.find((p) => p.pieceId === pieceId && p.page === page) : undefined;
+  const matiere = pieceId ? extraite?.texte : note;
+  if (s.section !== undefined && JSON.stringify(validerSectionDepot(s.section)) !== JSON.stringify(extraite?.section)) throw new Error("La section citée ne correspond pas au texte extrait.");
   if (matiere === undefined) throw new Error(`La page ${page} citée ne fait pas partie des pages lues de ce fichier.`);
   if (!matiere || !normaliserCitation(matiere).includes(normaliserCitation(citation))) {
     const repere = pieceId ? `page ${page}` : "note libre";
@@ -61,7 +75,7 @@ export function validerSourceDepot(value: unknown, documentId: string, note: str
       : "";
     throw new Error(`La citation n'existe pas dans le passage désigné (${repere}).${precision} Citation proposée, non validée : ${JSON.stringify(citation.slice(0, 500))}${citation.length > 500 ? "…" : ""}`);
   }
-  return { documentId, ...(pieceId ? { pieceId, page } : {}), citation };
+  return { documentId, ...(pieceId ? { pieceId, page } : {}), citation, ...(extraite?.section ? { section: extraite.section } : {}) };
 }
 export function validerElementsDepot(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], prefixe: string): ElementRestitutionDepot[] {
   const elements = listeDepot(objetDepot(value).elements);
@@ -86,7 +100,7 @@ function validerSourcesProposition(value: Record<string, unknown>, documentId: s
   return { justification: texteDepot(value.justification, 700), sources };
 }
 
-const nomComparable = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+const nomComparable = (value: string) => value.normalize("NFC").trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
 
 function validerReferenceDomaine(value: unknown, referentiel?: ReferentielValidationDepot): DomaineReferenceDepot {
   const domaine = objetDepot(value);
@@ -109,7 +123,9 @@ function validerDomainePropose(value: unknown, documentId: string, note: string,
   if (referentiel?.domaines.some((item) => nomComparable(item.nom) === nomComparable(reference.nom))) {
     throw new Error("Un domaine existant a été présenté comme nouveau.");
   }
-  return { ...reference, description: texteDepot(domaine.description, 700).trim(), ...sourcee };
+  const parentId = domaine.parentId === undefined || domaine.parentId === null ? undefined : texteDepot(domaine.parentId, 120);
+  if (parentId && referentiel && !referentiel.domaines.some((item) => item.id === parentId)) throw new Error("Le domaine parent proposé est absent du référentiel actif.");
+  return { ...reference, description: texteDepot(domaine.description, 700).trim(), ...(parentId ? { parentId } : {}), ...sourcee };
 }
 
 const PALIERS: readonly Palier[] = ["fondamentaux", "intermediaire", "avance"];
@@ -152,7 +168,7 @@ function validerCompetenceProposee(value: unknown, documentId: string, note: str
 }
 
 /** Convertit la sortie du modèle en propositions historiques strictement sourcées. */
-export function validerOrganisationDepot(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot): PropositionOrganisationRessource {
+export function validerOrganisationDepot(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot, lecture?: { autoriserDoublonsHistoriques: true }): PropositionOrganisationRessource {
   const organisation = objetDepot(objetDepot(value).organisation);
   const typeSuggere = texteDepot(organisation.typeSuggere, 60);
   if (!formatAutorise("support", typeSuggere)) throw new Error("Type de ressource proposé hors de la liste autorisée.");
@@ -160,6 +176,15 @@ export function validerOrganisationDepot(value: unknown, documentId: string, not
   if (competences.length > MAX_COMPETENCES_ORGANISATION_DEPOT) throw new Error("Trop de compétences proposées pour une ressource.");
   const domaine = validerDomainePropose(organisation.domaine, documentId, note, pages, referentiel);
   const competencesValidees = competences.map((item) => validerCompetenceProposee(item, documentId, note, pages, referentiel));
+  // Refus, jamais déduplication : les indices des choix humains doivent rester stables.
+  const identites = new Set<string>();
+  for (const competence of competencesValidees) {
+    const identite = competence.mode === "existante"
+      ? `code:${nomComparable(competence.code)}`
+      : `intitule:${nomComparable(competence.intitule)}`;
+    if (identites.has(identite) && !lecture?.autoriserDoublonsHistoriques) throw new Error("Une même compétence est proposée plusieurs fois.");
+    identites.add(identite);
+  }
   const domainesNouveaux = new Set(competencesValidees.flatMap((competence) => competence.mode === "nouvelle" && competence.domaine.mode === "nouveau" ? [nomComparable(competence.domaine.nom)] : []));
   if (domainesNouveaux.size > 1 || (domainesNouveaux.size === 1 && (domaine?.mode !== "nouveau" || !domainesNouveaux.has(nomComparable(domaine.nom))))) {
     throw new Error("Une ressource ne peut proposer qu'un nouveau domaine principal.");
@@ -176,7 +201,7 @@ export function validerOrganisationDepot(value: unknown, documentId: string, not
 }
 
 export const TYPES_SUPPORT_DEPOT = FORMATS_PAR_ROLE.support.map(({ valeur }) => valeur);
-export function prochainesTranchesDepot(fichiers: { pieceId: string; nom: string; totalPages: number }[], pagesDejaLues: PageExtraiteDepot[], maximum = MAX_PAGES_ANALYSE_DEPOT): { tranches: TrancheDepot[]; pagesRestantes: number } {
+export function prochainesTranchesDepot(fichiers: { pieceId: string; nom: string; totalPages: number; unite?: "section"; sections?: SectionDepot[]; pagesDisponibles?: number[] }[], pagesDejaLues: PageExtraiteDepot[], maximum = MAX_PAGES_ANALYSE_DEPOT): { tranches: TrancheDepot[]; pagesRestantes: number } {
   entierDepot(maximum);
   if (maximum > MAX_PAGES_ANALYSE_DEPOT) throw new Error("Tranche trop grande.");
   let places = maximum;
@@ -185,12 +210,16 @@ export function prochainesTranchesDepot(fichiers: { pieceId: string; nom: string
   const tranches: TrancheDepot[] = [];
   for (const fichier of fichiers) {
     entierDepot(fichier.totalPages);
+    if (fichier.unite === "section" && (!fichier.sections || fichier.sections.length !== fichier.totalPages || fichier.sections.some((s) => !validerSectionDepot(s)))) throw new Error("Les repères de sections EPUB sont incomplets.");
+    const disponibles = fichier.pagesDisponibles === undefined ? undefined : new Set(fichier.pagesDisponibles);
+    if (disponibles && (disponibles.size !== fichier.pagesDisponibles!.length || [...disponibles].some((p) => !Number.isSafeInteger(p) || p < 1 || p > fichier.totalPages))) throw new Error("Sélection de sections EPUB invalide.");
     const pages: number[] = [];
     for (let page = 1; page <= fichier.totalPages; page++) {
+      if (disponibles && !disponibles.has(page)) continue;
       if (connues.has(`${fichier.pieceId}:${page}`)) continue;
       if (places > 0) { pages.push(page); places--; } else pagesRestantes++;
     }
-    if (pages.length) tranches.push({ pieceId:fichier.pieceId, nom:fichier.nom, totalPages:fichier.totalPages, pages });
+    if (pages.length) tranches.push({ pieceId:fichier.pieceId, nom:fichier.nom, totalPages:fichier.totalPages, pages, ...(fichier.unite ? { unite: fichier.unite, sections: pages.map((p) => fichier.sections![p - 1]) } : {}) });
   }
   return { tranches, pagesRestantes };
 }
