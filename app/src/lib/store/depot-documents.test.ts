@@ -60,6 +60,15 @@ it("ouvre les documents même lorsqu’une ancienne interruption a un message vi
   expect(depot.analyses[0]).toMatchObject({ statut: "interrompue", erreur: null });
 });
 
+it("ne renvoie pas les liens ajoutés par un rangement manuel dans la note source IA", async () => {
+  m.frontmatter = { depot_version: "2", rangement_revu_le: "2026-09-24T09:00:00.000Z", rangement_origine: "personne", rangement_analyse_id: "" };
+  m.markdown = "---\ndepot_version: 2\nrangement_revu_le: 2026-09-24T09:00:00.000Z\n---\n# Livret\n\nTexte original.\n\n## Compétences liées\n\n- [[MAT-01]]";
+  const depot = await lireDepotDocumentaire("livret");
+  expect(depot.note).toContain("Texte original.");
+  expect(depot.note).not.toContain("MAT-01");
+  expect(depot.competencesLiees).toEqual(["MAT-01"]);
+});
+
 it("relit strictement la trace de création déléguée conservée avec la source", async () => {
   const recu = { version: 1 as const, cle: "a".repeat(64), compteId: "compte", documentId: "livret", analyseId: "a", domaineId: "astronomie", nom: "Astronomie", statut: "reservee" as const };
   m.frontmatter.classement_creation_deleguee = encoderCreationDomaineDeleguee(recu);

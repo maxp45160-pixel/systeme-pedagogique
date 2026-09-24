@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DepotDocumentaire, PageExtraiteDepot } from "@/lib/documents/depot";
 import { MODELE_OCR_DEPOT, MODELE_RESTITUTION_DEPOT } from "@/lib/documents/depot";
 import { CONTRAT_SOURCES_RESTITUTION } from "@/lib/documents/sources-restitution";
-import { coutQwen } from "@/lib/tutor/qwen-config";
+import { coutQwen, QWEN_MODELE } from "@/lib/tutor/qwen-config";
 import { VERSION_SCHEMA_RESTITUTION_DEPOT } from "@/lib/tutor/schema-restitution-depot";
 const m=vi.hoisted(()=>({lire:vi.fn(),source:vi.fn(),claim:vi.fn(),modifier:vi.fn(),budget:vi.fn(),configuration:vi.fn(),ocr:vi.fn(),restituer:vi.fn(),pdf:vi.fn(),referentiel:vi.fn(),budgetQwen:vi.fn(),ocrQwen:vi.fn(),restituerQwen:vi.fn()}));
 vi.mock("./qwen-budget",()=>({budgetQwen:m.budgetQwen}));
@@ -142,6 +142,36 @@ describe("orchestration documentaire persistante",()=>{
     expect(p.tranches[0].pages).toEqual([1]); expect(p.pagesRestantes).toBe(1);
     expect(m.claim).not.toHaveBeenCalled();
   });
+  it("lit une longue section EPUB en tranches bornées, sans perte ni OCR, avec des sources distinctes", async () => {
+    const texte = "é".repeat(60_001);
+    ajouterEpub([`<p>${texte}</p>`]);
+    m.restituer.mockImplementation(async (_note: string, pages: PageExtraiteDepot[]) => ({
+      elements: pages.map((p) => ({ nature:"sujet", texte:"Extrait", sources:[{ pieceId:p.pieceId, page:p.page, section:p.section, citation:p.texte.slice(0, 80) }] })),
+    }));
+    const lues: PageExtraiteDepot[] = [];
+    const titres = new Set<string>();
+    for (let i = 0; i < 3; i++) {
+      const preparation = await preparerAnalyseDepot("d");
+      expect(preparation.disponible).toBe(true);
+      expect(preparation.tranches[0]).toMatchObject({ unite:"section", totalPages:3, pages:[i + 1] });
+      expect(preparation.pagesRestantes).toBe(2 - i);
+      m.modifier.mockClear();
+      await analyserDepot("d", preparation.empreinte, 20, false);
+      const sauvegarde = m.modifier.mock.calls.find((c) => c[2].pages?.length)![2];
+      const pages = sauvegarde.pages as PageExtraiteDepot[];
+      expect(pages.reduce((n, p) => n + Buffer.byteLength(p.texte, "utf8"), 0)).toBeLessThanOrEqual(50_000);
+      expect(pages[0].section?.chemin).toBe("s0.xhtml");
+      titres.add(pages[0].section!.titre);
+      expect(m.modifier).toHaveBeenLastCalledWith("a", "t", expect.objectContaining({ statut:"terminee" }));
+      depot.analyses.push({id:`lecture-${i}`, empreinte:preparation.empreinte, statut:"terminee", pages} as DepotDocumentaire["analyses"][number]);
+      lues.push(...pages);
+    }
+    expect(lues.map((p) => p.texte).join("")).toBe(texte);
+    expect(titres.size).toBe(3);
+    const fin = await preparerAnalyseDepot("d");
+    expect(fin.disponible).toBe(false); expect(fin.pagesRestantes).toBe(0);
+    expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).toHaveBeenCalledTimes(3);
+  });
   it("un EPUB graphique conserve ses limites mais ne déclenche aucune restitution vide", async () => {
     ajouterEpub(["<img src='page.png'/>"]); depot.note="";
     const p=await preparerAnalyseDepot("d");
@@ -149,6 +179,15 @@ describe("orchestration documentaire persistante",()=>{
     expect(p.tranches).toEqual([]);
     expect(p.sectionsNonAnalysees?.[0].sections[0].limites).toHaveLength(2);
     await expect(analyserDepot("d",p.empreinte,20,false)).rejects.toThrow(/aucun texte/);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+  });
+  it("une formule non prise en charge seule ne rend pas son marqueur d'omission facturable", async () => {
+    ajouterEpub(["<math><maction><mi>x</mi></maction></math>"]); depot.note="";
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.disponible).toBe(false);
+    expect(preparation.tranches).toEqual([]);
+    expect(preparation.sectionsNonAnalysees?.[0].sections[0].chemin).toBe("s0.xhtml");
+    await expect(analyserDepot("d", preparation.empreinte, 20, false)).rejects.toThrow(/aucun texte/);
     expect(m.claim).not.toHaveBeenCalled(); expect(m.ocr).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
   });
   it("vingt sections graphiques ne bloquent pas le texte suivant et ne deviennent jamais lues", async () => {
@@ -187,9 +226,52 @@ describe("orchestration documentaire persistante",()=>{
     await expect(analyserDepot("d",p.empreinte,20,false)).rejects.toThrow(/changé/);
     expect(m.claim).not.toHaveBeenCalled();
   });
+  it("ne considère pas comme lue une ancienne transcription EPUB qui omettait la formule", async () => {
+    const archive = ajouterEpub(["<p>Formule : <math><msup><mi>x</mi><mn>2</mn></msup></math></p>"]);
+    depot.analyses = [{id:"ancienne", empreinte:"ancien-lecteur", statut:"terminee", pages:[{
+      pieceId:"p", page:1, texte:"Formule :", incertain:true,
+      empreinteSource:createHash("sha256").update(archive).digest("hex"),
+      section:{chemin:"s0.xhtml",titre:"Section 0",limites:["Illustrations, formules graphiques et médias non analysés : vérifiez l’original."]},
+    }]} as DepotDocumentaire["analyses"][number]];
+    const preparation = await preparerAnalyseDepot("d");
+    expect(preparation.disponible).toBe(true);
+    expect(preparation.tranches[0].pages).toEqual([1]);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled();
+    await analyserDepot("d", preparation.empreinte, 20, false);
+    expect(m.restituer.mock.calls[0][1][0].texte).toContain("{x}^{2}");
+    expect(m.ocr).not.toHaveBeenCalled();
+  });
   function empreinteV2Precedente() {
     return createHash("sha256").update(JSON.stringify({ version:2,sortieMax:8192,note:depot.note,sources:[],tranches:[],ocr:MODELE_OCR_DEPOT,modele:MODELE_RESTITUTION_DEPOT,references:CONTRAT_SOURCES_RESTITUTION,schema:VERSION_SCHEMA_RESTITUTION_DEPOT })).digest("hex");
   }
+  function empreinteAvantAncrage(qwen: boolean, qualite = "propositions-transfert-geste-v3") {
+    return createHash("sha256").update(JSON.stringify({ version:2, sortieMax:8192, note:depot.note, sources:[], tranches:[], ocr:qwen ? QWEN_MODELE : MODELE_OCR_DEPOT, modele:qwen ? QWEN_MODELE : MODELE_RESTITUTION_DEPOT, references:CONTRAT_SOURCES_RESTITUTION, ...(!qwen ? {schema:"restitution-json-schema-v2"} : {}), qualite })).digest("hex");
+  }
+  it.each([false, true])("le contrat d'ancrage invalide le devis v3 non exécuté, fournisseur Qwen=%s", async (qwen) => {
+    depot.version = 2;
+    const ancien = empreinteAvantAncrage(qwen);
+    const config = qwen ? {fournisseur:"qwen" as const,cle:"test-factice"} : undefined;
+    expect((await preparerAnalyseDepot("d",20,qwen)).empreinte).not.toBe(ancien);
+    await expect(analyserDepot("d",ancien,20,false,undefined,config)).rejects.toThrow("changé");
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled(); expect(m.restituerQwen).not.toHaveBeenCalled();
+  });
+  it.each([[false, "propositions-hierarchie-v2"], [true, "propositions-hierarchie-v2"], [false, "propositions-transfert-geste-v3"], [true, "propositions-transfert-geste-v3"]] as const)("conserve sans mutation la réussite et son absence d'ancrage, Qwen=%s qualité=%s", async (qwen, qualite) => {
+    depot.version = 2;
+    depot.analyses = [{id:"avant-ancrage",empreinte:empreinteAvantAncrage(qwen, qualite),statut:"terminee",pages:[],restitution:{version:2,organisation:{competences:[]}}} as unknown as DepotDocumentaire["analyses"][number]];
+    const avant = JSON.stringify(depot);
+    const preparation = await preparerAnalyseDepot("d",20,qwen);
+    expect(preparation.analyseExistante?.id).toBe("avant-ancrage");
+    expect(preparation.disponible).toBe(false);
+    expect(await analyserDepot("d",preparation.empreinte,20,false,undefined,qwen ? {fournisseur:"qwen",cle:"test-factice"} : undefined)).toEqual(depot);
+    expect(JSON.stringify(depot)).toBe(avant);
+    expect(m.claim).not.toHaveBeenCalled(); expect(m.restituer).not.toHaveBeenCalled(); expect(m.restituerQwen).not.toHaveBeenCalled();
+  });
+  it.each(["echec", "interrompue", "en-cours"] as const)("un ancien appel v3 %s ne devient pas une réussite", async (statut) => {
+    depot.version = 2;
+    depot.analyses = [{id:"avant-ancrage",empreinte:empreinteAvantAncrage(false),statut,pages:[],restitution:null} as unknown as DepotDocumentaire["analyses"][number]];
+    expect((await preparerAnalyseDepot("d")).analyseExistante).toBeNull();
+    expect(m.claim).not.toHaveBeenCalled();
+  });
   it("refuse le devis V2 précédent avant tout effet lorsque les règles communes changent", async () => {
     depot.version = 2;
     await expect(analyserDepot("d", empreinteV2Precedente(), 20, false)).rejects.toThrow("changé");

@@ -1,9 +1,10 @@
 import { MAX_COMPETENCES_ORGANISATION_DEPOT, type ReferentielDepotPourModele } from "@/lib/documents/depot";
 import { FORMATS_PAR_ROLE } from "@/lib/documents/roles-note";
 import { OBJET_MAX, PRECISION_MAX, VERBES_ACTION } from "@/lib/domain/atomicite";
+import { MAX_ATTENDU_ANCRAGE, MAX_ELEMENTS_FOURNISSEUR_V2, NATURES_ANCRAGE_COMPETENCE } from "@/lib/documents/ancrage-competences";
 
 /** Version du contrat fournisseur, indépendante des restitutions déjà enregistrées. */
-export const VERSION_SCHEMA_RESTITUTION_DEPOT = "restitution-json-schema-v2";
+export const VERSION_SCHEMA_RESTITUTION_DEPOT = "restitution-json-schema-v3";
 
 interface Schema {
   type?: "object" | "array" | "string" | "number" | "null";
@@ -44,7 +45,7 @@ export function fabriquerSchemaRestitutionDepot(passageIds: string[], referentie
   };
   const sourcee = { justification: texte(700), sources };
   const elements: Schema = {
-    type: "array", maxItems: 8,
+    type: "array", maxItems: referentiel ? MAX_ELEMENTS_FOURNISSEUR_V2 : 8,
     items: objet({ nature: choix(["sujet", "annotation", "incertitude"]), texte: texte(700), sources }),
   };
   const racine = objet({ elements });
@@ -63,10 +64,14 @@ export function fabriquerSchemaRestitutionDepot(passageIds: string[], referentie
     ...(ids.length ? [objet({ ...domaineExistant, ...sourcee })] : []),
     objet({ ...domaineNouveau, description: texte(700), parentId: ids.length ? { anyOf: [choix(ids), { type: "null" }] } : { type: "null" }, ...sourcee }),
   ]);
+  const ancrage = objet({
+    nature: choix(NATURES_ANCRAGE_COMPETENCE),
+    passageId: choix(passageIds), attendu: texte(MAX_ATTENDU_ANCRAGE),
+  });
   const competence = variantes([
-    ...(codes.length ? [objet({ mode: choix(["existante"]), code: choix(codes), ...sourcee })] : []),
+    ...(codes.length ? [objet({ ancrage, mode: choix(["existante"]), code: choix(codes), ...sourcee })] : []),
     objet({
-      mode: choix(["nouvelle"]), verbeAction: choix(VERBES_ACTION), objet: texte(OBJET_MAX),
+      ancrage, mode: choix(["nouvelle"]), verbeAction: choix(VERBES_ACTION), objet: texte(OBJET_MAX),
       precision: { anyOf: [texte(PRECISION_MAX), { type: "null" }] },
       palier: choix(["fondamentaux", "intermediaire", "avance"]),
       importance: { type: "number", minimum: 0, maximum: 1 },

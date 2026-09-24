@@ -1,0 +1,85 @@
+{
+  "id": "P01-0013",
+  "title": "Réessais réels du corpus après corrections",
+  "status": "done",
+  "authorization": {
+    "source": "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md",
+    "summary": "Maxime : « relance les essais ». Réessais explicites du lot C01/C02/C04/C05/C08/C10 avec Mistral, plafond cumulé 2,80 € déjà accepté et quota mensuel inchangé. Aucun classement accepté ni nouvelle dépendance ni changement du produit."
+  },
+  "objective": "Relancer le lot public initial sur le code corrigé et comparer résultats, limites et coûts conservés.",
+  "scope": [
+    "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md"
+  ],
+  "owner": "/root",
+  "baseCommit": "11ab9ea8176303241c7ff25406f6d5faa4bcf364",
+  "acceptance": [
+    "Résultats des six réessais ou blocages identifiés et budget respecté",
+    "Comparaison indicative sourcée avant/après sans certifier les seuils humains",
+    "Rapport et traces de coûts conservés, aucune proposition acceptée"
+  ],
+  "nextAction": "Résultats restitués ; prochaine correction à cibler sur les contre-exemples sémantiques conservés. Qualité <5% non démontrée.",
+  "blocker": null,
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run agents:check"
+  ],
+  "checks": [
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-24T09:22:44.281Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0012 et recette P01-0013",
+      "snapshotRef": "cb837a9a0d5e51e5474d537fe9ecb513ad6f484979adf5ce2d6bc424b70b27a9",
+      "note": "95 documents, 453 liens, 23 missions cohérentes ; avertissements historiques sans erreur. Six analyses réelles terminées et revue indépendante des 108 citations. Log retest-agents-final.log."
+    }
+  ],
+  "externalActions": [
+    "Six analyses Mistral déclenchées explicitement via le pilote local pour C01/C02/C04/C05/C08/C10 ; toutes terminées. C01/C02/C08/C10 réimportés à octets identiques, originaux conservés. Coût nouveau 0,631633 EUR, cumul corpus 1,046351 EUR dans le plafond 2,80 EUR. Aucun classement ni compétence accepté par l’agent."
+  ],
+  "updatedAt": "2026-09-24T09:22:44.281Z",
+  "completion": {
+    "summary": "Six réessais terminés et comparés, coût nouveau 0,631633 EUR dans le plafond autorisé. EPUB débloqué et PDF auparavant en échec traité ; erreurs sémantiques persistantes et régression C10 documentées. Aucun classement accepté.",
+    "evidence": [
+      "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md"
+    ],
+    "at": "2026-09-24T09:22:44.281Z"
+  },
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-10",
+      "scope": "Réessais fournisseur et comparaison indicative sur corpus public"
+    }
+  ],
+  "handoff": {
+    "delivered": "Six résultats réels et coûts conservés, comparaison avant/après et défauts persistants documentés.",
+    "remaining": [
+      "Corriger les contre-exemples sémantiques et constituer une référence humaine pour mesurer erreurs et omissions.",
+      "OCR manuscrit isolé et dialogue contexte personnel à évaluer séparément."
+    ],
+    "evidence": [
+      "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": [
+        "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md"
+      ]
+    }
+  },
+  "snapshots": {
+    "cb837a9a0d5e51e5474d537fe9ecb513ad6f484979adf5ce2d6bc424b70b27a9": {
+      "contractSha256": "fe0e4d252179a0d88b001784a2324eba2b42128d05ec8303da5c74634d45bc0d",
+      "files": [
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "5f7df95c60d6ee771263684392e9bf34e8a7aab3c509ede8702cb080a562473a"
+        ],
+        [
+          "docs/pilotes/REESSAIS_CORPUS_2026-09-24.md",
+          "6b0b3695b0e1895d936e8cfe38275edb8181c564a06bce6a16b625ce8a394099"
+        ]
+      ]
+    }
+  }
+}

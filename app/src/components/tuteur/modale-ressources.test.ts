@@ -9,8 +9,9 @@ vi.mock("@/lib/store/classement-ressources-actions", () => ({ lireClassementRess
 vi.mock("@/lib/store/ressource-assistant-actions", () => ({ lireRessourceAssistantAction: vi.fn() }));
 vi.mock("@/lib/store/brouillon-classement-actions", () => ({ enregistrerBrouillonClassementAction: vi.fn() }));
 vi.mock("@/lib/store/delegation-classement-actions", () => ({ rattacherDomaineDelegueAction: vi.fn(), annulerRattachementDelegueAction: vi.fn() }));
+vi.mock("@/lib/store/rangement-manuel-actions", () => ({ enregistrerRangementManuelSansAnalyseAction: vi.fn() }));
 
-import { ActionsRelectureRessources, FormulaireRelectureRessources, choixInitial } from "./modale-ressources";
+import { ActionsRelectureRessources, FormulaireRelectureRessources, choixInitial, derniereAnalyse } from "./modale-ressources";
 import { EditeurClassementRessource } from "./choix-classement-ressource";
 import { cheminDomaineClassement } from "@/lib/documents/classement-ressources";
 
@@ -36,6 +37,13 @@ function rendu(ressource = depot) { return renderToStaticMarkup(createElement(Fr
 )); }
 
 describe("relecture documentaire dans l’assistant", () => {
+  it("ne propose pas de confirmer l'ancienne synthèse si une lecture plus récente a échoué", () => {
+    const ressource = structuredClone(depot);
+    ressource.analyses.push({ ...ressource.analyses[0], id: "nouvelle", creeLe: "2026-09-16", statut: "echec", restitution: null });
+    expect(derniereAnalyse(ressource)).toBeUndefined();
+    expect(derniereAnalyse(depot)?.id).toBe("analyse");
+  });
+
   it("préremplit le parent proposé sans inventer de parent pour une ancienne analyse", () => {
     const ressource = structuredClone(depot);
     const retour = ressource.analyses[0].restitution!;

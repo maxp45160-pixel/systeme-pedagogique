@@ -10,7 +10,7 @@ import type { ContextePersonnelRessource } from "./contexte-ressource";
 export const VERSION_DEPOT = 1;
 export const VERSION_RESSOURCE_DEPOT = 2;
 /** Invalide les devis non exécutés lorsque le contrat partagé de proposition change. */
-export const VERSION_QUALITE_RESTITUTION = "propositions-hierarchie-v2";
+export const VERSION_QUALITE_RESTITUTION = "propositions-mention-principale-v5";
 export const SECTION_COMPETENCES_RESSOURCE = "Compétences liées";
 export const MODELE_OCR_DEPOT = "mistral-ocr-4-1";
 export const MODELE_RESTITUTION_DEPOT = "mistral-medium-3-5";
@@ -87,10 +87,12 @@ export type DomaineProposeDepot =
   | ({ mode: "nouveau"; nom: string; description: string; parentId?: string } & PropositionSourceeDepot);
 
 export type CompetenceProposeeDepot =
-  | ({ mode: "existante"; code: string } & PropositionSourceeDepot)
+  | ({ mode: "existante"; code: string; relationSupport?: "mention" | "enseignee" | "demandee" } & PropositionSourceeDepot)
   | ({
       mode: "nouvelle";
       intitule: string;
+      /** Absent des restitutions enregistrées avant le contrat de relation au support. */
+      relationSupport?: "mention" | "enseignee" | "demandee";
       verbeAction: VerbeAction;
       objet: string;
       precision?: string;

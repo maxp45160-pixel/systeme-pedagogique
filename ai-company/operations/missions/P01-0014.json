@@ -1,0 +1,157 @@
+{
+  "id": "P01-0014",
+  "title": "Fidélité des compétences aux gestes des ressources",
+  "status": "done",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-24-fidelite-competences.md",
+    "summary": "Maxime : « cible la fidélité des compétences ». Correction locale du contrat et du traitement des propositions, vérifications et documentation ; aucun nouvel appel payant ni déploiement."
+  },
+  "objective": "Relier chaque proposition au geste demandé ou enseigné et rendre visibles les abstentions sans modifier les anciens résultats.",
+  "scope": [
+    "app/src/lib/documents/ancrage-competences.ts",
+    "app/src/lib/documents/ancrage-competences.test.ts",
+    "app/src/lib/documents/depot.ts",
+    "app/src/lib/store/depot-analyse.ts",
+    "app/src/lib/store/depot-analyse.test.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-mistral.test.ts",
+    "app/src/lib/tutor/depot-qwen.ts",
+    "app/src/lib/tutor/depot-qwen.test.ts",
+    "app/src/lib/tutor/schema-restitution-depot.ts",
+    "app/src/lib/tutor/schema-restitution-depot.test.ts",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/operations/runs/2026-09-24-fidelite-competences.md"
+  ],
+  "owner": "/root",
+  "baseCommit": "11ab9ea8176303241c7ff25406f6d5faa4bcf364",
+  "acceptance": [
+    "Appui obligatoire dans les nouvelles réponses Mistral/Qwen ; repère appartenant aux sources sélectionnées",
+    "Mentions et incertitudes exclues des compétences avec réserve sourcée ; démonstrations et autres propositions préservées",
+    "Tests de régression et revue indépendante, anciens résultats et quotas inchangés, limites documentées"
+  ],
+  "nextAction": "Correction locale vérifiée ; gain sémantique et omissions à mesurer lors d’une recette fournisseur explicitement déclenchée, sans nouveau coût engagé ici.",
+  "blocker": null,
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run agents:check"
+  ],
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-24T09:38:21.388Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0012 et P01-0014",
+      "snapshotRef": "7b9b030e8bc3ddec58b695b80e77ed3100eed3a25461ad2293ef078ebe6be755",
+      "note": "TypeScript et lint sans erreur (4 avertissements préexistants), 2806 tests /245 fichiers. Log fidelite-verify-final.log ; QA indépendante146tests ciblés et contre-sondes finales sans blocage."
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-24T09:38:21.388Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0014",
+      "snapshotRef": "7b9b030e8bc3ddec58b695b80e77ed3100eed3a25461ad2293ef078ebe6be755",
+      "note": "Contrats et continuité cohérents ; avertissements historiques de snapshots conservés. Log fidelite-agents-final.log."
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-24T09:38:21.388Z",
+  "completion": {
+    "summary": "Ancrage obligatoire et traitement partagé Mistral/Qwen livrés, réserves visibles et validations métier conservées ; compatibilité historique v2/v3. 2806 tests passent et revue QA indépendante sans blocage résiduel. Aucune performance sémantique réelle ni déploiement affirmés.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-fidelite-competences.md"
+    ],
+    "at": "2026-09-24T09:38:21.388Z"
+  },
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-04",
+      "scope": "Fidélité des compétences sourcées et limites de leur contrôle"
+    }
+  ],
+  "handoff": {
+    "delivered": "Appui temporaire obligatoire et contrôle partagé des propositions, abstentions visibles, compatibilité des résultats historiques et tests de régression.",
+    "remaining": [
+      "Mesurer le gain réel et les omissions avec une recette fournisseur explicitement déclenchée et des références humaines.",
+      "Les déclarations sémantiques fausses et formulations tronquées restent possibles ; aucun seuil de qualité affirmé."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-fidelite-competences.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": [
+        "ai-company/operations/runs/2026-09-24-fidelite-competences.md"
+      ]
+    }
+  },
+  "snapshots": {
+    "7b9b030e8bc3ddec58b695b80e77ed3100eed3a25461ad2293ef078ebe6be755": {
+      "contractSha256": "409dbf92b5d80b6c6785ff399ba28d93d65b12ab971b59bd9667a07b9788c2ff",
+      "files": [
+        [
+          "ai-company/operations/runs/2026-09-24-fidelite-competences.md",
+          "598327c10b4f1deb5ead7e8d5d8db38c85ec1169e9e5c877c5d0ec6dcdce7080"
+        ],
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "5f7df95c60d6ee771263684392e9bf34e8a7aab3c509ede8702cb080a562473a"
+        ],
+        [
+          "app/src/lib/documents/ancrage-competences.test.ts",
+          "1a636083c5a9b76422765cd8f79f05d5ce52bace4e35ce791b75f30cfd5bd245"
+        ],
+        [
+          "app/src/lib/documents/ancrage-competences.ts",
+          "a63cf532534853e42bbac7f4af87e1886cd965c2821e190bd077c35bb070157b"
+        ],
+        [
+          "app/src/lib/documents/depot.ts",
+          "0c60343acb324c51f72331e83706bfa9ee155938fe796f15dbacfd82a355b854"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.test.ts",
+          "ffc0ae65bf9f4042b058c18b3747a3a1f2cb8c0439322049a80f6daaf6d86d8e"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.ts",
+          "a12669a363e1aeda4a1ef7fb9ecb52d6cf3d24d0cecb77ef528345910c27d098"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.test.ts",
+          "40aa06c76a7cd212f2eb3b0069573b48a4b4943c4403fd2f07fd40f9bd92b4aa"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.ts",
+          "8febcfd693b6c2f00b1a1017554e6fd6114d770686fbf36d1fa545cd78ad9ff8"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.test.ts",
+          "a89071e45b1224387df0f2d481daa30bd025a7b66583034ae03de6f4809ee02a"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.ts",
+          "a85c84491c0e801b2c4eb46b357304539d545648ce9b2437107da40d7fd9c25d"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.test.ts",
+          "c7b199ef28637e7d1f1e1eb2b83ad7dcddb4395ac2349f787f9c53638d7a7776"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.ts",
+          "c98496db606f547ba889920b8023a7c39788877052d6978d970d08d4876567dd"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "22592dbe89d2d9d1df5f6e8f8533455773a20c51bb0d0f9f46e8b93d65deb7ac"
+        ],
+        [
+          "PRODUCT.md",
+          "c27611b369846f12aeadd991dd2ce237047af93a8b4abeec0cec9596510599c9"
+        ]
+      ]
+    }
+  }
+}

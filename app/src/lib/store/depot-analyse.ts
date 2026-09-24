@@ -79,6 +79,14 @@ async function preparer(documentId: string, maximum: number, qwen = false, synth
   const empreinte = hash(JSON.stringify({ ...contratPrecedent, ...(depot.version === 2 ? { qualite: VERSION_QUALITE_RESTITUTION } : {}) }));
   // Une réussite historique reste une réussite ; seule une demande non terminée change de contrat.
   const empreintesHistoriques = [hash(JSON.stringify(contratPrecedent)), hash(JSON.stringify(contrat)), ...[...CONTRATS_SOURCES_PRECEDENTS, CONTRAT_SOURCES_RESTITUTION].map((references) => hash(JSON.stringify({ ...contrat, references })))];
+  // Contrats réellement servis avant l'ancrage obligatoire : rouvrir ne réanalyse pas.
+  const avantAncrage = { ...contrat, references: CONTRAT_SOURCES_RESTITUTION, ...(!qwen ? { schema: "restitution-json-schema-v2" } : {}) };
+  empreintesHistoriques.push(hash(JSON.stringify(avantAncrage)));
+  if (depot.version === 2) {
+    for (const qualite of ["propositions-hierarchie-v2", "propositions-transfert-geste-v3"]) {
+      empreintesHistoriques.push(hash(JSON.stringify({ ...avantAncrage, qualite })));
+    }
+  }
   const analyseExistante = depot.analyses.find((a)=>a.empreinte===empreinte) ?? depot.analyses.find((a)=>a.statut==="terminee" && empreintesHistoriques.includes(a.empreinte)) ?? null;
   const cache = base ? base.pages : depot.analyses.flatMap((a)=>a.pages).filter(valide);
   const aLire = tranches.filter((t) => t.unite !== "section").reduce((n,t)=>n+t.pages.filter((p)=>!cache.some((c)=>c.pieceId===t.pieceId && c.page===p)).length,0);

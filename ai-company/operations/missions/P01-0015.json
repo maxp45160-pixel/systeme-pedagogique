@@ -1,0 +1,84 @@
+{
+  "id": "P01-0015",
+  "title": "Mesurer la fidélité après ancrage des compétences",
+  "status": "done",
+  "authorization": {
+    "source": "docs/pilotes/MESURE_FIDELITE_2026-09-24.md",
+    "summary": "Maxime : « refais la mesure ». Réessais explicites du même lot public avec Mistral, plafond cumulé2,80EUR déjà accepté et quota5EUR inchangé ; aucun classement accepté."
+  },
+  "objective": "Comparer les sorties réelles avant/après P01-0014, erreurs et omissions, coûts et limites.",
+  "scope": [
+    "docs/pilotes/MESURE_FIDELITE_2026-09-24.md"
+  ],
+  "owner": "/root",
+  "baseCommit": "11ab9ea8176303241c7ff25406f6d5faa4bcf364",
+  "acceptance": [
+    "Six cas tentés ou blocages de budget identifiés sans contournement",
+    "Comparaison sourcée, coûts conservés, erreur et omission distinguées sans validation humaine inventée"
+  ],
+  "nextAction": "Mesure terminée et résultat à restituer : amélioration descriptive partielle,5/48gestes non étayés selon QA, omissions et régression EPUB ; corrections séparées.",
+  "blocker": null,
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run agents:check"
+  ],
+  "checks": [
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-24T09:55:19.458Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0014 et mesure P01-0015",
+      "snapshotRef": "5b5054c504536aba4ef6db665172dcca32f0c995257cbc31227eab7d862fdb36",
+      "note": "25 missions cohérentes ; revue QA des5cas comparables et diagnostic local de taille EPUB. Logs mesure-fidelite-agents-final.log ; données réelles conservées."
+    }
+  ],
+  "externalActions": [
+    "Six cas réimportés à octets identiques via le pilote local ; C01/C02/C04/C08/C10 terminés, C05 refusé pour densité avant réservation/appel. Coût nouveau577846microEUR, corpuscumulé1624197microEUR dans2800000autorisés. Compteurmensuel4551314sur5000000. Aucun classement ni compétence accepté, aucun retry automatique."
+  ],
+  "updatedAt": "2026-09-24T09:55:19.458Z",
+  "completion": {
+    "summary": "Six cas testés :5terminés,EPUB refusé avant appel. Jugement agent9/43→5/48gestes non étayés surcascomparables,omissions persistantes et2mauvaisdomaines. Coût577846microEUR,cumul1624197dans2800000autorisés. Aucun seuil humain validé.",
+    "evidence": [
+      "docs/pilotes/MESURE_FIDELITE_2026-09-24.md"
+    ],
+    "at": "2026-09-24T09:55:19.458Z"
+  },
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-10",
+      "scope": "Mesure réelle de la fidélité sur corpus public"
+    }
+  ],
+  "handoff": {
+    "delivered": "Cinq restitutions comparées, un échec technique EPUB diagnostiqué ; coûts et jugement QA conservés.",
+    "remaining": [
+      "Corriger le surcoût de schéma des repères puis vérifier EPUB à périmètre constant.",
+      "Corriger gestes non étayés, domaines incohérents et pertes de couverture ; référence humaine nécessaire pour seuil et omissions."
+    ],
+    "evidence": [
+      "docs/pilotes/MESURE_FIDELITE_2026-09-24.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": [
+        "docs/pilotes/MESURE_FIDELITE_2026-09-24.md"
+      ]
+    }
+  },
+  "snapshots": {
+    "5b5054c504536aba4ef6db665172dcca32f0c995257cbc31227eab7d862fdb36": {
+      "contractSha256": "bcedfac422edf740d20a1821afcd1719ae2ed5f31868943a44d42b11981aa422",
+      "files": [
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "5f7df95c60d6ee771263684392e9bf34e8a7aab3c509ede8702cb080a562473a"
+        ],
+        [
+          "docs/pilotes/MESURE_FIDELITE_2026-09-24.md",
+          "885269200c8b6fbb13bc859d71dd9b361f411c00d09affe119aa3507d45376f5"
+        ]
+      ]
+    }
+  }
+}

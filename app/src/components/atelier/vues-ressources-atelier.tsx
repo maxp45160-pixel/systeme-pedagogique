@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bouton, cx } from "@/components/ui/primitives";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/lib/store/document-actions";
 import { IconeDocuments, IconeFleche } from "@/components/ui/icones";
 import { estATrier } from "@/lib/documents/rangement-atelier";
+import { estRessourceDepot } from "@/lib/documents/depot";
 import { domaineAffichageCorpus, regrouperFichesParDomaine, separerGroupesNommes } from "@/lib/documents/corpus-groupe";
 import {
   BoutonRestaurationCarte,
@@ -23,7 +25,7 @@ import { type VueAtelier } from "./vues-synthese-atelier";
 import type { ElementAtelier } from "./types-atelier";
 
 const CLASSE_CARTE =
-  "flex h-full w-full min-h-[170px] flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] cursor-pointer";
+  "flex min-h-[170px] w-full flex-1 flex-col justify-between rounded-2xl border border-bordure bg-surface p-5 text-left shadow-[var(--ombre-posee)] transition-all duration-200 hover:-translate-y-1 hover:border-primaire/40 hover:shadow-[var(--ombre-levee)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire cursor-pointer";
 
 /**
  * Les ressources — cours, papiers, notes, projets, séances.
@@ -407,8 +409,9 @@ function CarteRessource({
   estArchive?: boolean;
 }) {
   const rattachements = element.rangement.rattachements;
+  const peutCorrigerRangement = element.source === "document" && estRessourceDepot(element.frontMatter);
   return (
-    <div className="group relative">
+    <div className="group relative flex h-full flex-col">
       <button
         type="button"
         onClick={() => ouvrirElement(element.id)}
@@ -463,6 +466,16 @@ function CarteRessource({
           <IconeFleche className="size-3.5 text-texte-discret transition-colors group-hover:text-primaire" />
         </div>
       </button>
+
+      {peutCorrigerRangement && (
+        <Link
+          href={`/app?depot=${encodeURIComponent(element.id)}`}
+          aria-label={`Corriger le rangement de ${element.titre}`}
+          className="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl border border-primaire/30 bg-surface px-3 text-xs font-semibold text-primaire transition-colors hover:border-primaire hover:bg-primaire-faible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire"
+        >
+          Corriger le rangement
+        </Link>
+      )}
 
       {estArchive ? (
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1">

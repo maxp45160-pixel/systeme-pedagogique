@@ -12643,7 +12643,7 @@ Résultats, limites et conditions d'une évaluation réelle dans le
 
 Maxime autorise le jalon multi-format et le dialogue contenu/contexte, ainsi que fflate et fast-xml-parser. Les deux critères de compétences sont strictement moins de 5 % de propositions incorrectes/injustifiées et moins de 5 % de compétences attendues manquées. Ce sont des exigences de recette, sans performance fournisseur démontrée. [Mandat et preuve](ai-company/operations/runs/2026-09-19-classification-dialogue.md).
 
-Les EPUB utilisent la pièce jointe existante et conservent leur original. La décompression bornée lit le container, le manifeste et le spine ; les chemins de sections restent des repères de sections, jamais des pages PDF. Le traitement est textuel : illustrations, formules non textuelles, contenus illisibles ou hors borne ne sont pas réputés compris. Le cache reste lié aux octets originaux ; aucune étape OCR payante pour EPUB, la restitution garde envTuteur et le consentement documentaire. Les PDF/images/manuscrits conservent leur pipeline OCR. La migration `20260918221339_autoriser_epub_documentaire.sql` est préparée, NON APPLIQUÉE ; contrainte MIME et bucket distants relus le 19/09, sans modification RLS, droits ou plafond de taille.
+Les EPUB utilisent la pièce jointe existante et conservent leur original. La décompression bornée lit le container, le manifeste et le spine ; les chemins de sections restent des repères de sections, jamais des pages PDF. Le traitement est textuel : illustrations, formules non textuelles, contenus illisibles ou hors borne ne sont pas réputés compris. Le cache reste lié aux octets originaux ; aucune étape OCR payante pour EPUB, la restitution garde envTuteur et le consentement documentaire. Les PDF/images/manuscrits conservent leur pipeline OCR. La migration `20260918221339_autoriser_epub_documentaire.sql`, préparée le 19/09, est appliquée le 24/09 sous la version distante `20260924084536` dans le mandat correctif P01-0012. Contrainte MIME et bucket relus après application : EPUB accepté, bucket privé et plafond de 10 Mio conservés, sans modification RLS ni droits.
 
 La restitution peut proposer pour un nouveau domaine un parent issu de l’enum des domaines actifs ; le sous-domaine proposé reste soumis au contrôle ciblé avant création. L’ancienne absence de parent reste lisible. Une suggestion ne réintroduit pas un parent que la personne avait écarté.
 
@@ -12652,3 +12652,77 @@ La restitution peut proposer pour un nouveau domaine un parent issu de l’enum 
 L’évaluateur offline consomme des références et jugements humains : il sépare erreurs et omissions, formats et fonctions, et rend UNKNOWN sans preuves suffisantes. Le gabarit synthétique n’est jamais une validation humaine. L’extraction reste bornée par tranche et par réponse ; aucune couverture de pages n’atteste l’exhaustivité des compétences.
 
 « Lire la suite » expose le fournisseur, les unités exactes et le plafond de coût de la tranche suivante ; aucun enchaînement payant automatique. Le classement V2 courant doit être confirmé par la personne avant une nouvelle tranche, sans brouillon en attente. Les réessais d'échec de la même tranche restent possibles sur geste explicite. L'historique reste consultable. La borne de 30 propositions par analyse demeure ; les liens acceptés sur plusieurs lectures peuvent s'accumuler jusqu'à 1 000 par ressource. Cette borne technique et l'absence de pagination sémantique dans une tranche ne permettent pas d'affirmer « toutes les compétences » sans recette humaine.
+
+### Corrections du corpus — 24/09/2026, P01-0012
+
+À la demande de Maxime « apporte les corrections nécessaires », le lecteur EPUB conserve les sections longues en parties déterministes : chemin original et titre numéroté, 50 000 octets UTF-8 au plus par partie et par tranche, au plus 20 unités par lecture. Les bornes ZIP/XML et le plafond de 2 000 repères demeurent. Les notations textuelles prises en charge conservent leur structure ; les limites de conversion sont déclarées, sans lecture des ressources externes. Le contrat/version du lecteur évolue ; une extraction modifiée ne réutilise pas une transcription incompatible.
+
+Le contrat commun de restitution exige un savoir-faire transférable, des conditions techniques attestées et un verbe autorisé équivalent au geste de la source. La seule proximité lexicale ne suffit plus. Si le geste est impossible à représenter ou à formuler intégralement dans les bornes, la proposition est omise avec une incertitude sourcée. Aucun seuil ni enum n’est élargi. Les tests de contrat et les réponses simulées ne mesurent pas l’erreur sémantique réelle ; une nouvelle recette fournisseur et des références humaines restent nécessaires. Aucun réessai payant n’est automatique. [Preuves et état distant](ai-company/operations/runs/2026-09-24-corrections-corpus.md).
+
+### Fidélité des compétences — 24/09/2026, P01-0014
+
+Après les six réessais, Maxime demande « cible la fidélité des compétences ». La correction locale ajoute au contrat fournisseur un `ancrage` temporaire par compétence existante ou nouvelle : nature (`consigne`, `demonstration`, `mention`, `incertain`), identifiant de l'appui principal et résultat attendu formulé avec son action. L'appui principal appartient aux sources sélectionnées ; d'autres passages peuvent compléter une démonstration. Une méthode enseignée sans impératif reste recevable. La consigne distingue donnée fournie, résultat demandé, titre annoncé et méthode démontrée ; elle demande de rechercher un meilleur passage avant d'abandonner une proposition étayable.
+
+Mistral et Qwen passent par le même contrôle d'entrée, sans appel supplémentaire. Une déclaration `mention` ou `incertain` retire la proposition de la liste sélectionnable et produit une réserve contenant son intitulé/code, le motif et le résultat à vérifier. Les réserves regroupent sans troncature au plus trois repères par élément et respectent 700 caractères. Les nouvelles réponses V2 sont bornées à sept éléments avant ce contrôle ; le résultat reste limité à huit. Si toutes les réserves ne tiennent pas, la réponse échoue explicitement plutôt que masquer des omissions. Un ancrage manquant ou invalide est une erreur de contrat, pas une abstention inventée. Les transcriptions restent disponibles et aucun réessai n'est automatique.
+
+L'ancrage est retiré avant persistance : aucun score de fidélité ni nouvel état pédagogique n'est stocké, aucune migration. Le contrat fournisseur passe à `restitution-json-schema-v3` et la qualité à `propositions-ancrage-geste-v4`. Les anciens devis non exécutés deviennent caducs ; les réussites sous le contrat précédent restent reconnues, sans modification des propositions ni de leurs indices. La V1 reste sans organisation et conserve sa limite de huit éléments. Quotas, limite de 30 propositions et plafond de 8 192 jetons V2 sont inchangés.
+
+Le modèle peut déclarer abusivement une démonstration : ce contrôle établit seulement la présence/cohérence de l'appui déclaré. Ni le gain de précision ni le risque d'omissions ne sont mesurés par les tests simulés. Les nouveaux champs consomment une partie du budget de réponse existant ; la couverture et les formulations complètes restent à éprouver. [Mandat et vérifications](ai-company/operations/runs/2026-09-24-fidelite-competences.md).
+
+### Précision humaine du 24/09/2026 à ADR-145 — rangement progressif et travail quotidien
+
+Après l'analyse du classement, Maxime maintient une cible de 5 % d'erreurs,
+demande que la personne soit avertie ou, au minimum, puisse réorganiser à la
+main de façon fluide, et définit l'organisation utile comme une proposition
+qui s'affine avec le temps et le dialogue. L'IA doit extraire les compétences
+principales mentionnées dans les ressources ; Twiny doit pouvoir classer et
+conserver le travail de la journée avec les supports joints.
+[Source humaine exacte et portée](ai-company/product/cadrage-direction.md#précision-humaine--rangement-progressif-et-travail-de-la-journée-24092026).
+
+Cette direction fait évoluer la cible de restitution : une mention principale
+sourcée peut être identifiée comme telle, sans prétendre que la compétence est
+enseignée, exercée ou maîtrisée. Le rejet systématique des mentions de P01-0014
+est remplacé localement : une mention explicitement formulée dans l'appui cité
+porte `relationSupport: "mention"` ; une relation enseignée ou demandée porte
+son propre libellé ; `incertain` et les mentions seulement thématiques restent
+en réserve. Ce contrôle lexical et structurel ne garantit pas la relation
+sémantique affirmée par le modèle. Une notion isolée n'autorise pas l'invention
+d'un geste. La recette doit vérifier la relation affirmée et les compétences
+principales attendues, avec les critères d'erreurs et d'omissions du 19/09,
+avant correction humaine. La qualité des nouveaux devis passe à
+`propositions-mention-principale-v5` ; le schéma fournisseur v3 reste inchangé,
+les résultats historiques restent lisibles sans réanalyse.
+
+La correction et le dialogue peuvent affiner le rangement sans effacer les
+originaux, les faits datés ou les choix humains précédents. « Travaillé dans la
+journée » repose sur une déclaration ou une activité sourcée ; joindre un
+document ne prouve pas son étude. Date d'apport et date de travail restent
+distinctes. Le bilan de journée est une lecture dérivée des faits disponibles,
+pas une nouvelle entité remplaçant `LearningSession` ni une Observation de
+compétence. Les contrats de consentement, de coût et de réessai restent en place.
+
+Réalisation locale : Mes cours expose la correction des ressources V2, la
+relecture permet de chercher et d'ajouter une compétence active du compte,
+y compris sans analyse terminée par une action manuelle distincte avec CAS,
+compte/RLS, domaine et codes actifs. Un rangement après l'échec d'une analyse
+plus récente ne confirme pas une proposition ancienne. Son analyseId reste
+vide, et la section des compétences générée est retirée de la matière source
+des futurs appels IA dès qu'un rangement existe. Le choix humain n'invente
+pas de contexte fournisseur. Dans tous les chemins,
+la borne de 30 reste limitée aux **propositions d'une analyse** ; les liens
+cumulés d'une ressource conservent leur plafond technique de 1 000 dans tous
+les chemins de rangement. La correction humaine demeure enregistrée comme
+choix de la personne, sans réanalyse automatique.
+
+Le travail de la journée suit une déclaration explicite : choix des documents
+V2 appartenant au compte, d'un geste canonique réellement effectué et d'une
+note facultative. Une action serveur écrit une seule `LearningSession` terminée
+avec une intervention par document (`source.kind = "document"`, effet
+`preparation`), date de l'écriture, clé d'idempotence et aucun contrat de preuve,
+code de compétence, durée ou Observation. Le Cahier dérive sa liste des séances
+et lie chaque intervention à l'original ; aucune nouvelle table ou migration.
+Ce geste décrit le travail effectué, sans affirmer que le dépôt en soi l'a été.
+L'interface et le dialogue existants permettent l'affinement, mais aucune
+alerte ne détecte aujourd'hui toutes les erreurs et le taux cible n'est pas
+mesuré. Aucun appel fournisseur, nouvelle dépense ni déploiement n'est impliqué
+par cette réalisation locale.

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bouton } from "@/components/ui/primitives";
-import { MAX_COMPETENCES_ORGANISATION_DEPOT, type DepotDocumentaire, type AnalyseDepot } from "@/lib/documents/depot";
+import { MAX_COMPETENCES_ORGANISATION_DEPOT, type DepotDocumentaire, type AnalyseDepot, type CompetenceProposeeDepot } from "@/lib/documents/depot";
 import type { ContexteOrganisationDepot } from "@/lib/documents/organisation-depot";
 import type { ChoixClassementRessource } from "@/lib/documents/classement-ressources";
 import { cheminDomaineClassement as cheminDomaine, MAX_COMPETENCES_LIEES_RESSOURCE } from "@/lib/documents/classement-ressources";
@@ -17,13 +17,22 @@ import { composerIntitule } from "@/lib/domain/atomicite";
 import type { CorrectionCompetenceClassement } from "@/lib/documents/corrections-classement";
 import { CorrectionCompetenceProposee } from "./correction-competence-proposee";
 import { repereSourceDepot } from "@/lib/documents/dialogue-documentaire";
+import { ClassementManuelSansAnalyse } from "./classement-manuel-sans-analyse";
 
 export type EtatActionsRelecture = { disabled: boolean; enregistrement: boolean };
 type Props = { depots: DepotDocumentaire[]; chargement: boolean; occupe: boolean; formulaireId: string; onEtatActions: (etat: EtatActionsRelecture) => void; onActualiser: (id: string) => void; afficherTitres: boolean; onDiscuter?: (depot: DepotDocumentaire) => void };
 type Choix = ClassementSaisi & { analyseId: string; version: string; codes: string[]; propositions: number[]; corrections: CorrectionCompetenceClassement[] };
 
-function derniereAnalyse(depot: DepotDocumentaire): AnalyseDepot | undefined {
-  return depot.analyses.filter((a) => a.statut === "terminee" && a.restitution).sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0];
+function libelleRelationSupport(relation: CompetenceProposeeDepot["relationSupport"]): string | null {
+  if (relation === "mention") return "Mentionnée dans le document";
+  if (relation === "enseignee") return "Enseignée dans le document";
+  if (relation === "demandee") return "Demandée dans le document";
+  return null;
+}
+
+export function derniereAnalyse(depot: DepotDocumentaire): AnalyseDepot | undefined {
+  const courante = [...depot.analyses].sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0];
+  return courante?.statut === "terminee" && courante.restitution ? courante : undefined;
 }
 
 export function choixInitial(depot: DepotDocumentaire, referentiel: ContexteOrganisationDepot): Choix {
@@ -64,7 +73,7 @@ export function RelectureRessources({ depots, chargement, occupe, formulaireId, 
   const [contexte, setContexte] = useState<ContexteOrganisationDepot | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const ids = depots.filter((d) => derniereAnalyse(d)).map((d) => d.id).join(",");
+  const ids = depots.map((d) => d.id).join(",");
   const versions = depots.map((d) => `${d.id}:${d.modifieLe}`).join(",");
   useEffect(() => {
     if (!ids) return;
@@ -75,9 +84,13 @@ export function RelectureRessources({ depots, chargement, occupe, formulaireId, 
     return () => { actif = false; };
   }, [ids, versions, revision]);
   const pretes = depots.filter((d) => derniereAnalyse(d));
-  if (!pretes.length) return <p className="text-sm leading-relaxed text-texte-attenue">{chargement ? "Nous retrouvons vos ressources et les lectures déjà enregistrées…" : "Vos originaux sont conservés. Après la lecture, vous pourrez vérifier la synthèse et choisir leur classement ici."}</p>;
+  const sansAnalyse = depots.filter((d) => d.version === 2 && !derniereAnalyse(d));
+  if (!depots.length) return <p className="text-sm leading-relaxed text-texte-attenue">{chargement ? "Nous retrouvons vos ressources et les lectures déjà enregistrées…" : "Aucun document accessible dans cette sélection."}</p>;
   if (!contexte) return <div className="space-y-2"><p role={erreur ? "alert" : "status"} className="text-sm">{erreur ?? "Préparation du classement…"}</p>{erreur && <Bouton variante="secondaire" onClick={() => setRevision((r) => r + 1)}>Réessayer sans relancer l’IA</Bouton>}</div>;
-  return <FormulaireRelectureRessources depots={pretes} referentiel={contexte} onReferentielActualise={setContexte} occupe={occupe || chargement} autres={depots.length - pretes.length} formulaireId={formulaireId} onEtatActions={onEtatActions} onActualiser={onActualiser} afficherTitres={afficherTitres} onDiscuter={onDiscuter} />;
+  return <div className="space-y-6">
+    {pretes.length > 0 && <FormulaireRelectureRessources depots={pretes} referentiel={contexte} onReferentielActualise={setContexte} occupe={occupe || chargement} autres={depots.length - pretes.length} formulaireId={formulaireId} onEtatActions={onEtatActions} onActualiser={onActualiser} afficherTitres={afficherTitres} onDiscuter={onDiscuter} />}
+    {sansAnalyse.map((depot) => <ClassementManuelSansAnalyse key={`${depot.id}:${depot.modifieLe}`} depot={depot} referentiel={contexte} occupe={occupe || chargement} onActualiser={onActualiser} />)}
+  </div>;
 }
 
 export function FormulaireRelectureRessources({ depots, referentiel, onReferentielActualise, occupe, autres, formulaireId, onEtatActions, onActualiser, afficherTitres = true, onDiscuter }: { depots: DepotDocumentaire[]; referentiel: ContexteOrganisationDepot; onReferentielActualise?: (contexte: ContexteOrganisationDepot) => void; occupe: boolean; autres: number; formulaireId: string; onEtatActions: (etat: EtatActionsRelecture) => void; onActualiser?: (id: string) => void; afficherTitres?: boolean; onDiscuter?: (depot: DepotDocumentaire) => void }) {
@@ -89,6 +102,7 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
   const [synthesesOuvertes, setSynthesesOuvertes] = useState<Record<string, boolean>>({});
   const [sourcesOuvertes, setSourcesOuvertes] = useState<Record<string, boolean>>({});
   const [editions, setEditions] = useState<Record<string, boolean>>({});
+  const [recherchesCompetences, setRecherchesCompetences] = useState<Record<string, string>>({});
   const [ressourcesEnregistrees, setRessourcesEnregistrees] = useState<Record<string, { versionSource: string; ressource: DepotDocumentaire }>>({});
   const verrou = useRef(false);
   const depotsCourants = depots.map((d) => ressourcesEnregistrees[d.id]?.versionSource === d.modifieLe ? ressourcesEnregistrees[d.id].ressource : d);
@@ -201,6 +215,10 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
       const bloque = occupe || enregistrement;
       const enEdition = Boolean(editions[depot.id]);
       const competences = organisation?.competences ?? [];
+      const rechercheCompetence = recherchesCompetences[depot.id]?.trim().toLocaleLowerCase("fr-FR") ?? "";
+      const competencesDejaVisibles = referentiel.competences.filter((competence) => depot.competencesLiees.includes(competence.code) || competences.some((p) => p.mode === "existante" && p.code === competence.code) || c.codes.includes(competence.code));
+      const competencesRecherchees = rechercheCompetence.length >= 2 ? referentiel.competences.filter((competence) => !competencesDejaVisibles.some((visible) => visible.code === competence.code) && `${competence.code} ${competence.intitule} ${competence.domaineNom}`.toLocaleLowerCase("fr-FR").includes(rechercheCompetence)).slice(0, 20) : [];
+      const competencesExistantesVisibles = [...competencesDejaVisibles, ...competencesRecherchees];
       const synthese = (sujets.length ? sujets : retour.elements)[0];
       const syntheseOuverte = Boolean(synthesesOuvertes[depot.id]);
       const syntheseId = `${formulaireId}-synthese-${depot.id}`;
@@ -248,29 +266,30 @@ export function FormulaireRelectureRessources({ depots, referentiel, onReferenti
           {c.destination === "nouveau" && c.usage === "continu" && !c.codes.length && !c.propositions.length && <p className="text-xs text-texte-attenue">Un nouveau domaine de progression continue demande au moins une compétence associée. Vous pouvez aussi choisir un domaine existant.</p>}
           {c.codes.length + c.propositions.length > MAX_COMPETENCES_LIEES_RESSOURCE && <p className="text-xs text-danger">Cette ressource atteint la limite de {MAX_COMPETENCES_LIEES_RESSOURCE} compétences liées.</p>}
         </fieldset>
-        {!!(c.codes.length || competences.length) && <fieldset disabled={bloque} className="space-y-3">
+        <fieldset disabled={bloque} className="space-y-3">
           <legend className="text-base font-semibold">Compétences proposées</legend>
           <div className="space-y-1 text-xs leading-relaxed text-texte-attenue">
             <p className="font-medium text-texte">{c.propositions.length > 0 ? `${c.propositions.length} nouvelle${c.propositions.length > 1 ? "s" : ""} compétence${c.propositions.length > 1 ? "s" : ""}` : ""}{c.propositions.length > 0 && c.codes.length > 0 ? " · " : ""}{c.codes.length > 0 ? `${c.codes.length} compétence${c.codes.length > 1 ? "s" : ""} existante${c.codes.length > 1 ? "s" : ""}` : ""}{!c.codes.length && !c.propositions.length ? "Aucune compétence associée" : ""}</p>
             {c.propositions.length > 0 && <p>{c.propositions.length > 1 ? "Créées" : "Créée"} après confirmation.</p>}
           </div>
-          <p className="text-xs text-texte-attenue">Gardez les compétences que vous souhaitez travailler. Vous pouvez en décocher ou préciser un intitulé avant sa création.</p>
+          <p className="text-xs text-texte-attenue">Choisissez les compétences principales à relier à ce document. Une mention ne signifie pas que vous les avez travaillées ou maîtrisées. Vous pouvez décocher une proposition ou préciser son intitulé avant sa création.</p>
+          <label className="block space-y-1 text-sm"><span>Ajouter une compétence de votre référentiel</span><input type="search" className="min-h-11 w-full rounded-lg border border-bordure-controle bg-surface px-3 py-2" value={recherchesCompetences[depot.id] ?? ""} onChange={(event) => setRecherchesCompetences((avant) => ({ ...avant, [depot.id]: event.target.value }))} placeholder="Rechercher par nom, code ou domaine" /></label>
           <div className="space-y-2">
-            {referentiel.competences.filter((competence) => depot.competencesLiees.includes(competence.code) || competences.some((p) => p.mode === "existante" && p.code === competence.code)).map((competence) => {
+            {competencesExistantesVisibles.map((competence) => {
               const proposition = competences.find((p) => p.mode === "existante" && p.code === competence.code);
               const pages = pagesSource(proposition?.sources ?? []);
-              return <label key={competence.code} className="flex cursor-pointer items-start gap-3 rounded-lg border border-bordure p-3 hover:bg-primaire/5"><input type="checkbox" className="mt-1 size-4 shrink-0 accent-primaire" checked={c.codes.includes(competence.code)} onChange={(e) => modifier(depot.id, { codes: e.target.checked ? [...c.codes, competence.code] : c.codes.filter((code) => code !== competence.code) })} /><span className="min-w-0 space-y-1"><span className="block text-sm font-medium leading-relaxed">{competence.intitule}</span><span className="block text-xs text-texte-attenue">Compétence existante{pages ? ` · ${pages}` : ""}</span></span></label>;
+              return <label key={competence.code} className="flex cursor-pointer items-start gap-3 rounded-lg border border-bordure p-3 hover:bg-primaire/5"><input type="checkbox" className="mt-1 size-4 shrink-0 accent-primaire" checked={c.codes.includes(competence.code)} onChange={(e) => modifier(depot.id, { codes: e.target.checked ? [...c.codes, competence.code] : c.codes.filter((code) => code !== competence.code) })} /><span className="min-w-0 space-y-1"><span className="block text-sm font-medium leading-relaxed">{competence.intitule}</span><span className="block text-xs text-texte-attenue">{proposition ? "Compétence proposée" : "Compétence de votre référentiel"}{libelleRelationSupport(proposition?.relationSupport) ? ` · ${libelleRelationSupport(proposition?.relationSupport)}` : ""}{pages ? ` · ${pages}` : ""}</span></span></label>;
             })}
             {competences.flatMap((p, i) => {
               if (p.mode !== "nouvelle") return [];
               const correction = c.corrections.find((correction) => correction.indice === i);
               return <div key={i} className="rounded-lg border border-bordure p-3">
-                <label className="flex cursor-pointer items-start gap-3"><input type="checkbox" className="mt-1 size-4 shrink-0 accent-primaire" checked={c.propositions.includes(i)} onChange={(e) => modifier(depot.id, { propositions: e.target.checked ? [...c.propositions, i] : c.propositions.filter((index) => index !== i) })} /><span className="min-w-0 space-y-1"><span className="block text-sm font-medium leading-relaxed">{correction ? composerIntitule(correction) : p.intitule}</span><span className="block text-xs text-texte-attenue">{correction ? "Votre correction · " : ""}Nouvelle compétence{pagesSource(p.sources) ? ` · ${pagesSource(p.sources)}` : ""}</span></span></label>
+                <label className="flex cursor-pointer items-start gap-3"><input type="checkbox" className="mt-1 size-4 shrink-0 accent-primaire" checked={c.propositions.includes(i)} onChange={(e) => modifier(depot.id, { propositions: e.target.checked ? [...c.propositions, i] : c.propositions.filter((index) => index !== i) })} /><span className="min-w-0 space-y-1"><span className="block text-sm font-medium leading-relaxed">{correction ? composerIntitule(correction) : p.intitule}</span><span className="block text-xs text-texte-attenue">{correction ? "Votre correction · " : ""}Nouvelle compétence{libelleRelationSupport(p.relationSupport) ? ` · ${libelleRelationSupport(p.relationSupport)}` : ""}{pagesSource(p.sources) ? ` · ${pagesSource(p.sources)}` : ""}</span></span></label>
                 {(!confirme || delegue) && <CorrectionCompetenceProposee key={`${analyse.id}:${i}`} proposition={p} correction={correction} indice={i} disabled={bloque} onConserver={(correction) => conserverCorrection(depot, i, correction)} />}
               </div>;
             })}
           </div>
-        </fieldset>}
+        </fieldset>
         {!c.codes.length && !competences.length && <p className="text-sm text-texte-attenue">Aucune compétence n’a encore été proposée pour ce document.</p>}
         {incertitudes.length > 0 && <aside aria-label="Points à vérifier" className="space-y-2 rounded-lg border border-bordure p-3"><h3 className="text-sm font-medium">À vérifier</h3>{incertitudes.map((e) => <p key={e.id} className="text-sm leading-relaxed text-texte-attenue">{e.texte}</p>)}</aside>}
         <Bouton type="button" variante="discret" taille="petite" aria-expanded={Boolean(sourcesOuvertes[depot.id])} aria-controls={sourcesId} onClick={() => setSourcesOuvertes((avant) => ({ ...avant, [depot.id]: !avant[depot.id] }))}>{sourcesOuvertes[depot.id] ? "Masquer les sources" : "Consulter les sources"}</Bouton>

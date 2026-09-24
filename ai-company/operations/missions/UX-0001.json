@@ -15,7 +15,6 @@
     "app/src/lib/documents/organisation-depot.test.ts",
     "app/src/app/api/depot/analyser",
     "app/src/lib/documents/depot-tarifs.test.ts",
-    "app/src/lib/documents/validation-rangement.ts",
     "AGENTS.md",
     "app/src/lib/documents/conversation-ressources.ts",
     "app/src/lib/documents/conversation-ressources.test.ts",
@@ -157,6 +156,6 @@
     "Aucun nouvel OCR, aucune confirmation de classement ni création de compétences par Codex.",
     "Tentative Mistral fc20d333-7cdd-4161-8eba-ed117525a315 à 22:32 UTC : 138984 micro-EUR décomptés, citation invalide, aucun OCR ni classement confirmé."
   ],
-  "updatedAt": "2026-09-18T20:50:49.199Z",
+  "updatedAt": "2026-09-24T15:34:00.000Z",
   "completion": null
 }

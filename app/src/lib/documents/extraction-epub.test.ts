@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { strToU8, zipSync } from "fflate";
-import { extraireSectionsEpub } from "./extraction-epub";
+import { extraireSectionsEpub, MAX_TEXTE_SECTION_EPUB, VERSION_EXTRACTION_EPUB } from "./extraction-epub";
 
 const container = '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="Livre/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>';
 const paquet = '<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="a" href="texte/a.xhtml" media-type="application/xhtml+xml"/><item id="b" href="texte/b.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="b"/><itemref idref="a"/></spine></package>';
@@ -30,7 +30,7 @@ describe("extraction EPUB locale et bornée", () => {
   });
   it("signale les illustrations sans charger leur URL ni inventer leur contenu", () => {
     const resultat = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<p>Observation.</p><img src="https://exemple.invalid/photo.png" alt="citation inventée"/><math><mi>x</mi></math>') }));
-    expect(resultat[0].texte).toBe("Observation.");
+    expect(resultat[0].texte).toBe("Observation.\nx");
     expect(resultat[0].incertain).toBe(true);
     expect(resultat[0].section.limites?.[0]).toMatch(/non analysés/);
   });
@@ -50,7 +50,6 @@ describe("extraction EPUB locale et bornée", () => {
     ["/absolu", "attaque", /chemin/],
     ["Livre\\fichier", "attaque", /chemin/],
     ["Livre/texte/b.xhtml", '<!DOCTYPE html [<!ENTITY x "répétition">]><html><body>&x;</body></html>', /entités/],
-    ["Livre/texte/b.xhtml", html("x".repeat(50_001)), /50 000/],
     ["Livre/texte/b.xhtml", html("x".repeat(1_000_001)), /limite|volumineux/],
   ] as const)("refuse une archive invalide ou hostile : %s", (nom, contenu, erreur) => {
     expect(() => extraireSectionsEpub(epub({ [nom]: contenu }))).toThrow(erreur);
@@ -104,5 +103,72 @@ describe("extraction EPUB locale et bornée", () => {
   });
   it("refuse une section dont le format EPUB annoncé est SVG plutôt que XHTML", () => {
     expect(() => extraireSectionsEpub(epub({ "Livre/package.opf": paquet.replaceAll("application/xhtml+xml", "image/svg+xml") }))).toThrow(/XHTML/);
+  });
+  it.each(["x".repeat(120_001), "é🙂".repeat(20_000), ("Une phrase.\n\n".repeat(6_000)).trim()])("découpe sans perte ni caractère UTF-8 coupé", (texte) => {
+    const archive = epub({ "Livre/texte/b.xhtml": html(texte, "T".repeat(200)) });
+    const extraits = extraireSectionsEpub(archive).filter((s) => s.section.chemin === "Livre/texte/b.xhtml");
+    expect(extraits.length).toBeGreaterThan(1);
+    expect(extraits.map((s) => s.texte).join("")).toBe(texte);
+    expect(extraits.every((s) => Buffer.byteLength(s.texte) <= MAX_TEXTE_SECTION_EPUB)).toBe(true);
+    expect(extraits.every((s, i) => s.section.titre.endsWith(`Partie ${i + 1}/${extraits.length}`) && s.section.titre.length <= 200)).toBe(true);
+    expect(extraireSectionsEpub(archive)).toEqual(extraireSectionsEpub(archive));
+    expect(VERSION_EXTRACTION_EPUB).not.toBe("epub-texte-spine-v1");
+  });
+  it("préserve les positions définies par une feuille CSS locale déclarée", () => {
+    const [section] = extraireSectionsEpub(epub({
+      "Livre/package.opf": paquet.replace("</manifest>", '<item id="css" href="styles.css" media-type="text/css"/></manifest>'),
+      "Livre/styles.css": "span.indice{vertical-align:sub} .exposant{vertical-align:super} .haut{font-size:.7em;vertical-align:top}",
+      "Livre/texte/b.xhtml": html('<p>x<span class="indice">i</span> + y<span class="exposant">2</span> + z<span class="haut">3</span></p>').replace("</head>", '<link rel="stylesheet" href="../styles.css"/></head>'),
+    }));
+    expect(section.texte).toBe("x_{i} + y^{2} + z[position CSS top : 3]");
+    expect(section.incertain).toBe(true);
+    expect(section.section.limites?.join(" ")).toContain("sans lui attribuer une signification");
+  });
+  it("n'infère aucune position du nom de classe et respecte les styles inline", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<p>x<span class="exposant">2</span> y<span style="vertical-align:super">3</span></p>') }));
+    expect(section.texte).toBe("x2 y^{3}");
+  });
+  it("une valeur CSS invalide après super ne prétend pas rétablir la ligne de base", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<p>x<span style="vertical-align:super;vertical-align:normal">2</span></p>') }));
+    expect(section.texte).toContain("position CSS normal");
+    expect(section.incertain).toBe(true);
+    expect(section.texte).not.toBe("x2");
+  });
+  it("ignore l'alignement des cellules et blocs sans perdre le texte ni les séparateurs", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<div style="vertical-align:top">Titre</div><table><tr><td style="vertical-align:top">A</td><td style="vertical-align:top">x<span style="vertical-align:top">2</span></td></tr></table>') }));
+    expect(section.texte).toBe("Titre\n\nA x[position CSS top : 2]");
+    expect(section.texte.match(/position CSS top/g)).toHaveLength(1);
+  });
+  it("signale un style externe sans le charger ni suivre un import CSS", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<p>x<span class="a">2</span></p>').replace("</head>", '<style>@import url("https://example.invalid/x.css"); .a { vertical-align:super }</style><link rel="stylesheet" href="../../../../secret.css"/></head>') }));
+    expect(section.texte).toContain("position CSS incertaine");
+    expect(section.section.limites?.join(" ")).toMatch(/externe/);
+  });
+  it("conserve les fractions, indices et accents MathML sans alttext inventé", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<math alttext="ne pas substituer"><mfrac><msub><mi>x</mi><mi>i</mi></msub><msup><mi>y</mi><mn>2</mn></msup></mfrac><mover><mi>R</mi><mo>^</mo></mover></math>') }));
+    expect(section.texte).toBe("frac{{x}_{i}}{{y}^{2}} overset{^}{R}");
+    expect(section.incertain).toBe(true);
+  });
+  it("ne restitue pas une expression partielle comme si elle était complète", () => {
+    const [section] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('Avant<math><mi>x</mi><maction><mi>y</mi></maction></math>après') }));
+    expect(section.texte).toBe("Avant [expression MathML non transcrite] après");
+    expect(section.section.limites?.join(" ")).toContain("non prise en charge");
+  });
+  it("un marqueur d'omission seul n'est jamais du texte source payable", () => {
+    const [vide] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<math><maction><mi>x</mi></maction></math>') }));
+    expect(vide.texte).toBe("");
+    expect(vide.section.limites?.join(" ")).toContain("aucun texte extractible");
+    const litteral = "[expression MathML non transcrite]";
+    const [source] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html(`<p>${litteral}</p>`) }));
+    expect(source.texte).toBe(litteral);
+    const [lisible] = extraireSectionsEpub(epub({ "Livre/texte/b.xhtml": html('<math><mi>x</mi></math>') }));
+    expect(lisible.texte).toBe("x");
+  });
+  it("borne le total décompressé même avec des sections découpables", () => {
+    const fichiers: Record<string, string> = {};
+    const items: string[] = [], spine: string[] = [];
+    for (let i = 0; i < 9; i++) { fichiers[`Livre/${i}.xhtml`] = html("x".repeat(950_000)); items.push(`<item id="s${i}" href="${i}.xhtml" media-type="application/xhtml+xml"/>`); spine.push(`<itemref idref="s${i}"/>`); }
+    fichiers["Livre/package.opf"] = `<package><manifest>${items.join("")}</manifest><spine>${spine.join("")}</spine></package>`;
+    expect(() => extraireSectionsEpub(epub(fichiers))).toThrow(/volumineux|Décompression/);
   });
 });

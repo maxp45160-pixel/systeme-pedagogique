@@ -1,0 +1,296 @@
+{
+  "id": "P01-0016",
+  "title": "Rangement progressif et trace du travail documentaire",
+  "status": "done",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-24-rangement-progressif.md",
+    "summary": "Maxime demande « implémente ! je valide tes recommandations » après avoir précisé la cible de 5 %, la correction manuelle fluide, les compétences principales mentionnées et le travail de la journée. Réalisation locale, tests et documentation ; aucune dépense fournisseur, nouvelle dépendance, migration ou publication."
+  },
+  "objective": "Conserver les mentions principales sourcées avec leur relation, rendre le rangement directement corrigeable et enregistrer le travail documentaire déclaré dans le Cahier.",
+  "scope": [
+    "app/src/lib/documents/ancrage-competences.ts",
+    "app/src/lib/documents/ancrage-competences.test.ts",
+    "app/src/lib/documents/depot.ts",
+    "app/src/lib/documents/depot-validation.ts",
+    "app/src/lib/documents/depot-validation.test.ts",
+    "app/src/lib/documents/validation-rangement.ts",
+    "app/src/lib/documents/validation-rangement.test.ts",
+    "app/src/lib/store/depot-documents.ts",
+    "app/src/lib/store/depot-documents.test.ts",
+    "app/src/lib/store/rangement-manuel-actions.ts",
+    "app/src/lib/store/rangement-manuel-actions.test.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-mistral.test.ts",
+    "app/src/lib/tutor/depot-qwen.ts",
+    "app/src/lib/tutor/depot-qwen.test.ts",
+    "app/src/lib/tutor/schema-restitution-depot.ts",
+    "app/src/lib/tutor/schema-restitution-depot.test.ts",
+    "app/src/lib/domain/travail-documentaire.ts",
+    "app/src/lib/domain/travail-documentaire.test.ts",
+    "app/src/lib/store/travail-documentaire-actions.ts",
+    "app/src/lib/store/travail-documentaire-actions.test.ts",
+    "app/src/components/tuteur/modale-ressources.tsx",
+    "app/src/components/tuteur/modale-ressources.test.ts",
+    "app/src/components/tuteur/ressources-conversation.tsx",
+    "app/src/components/tuteur/travail-documentaire-formulaire.tsx",
+    "app/src/components/tuteur/travail-documentaire-formulaire.test.ts",
+    "app/src/components/tuteur/classement-manuel-sans-analyse.tsx",
+    "app/src/components/tuteur/classement-manuel-sans-analyse.test.ts",
+    "app/src/components/atelier/vues-ressources-atelier.tsx",
+    "app/src/components/atelier/espace-documentaire.tsx",
+    "app/src/components/atelier/retrouver-ressources.test.ts",
+    "app/src/components/seances/cahier-seances.tsx",
+    "app/src/components/seances/cahier-seances.test.ts",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/product/cadrage-direction.md",
+    "ai-company/product/parcours-depot-memoire.md",
+    "ai-company/operations/runs/2026-09-24-rangement-progressif.md"
+  ],
+  "owner": "/root",
+  "baseCommit": "11ab9ea8176303241c7ff25406f6d5faa4bcf364",
+  "acceptance": [
+    "Les compétences principales explicitement mentionnées portent une relation sourcée, les mentions ambiguës restent en réserve et les anciennes restitutions restent lisibles",
+    "Depuis Mes cours, une ressource V2 ouvre sa correction manuelle même sans analyse terminée et accepte les liens cumulés au-delà de 30 sans effacer les choix humains ni contaminer la source IA",
+    "Une déclaration explicite de geste et documents du compte crée une seule séance datée et sans Observation, visible dans le Cahier avec liens vers les originaux",
+    "Tests pertinents, build et documentation synchronisée ; le seuil de 5 % reste déclaré non mesuré"
+  ],
+  "nextAction": "Mesurer les deux taux de 5 % sur références humaines et éprouver le parcours local dans une recette produit ; examiner un déploiement séparément.",
+  "blocker": null,
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-24T15:37:35.463Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0016",
+      "snapshotRef": "d885b724ae4c11702426d1f9c639a1d489450f3f884f5b45e3d1ae59246e4fe1",
+      "note": "252 fichiers, 2 834 tests ; TypeScript et ESLint sans erreur, quatre avertissements historiques."
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-24T15:37:35.463Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0016",
+      "snapshotRef": "d885b724ae4c11702426d1f9c639a1d489450f3f884f5b45e3d1ae59246e4fe1",
+      "note": "Build Next.js de production réussi, 44 pages statiques générées."
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-24T15:37:35.463Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0016",
+      "snapshotRef": "d885b724ae4c11702426d1f9c639a1d489450f3f884f5b45e3d1ae59246e4fe1",
+      "note": "26 missions et 16 liens d'exigences cohérents ; avertissements de preuves historiques périmées."
+    }
+  ],
+  "externalActions": [],
+  "updatedAt": "2026-09-24T15:37:35.463Z",
+  "completion": {
+    "summary": "Mentions principales sourcées, rangement manuel V2 sans analyse et travail quotidien daté dans le Cahier, vérifiés localement ; seuil humain non démontré.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-rangement-progressif.md"
+    ],
+    "at": "2026-09-24T15:37:35.463Z"
+  },
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-05",
+      "scope": "Rangement cumulatif et proposition explicitement corrigible"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-06",
+      "scope": "Mentions incertaines en réserve et correction manuelle ciblée"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-07",
+      "scope": "Accès aux ressources corrigées et liens depuis le Cahier"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-10",
+      "scope": "Relation de la proposition vérifiable ; seuil de 5 % non démontré"
+    }
+  ],
+  "handoff": {
+    "delivered": "Classification locale des mentions principales avec relation au support ; correction manuelle V2 même sans analyse terminée ; déclaration idempotente du travail documentaire dans LearningSession, visible dans le Cahier. Revue QA et build locaux effectués.",
+    "remaining": [
+      "Recette humaine sur références et mesure des deux seuils de 5 %.",
+      "Déploiement à examiner séparément."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-rangement-progressif.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": []
+    }
+  },
+  "snapshots": {
+    "d885b724ae4c11702426d1f9c639a1d489450f3f884f5b45e3d1ae59246e4fe1": {
+      "contractSha256": "3836b185f8ebc599d31b7ee00ff9c4d35f80e50ff58c062b9f99f728a68c5741",
+      "files": [
+        [
+          "ai-company/operations/runs/2026-09-24-rangement-progressif.md",
+          "9d90fcdb2bc4e3ff66dcee22c9eede570e6bdfaf4d7c5bf9464fdd0b1e49d6f6"
+        ],
+        [
+          "ai-company/product/cadrage-direction.md",
+          "b9fc9eb0b6ac906651ef486435e5e5c616eaae190469c1741dffda6ced7ad959"
+        ],
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "eaebb7f4802c5a9630b957ef691836f106c6373dca25673b6822ce9f2a91080b"
+        ],
+        [
+          "app/src/components/atelier/espace-documentaire.tsx",
+          "921bc6d29ce6d001769602e3fca869323db4e82f233e16cb1855603abb3f2319"
+        ],
+        [
+          "app/src/components/atelier/retrouver-ressources.test.ts",
+          "8581c2f80407f93e1e80c71be365cb9384ea25a9a66f7c48156a031d8723d4d0"
+        ],
+        [
+          "app/src/components/atelier/vues-ressources-atelier.tsx",
+          "848c57820368b6eef93e38649b43ca3b6cf29a4112e8ab6bdb73bedc8fb2d48a"
+        ],
+        [
+          "app/src/components/seances/cahier-seances.test.ts",
+          "6c3e8d2e75fe44bb0f99b1e2e57b89d40455ba77875eac0df7b72c06053ca1d9"
+        ],
+        [
+          "app/src/components/seances/cahier-seances.tsx",
+          "543bbd917968d8b0489ed246f0a885b54af491a6e5eb7162043d1920dab01e82"
+        ],
+        [
+          "app/src/components/tuteur/classement-manuel-sans-analyse.test.ts",
+          "9603a96d6e65d2cf0e675512515979d8915bcb8d16b58c61eb38b3b6e9426989"
+        ],
+        [
+          "app/src/components/tuteur/classement-manuel-sans-analyse.tsx",
+          "b35753cc1d4aef46a207c211b4d3568999fa85636fcce126abc4931f31392f6c"
+        ],
+        [
+          "app/src/components/tuteur/modale-ressources.test.ts",
+          "f53d780a6aab0fb43c3318e0a5a584d2013baf9e259d8ece88adc8dde8d78655"
+        ],
+        [
+          "app/src/components/tuteur/modale-ressources.tsx",
+          "62d3f8bfc265e5fa8af0caf8b87476df747ce8dbdeee33f66f3b4349003be989"
+        ],
+        [
+          "app/src/components/tuteur/ressources-conversation.tsx",
+          "d3e1abf8bdabc0d07166dc55002b01e69e5343fe01f41dd58386e2e3500667ac"
+        ],
+        [
+          "app/src/components/tuteur/travail-documentaire-formulaire.test.ts",
+          "2553db719c44fb2480c59235b824c1b25e2138e2a0aa148372129115d91bbeec"
+        ],
+        [
+          "app/src/components/tuteur/travail-documentaire-formulaire.tsx",
+          "0db1ec435768fcc00b578e8dee22addcebd9815c52439f1b1081f6583e6cf277"
+        ],
+        [
+          "app/src/lib/documents/ancrage-competences.test.ts",
+          "77c7670eaec38cb66fedad8b94e3e909e31c80b330e47d8ed44c04ed3164f682"
+        ],
+        [
+          "app/src/lib/documents/ancrage-competences.ts",
+          "d841e37e8d6cb3fb50c73f62e694123f460cfc95361726c6a047a0bd2754d677"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.test.ts",
+          "21b341505fdbcb3e19b507fbc5b9a04185e564b33ff4e6129b63b5ada33492d4"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.ts",
+          "ed7b867b6ac3ac76076df4c6d6f11507c4e4a9ada4125c8a01b3fa3bcb9057f0"
+        ],
+        [
+          "app/src/lib/documents/depot.ts",
+          "8a979de99d44c19145da824f245f3cd20c61717f885a46cc0c9750afe0dc42ce"
+        ],
+        [
+          "app/src/lib/documents/validation-rangement.test.ts",
+          "216f54ed19178067ca029e20ccb5f5f0f846bb0679c41e1f8e9adfc4ca074e86"
+        ],
+        [
+          "app/src/lib/documents/validation-rangement.ts",
+          "b32b856b520b68dcd51aa688996a99cb96338d118fe7968f31b969de1f869b76"
+        ],
+        [
+          "app/src/lib/domain/travail-documentaire.test.ts",
+          "e2ffef7e9f87a1ac7b7bd1c6d30af5e226451dc07c1240c4a115ffc2188c9d18"
+        ],
+        [
+          "app/src/lib/domain/travail-documentaire.ts",
+          "69765a50762a0de38ca378629543c1c868e2654241b29f261ce6e54404274069"
+        ],
+        [
+          "app/src/lib/store/depot-documents.test.ts",
+          "f804b631409fb6a60a01623e0fe8a19fbb1cd6fdfe78f02a57ca9f7c30a3a025"
+        ],
+        [
+          "app/src/lib/store/depot-documents.ts",
+          "19f181591b95700490a99011f168b3c81e3c7549c31c3cbedfa426f6b2071494"
+        ],
+        [
+          "app/src/lib/store/rangement-manuel-actions.test.ts",
+          "cb07a4311fef3f2c65a80d06ca16a1a604d1a6e336285e7fe6d3fe8454190883"
+        ],
+        [
+          "app/src/lib/store/rangement-manuel-actions.ts",
+          "ffda2417dbbdf57547c759b6684df957e48ccdeb06b47b4b2752b2430a33c602"
+        ],
+        [
+          "app/src/lib/store/travail-documentaire-actions.test.ts",
+          "f5c8c9b7c5b9db9389b9885e2d6b298226841dd3bf1fce5ae51468a0a4d2b813"
+        ],
+        [
+          "app/src/lib/store/travail-documentaire-actions.ts",
+          "42be1cf85df82b3b431cb48c4712dcdae7f5d5ac86fac24d844e45825912f050"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.test.ts",
+          "9de2c63923b92b38e941701a79e9c83ff571422c9a5d4d778b6ca39755b0a355"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.ts",
+          "8462dfd3b0935c7f8fe88cfbf9c8f9cd33530712bdb7d1e786c740bd1143dc0a"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.test.ts",
+          "a89071e45b1224387df0f2d481daa30bd025a7b66583034ae03de6f4809ee02a"
+        ],
+        [
+          "app/src/lib/tutor/depot-qwen.ts",
+          "a85c84491c0e801b2c4eb46b357304539d545648ce9b2437107da40d7fd9c25d"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.test.ts",
+          "f5d6ae20c731d6093b14d5c10d53c9dd2b91b8d5c6e3b53ff41715704ed058be"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.ts",
+          "c98496db606f547ba889920b8023a7c39788877052d6978d970d08d4876567dd"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "3e6bbb7fdcfe6f5396e57763a595ef434bd5859b2180f0c5c7cab48d3472fefc"
+        ],
+        [
+          "PRODUCT.md",
+          "e118795bc23c968724d168807a04d6e7002cbb837468b667bf744d14df8ed854"
+        ]
+      ]
+    }
+  }
+}

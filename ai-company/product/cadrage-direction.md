@@ -14,6 +14,14 @@ ne constituent pas d'autres autorisations.
 
 ## Socle courant — lecture avant les analyses historiques
 
+- **Précision humaine du 24/09 :** cible de 5 % d'erreurs conservée ; rangement
+  proposé, affiné avec le temps et le dialogue ; avertissement ou, au minimum,
+  réorganisation manuelle fluide ; extraction des compétences principales
+  mentionnées ; classement et conservation du travail de la journée avec ses
+  ressources jointes. [Source exacte et portée](#précision-humaine--rangement-progressif-et-travail-de-la-journée-24092026).
+  Le filtre actuel exigeant consigne ou démonstration ne réalise pas encore
+  cette identification élargie. Aucun statut de réalisation n'est promu.
+
 - **Suite autorisée, P01-0003, 16/09 :** « oui j'autorise. Une fois que c fait,
   bosse la tranche 3 ». La migration P01-0002 est appliquée et vérifiée. La tranche
   locale suivante restaure la restitution du domaine déclaré et la visibilité de
@@ -1130,3 +1138,48 @@ Il confirme la proposition de distinguer strictement moins de 5 % de proposition
 Les compétences restent des capacités décrites ou demandées par la ressource, jamais une mesure de maîtrise personnelle. Une ressource peut ne contenir aucune compétence identifiable. L’analyse signale sa couverture et ses limites ; le contexte personnel provient des mots de la personne. Une question doit réduire une ambiguïté importante ; la personne peut laisser un point ouvert. Aucune programmation de séances ne découle du seul contexte.
 
 Le seuil est un critère accepté, pas un résultat acquis. La recette se juge sur références humaines et support entier, avec résultats distincts par format ; propositions et omissions sont évaluées avant correction manuelle, avec effort de clarification visible. P01-0011 porte la réalisation locale et ses limites dans le rapport du 19/09.
+
+## Précision humaine — rangement progressif et travail de la journée, 24/09/2026
+
+Source : échange avec Maxime dans la tâche `01a0d2da-1abb-7072-acb7-020f76ce9c24`,
+après l'analyse de la fiabilité du classement documentaire. Citation exacte :
+
+> on peut rester à 5% d'erreurs mais il faudrait que l'humain soit averti ou a minima puisse réorganiser à la main si il veut de façon fluide. Un niveau d'organisation suffisamment utile c'est une proposition de rangement qui s'affine avec le temps et le dialogue. L'IA doit extraire les compétences principales qui sont mentionnées dans les ressources. On doit pouvoir classifier et enregistrer ce qui a été travaillé dans la journée et qui a été joint à Twiny.
+
+**Direction exprimée :** maintenir la cible de 5 % d'erreurs ; permettre un
+contrôle humain accessible, avec au minimum une réorganisation manuelle fluide ;
+considérer le rangement comme une proposition affinable dans le temps et le
+dialogue ; identifier les compétences principales mentionnées ; conserver et
+classer le travail de la journée avec ses supports joints. La recherche d'une
+erreur quasi nulle n'est plus le niveau exigé pour ce jalon.
+
+**Conséquences de cadrage :** une mention principale peut justifier
+l'identification d'une compétence, sans affirmer qu'elle est enseignée,
+exercée ou maîtrisée. Une notion isolée ne justifie toujours pas l'invention
+d'un geste. Les attendus de recette doivent donc préciser les compétences
+principales et la relation réellement attestée. La précision ne retire pas
+le contrôle des omissions adopté le 19/09 ; les deux taux restent à mesurer
+avant correction humaine, en rendant l'effort de correction visible.
+
+Le travail quotidien est un fait déclaré ou une activité datée avec sa source,
+pas une déduction tirée du seul dépôt d'un fichier. Date de dépôt et date de
+travail restent distinctes. La vue de la journée se dérive des faits disponibles,
+sans ajouter une nouvelle entité de travail ni une mesure de maîtrise. Une
+réorganisation ultérieure préserve ces faits et les originaux.
+
+**Modalités encore proposées :** afficher l'origine IA des propositions et les
+incertitudes détectées, offrir un changement direct de domaine et de liens,
+permettre de revenir sur une correction et conserver les choix humains pendant
+les analyses suivantes. La formulation humaine n'exige pas une alerte bloquante
+pour chaque document et ne promet pas que toutes les erreurs seront détectées.
+Le temps et le dialogue n'autorisent pas des réanalyses payantes en arrière-plan.
+
+**Réalisation locale déclenchée par « implémente ! je valide tes recommandations » :**
+les mentions principales explicitement ancrées deviennent sélectionnables avec
+la relation `mention` ; les mentions ambiguës restent en réserve. Mes cours
+ouvre directement la correction du rangement. La relecture cherche aussi dans
+les compétences actives du compte. La déclaration du travail quotidien demande
+documents et geste explicites, puis le Cahier relit la séance datée. La cible
+de 5 % n'est toujours pas démontrée ; aucune promotion de statut humain n'en
+découle. Les détails techniques et les limites sont dans PRODUCT et ADR-145.
+Aucune dépense nouvelle n'est autorisée par ce cadrage.

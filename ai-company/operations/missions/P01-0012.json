@@ -1,0 +1,195 @@
+{
+  "id": "P01-0012",
+  "title": "Corriger les défauts constatés sur le corpus documentaire",
+  "status": "done",
+  "authorization": {
+    "source": "ai-company/operations/runs/2026-09-24-corrections-corpus.md",
+    "summary": "Demande explicite de Maxime le 24/09/2026 : « apporte les corrections nécessaires ». Corrections locales EPUB/notations/classification et activation du MIME EPUB prévu pour le pilote après contrôle distant. Aucun appel fournisseur payant, nouvelle dépendance, commit, push ni déploiement frontend."
+  },
+  "objective": "Lever les rejets EPUB et préserver les notations interprétables ; renforcer les consignes de compétences puis vérifier les corrections sur le corpus existant.",
+  "scope": [
+    "app/src/lib/documents/extraction-epub.ts",
+    "app/src/lib/documents/extraction-epub.test.ts",
+    "app/src/lib/documents/extraction-epub-notations.ts",
+    "app/src/lib/documents/extraction-epub-notations.test.ts",
+    "app/src/lib/documents/depot.ts",
+    "app/src/lib/documents/depot-validation.ts",
+    "app/src/lib/documents/depot-validation.test.ts",
+    "app/src/lib/store/depot-analyse.ts",
+    "app/src/lib/store/depot-analyse.test.ts",
+    "app/src/lib/tutor/depot-mistral.ts",
+    "app/src/lib/tutor/depot-mistral.test.ts",
+    "app/src/lib/tutor/schema-restitution-depot.ts",
+    "app/src/lib/tutor/schema-restitution-depot.test.ts",
+    "app/supabase/migrations/20260918221339_autoriser_epub_documentaire.sql",
+    "PRODUCT.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "ai-company/operations/runs/2026-09-24-corrections-corpus.md"
+  ],
+  "owner": "/root",
+  "baseCommit": "11ab9ea8176303241c7ff25406f6d5faa4bcf364",
+  "acceptance": [
+    "C05, C06 et C07 lisibles par le lecteur public ; chaque unité reste bornée et sourcée sans perte de texte due au découpage",
+    "Notations prises en charge préservées et notations non prises en charge déclarées sans interprétation inventée",
+    "Consignes de classification renforcées sans affirmer le seuil réel atteint",
+    "Contrainte et bucket distants acceptent EPUB sans changement des droits ou plafonds",
+    "Vérification globale, build et revue indépendante ; documentation synchronisée"
+  ],
+  "nextAction": "Corrections locales vérifiées ; recette fournisseur payante à autoriser explicitement et mesure humaine du seuil restent à réaliser. Aucun déploiement frontend.",
+  "blocker": null,
+  "verificationVersion": 1,
+  "requiredChecks": [
+    "npm run verify --workspace=app -- --maxWorkers=2",
+    "npm run build",
+    "npm run agents:check"
+  ],
+  "checks": [
+    {
+      "command": "npm run verify --workspace=app -- --maxWorkers=2",
+      "result": "passed",
+      "at": "2026-09-24T09:03:47.038Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0012",
+      "snapshotRef": "8a7550ee5ef53dfe8dcfe910f2825e296bb724ed1e18dfd9a3de330b2c0cc2ba",
+      "note": "2760 tests / 244 fichiers ; TypeScript et ESLint sans erreur, 4 avertissements préexistants. Log corrections-verify-final.log, lancement Vitest 11:02:17, durée 51.54s. Revue indépendante 130 tests ciblés, corpus public C05/C06/C07 et contre-exemples."
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "at": "2026-09-24T09:02:13.170Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0012",
+      "snapshotRef": "8a7550ee5ef53dfe8dcfe910f2825e296bb724ed1e18dfd9a3de330b2c0cc2ba",
+      "note": "Build Next.js réussi. Premier essai bloqué par réseau sandbox vers Google Fonts (log corrections-build.log), résolu par exécution réseau autorisée ; preuve corrections-build-final.log dans scratch/corpus-classification-2026-09-22."
+    },
+    {
+      "command": "npm run agents:check",
+      "result": "passed",
+      "at": "2026-09-24T09:02:13.171Z",
+      "revision": "11ab9ea8176303241c7ff25406f6d5faa4bcf364 + diff local P01-0012",
+      "snapshotRef": "8a7550ee5ef53dfe8dcfe910f2825e296bb724ed1e18dfd9a3de330b2c0cc2ba",
+      "note": "Contrats, 22 missions et continuité cohérents ; avertissements historiques de snapshots conservés."
+    }
+  ],
+  "externalActions": [
+    "Migration Supabase autoriser_epub_documentaire appliquée le 24/09/2026 sur vxkjzzshlqulexydgfpc, version 20260924084536 ; succès puis contrainte/bucket privé 10 Mio et RLS relus. Preuve : ai-company/operations/runs/2026-09-24-corrections-corpus.md"
+  ],
+  "updatedAt": "2026-09-24T09:03:47.039Z",
+  "completion": {
+    "summary": "Corrections locales EPUB (longues sections, notations, omission seule non facturable), contrat de compétences et migration distante EPUB livrés. 2760 tests et build passent ; revue indépendante concluante dans son périmètre. Aucune qualité réelle <5% affirmée ni nouvel appel fournisseur.",
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-corrections-corpus.md"
+    ],
+    "at": "2026-09-24T09:03:47.039Z"
+  },
+  "planLinks": [
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-01",
+      "scope": "Formats documentaires et texte libre"
+    },
+    {
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "requirement": "P01-04",
+      "scope": "Sujet, extraction sourcée, couverture et évaluation"
+    },
+    {
+      "requirement": "P01-10",
+      "source": "ai-company/product/parcours-depot-memoire.md",
+      "scope": "Évaluateur offline, sans qualité fournisseur déclarée atteinte"
+    }
+  ],
+  "handoff": {
+    "delivered": "MIME EPUB activé à distance ; code local corrigé pour sections longues, notations conservatrices et contrat de classification. Résultats des vérifications dans checks.",
+    "remaining": [
+      "Recette sémantique fournisseur après accord explicite de réessai ; référence humaine pour mesurer les seuils.",
+      "Déploiement frontend non effectué ; figures et notations non prises en charge à relire dans les originaux."
+    ],
+    "evidence": [
+      "ai-company/operations/runs/2026-09-24-corrections-corpus.md"
+    ],
+    "deployment": {
+      "status": "not-deployed",
+      "evidence": [
+        "ai-company/operations/runs/2026-09-24-corrections-corpus.md"
+      ]
+    }
+  },
+  "snapshots": {
+    "8a7550ee5ef53dfe8dcfe910f2825e296bb724ed1e18dfd9a3de330b2c0cc2ba": {
+      "contractSha256": "3d6333055bd5e64a3b3975140595319f4cb91439d642a0101e3ddd2d7987ac2d",
+      "files": [
+        [
+          "ai-company/operations/runs/2026-09-24-corrections-corpus.md",
+          "d8ca8804f5ff873ae3587756ab2721857f13b5925767575bd76c8bd7ae8458a9"
+        ],
+        [
+          "ai-company/product/parcours-depot-memoire.md",
+          "5f7df95c60d6ee771263684392e9bf34e8a7aab3c509ede8702cb080a562473a"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.test.ts",
+          "38f7e8d17dd72057393643508160ff3d5402d9fdd91937bc4c7a598f4c868565"
+        ],
+        [
+          "app/src/lib/documents/depot-validation.ts",
+          "0b03223b11913d4b5bf2095c2eae8bddd587199d60132071f0c71bbbf2fd9b59"
+        ],
+        [
+          "app/src/lib/documents/depot.ts",
+          "697fe836a9e05dacb019ae1d73ec5067ed6f58dbe11832a0e1454b88d10b1eff"
+        ],
+        [
+          "app/src/lib/documents/extraction-epub-notations.test.ts",
+          "9e026888d918ed84c027f9425d8863a6ed6e0ba0aad11734c079adb7d027157d"
+        ],
+        [
+          "app/src/lib/documents/extraction-epub-notations.ts",
+          "f185d767c2bb93a47fa1f2ffd8c2d772399e9bc7fcac93744be8b124b322dca7"
+        ],
+        [
+          "app/src/lib/documents/extraction-epub.test.ts",
+          "d01b2c3de97fd1bef056e47db56a078a9e08b6afa30cc9e330cd2de227852fd8"
+        ],
+        [
+          "app/src/lib/documents/extraction-epub.ts",
+          "2dac1e8dd9bb0e4dfe3e28403ccb4d452ac44efd27a2b8310f2d81ee0b7c6ea3"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.test.ts",
+          "dc5ee6fd908b91ce85f9b07368add25959795bff8e5d7ed65046301b6044cf5e"
+        ],
+        [
+          "app/src/lib/store/depot-analyse.ts",
+          "6610182c4f0355afde1d05bd9c422d9446cdd0b8b2693c3ddcc3900ef9ac5c76"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.test.ts",
+          "1c6fadbc5c131aa1e81912e352a3f125000a8a26584c7492a913e7712f7cd8bb"
+        ],
+        [
+          "app/src/lib/tutor/depot-mistral.ts",
+          "747df436f2be2e340bc7b135a2466e94b0a969b17cbd6786fd6da51643f3d576"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.test.ts",
+          "7afe6bb1b377cac111aa534a4bab1c158a8bf2e2c2d7d59089bda6bac7907868"
+        ],
+        [
+          "app/src/lib/tutor/schema-restitution-depot.ts",
+          "64df7f99fffda6fc70eb39670b44395a6bd2bf29d8a260a296a70276a0baf3ba"
+        ],
+        [
+          "app/supabase/migrations/20260918221339_autoriser_epub_documentaire.sql",
+          "80cc01ed07f8508e25e8b19487be9dd5ed01037df10b541c719d400eea60c6a3"
+        ],
+        [
+          "ARCHITECTURE_DECISIONS.md",
+          "8078b4a57869546212769f5501160365cd45bd289f03459fa48cc6fa24b6530d"
+        ],
+        [
+          "PRODUCT.md",
+          "35704609898a3b241b7420829fbd2b5c6ebc4f0558d94ae50e6092f329ac84df"
+        ]
+      ]
+    }
+  }
+}

@@ -101,6 +101,7 @@ import {
 import type { CalibrageModale, CompetenceModale } from "@/lib/domain/proprietes-generation";
 import type { DonneesSeance } from "@/components/seances/concepteur-seance";
 import { rangerDocument, type RangementAtelier } from "@/lib/documents/rangement-atelier";
+import { estRessourceDepot } from "@/lib/documents/depot";
 import { domaineAffichageCorpus, regrouperFichesParDomaine, separerGroupesNommes } from "@/lib/documents/corpus-groupe";
 import { EditeurDirect } from "./editeur-document";
 import { VueTousLesDomaines, BarreVuesAtelier, type VueAtelier } from "./vues-synthese-atelier";
@@ -1607,6 +1608,15 @@ export function EspaceDocumentaire({
                     <span className="text-xs font-medium text-primaire" aria-live="polite">
                       {message}
                     </span>
+                  )}
+
+                  {selectionnee.source === "document" && estRessourceDepot(selectionnee.frontMatter) && (
+                    <Link
+                      href={`/app?depot=${encodeURIComponent(selectionnee.id)}`}
+                      className="inline-flex min-h-11 items-center rounded-md border border-primaire/40 bg-surface px-3 text-xs font-semibold text-primaire transition-colors hover:bg-primaire-faible focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primaire"
+                    >
+                      Corriger le rangement
+                    </Link>
                   )}
 
                   {estNoteCapturee(selectionnee) && (

@@ -22,16 +22,17 @@ it("refuse une citation ajoutée au passage sélectionné sans réessai",async()
   await expect(restituerQwen("Note",[],config)).rejects.toThrow("uniquement passageId");
   expect(m.appel).toHaveBeenCalledTimes(1);
 });
-it.each([undefined,{domaines:[],competences:[]}])("traduit les identifiants de la réponse Qwen en repères persistables", async (referentiel) => {
+it.each([undefined,{domaines:[{id:"maths",nom:"Mathématiques",description:"Calcul"}],competences:[]}])("traduit les identifiants de la réponse Qwen en repères persistables", async (referentiel) => {
   m.appel.mockImplementation(async (_config, corps) => {
     const entree=JSON.parse(corps.messages[1].content);
     const sources=[{passageId:entree.sources[1].passages[0].passageId}];
-    return {choices:[{message:{content:JSON.stringify({elements:[{nature:"sujet",texte:"Équations",sources}],...(referentiel?{organisation:{sources,domaine:null,competences:[{mode:"nouvelle",objet:"équation",sources}]}}:{})})}}]};
+    return {choices:[{message:{content:JSON.stringify({elements:[{nature:"sujet",texte:"Équations",sources}],...(referentiel?{organisation:{titreSuggere:"Équations",typeSuggere:"cours",justification:"Calcul demandé",sources,domaine:{mode:"existant",id:"maths",justification:"Calcul demandé",sources},competences:[{ancrage:{nature:"consigne",passageId:sources[0].passageId,attendu:"Résoudre une équation pour trouver sa solution."},mode:"nouvelle",verbeAction:"résoudre",objet:"une équation",precision:null,palier:"fondamentaux",importance:0.5,domaine:{mode:"existant",id:"maths"},justification:"Résolution demandée",sources}]}}:{})})}}]};
   });
   const resultat=await restituerQwen("Note",[{pieceId:"ats",page:7,texte:"Fiche 6 : Résoudre une équation",incertain:false}],config,referentiel);
   const sources=[{pieceId:"ats",page:7,citation:"Fiche 6 : Résoudre une équation"}];
-  expect(resultat).toMatchObject({elements:[{sources}],...(referentiel?{organisation:{sources,domaine:null,competences:[{sources}]}}:{})});
+  expect(resultat).toMatchObject({elements:[{sources}],...(referentiel?{organisation:{sources,domaine:{id:"maths",sources},competences:[{sources}]}}:{})});
   expect(JSON.stringify(resultat)).not.toContain("passageId");
+  expect(JSON.stringify(resultat)).not.toContain('"ancrage"');
   expect(m.appel).toHaveBeenCalledTimes(1);
 });
 beforeEach(() => { vi.resetAllMocks(); m.appel.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ texte: "Texte simulé par le test" }) } }] }); });
@@ -54,8 +55,9 @@ it("un arrêt empêche l'envoi de la page suivante", async () => {
   expect(conserver).toHaveBeenCalledWith([expect.objectContaining({ page: 1, texte: "page" })]);
 });
 it.each([undefined,{domaines:[],competences:[]}])("aligne la restitution Qwen et sa réservation sur la limite du corps", async (referentiel) => {
-  m.appel.mockResolvedValue({choices:[{message:{content:'{"elements":[]}'}}]});
-  await expect(restituerQwen("Note",[],config,referentiel)).resolves.toEqual({elements:[]});
+  const contenu={elements:[],...(referentiel ? {organisation:{titreSuggere:"Note",typeSuggere:"cours",domaine:null,competences:[],justification:"Sujet déclaré",sources:[{passageId:"passage-0"}]}} : {})};
+  m.appel.mockResolvedValue({choices:[{message:{content:JSON.stringify(contenu)}}]});
+  await expect(restituerQwen("Note",[],config,referentiel)).resolves.toMatchObject({elements:[],...(referentiel ? {organisation:{competences:[]}} : {})});
   const [,corps,,sortieMax]=m.appel.mock.calls[0];
   expect(corps.max_tokens).toBe(referentiel ? 8192 : 2500);
   expect(corps.response_format).toEqual({type:"json_object"});

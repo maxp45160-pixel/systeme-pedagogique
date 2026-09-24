@@ -5,6 +5,7 @@ import { INTITULE_MAX_ATOMIQUE, OBJET_MAX, PRECISION_MAX, VERBES_ACTION, compose
 import { validerElementsDepot, validerOrganisationDepot } from "@/lib/documents/depot-validation";
 import { sourcesRestitution, traduireSourcesRestitution } from "@/lib/documents/sources-restitution";
 import type { ReferentielDepotPourModele } from "@/lib/documents/depot";
+import { filtrerAncragesCompetences, MAX_ATTENDU_ANCRAGE, MAX_ELEMENTS_FOURNISSEUR_V2, NATURES_ANCRAGE_COMPETENCE } from "@/lib/documents/ancrage-competences";
 
 // Ajv est déjà fourni par l'outillage ESLint ; aucun validateur supplémentaire
 // n'est embarqué dans le chemin applicatif ou utilisé à la place du métier.
@@ -15,8 +16,9 @@ const referentiel: ReferentielDepotPourModele = {
 };
 const sources = [{ passageId: "passage-fiable" }];
 const sourcee = { justification: "Le passage enseigne ce geste.", sources };
+const ancrage = { nature: "consigne", passageId: "passage-fiable", attendu: "Calculer une intégrale pour obtenir une primitive." };
 const nouvelle = () => ({
-  mode: "nouvelle", verbeAction: "calculer", objet: "une intégrale", precision: null as string | null,
+  ancrage: { ...ancrage }, mode: "nouvelle", verbeAction: "calculer", objet: "une intégrale", precision: null as string | null,
   palier: "fondamentaux", importance: 0.5, domaine: { mode: "existant", id: "maths" }, ...sourcee,
 });
 const restitution = () => ({
@@ -39,8 +41,43 @@ describe("schéma de restitution documentaire", () => {
 
   it("accepte les nouveautés sourcées et les références existantes", () => {
     expect(valider(restitution())).toBe(true);
-    const existante = { mode: "existante", code: "MATH-01", ...sourcee };
+    const existante = { ancrage, mode: "existante", code: "MATH-01", ...sourcee };
     expect(valider({ ...restitution(), organisation: { ...restitution().organisation, competences: [existante] } })).toBe(true);
+  });
+
+  it("exige un ancrage fermé, borné et issu du catalogue pour chaque mode de compétence", () => {
+    for (const competence of [nouvelle(), { ancrage, mode: "existante", code: "MATH-01", ...sourcee }]) {
+      const avec = (c: object) => ({ ...restitution(), organisation: { ...restitution().organisation, competences: [c] } });
+      const sans: Record<string, unknown> = { ...competence };
+      delete sans.ancrage;
+      expect(valider(avec(sans))).toBe(false);
+      for (const nature of NATURES_ANCRAGE_COMPETENCE) {
+        expect(valider(avec({ ...competence, ancrage: { ...ancrage, nature, attendu: "a".repeat(MAX_ATTENDU_ANCRAGE) } }))).toBe(true);
+      }
+      for (const invalide of [
+        { ...ancrage, nature: "invente" }, { ...ancrage, passageId: "absent" },
+        { ...ancrage, attendu: "" }, { ...ancrage, attendu: "a".repeat(MAX_ATTENDU_ANCRAGE + 1) },
+      ]) expect(valider(avec({ ...competence, ancrage: invalide }))).toBe(false);
+    }
+  });
+
+  it("ne laisse pas le modèle choisir directement la relation conservée", () => {
+    const value = restitution();
+    const proposition = { ...value.organisation.competences[0], relationSupport: "enseignee" };
+    expect(valider({ ...value, organisation: { ...value.organisation, competences: [proposition] } })).toBe(false);
+  });
+
+  it("réserve une place serveur en V2 sans réduire la borne historique V1", () => {
+    const v1 = ajv.compile(fabriquerSchemaRestitutionDepot(["passage-fiable"]));
+    const elements = Array.from({ length: MAX_ELEMENTS_FOURNISSEUR_V2 }, () => restitution().elements[0]);
+    expect(valider({ ...restitution(), elements })).toBe(true);
+    elements.push(restitution().elements[0]);
+    expect(valider({ ...restitution(), elements })).toBe(false);
+    expect(v1({ elements })).toBe(true);
+    const schema = fabriquerSchemaRestitutionDepot(["passage-fiable"], referentiel);
+    for (const variante of schema.properties?.organisation.properties?.competences.items?.anyOf ?? []) {
+      expect(Object.keys(variante.properties ?? {})[0]).toBe("ancrage");
+    }
   });
 
   it("refuse la précision de 25 caractères qui bloquait ATS, accepte 24 ou null", () => {
@@ -64,13 +101,14 @@ describe("schéma de restitution documentaire", () => {
     expect(valider(value)).toBe(false);
   });
 
-  it.each(["source", "element", "organisation", "domaine", "competence", "referenceDomaine"])(
+  it.each(["source", "element", "organisation", "domaine", "competence", "referenceDomaine", "ancrage"])(
     "ferme les propriétés supplémentaires de %s", (niveau) => {
       const value = structuredClone(restitution());
       const cibles: Record<string, object> = {
         source: value.elements[0].sources[0], element: value.elements[0], organisation: value.organisation,
         domaine: value.organisation.domaine, competence: value.organisation.competences[0],
         referenceDomaine: value.organisation.competences[0].domaine,
+        ancrage: value.organisation.competences[0].ancrage,
       };
       Object.assign(cibles[niveau], { proprieteInconnue: "interdit" });
       expect(valider(value)).toBe(false);
@@ -87,7 +125,7 @@ describe("schéma de restitution documentaire", () => {
     value.organisation.competences[0].domaine.id = "maths";
     value.organisation.competences[0].verbeAction = "comprendre";
     expect(valider(value)).toBe(false);
-    expect(valider({ ...value, organisation: { ...value.organisation, competences: [{ mode: "existante", code: "FAUX-01", ...sourcee }] } })).toBe(false);
+    expect(valider({ ...value, organisation: { ...value.organisation, competences: [{ ancrage, mode: "existante", code: "FAUX-01", ...sourcee }] } })).toBe(false);
   });
 
   it("respecte les bornes des éléments, compétences, textes, sources et importance", () => {
@@ -128,7 +166,8 @@ describe("schéma de restitution documentaire", () => {
     const passageId = catalogue.sources[0].passages[0].passageId;
     const reponse = JSON.parse(JSON.stringify(restitution()).replaceAll("passage-fiable", passageId));
     expect(ajv.compile(fabriquerSchemaRestitutionDepot([passageId], referentiel))(reponse)).toBe(true);
-    const canonique = traduireSourcesRestitution(reponse, note, []);
+    const canonique = traduireSourcesRestitution(filtrerAncragesCompetences(reponse, note, [], referentiel), note, []);
+    expect(JSON.stringify(canonique)).not.toContain('"ancrage"');
     expect(validerElementsDepot(canonique, "doc", note, [], "preuve")).toHaveLength(1);
     expect(validerOrganisationDepot(canonique, "doc", note, [], referentiel).competences).toHaveLength(1);
   });

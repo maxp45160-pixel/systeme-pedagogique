@@ -93,6 +93,21 @@ describe("documents retrouvables après classement", () => {
     expect(html).not.toContain("Document explicite");
   });
 
+  it("propose une correction accessible aux seules ressources V2, sans confondre l'ouverture du document", () => {
+    const html = renduRessources([
+      ressource("depot avec espace", { frontMatter: { role: "support", depot_version: 2 } }),
+      ressource("ancien", { frontMatter: { role: "support", depot_version: 1 } }),
+      ressource("ordinaire"),
+      ressource("projection", { frontMatter: { depot_version: 2 }, source: "projection" }),
+    ]);
+    expect(html).toContain('href="/app?depot=depot%20avec%20espace"');
+    expect(html).toContain('aria-label="Corriger le rangement de Document depot avec espace"');
+    expect(html.match(/>Corriger le rangement<\/a>/g)).toHaveLength(1);
+    expect(html).not.toContain('href="/app?depot=ancien"');
+    expect(html).not.toContain('href="/app?depot=ordinaire"');
+    expect(html).not.toContain('href="/app?depot=projection"');
+  });
+
   it.each([renduRessources, renduRecherche])("ne fusionne pas des titres identiques entre groupes nommés et inconnus", (rendu) => {
     const elements = ["organisation", "algebre", "inconnu-1", "inconnu-2"].map((domaineId, index) =>
       ressource(`homonyme-${index}`, { titre: "Titre partagé", domaineId, typeLibelle: `Repère ${index}` }));

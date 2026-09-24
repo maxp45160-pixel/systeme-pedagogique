@@ -129,14 +129,22 @@ function validerDomainePropose(value: unknown, documentId: string, note: string,
 }
 
 const PALIERS: readonly Palier[] = ["fondamentaux", "intermediaire", "avance"];
+const RELATIONS_SUPPORT = ["mention", "enseignee", "demandee"] as const;
 
 function validerCompetenceProposee(value: unknown, documentId: string, note: string, pages: PageExtraiteDepot[], referentiel?: ReferentielValidationDepot): CompetenceProposeeDepot {
   const competence = objetDepot(value);
   const sourcee = validerSourcesProposition(competence, documentId, note, pages);
+  // Optionnel pour les analyses historiques. Les nouvelles réponses portent
+  // toujours ce champ, dérivé de leur ancrage par filtrerAncragesCompetences.
+  const relationSupport = competence.relationSupport === undefined ? undefined : competence.relationSupport;
+  if (relationSupport !== undefined && !RELATIONS_SUPPORT.includes(relationSupport as (typeof RELATIONS_SUPPORT)[number])) {
+    throw new Error("Relation de compétence au support invalide.");
+  }
+  const relation = relationSupport ? { relationSupport: relationSupport as (typeof RELATIONS_SUPPORT)[number] } : {};
   if (competence.mode === "existante") {
     const code = texteDepot(competence.code, 100);
     if (referentiel && !referentiel.competences.some((item) => item.code === code)) throw new Error("Compétence proposée hors du référentiel actif.");
-    return { mode: "existante", code, ...sourcee };
+    return { mode: "existante", code, ...relation, ...sourcee };
   }
   if (competence.mode !== "nouvelle") throw new Error("Proposition de compétence invalide.");
   if (competence.code !== undefined) throw new Error("Une nouvelle compétence ne reçoit aucun code du modèle.");
@@ -163,6 +171,7 @@ function validerCompetenceProposee(value: unknown, documentId: string, note: str
     palier: competence.palier as Palier,
     importance: competence.importance,
     domaine: validerReferenceDomaine(competence.domaine, referentiel),
+    ...relation,
     ...sourcee,
   };
 }

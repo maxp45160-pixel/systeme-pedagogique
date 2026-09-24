@@ -1,12 +1,24 @@
 # P-01 — Du support confié à la mémoire organisée
 
-Version de travail du 16/09/2026. Annexe d'exigences du
+Version de travail du 16/09/2026, cadrage complété le 24/09/2026. Annexe d'exigences du
 [dossier canonique](cadrage-direction.md), qui conserve les sources humaines.
 **Cahier des charges en cours : délégation d'organisation arbitrée le 16/09,
 modalités détaillées proposées ; première tranche locale autorisée dans P01-0001.** Les finalités
 arbitrées ne valident pas automatiquement les comportements ci-dessous.
 
 ## Besoin et résultat
+
+**Précision humaine du 24/09 :** la cible reste 5 % d'erreurs, avec avertissement
+ou, au minimum, une réorganisation manuelle fluide. L'organisation utile est
+une proposition qui s'affine avec le temps et le dialogue. L'IA identifie les
+compétences principales mentionnées dans les ressources, avec sources et
+qualification de la relation, sans exiger qu'elles soient toutes enseignées
+ou exercées. Twiny doit pouvoir classer et conserver ce qui a été travaillé
+dans la journée et joint au produit. La source humaine et la distinction entre
+contenu, travail déclaré et mesure sont conservées dans
+[le dossier canonique](cadrage-direction.md#précision-humaine--rangement-progressif-et-travail-de-la-journée-24092026).
+La tranche locale du 24/09 conserve les mentions principales explicitement
+sourcées avec leur relation ; sa précision réelle reste à mesurer sur corpus humain.
 
 Maxime confie cours/exercices PDF numériques ou scannés, notes manuscrites issues
 de reMarkable, texte et pensées. Il veut une mémoire longitudinale personnelle,
@@ -74,7 +86,7 @@ proposés ; aucun questionnaire systématique ni notification n'est décidé.
 | P01-06 | Contrôler | Solliciter les ambiguïtés et changements importants ; permettre correction ciblée, acceptation/refus ou report des points en attente. Les choix antérieurs ne sont pas réécrits silencieusement. |
 | P01-07 | Retrouver | Donner accès à l'apport dans la mémoire conservée ; relier vue globale, vue du sujet et source précise. Une simple disposition visuelle nouvelle ne compte pas comme apport. |
 | P01-09 | Dialoguer | Clarifier le contenu explicitement partagé puis le rôle et l’intention déclarés ; réutiliser ce qui est déjà connu, permettre de laisser un point ouvert, conserver les déclarations et isoler le fil documentaire. Accord du 19/09. |
-| P01-10 | Évaluer | Sur références humaines, moins de 5 % de propositions de compétences incorrectes/injustifiées ET moins de 5 % de compétences attendues oubliées. Distinguer formats, sujet, rattachement et hiérarchie ; une couverture partielle ne valide pas le support entier. Accord du 19/09. |
+| P01-10 | Évaluer | Sur références humaines, moins de 5 % de propositions de compétences incorrectes/injustifiées ET moins de 5 % de compétences principales attendues oubliées. Distinguer formats, sujet, rattachement, hiérarchie et relation réellement attestée (mention, enseignement, travail) ; une couverture partielle ne valide pas le support entier. Seuils du 19/09 conservés, portée précisée le 24/09. |
 | P01-08 | Challenger | Proposer une invitation facultative lorsque son intérêt est étayé par les sources et une intention déclarée. Répondre, garder pour plus tard ou ignorer ne conditionne pas la conservation. |
 
 Le nombre de propositions affichées et leur présentation restent à concevoir.
@@ -90,6 +102,18 @@ pas d'une transaction technique unique.
 **Conserver reste distinct de classer :** tout original effectivement conservé
 reste retrouvable même si un point d'organisation est reporté ou refusé. Le report
 n'adopte pas une relation en attente et ne bloque pas les effets indépendants.
+
+**Organisation progressive et journée — première tranche locale du 24/09.** La
+proposition peut être reprise à la main depuis Mes cours ou discutée dans le
+fil documentaire, sans réimporter le support. La correction du domaine, du titre
+et des compétences est accessible en relecture, même sans analyse terminée ; une recherche permet de lier
+une compétence active du référentiel non proposée par l'IA. Le geste déclaré de
+la journée et ses documents V2 sont conservés dans une séance existante,
+consultable dans le Cahier. La sélection des documents et du geste est explicite :
+l'absence de déclaration ne permet pas d'affirmer que chaque pièce jointe a
+été étudiée. Date de dépôt et date de travail restent distinctes ; la
+réorganisation ne réécrit ni l'original ni la séance. Qualité des propositions,
+effort de correction et taux de 5 % restent à éprouver en recette humaine.
 
 ## Contenu de la restitution d'organisation
 

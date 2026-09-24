@@ -93,7 +93,7 @@ export async function lireDepotDocumentaire(id: string): Promise<DepotDocumentai
   const document = await lireDocument(id);
   if (!estDepotDocumentaire(document.frontmatter ?? {})) throw new Error("Dépôt introuvable.");
   // Les liens ajoutés par le rangement ne sont ni une nouvelle note ni une source de l'IA.
-  const markdownSource = document.frontmatter?.rangement_analyse_id && Number(document.frontmatter.depot_version) === VERSION_RESSOURCE_DEPOT
+  const markdownSource = document.frontmatter?.rangement_revu_le && Number(document.frontmatter.depot_version) === VERSION_RESSOURCE_DEPOT
     ? sansSections(document.contenuMd, [SECTION_COMPETENCES_RESSOURCE]) : document.contenuMd;
   const note = noteDuDepot(markdownSource);
   const [pieces, analyses, corrections] = await Promise.all([

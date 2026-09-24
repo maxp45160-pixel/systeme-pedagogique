@@ -6,6 +6,7 @@ import { Modale } from "@/components/ui/modale";
 import { identifierRessourcesAssistantAction, lireRessourceAssistantAction } from "@/lib/store/ressource-assistant-actions";
 import { rattacherDomaineDelegueAction } from "@/lib/store/delegation-classement-actions";
 import { ActionsRelectureRessources, RelectureRessources, type EtatActionsRelecture } from "./modale-ressources";
+import { TravailDocumentaireFormulaire } from "./travail-documentaire-formulaire";
 import { bilanSelectionAnalyses, referencesRessourcesConversation, type AutorisationAnalyseDepot } from "@/lib/documents/conversation-ressources";
 import type { DepotDocumentaire, PreparationAnalyseDepot } from "@/lib/documents/depot";
 
@@ -262,19 +263,21 @@ function RessourcesChargees({ compteId, cle, ouverte, onFermer, onRetirerReferen
   const disponibles = lignes.filter((l) => !l.introuvable);
   const uniques = disponibles.length === 1;
   const reprises = selectionReprise(lignes);
+  const premiereAnalysePossible = reprises.some((ligne) => ligne.ressource?.depot.analyses.length === 0);
   const lectureIncomplete = disponibles.some((l) => l.erreur || !l.ressource || ["echec", "interrompue"].includes([...l.ressource.depot.analyses].sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0]?.statut ?? "") || !l.ressource.depot.analyses.some((a) => a.statut === "terminee") || l.ressource.depot.analyses.some((a) => a.statut === "en-cours"));
   const nouvelles = selectionAnalyseAutomatique(lignes);
   const accordDepasse = autorisationAnalyse && nouvelles.length > 0 && !autorisationCorrespond(nouvelles, autorisationAnalyse);
-  const anomalie = erreur || (accordDepasse ? "Le fournisseur ou le coût a changé. Vérifiez la nouvelle estimation avant de réessayer." : lectureIncomplete ? "La proposition n’est pas encore complète. Vos documents sont conservés." : null);
+  const anomalie = erreur || (accordDepasse ? "Le fournisseur ou le coût a changé. Vérifiez la nouvelle estimation avant de réessayer." : lectureIncomplete ? premiereAnalysePossible ? "Aucune proposition IA terminée pour ce document. Vous pouvez le ranger manuellement ou lancer l’analyse après avoir relu son coût maximal." : "La proposition n’est pas encore complète. Vos documents sont conservés." : null);
   const noms = disponibles.map((l, index) => l.ressource?.depot.pieces.map((p) => p.nom).join(", ") || l.ressource?.depot.titre || l.titre || `Document ${index + 1} — ouverture en cours`);
   return <Modale titre={uniques ? disponibles[0]?.ressource?.depot.titre ?? disponibles[0]?.titre ?? "Ouvrir le document" : disponibles.length ? `Vérifier ${disponibles.length} documents` : "Document indisponible"} sousTitre={noms.length > 0 ? `${noms.slice(0, 3).join(" · ")}${noms.length > 3 ? ` · et ${noms.length - 3} autres documents` : ""}` : "Aucun document accessible dans cette sélection"} onFermer={onFermer} masquee={!ouverte} largeur="3xl" pied={<ActionsRelectureRessources formulaireId={formulaireId} etat={etatActions} avecResultats={depots.some((d) => d.analyses.some((a) => a.statut === "terminee" && a.restitution))} onFermer={onFermer} />}>
     <div className="space-y-6">
       {lignes.filter((l) => l.introuvable).map((ligne) => <div key={ligne.id} className="rounded-lg border border-bordure bg-surface p-3 text-sm"><p>Un ancien lien de cet échange ne correspond plus à un document accessible. Il n’est pas inclus dans le classement.</p>{onRetirerReference && <Bouton taille="petite" variante="discret" onClick={() => onRetirerReference(ligne.id)}>Retirer ce lien de l’échange</Bouton>}</div>)}
       {disponibles.filter((ligne) => ligne.preparation).map((ligne) => <SectionsNonAnalysees key={`non-analysees-${ligne.id}`} preparation={ligne.preparation!} />)}
       {occupe && <div className="flex flex-wrap items-center gap-3 rounded-lg bg-primaire/5 p-3"><p role="status" className="text-sm">{occupe}</p>{analyseEnCours && <Bouton taille="petite" variante="discret" onClick={() => controleAnalyse.current?.abort()}>Arrêter</Bouton>}</div>}
-      {!chargement && !occupe && anomalie && <div className="space-y-2"><p role="alert" className="text-sm text-danger">{anomalie}</p>{reprises.map((ligne) => <p key={ligne.id} className="text-xs text-texte-attenue">{descriptionLecture(ligne.preparation!)}</p>)}<Bouton taille="petite" variante="secondaire" onClick={() => void reessayer()}>Réessayer</Bouton></div>}
+      {!chargement && !occupe && anomalie && <div className="space-y-2"><p role="alert" className="text-sm text-danger">{anomalie}</p>{reprises.map((ligne) => <p key={ligne.id} className="text-xs text-texte-attenue">{descriptionLecture(ligne.preparation!)}</p>)}<Bouton taille="petite" variante="secondaire" onClick={() => void reessayer()}>{reprises.length ? premiereAnalysePossible ? "Préparer une proposition IA" : "Réessayer l’analyse" : "Relire les documents"}</Bouton></div>}
       {lignes.filter((l) => l.erreurClassement).map((ligne) => <div key={`classement-${ligne.id}`} className="space-y-2"><p role="alert" className="text-sm text-danger">{ligne.ressource?.depot.titre} : {ligne.erreurClassement}</p><Bouton type="button" variante="secondaire" disabled={Boolean(occupe)} onClick={() => void relire()}>Relire l’état enregistré sans relancer l’IA</Bouton></div>)}
       {disponibles.length > 0 && <RelectureRessources depots={depots} chargement={chargement} occupe={Boolean(occupe) || chargement || analyseEnCours} formulaireId={formulaireId} onEtatActions={setEtatActions} onActualiser={() => void relire()} afficherTitres={!uniques} onDiscuter={onDiscuter} />}
+      <TravailDocumentaireFormulaire key={ouverte ? "ouvert" : "ferme"} depots={depots.filter((depot) => depot.version === 2)} occupe={Boolean(occupe) || chargement || analyseEnCours} />
       {!chargement && disponibles.filter((l) => etatLectureSuivante(l) !== "absente").map((ligne) => <div key={`suite-${ligne.id}`} className="space-y-2 rounded-lg border border-bordure p-3">
         <p className="text-sm font-medium">Poursuivre la lecture de « {ligne.ressource!.depot.titre} »</p>
         <p className="text-xs text-texte-attenue">{descriptionLecture(ligne.preparation!)}</p>

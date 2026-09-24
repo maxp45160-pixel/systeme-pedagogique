@@ -6,11 +6,78 @@ vi.mock("@/lib/store/depot-budget",()=>({finaliserCoutDepot:mocks.cout}));
 import { corpsRestitutionDepot, lireOcrDepot, restituerDepot } from "./depot-mistral";
 import { restituerQwen } from "./depot-qwen";
 import { OBJET_MAX, PRECISION_MAX, INTITULE_MAX_ATOMIQUE } from "@/lib/domain/atomicite";
+import { validerOrganisationDepot } from "@/lib/documents/depot-validation";
+const reponseV2Vide = () => ({ elements: [], organisation: { titreSuggere: "Note", typeSuggere: "cours", domaine: null, competences: [], justification: "Sujet de la note.", sources: [{ passageId: "passage-0" }] } });
+const referentielMaths = {domaines:[{id:"maths",nom:"Mathématiques",description:"Calcul"}],competences:[{code:"M-01",intitule:"Calculer une valeur",domaine:"maths"},{code:"M-02",intitule:"Résoudre une équation",domaine:"maths"}]};
 beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal("fetch",mocks.fetch);mocks.env.mockResolvedValue({ok:true,env:{MISTRAL_API_KEY:"test-key"}});});
 describe("Mistral documentaire",()=>{
+  describe.each(["mistral", "qwen"] as const)("ancrage via %s", (fournisseur) => {
+    const note="Ce chapitre annonce : Calculer une valeur.";
+    const sources=[{passageId:"passage-0"}];
+    const competence={mode:"existante",code:"M-01",justification:"Geste à vérifier",sources};
+    const ancrage={nature:"consigne",passageId:"passage-0",attendu:"Calculer une valeur pour obtenir le résultat demandé."};
+    const appeler=(propositions: object[])=>{
+      const contenu={...reponseV2Vide(),organisation:{...reponseV2Vide().organisation,competences:propositions}};
+      const resultat={usage:{prompt_tokens:100,completion_tokens:200},choices:[{finish_reason:"stop",message:{content:JSON.stringify(contenu)}}]};
+      mocks.fetch.mockResolvedValue(Response.json(resultat));
+      mocks.qwen.mockResolvedValue(resultat);
+      const referentiel=referentielMaths;
+      return fournisseur === "mistral" ? restituerDepot(note,[],"op",referentiel)
+        : restituerQwen(note,[],{fournisseur:"qwen",cle:"test-factice"},referentiel);
+    };
+    const verifierAppelUnique=()=>{
+      expect(fournisseur === "mistral" ? mocks.fetch : mocks.qwen).toHaveBeenCalledTimes(1);
+      if(fournisseur === "mistral") expect(mocks.cout).toHaveBeenCalledTimes(1);
+    };
+    it("refuse un ancrage absent sans réessai",async()=>{
+      await expect(appeler([competence])).rejects.toThrow();
+      verifierAppelUnique();
+    });
+    it("refuse un code inventé même si son appui mention entraînerait son omission",async()=>{
+      await expect(appeler([{...competence,code:"INVENTE-01",ancrage:{...ancrage,nature:"mention"}}])).rejects.toThrow(/référentiel actif/i);
+      verifierAppelUnique();
+    });
+    it("conserve une mention explicite et sa source sans en faire un enseignement",async()=>{
+      const resultat=await appeler([{...competence,ancrage:{...ancrage,nature:"mention",attendu:"Calculer une valeur"}}]);
+      expect(resultat).toMatchObject({elements:[],organisation:{competences:[{code:"M-01",relationSupport:"mention",sources:[{citation:note}]}]}});
+      expect(JSON.stringify(resultat)).not.toContain('"ancrage"');
+      verifierAppelUnique();
+    });
+    it("omet un appui incertain avec sa réserve et conserve la proposition indépendante",async()=>{
+      const nature="incertain";
+      const resultat=await appeler([{...competence,ancrage:{...ancrage,nature}},{...competence,code:"M-02",ancrage}]);
+      expect(resultat).toMatchObject({elements:[{nature:"incertitude",sources:[{citation:note}]}],organisation:{competences:[{code:"M-02",relationSupport:"demandee",sources:[{citation:note}]}]}});
+      expect(JSON.stringify(resultat)).not.toContain('"ancrage"');
+      verifierAppelUnique();
+    });
+    it.each(["consigne","demonstration"])("conserve un appui déclaré %s sans garantir sa justesse sémantique",async(nature)=>{
+      // La source est seulement une annonce : une qualification mensongère du
+      // modèle reste recevable sur la forme. Ce test expose la limite du filtre.
+      const resultat=await appeler([{...competence,ancrage:{...ancrage,nature}}]);
+      expect(resultat).toMatchObject({elements:[],organisation:{competences:[{...competence,relationSupport:nature==="consigne"?"demandee":"enseignee",sources:[{citation:note,pieceId:null,page:null}]}]}});
+      expect(JSON.stringify(resultat)).not.toContain('"ancrage"');
+      verifierAppelUnique();
+    });
+  });
+
+  it("relie l'appui au résultat recherché sans confondre enseignement et annonce",()=>{
+    const systeme=corpsRestitutionDepot("Une démonstration",[],{domaines:[],competences:[]}).messages[0].content;
+    expect(systeme).toContain("Distinguez les données fournies de l'inconnue recherchée");
+    expect(systeme).toContain("même sans phrase impérative");
+    expect(systeme).toContain("l'annonce d'une méthode peut nommer une compétence principale sans démontrer sa mise en œuvre");
+    expect(systeme).toContain("appartient aussi aux sources de la compétence");
+    expect(systeme).toContain("le même objet et le même résultat explicitement attesté");
+    expect(systeme).toContain('une compétence principale sans démontrer sa mise en œuvre');
+    expect(systeme).toContain('Une simple notion ou un outil nommé sans savoir-faire explicite');
+    expect(systeme).toContain('attendu reproduit exactement une courte formulation CONTIGUË du geste');
+    expect(systeme).not.toContain("partez d'une consigne explicite");
+    expect(systeme).toContain('au maximum 7 objets');
+    expect(corpsRestitutionDepot("Note",[]).messages[0].content).toContain("au maximum 8 objets");
+  });
+
   it("transmet le même contrat qualité aux deux fournisseurs réels, sans relance",async()=>{
     const referentiel={domaines:[],competences:[]};
-    const resultat={choices:[{finish_reason:"stop",message:{content:'{"elements":[]}'}}],usage:{prompt_tokens:100,completion_tokens:30}};
+    const resultat={choices:[{finish_reason:"stop",message:{content:JSON.stringify(reponseV2Vide())}}],usage:{prompt_tokens:100,completion_tokens:30}};
     mocks.fetch.mockResolvedValue(Response.json(resultat));
     mocks.qwen.mockResolvedValue(resultat);
     await restituerDepot("Une question personnelle sans exercice",[],"op",referentiel);
@@ -18,9 +85,11 @@ describe("Mistral documentaire",()=>{
     const mistral=JSON.parse(mocks.fetch.mock.calls[0][1].body);
     const qwen=mocks.qwen.mock.calls[0][1];
     expect(mistral.messages).toEqual(qwen.messages);
-    expect(qwen.messages[0].content).toContain("conservez le geste demandé et son objet");
+    expect(qwen.messages[0].content).toContain("conservez le geste nommé, demandé ou enseigné et son objet");
     expect(qwen.messages[0].content).toContain("retournez alors competences:[]");
     expect(qwen.messages[0].content).toContain("ne répétez ni un code existant ni un même intitulé nouveau");
+    expect(qwen.messages[0].content).toContain("geste équivalent");
+    expect(qwen.messages[0].content).toContain("jamais en coupant un mot ou une expression");
     expect(mistral.response_format.type).toBe("json_schema");
     expect(qwen.response_format.type).toBe("json_object");
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
@@ -31,13 +100,53 @@ describe("Mistral documentaire",()=>{
     await expect(restituerDepot("x\n".repeat(3000),[],"op")).rejects.toThrow("trop denses");
     expect(mocks.env).not.toHaveBeenCalled();expect(mocks.fetch).not.toHaveBeenCalled();
   });
-  it.each([undefined,{domaines:[],competences:[]}])("traduit les identifiants de la réponse Mistral en repères persistables",async(referentiel)=>{
+  it("demande le transfert sans effacer les distinctions attestées ni spécialiser le contrat au corpus",()=>{
+    const systeme=corpsRestitutionDepot("Une consigne",[],{domaines:[],competences:[]}).messages[0].content;
+    expect(systeme).toContain("capacité transférable à d'autres situations");
+    expect(systeme).toContain("chiffres et variables anecdotiques restent dans la justification sourcée");
+    expect(systeme).toContain("conditions techniques qui changent le geste ou sa validité");
+    expect(systeme).toContain("conditions d'application de la méthode nommée");
+    expect(systeme).toContain("ne déduisez pas une catégorie technique d'un mot isolé");
+    expect(systeme).not.toMatch(/bises|tenues vestimentaires|couples|publication responsable/);
+  });
+  it("demande une abstention sourcée si le geste ou sa formulation complète ne peut être conservé",()=>{
+    const systeme=corpsRestitutionDepot("Une consigne",[],{domaines:[],competences:[]}).messages[0].content;
+    expect(systeme).not.toContain("le plus proche");
+    expect(systeme).toContain("Une proximité lexicale ou thématique ne suffit pas");
+    expect(systeme).toContain("Si aucun verbe autorisé ne convient, omettez cette compétence");
+    expect(systeme).toContain("incertitude sourcée décrivant le geste non représentable");
+    expect(systeme).toContain("si aucune formulation complète ne conserve le geste et ses conditions nécessaires dans les bornes");
+    expect(systeme).toContain("omettez la proposition avec une incertitude sourcée");
+  });
+  it.each([
+    {precision:"bonnes réponses",recevable:true},
+    {precision:"au moins six bonnes réponses",recevable:false},
+  ])("conserve la précision reçue sans tronquer puis valide sa borne : $precision",async({precision,recevable})=>{
+    const note="Calculer la probabilité de bonnes réponses.";
+    const referentiel={domaines:[],competences:[]};
+    const sources=[{passageId:"passage-0"}];
+    const proposition={ancrage:{nature:"consigne",passageId:"passage-0",attendu:note},mode:"nouvelle",verbeAction:"calculer",objet:"une probabilité",precision,palier:"fondamentaux",importance:0.5,domaine:{mode:"nouveau",nom:"Probabilités"},justification:note,sources};
+    mocks.fetch.mockResolvedValue(Response.json({usage:{prompt_tokens:100,completion_tokens:200},choices:[{finish_reason:"stop",message:{content:JSON.stringify({elements:[],organisation:{titreSuggere:"Probabilités",typeSuggere:"cours",domaine:{mode:"nouveau",nom:"Probabilités",description:"Calcul de probabilités",parentId:null,justification:note,sources},competences:[proposition],justification:note,sources}})}}]}));
+    const reponse=restituerDepot(note,[],"op",referentiel);
+    if(recevable) {
+      expect(precision.length).toBeLessThanOrEqual(PRECISION_MAX);
+      const recue=await reponse;
+      expect(recue).toMatchObject({organisation:{competences:[{precision}]}});
+      expect(validerOrganisationDepot(recue,"doc",note,[]).competences[0]).toMatchObject({precision,intitule:`Calculer une probabilité (${precision})`});
+    } else {
+      expect(precision.length).toBeGreaterThan(PRECISION_MAX);
+      await expect(reponse).rejects.toThrow(/précision/i);
+    }
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.cout).toHaveBeenCalledTimes(1);
+  });
+  it.each([undefined,referentielMaths])("traduit les identifiants de la réponse Mistral en repères persistables",async(referentiel)=>{
     mocks.fetch.mockImplementation(async(_url, options)=>{
       const requete=JSON.parse(options.body);
       expect(requete.response_format).toMatchObject({type:"json_schema",json_schema:{strict:true,schema:{type:"object"}}});
       const entree=JSON.parse(requete.messages[1].content);
       const sources=[{passageId:entree.sources[0].passages[0].passageId}];
-      const contenu={elements:[{nature:"sujet",texte:"Équations",sources}],...(referentiel?{organisation:{sources,domaine:{mode:"nouveau",nom:"Mathématiques",sources},competences:[{mode:"existante",code:"M-01",sources}]}}:{})};
+      const contenu={elements:[{nature:"sujet",texte:"Équations",sources}],...(referentiel?{organisation:{...reponseV2Vide().organisation,sources,domaine:{mode:"existant",id:"maths",justification:"Sujet des équations",sources},competences:[{ancrage:{nature:"consigne",passageId:sources[0].passageId,attendu:"Résoudre une équation pour trouver sa solution."},mode:"existante",code:"M-02",justification:"Résolution demandée",sources}]}}:{})};
       return Response.json({usage:{prompt_tokens:100,completion_tokens:100},choices:[{finish_reason:"stop",message:{content:JSON.stringify(contenu)}}]});
     });
     const resultat=await restituerDepot("",[{pieceId:"ats",page:7,texte:"Fiche 6 : Résoudre une équation",incertain:false}],"op",referentiel);
@@ -70,8 +179,8 @@ describe("Mistral documentaire",()=>{
     expect(mocks.cout).toHaveBeenCalledWith("op",8000);
   });
   it("extrait uniquement la réponse finale si le fournisseur retourne des chunks et facture tous les jetons",async()=>{
-    mocks.fetch.mockResolvedValue(Response.json({usage:{prompt_tokens:100,completion_tokens:500},choices:[{finish_reason:"stop",message:{content:[{type:"thinking",thinking:[{type:"text",text:'{"elements":["pas une source"]}'}]},{type:"text",text:'{"elements":[]}' }]}}]}));
-    await expect(restituerDepot("Note",[],"op",{domaines:[],competences:[]})).resolves.toEqual({elements:[]});
+    mocks.fetch.mockResolvedValue(Response.json({usage:{prompt_tokens:100,completion_tokens:500},choices:[{finish_reason:"stop",message:{content:[{type:"thinking",thinking:[{type:"text",text:'{"elements":["pas une source"]}'}]},{type:"text",text:JSON.stringify(reponseV2Vide()) }]}}]}));
+    await expect(restituerDepot("Note",[],"op",{domaines:[],competences:[]})).resolves.toMatchObject({elements:[],organisation:{competences:[]}});
     expect(JSON.parse(mocks.fetch.mock.calls[0][1].body)).toMatchObject({reasoning_effort:"none",temperature:0,top_p:1});
     expect(mocks.cout).toHaveBeenCalledWith("op",7800);
   });
@@ -140,8 +249,8 @@ describe("Mistral documentaire",()=>{
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
   it("accepte et rapproche une réponse V2 complète dépassant l'ancienne borne de 2500",async()=>{
-    mocks.fetch.mockResolvedValue(Response.json({usage:{prompt_tokens:100,completion_tokens:6000},choices:[{finish_reason:"stop",message:{content:'{"elements":[]}'}}]}));
-    await expect(restituerDepot("Note",[],"op",{domaines:[],competences:[]})).resolves.toEqual({elements:[]});
+    mocks.fetch.mockResolvedValue(Response.json({usage:{prompt_tokens:100,completion_tokens:6000},choices:[{finish_reason:"stop",message:{content:JSON.stringify(reponseV2Vide())}}]}));
+    await expect(restituerDepot("Note",[],"op",{domaines:[],competences:[]})).resolves.toMatchObject({elements:[],organisation:{competences:[]}});
     expect(mocks.cout).toHaveBeenCalledWith("op",90300);
     expect(mocks.env).toHaveBeenCalledWith(undefined,expect.objectContaining({sortieMax:8192}));
     expect(mocks.fetch).toHaveBeenCalledTimes(1);

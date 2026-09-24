@@ -1,6 +1,6 @@
 # PRODUCT.md — Système pédagogique
 
-## État courant — 19/09/2026
+## État courant — 24/09/2026
 
 Le noyau relie exercices, tentatives, observations sourcées et recommandations.
 L'expérience vise d'abord les étudiants, avec un référentiel durable par compte,
@@ -8,7 +8,10 @@ des modules académiques et des échéances déclarées. Les contrats et retrait
 figurent dans les sections ci-dessous ; leur historique technique reste dans
 [les ADR](ARCHITECTURE_DECISIONS.md).
 
-- **Jalon classification précisé le 19/09.** PDF, EPUB, images, manuscrits et texte libre sont attendus. Sujet, compétences sourcées, domaine et hiérarchie sont à clarifier avec le contexte personnel. Moins de 5 % de propositions de compétences incorrectes ET moins de 5 % de compétences attendues oubliées : critères humains acceptés, qualité réelle non encore mesurée. P01-0011 ajoute localement lecteur EPUB textuel borné, parent proposé, dialogue ciblé et évaluateur offline. Activation distante EPUB en attente de la migration préparée `20260918221339_autoriser_epub_documentaire.sql`. [État, preuves et limites](ai-company/operations/runs/2026-09-19-classification-dialogue.md).
+- **Jalon classification précisé le 19/09.** PDF, EPUB, images, manuscrits et texte libre sont attendus. Sujet, compétences sourcées, domaine et hiérarchie sont à clarifier avec le contexte personnel. Moins de 5 % de propositions de compétences incorrectes ET moins de 5 % de compétences attendues oubliées : critères humains acceptés, qualité réelle non encore mesurée. P01-0011 ajoute localement lecteur EPUB textuel borné, parent proposé, dialogue ciblé et évaluateur offline. Le MIME EPUB est activé dans Supabase depuis le 24/09 (migration `20260918221339_autoriser_epub_documentaire.sql`, version distante `20260924084536`), après le refus constaté sur le corpus. [État, preuves et limites](ai-company/operations/runs/2026-09-19-classification-dialogue.md).
+- **Organisation progressive, tranche locale du 24/09.** Le pilote distingue désormais les compétences principales explicitement mentionnées, enseignées ou demandées dans les sources. Les mentions vagues ou seulement thématiques restent à vérifier ; aucun de ces liens ne mesure la maîtrise. Mes cours donne accès à « Corriger le rangement » ; la relecture permet de modifier domaine, titre et liens, y compris par recherche dans le référentiel actif, sans réanalyse payante. Même sans analyse terminée ou après l'échec d'une nouvelle tranche, le rangement manuel accepte un domaine existant ou « À trier », le titre, le type et les compétences actives, sans effacer la source. Dans la conversation documentaire, la personne peut déclarer les documents réellement utilisés et le geste effectué ; une séance terminée les conserve dans le Cahier avec leurs liens, sans Observation. La date de dépôt ne vaut jamais date de travail. Ce parcours local ne démontre pas encore la cible de moins de 5 % d'erreurs et moins de 5 % d'omissions sur références humaines, ni la détection de toutes les erreurs. [Source humaine](ai-company/product/cadrage-direction.md#précision-humaine--rangement-progressif-et-travail-de-la-journée-24092026).
+- **Corrections du corpus du 24/09, locales.** Les longues sections EPUB sont découpées en parties sourcées, sous les plafonds de texte et de lecture existants. Les notations prises en charge restent lisibles ; les figures et notations non interprétables restent signalées. Le contrat de classification demande des capacités transférables, un geste équivalent à la source et des formulations complètes sous les bornes ; sinon une abstention sourcée. Ces garde-fous ne démontrent pas les seuils de qualité. [Corrections et vérifications](ai-company/operations/runs/2026-09-24-corrections-corpus.md).
+- **Fidélité des compétences, P01-0014 puis précision locale.** Chaque nouvelle proposition fournisseur déclare son appui principal et sa relation au support. Une consigne ou une démonstration peut étayer une compétence demandée ou enseignée ; une mention principale peut être sélectionnée comme mention si le passage la formule explicitement. Un appui absent ou hors des sources fait refuser la réponse ; une relation incertaine devient une réserve sourcée. Le contrôle ne prouve pas la fidélité sémantique du modèle et peut omettre des compétences. Les anciens résultats restent consultables sans réanalyse. [Contrat antérieur](ai-company/operations/runs/2026-09-24-fidelite-competences.md).
 - **Entrée conversationnelle en pilote.** Une même saisie accueille texte,
   fichiers et dossiers ; chaque ressource conserve son original. Depuis la demande
   de fluidité du 16/09, « Préparer ma proposition » autorise en un geste le dépôt
@@ -214,6 +217,15 @@ d'intention. Un événement de calendrier ne mesure rien et une séance manquée
 produit aucune preuve de compétence.
 
 ### Une mémoire réutilisable au service du prochain apprentissage
+
+**Précision humaine du 24/09 :** une organisation utile est une proposition qui
+s'affine avec le temps et le dialogue, toujours réorganisable manuellement de
+façon fluide. La cible reste 5 % d'erreurs, avec contrôle humain accessible.
+La première tranche locale identifie les compétences principales mentionnées
+explicitement et permet de déclarer un geste de la journée avec ses supports
+dans `LearningSession`. Les corrections de rangement ne modifient ni les originaux
+ni cette trace datée. Dépôt, mention de compétence et acquisition restent distincts.
+Cette réalisation ne certifie pas les performances actuelles sur corpus humain.
 
 **Arbitrages humains du 16/09 :** la mémoire personnelle et le suivi longitudinal
 priment ; sujets, contenus et idées peuvent entrer sans devenir des compétences.

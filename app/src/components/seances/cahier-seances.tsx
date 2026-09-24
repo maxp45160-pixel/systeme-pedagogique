@@ -200,16 +200,25 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
   const preset = presetDepuisSeance(seance, donnees.exercices);
   const exercicesParId = new Map(donnees.exercices.map((exercice) => [exercice.id, exercice]));
   const activites = seance.activites.filter((activite) => activite.type === "exercice");
+  const interventionsDocumentaires = seance.interventions?.filter((intervention) => intervention.source.kind === "document") ?? [];
+  const seanceDocumentaire = activites.length === 0 && interventionsDocumentaires.length > 0 &&
+    interventionsDocumentaires.length === seance.interventions?.length;
+  const travailDocumentaire = seanceDocumentaire && statutSeance(seance) === "terminee" &&
+    seance.skillCodes.length === 0 && interventionsDocumentaires.every((intervention) =>
+      intervention.statut === "completed" && intervention.expectedEffect === "preparation" &&
+      intervention.proofContract === undefined);
   const abandonnee = statutSeance(seance) === "abandonnee";
 
   const titre =
     seance.besoinDeclare?.intention?.trim() ||
     (activites.length === 1 ? (exercicesParId.get(activites[0]?.ref)?.titre ?? activites[0]?.libelle) : null) ||
+    (seanceDocumentaire ? (travailDocumentaire ? "Travail sur ressources" : "Séance documentaire") : null) ||
     "Séance d'exercices";
 
   const nbExercices = `${activites.length} exercice${activites.length > 1 ? "s" : ""}`;
   const duree = seance.dureeMin !== undefined ? formatDuree(seance.dureeMin) : "durée non notée";
-  const metaLigne = `${nbExercices} · ${duree}`;
+  const nbRessources = `${interventionsDocumentaires.length} ressource${interventionsDocumentaires.length > 1 ? "s" : ""}`;
+  const metaLigne = `${seanceDocumentaire ? nbRessources : nbExercices} · ${duree}`;
 
   return (
     <Carte>
@@ -260,6 +269,27 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
           </div>
         )}
 
+        {interventionsDocumentaires.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-texte-discret">
+              {travailDocumentaire ? "Ressources travaillées" : "Ressources de la séance"}
+            </p>
+            <ul className="space-y-1.5">
+              {interventionsDocumentaires.map((intervention) => (
+                <li key={intervention.id} className="rounded-md border border-bordure-controle/40 bg-surface-2/50 px-3 py-2">
+                  <Link
+                    href={`/atelier?document=${encodeURIComponent(intervention.source.ref)}`}
+                    className="text-xs font-medium text-primaire hover:underline"
+                  >
+                    {intervention.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {travailDocumentaire && <p className="text-xs text-texte-discret">Travail déclaré, sans évaluation des compétences.</p>}
+          </div>
+        )}
+
         <div className="space-y-1.5 border-t border-bordure/50 pt-3">
           <label className="text-xs font-semibold uppercase tracking-wider text-texte-discret" htmlFor={`note-${seance.id}`}>
             Note de séance
@@ -279,15 +309,17 @@ export function LigneCahier({ seance, donnees }: { seance: LearningSession; donn
           </form>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure/50 pt-3">
-          <Link
-            href={detailSeanceUrl(seance.id)}
-            className="text-xs font-medium text-primaire hover:underline"
-          >
-            Voir le détail de la séance →
-          </Link>
-          {preset && <ConcepteurSeance {...donnees} preset={preset} libelle="Refaire la séance" />}
-        </div>
+        {!travailDocumentaire && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-bordure/50 pt-3">
+            <Link
+              href={detailSeanceUrl(seance.id)}
+              className="text-xs font-medium text-primaire hover:underline"
+            >
+              Voir le détail de la séance →
+            </Link>
+            {preset && <ConcepteurSeance {...donnees} preset={preset} libelle="Refaire la séance" />}
+          </div>
+        )}
       </div>
     </Carte>
   );
@@ -387,6 +419,7 @@ function correspondRecherche(
     seance.besoinDeclare?.intention,
     ...seance.skillCodes,
     ...seance.activites.map((activite) => activite.libelle),
+    ...seance.interventions?.flatMap((intervention) => [intervention.label, intervention.source.ref]) ?? [],
     ...seance.activites.flatMap((activite) => {
       const exercice = exercicesParId.get(activite.ref);
       return exercice ? [exercice.titre, exercice.enonce, ...exercice.competences] : [];

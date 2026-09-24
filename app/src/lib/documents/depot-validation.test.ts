@@ -118,6 +118,16 @@ describe("organisation V2 strictement proposée",()=>{
     expect(()=>validerOrganisationDepot({organisation:{...base,domaine:{...base.domaine,id:"inconnu"}}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
     expect(()=>validerOrganisationDepot({organisation:{...base,competences:[{...base.competences[0],code:"IA-99"}]}},"doc","Analyser un argument philosophique",[],referentiel)).toThrow("référentiel actif");
   });
+  it("conserve une relation qualifiée sans modifier les sorties historiques",()=>{
+    const historique=validerOrganisationDepot({organisation:base},"doc",preuve.citation,[],referentiel);
+    expect(historique.competences[0]).not.toHaveProperty("relationSupport");
+    for(const relationSupport of ["mention","enseignee","demandee"] as const) {
+      const proposition={organisation:{...base,competences:[{...base.competences[0],relationSupport}]}};
+      expect(validerOrganisationDepot(proposition,"doc",preuve.citation,[],referentiel).competences[0]).toMatchObject({relationSupport});
+    }
+    const invalide={organisation:{...base,competences:[{...base.competences[0],relationSupport:"maitrisee"}]}};
+    expect(()=>validerOrganisationDepot(invalide,"doc",preuve.citation,[],referentiel)).toThrow(/Relation de compétence/);
+  });
   it("accepte jusqu'à trente propositions et contrôle encore la source et le code de la dernière",()=>{
     const gestes=["Additionner des fractions","Multiplier des fractions","Comparer des fractions","Simplifier une fraction","Développer un produit","Factoriser une expression","Réduire une expression","Résoudre une équation","Résoudre une inéquation","Résoudre un système","Calculer une puissance","Simplifier une racine","Convertir une unité","Calculer un pourcentage","Calculer une proportion","Dériver un polynôme","Intégrer un polynôme","Calculer une limite","Étudier une fonction","Tracer une courbe","Calculer une moyenne","Calculer une médiane","Calculer une variance","Calculer une probabilité","Dénombrer des arrangements","Calculer un déterminant","Multiplier des matrices","Calculer une norme","Calculer un produit scalaire","Décomposer un vecteur"];
     const competences=gestes.map((intitule,i)=>({code:`MAT-${i+1}`,intitule}));
